@@ -28,7 +28,7 @@ python vllm-hust-engine/one_click.py prepare --help
 | 运行平台 | Linux aarch64，CPython 3.12，CANN 9.1.0 |
 | 预装依赖 | Torch 2.13.0+cpu、Torch-NPU 2.13.0rc1、Triton-Ascend 3.6.0、Transformers 5.14.1、tokenizers 0.22.2 |
 
-先准备上述环境及独立的 Python 环境。驱动、CANN 和模型权重按各自渠道配置。以下命令锁定引擎与轮包的哈希，并保留预装厂商依赖：
+一键入口会先检查这些依赖版本，不符合时在安装前退出。先准备上述环境及独立的 Python 环境。驱动、CANN 和模型权重按各自渠道配置。以下命令锁定引擎与轮包的哈希，并保留预装厂商依赖：
 
 ```sh
 python -m pip install --no-deps -r engine/r8-pip-requirements-deeplinkengine.txt

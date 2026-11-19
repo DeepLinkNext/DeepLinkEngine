@@ -157,10 +157,14 @@ def main(arguments=None):
         effective = arguments
         if arguments[0] in ("prepare", "run"):
             effective = module.configuration(arguments[0], arguments[1:])
-        if option(effective, "--engine-profile") is None:
-            effective += ["--engine-profile", "r8"]
-        if option(effective, "--engine-profile") != "r8":
-            raise ValueError("This public entry requires engine_profile r8")
+        if "--context-tenant-only" in effective:
+            if option(effective, "--engine-profile") is not None:
+                raise ValueError("The context/tenant controller reads the SDK identity; omit --engine-profile")
+        else:
+            if option(effective, "--engine-profile") is None:
+                effective += ["--engine-profile", "r8"]
+            if option(effective, "--engine-profile") != "r8":
+                raise ValueError("This public entry requires engine_profile r8")
         if option(effective, "--deployment") is None:
             raise ValueError("Provide deployment: /path/to/r8-installation/sdk from the public r8 installation; see engine/README.md")
         os.environ["VLLM_HUST_PROJECT_EVIDENCE"] = str(reference_evidence(lock))

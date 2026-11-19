@@ -1,0 +1,127 @@
+{
+  "schema": "deeplinkengine-repository-audit/v1",
+  "date": "2026-11-19",
+  "repository": "DeepLinkNext/DeepLinkEngine",
+  "base_commit": "1fb80d1ad08cb2de16f8601b4da262c3038144e1",
+  "scope": {
+    "repository_files_verified": 89,
+    "repository_json_files_parsed": 48,
+    "runtime": {
+      "package_verify": true,
+      "source_files": 9235,
+      "python_syntax_checked": 5683,
+      "syntax_errors": [],
+      "native_frameworks_imported": false
+    },
+    "wheels": [
+      {
+        "name": "vllm-0.28.1.post1.dev143+gf18cf803c.empty-cp312-cp312-linux_aarch64.whl",
+        "bytes": 32374960,
+        "sha256": "4854cce2e713499e9f1b9bd514f0a1136008758b2b367ba943100ed9f97d01dc",
+        "record_members": 3009,
+        "aarch64_elf_files": 2,
+        "ascend910b_kernel_objects_machine_4137": 0
+      },
+      {
+        "name": "vllm_ascend-0.25.1rc2.dev125+hust.20260903.4.g74f0c0a27-cp312-cp312-linux_aarch64.whl",
+        "bytes": 23698984,
+        "sha256": "a04f758a6973c1afe42a4fe2f123c7de295e32a3fe2583e7445dd7047c9186a9",
+        "record_members": 1556,
+        "aarch64_elf_files": 7,
+        "ascend910b_kernel_objects_machine_4137": 186
+      },
+      {
+        "name": "vllm_hust_runtime-2026.11.17.8+r8.3f7eacc1-cp312-cp312-linux_aarch64.whl",
+        "bytes": 123765275,
+        "sha256": "1dea132a69efb3a6ce05e893e52d65777b5907b17b2b5c227cb8ecf9cacc0ce5",
+        "record_members": 9252,
+        "aarch64_elf_files": 18,
+        "ascend910b_kernel_objects_machine_4137": 186
+      }
+    ],
+    "context_raw_reproduction": {
+      "raw_bytes": 54075318,
+      "raw_sha256": "650bcfc53532bd29b6a5c38a2549a2a7057f1c7df3b0a62cce98f64a5e4405fe",
+      "all_public_json_fields_equal": true,
+      "svg_bytes_equal": true,
+      "new_inference_executed": false
+    },
+    "additional_submission_source_hashes_verified": 4,
+    "submission_updated_context_ratios_independently_recomputed": 10,
+    "updated_32k_ttft_p95_window_max_over_min": 2.1914134728598165
+  },
+  "fixed_issues": [
+    {
+      "id": "supplement-dispatch",
+      "problem": "Frozen package evaluate injects --engine-profile r8, rejected by the supplementary parser.",
+      "fix": "Verify the installed tool manifest, then invoke its original one_click.py supplementary entry directly.",
+      "reproduction": "Original parser rejects injected flags; actual frozen entry and parser accept corrected routing before run() is intercepted."
+    },
+    {
+      "id": "dependency-preflight",
+      "problem": "Installer could mutate package state before reporting incompatible vendor dependencies.",
+      "fix": "Compare CPython/ABI and installed dependency metadata against r8-lock.json before pip, output creation or SDK installation."
+    },
+    {
+      "id": "output-link",
+      "problem": "Resolving the output path before lexists() hid a dangling link and redirected output.",
+      "fix": "Keep the output leaf unresolved when checking whether the destination is occupied."
+    },
+    {
+      "id": "completion-evidence",
+      "problem": "Existing HTML and zero return codes could mark incomplete campaign evidence completed.",
+      "fix": "Require fixed-five and supplementary completion records plus all four formal phases; record SHA-256 of the receipts, plan and reports."
+    },
+    {
+      "id": "interrupted-stage",
+      "problem": "A launch error or keyboard interruption left the last stage marked running.",
+      "fix": "Persist launch_failed or interrupted status before recording overall failure."
+    }
+  ],
+  "validation": {
+    "public_verification_commands": 4,
+    "frozen_tool_tests": {
+      "collected": 252,
+      "initial_passed": 251,
+      "initial_failed": 1,
+      "initial_failure": "Test temporary filesystem had less than the pre-existing 4 GiB reserve.",
+      "targeted_recheck_passed": 1,
+      "recheck_change": "TMPDIR set to the audit workspace; original source and test unchanged."
+    },
+    "new_regression_tests_passed": 8,
+    "real_frozen_entry_checks": {
+      "verify_tools": true,
+      "real_supplement_dispatch_and_parser": true,
+      "actual_host_dependency_rejection": true,
+      "one_click_preflight_before_install": true,
+      "new_model_execution": false
+    },
+    "native_framework_imports": false,
+    "new_model_execution": false
+  },
+  "limits": [
+    "Default research-2card Python environment has Torch 2.10.0+cpu, torch-npu 2.10.0.post4, Transformers 5.5.4 and Triton-Ascend 3.2.2; frozen r8 requires the versions recorded in engine/r8-lock.json.",
+    "No new model-serving or NPU benchmark was started. A complete installation and live campaign in the qualified environment remain unverified.",
+    "Fixed-five public scalar checks and the published 4.1 reference recomputation passed; the original full fixed-five request/response archives were not regraded in this audit.",
+    "Third-party verification or witnessing remains pending; this audit is not a third-party certificate.",
+    "Concurrent submission review records the r8 HTTP/out8192 effective-work record as missing and updated 32K TTFT P95 window max/min as 2.1914134728598165 against a stated 2.00 threshold; completion is not acceptance."
+  ],
+  "evidence_sha256": {
+    "source-audit.json": "39b819ee3d5949d51a9e5a5dde6c6c97f708342ee44d20661a34c46816cd28cf",
+    "wheel-audit.json": "88da9736a23afdd0d2184a83076c8003e22ab4d901e84bdda907629b2ec27c76",
+    "context-reproduction.json": "e1132ba5519646d337d4a87862ccae17f9f3329917d2668eb33696956793bdbe",
+    "real-entry-audit.json": "a517e853fb326eda80d2109a107b125217e4853b6e20fa09350aa7c8402c28f7",
+    "workflow-regression-tests.log": "dcf0a8164c02057e3cddb3b9f57412d074f3fbdc2bf39a132d2f9081457c158f",
+    "frozen-tools-tests.log": "948abf359a4ee8fc77dcf03077c263bf6ae775b81f6a5b2d0c348a0f65607ef0",
+    "frozen-tools-targeted-recheck.log": "142e711fac20a466998c8bbeb42619edb1e1722cf84dfe39f564f9b894494392",
+    "supplement-before-fix.txt": "bdfe8a22a61b680b9ef2c0c8dc9ce92f30b18ddc6be4294ef63269d4a9a7dca9",
+    "host-dependency-rejection.txt": "fda43c45f01ae132eed5cd2065f1ee090096f59a2290a5bd7d37230800cf3a22"
+  },
+  "publication_base_commit": "5fa14acc1b03b1a5b6aeb6922a4f4cd18db47083",
+  "concurrent_changes_preserved": [
+    "README.md",
+    "benchmark/README.md",
+    "benchmark/submission-review.md",
+    "evidence/submission-check-4.1-4.3.json"
+  ]
+}

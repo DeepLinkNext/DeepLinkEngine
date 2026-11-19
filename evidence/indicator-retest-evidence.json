@@ -1,0 +1,107 @@
+{
+  "schema": "deeplinkengine-retest-evidence/v1",
+  "indicator_4_1": {
+    "http_reference_audit": {
+      "archive_sha256": "2b22f63d3bf92862247e7c88156a36e696da7260aacca89a63430ff45f6252f5",
+      "request": "MMLU-Pro fixed 200 HTTP/out8192",
+      "engine_release": "full-answer-b1-20261117-r8",
+      "component_cases": {
+        "gdn-decode": 12,
+        "gdn-prefill": 18
+      },
+      "capture_begin": "HTTP 500 before the formal client started",
+      "capture_gate": "Drain State DMA, clear host checkpoints, reset prefixes",
+      "formal_client_started": false,
+      "work_artifact_names": [
+        "capture-begin.json"
+      ],
+      "whole_model_effective_work": null,
+      "efficiency_lower_percent": null,
+      "cross_checked_component_and_prospective_archives": {
+        "r8-partial.zip": "ce6c09f77b40ee255d7162afdabc7b83b13e0098b04d7626e4169c1e51803917",
+        "r8-prefill.zip": "66f940ea21506ee47d861ef30fdb9488836f9ad99e0587a218094a14b41e152f",
+        "m01-prototype.zip": "e9d09ad5bd250b1c23630079fd8e15c73c22052b1e3f208d5778aec5fce1faef",
+        "r8-timeline-prospective.zip": "2745f677c551fe5a2636a97340d47f647f3b2246b3708e2c76671ade69d62831"
+      }
+    },
+    "historical_out256_reference": "benchmark/reports/m01-qualified-pair-20261103/summary.json",
+    "current_out256_same_profile_complete_pair_found": false
+  },
+  "indicator_4_3": {
+    "source_archive_sha256": "650bcfc53532bd29b6a5c38a2549a2a7057f1c7df3b0a62cce98f64a5e4405fe",
+    "inputs_sha256": "5156a6ae436c7e32364a5ecbb028b52f26da1808be883c02e8e230defd556559",
+    "arms": {
+      "B0": {
+        "archive_service_log_sha256": "fd5c0253b0c46ef6e00b5b190f98848dd531d7ae1d1ddb44c0b7fb6a10c1c208",
+        "enospc_log_records": 0,
+        "log_handler_flush_tracebacks": 0,
+        "formal_request_audit": {
+          "4096-formal": {
+            "complete": 122,
+            "max_elapsed_seconds": 43.64458006399218,
+            "response_length_256_normal_termination": 122
+          },
+          "16384-formal": {
+            "complete": 73,
+            "max_elapsed_seconds": 56.40357238199795,
+            "response_length_256_normal_termination": 73
+          },
+          "32768-formal": {
+            "complete": 38,
+            "max_elapsed_seconds": 99.85377379501006,
+            "response_length_256_normal_termination": 38
+          },
+          "multi-tenant-formal": {
+            "complete": 157,
+            "max_elapsed_seconds": 81.58637285599252,
+            "response_length_256_normal_termination": 157
+          }
+        },
+        "memory_event_delta": {
+          "observed_process_oom": 0,
+          "observed_process_oom_kill": 0
+        },
+        "completed_receipt": true,
+        "quiescent_after_test": true
+      },
+      "B1": {
+        "archive_service_log_sha256": "aaf6bc70ad0cb1aba49c115e207a8357580fe927085088026a88ef3f1475573b",
+        "enospc_log_records": 381,
+        "log_handler_flush_tracebacks": 379,
+        "formal_request_audit": {
+          "4096-formal": {
+            "complete": 248,
+            "max_elapsed_seconds": 25.07810680900002,
+            "response_length_256_normal_termination": 248,
+            "log_write_error_observed_in_window": true
+          },
+          "16384-formal": {
+            "complete": 169,
+            "max_elapsed_seconds": 19.042541040980723,
+            "response_length_256_normal_termination": 169,
+            "log_write_error_observed_in_window": true
+          },
+          "32768-formal": {
+            "complete": 98,
+            "max_elapsed_seconds": 31.6110389319947,
+            "response_length_256_normal_termination": 98,
+            "log_write_error_observed_in_window": true
+          },
+          "multi-tenant-formal": {
+            "complete": 432,
+            "max_elapsed_seconds": 24.848819811013527,
+            "response_length_256_normal_termination": 432,
+            "log_write_error_observed_in_window": true
+          }
+        },
+        "memory_event_delta": {
+          "observed_process_oom": 0,
+          "observed_process_oom_kill": 0
+        },
+        "completed_receipt": true,
+        "quiescent_after_test": true
+      }
+    },
+    "all_classified_exceptions_zero_certified_for_current_B1": false
+  }
+}

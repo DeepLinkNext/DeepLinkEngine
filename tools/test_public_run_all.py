@@ -31,6 +31,10 @@ class FullSuiteEntryTests(unittest.TestCase):
 
         def command(args):
             commands.append(args)
+            if "install" in args:
+                record = out / "installation/installation.json"
+                record.parent.mkdir(parents=True, exist_ok=True)
+                record.write_text(json.dumps(dict(release="full-answer-b1-20261117-r8")))
             if "run" in args and str(ROOT / "one_click.py") in args:
                 if interrupt:
                     raise KeyboardInterrupt("cancelled fixture")
@@ -42,13 +46,18 @@ class FullSuiteEntryTests(unittest.TestCase):
                 if retired:
                     current["certificate_kind"] = "matched_complete_necessary_work_and_full_reference_lower_bound"
                 (fixed / "campaign.json").write_text(json.dumps(dict(
-                    selected_execution_complete=True, compute_reference=current)))
+                    status="completed", selected_execution_complete=True, compute_reference=current)))
                 (fixed / "frozen-execution-plan.json").write_text(json.dumps(dict(
                     optimized_deployment="/new/sdk", baseline_deployment="/new/b0", logical_devices="0,1")))
                 report = out / "fixed-five-report/report.html"
                 report.parent.mkdir()
                 report.write_text("fixture only")
             if "--context-tenant-only" in args:
+                folder = out / "context-tenant"
+                folder.mkdir()
+                (folder / "execution.json").write_text(json.dumps(dict(status="completed")))
+                (folder / "paired-summary.json").write_text(json.dumps(dict(execution_complete=True,
+                    comparison=[dict(phase=p) for p in ("4096-formal", "16384-formal", "32768-formal", "multi-tenant-formal")])))
                 report = out / "context-tenant/paired-report/report.html"
                 report.parent.mkdir(parents=True)
                 report.write_text("fixture only")
@@ -63,9 +72,11 @@ class FullSuiteEntryTests(unittest.TestCase):
             status, receipt, commands, out = self.execute(temp)
             self.assertEqual(status, 0)
             self.assertEqual(receipt["status"], "completed")
-            self.assertEqual(len(commands), 6)
+            self.assertEqual(len(commands), 7)
             self.assertTrue(all("evaluate" not in args for args in commands))
-            self.assertTrue(all(args[:2] == [sys.executable, str(ROOT / "one_click.py")] for args in commands[3:]))
+            entry_calls = [args for args in commands if str(ROOT / "one_click.py") in args]
+            self.assertEqual(len(entry_calls), 3)
+            self.assertTrue(all(args[:2] == [sys.executable, str(ROOT / "one_click.py")] for args in entry_calls))
             config = json.loads((out / "evaluation.json").read_text())
             self.assertEqual(config["reference_profile"], "submission-v2")
             self.assertTrue(receipt["compute_reference_target"]["accepted"])
@@ -90,8 +101,8 @@ class FullSuiteEntryTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp:
             status, receipt, commands, _ = self.execute(temp, interrupt=True)
             self.assertEqual(status, 1)
-            self.assertEqual(receipt["stages"][-1]["status"], "failed")
-            self.assertIn("cancelled fixture", receipt["stages"][-1]["failure"])
+            self.assertEqual(receipt["stages"][-1]["status"], "interrupted")
+            self.assertIn("cancelled fixture", receipt["stages"][-1]["error"])
 
 
 if __name__ == "__main__":

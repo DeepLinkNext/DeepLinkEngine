@@ -1,6 +1,6 @@
 {
   "schema": "deeplinkengine-public-one-click/v1",
-  "version": "r8-evaluation-reference-20261119-v2",
+  "version": "r8-evaluation-reference-20261119-v3",
   "engine_release": "r8-frozen-20261117",
   "tools": {
     "upstream_repository": "vLLM-HUST/vllm-hust-engine",
@@ -12,7 +12,7 @@
     "manifest_sha256": "738ae2a8a9f7351797f57d958b85d6ac1348f5b7840303eae084766d58ec9271",
     "build_kind": "local-source-snapshot",
     "public_source": "benchmark/one-click-kit",
-    "url": "https://github.com/DeepLinkNext/DeepLinkEngine/releases/download/r8-evaluation-reference-20261119-v2/engine-tools.tar.gz",
+    "url": "https://github.com/DeepLinkNext/DeepLinkEngine/releases/download/r8-evaluation-reference-20261119-v3/engine-tools.tar.gz",
     "public_source_readback": "All 510 publication file Git blob identities verified against the upstream commit; archive built from a local source snapshot."
   },
   "reference_evidence": {

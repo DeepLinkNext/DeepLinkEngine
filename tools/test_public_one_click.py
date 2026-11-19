@@ -24,6 +24,31 @@ from compute_reference import target
 
 
 class PublicEntryTests(unittest.TestCase):
+    def test_real_public_supplement_route_reaches_frozen_parser_without_profile_injection(self):
+        observed = []
+        def execute(executable, command, environment):
+            self.assertEqual(Path(command[1]), entry.KIT / "scripts/acceptance_suite.py")
+            self.assertNotIn("--engine-profile", command)
+            spec = importlib.util.spec_from_file_location("public_supplement_contract", command[1])
+            suite = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(suite)
+            with patch.object(sys, "argv", command[1:]), patch.object(suite, "run", return_value=0) as run:
+                self.assertEqual(suite.main(), 0)
+                observed.append(run.call_args.args[0])
+        with tempfile.TemporaryDirectory() as temp, \
+                patch.object(entry, "reference_evidence", return_value=Path(temp)), \
+                patch.object(entry.os, "execve", side_effect=execute), \
+                patch.object(sys, "argv", list(sys.argv)):
+            with self.assertRaises(SystemExit) as exited:
+                entry.main(["--context-tenant-only", "--no-follow", "--deployment", "/sdk",
+                    "--baseline-deployment", "/b0", "--b1-python", sys.executable,
+                    "--model", "/model", "--cache", temp, "--out", str(Path(temp) / "new-run"),
+                    "--physical-devices", "1,6", "--devices", "0,1"])
+            self.assertIn(exited.exception.code, (None, 0))
+        self.assertEqual(len(observed), 1)
+        self.assertEqual(observed[0].physical_devices, "1,6")
+        self.assertEqual(observed[0].devices, "0,1")
+
     def test_published_sources_match_every_inventory_pin(self):
         self.assertEqual(entry.verify_kit()["tools"]["files"], 510)
 

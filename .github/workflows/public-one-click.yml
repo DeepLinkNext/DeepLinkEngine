@@ -28,6 +28,7 @@ jobs:
       - run: python -B one_click.py run --help
       - run: python -B tools/test_public_one_click.py
       - run: python -B tools/test_public_run_all.py
+      - run: python -B tests/test_run_all.py
       - name: Fetch fixed reference evidence anonymously into an empty cache
         run: |
           unset GH_TOKEN GITHUB_TOKEN VLLM_HUST_PROJECT_EVIDENCE
