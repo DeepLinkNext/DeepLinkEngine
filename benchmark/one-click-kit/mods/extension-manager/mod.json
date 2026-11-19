@@ -1,0 +1,54 @@
+{
+  "schema": "vllm-hust-frozen-mod/v1",
+  "id": "extension-manager",
+  "name": "Extension Manager",
+  "kind": "lifecycle-infrastructure",
+  "version": "full-answer-b1-20261113-r6",
+  "status": "enabled-in-frozen-r6",
+  "supported_engine": [
+    "full-answer-b1-20261113-r6"
+  ],
+  "default_enabled": true,
+  "default_engine": "full-answer-b1-20261113-r6",
+  "optional_search_dimension": false,
+  "engine_profile": "engines/b1-r6.json",
+  "source_inventory": "mods/active-stack-r6.json",
+  "deployment_roots": [
+    "manager"
+  ],
+  "requires_mods": [],
+  "deployment_entrypoint_pins": {
+    "manager/vllm_hust_ext/cli.py": "80c9cbda0cce1d2937f716d47a1a70db7dbce5b45a5e1068ec995a866c4fb772",
+    "manager/vllm_hust_ext/core.py": "40a7dc4123b430211948c612599a8ff190d1659fe1b4b04ca3a015207cbae210",
+    "config/manager.json": "ec8634dd52dad7a67573c272610c93583ca50475f7b3bcae19fb67cd1b62c164"
+  },
+  "pin_algorithm": "sha256",
+  "pin_scope": "Selected deployed entrypoints; complete original file coverage comes from source/component manifests plus the r6 overlay and documented restore adaptations.",
+  "activation": "冻结服务入口通过 vllm_hust_ext.cli.main 的 run 路径启动子进程；config/manager.json 的两个 enabled=true 扩展见本清单。",
+  "features": [
+    "managed-extension-activation",
+    "bundle-config-schema-v2"
+  ],
+  "resource_and_startup_cost": "增加启动时发现、检查及配置处理；不是独立的模型算子加速项。",
+  "constraints": [
+    "Ascend 910B2; Qwen3.5-35B-A3B; BF16; TP2/PP1",
+    "统一归档在 mods/extension-manager 下；恢复源码仍在 SDK 的 manager/vllm_hust_ext，避免搬动运行时导入路径。只读目录清单不会自行加载或开关扩展。"
+  ],
+  "disable_or_restore": "冻结 r6 使用完整组合，不提供临时删模块开关；历史对照需单独版本化配置和验收，恢复使用校验通过的同版快照。",
+  "performance_claim": {
+    "isolated_speedup_measured": false,
+    "independent_throughput_gain_percent": null,
+    "evidence_scope": "Frozen combined-engine evidence; not a new component ablation."
+  },
+  "evidence": [
+    "engines/b1-r4.json",
+    "engines/b1-r6.json",
+    "engines/b1-r6-overlay.json",
+    "validation/r6-self-run-status-20261115.json"
+  ],
+  "recovery_source_route": {
+    "artifact": "b1-r4-recovered-components.tar.gz",
+    "prefix": "root/extension-manager/src/",
+    "configuration_prefix": "workspace/m01-qualification-20261101/runtime-b1/manager-recovery-r2/"
+  }
+}

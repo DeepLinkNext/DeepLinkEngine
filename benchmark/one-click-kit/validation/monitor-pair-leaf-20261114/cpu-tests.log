@@ -1,0 +1,18 @@
+...................PUBLIC_TRACE_RESPONSE synthetic-trace tokenization_error
+.......Traceback (most recent call last):
+  File "/tmp/tmpvtbpq0wo/child.py", line 6, in <module>
+    time.sleep(30)
+KeyboardInterrupt
+Traceback (most recent call last):
+  File "/tmp/tmpe3foheag/child.py", line 6, in <module>
+    time.sleep(30)
+KeyboardInterrupt
+...................THIRD_PARTY_REUSE_ADMITTED 2 new stages 2
+..................................CAMPAIGN /tmp/tmpn8soqxje/campaign/campaign.json
+...........................THIRD_PARTY_FAILED RuntimeError: Output filesystem has less than the original 4 GiB startup reserve; select another --out volume before SDK verification or model startup
+.......THIRD_PARTY_FAILED ValueError: wrong frozen version
+..
+----------------------------------------------------------------------
+Ran 115 tests in 3.811s
+
+OK

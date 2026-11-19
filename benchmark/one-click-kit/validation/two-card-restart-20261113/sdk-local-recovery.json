@@ -1,0 +1,17 @@
+{
+  "completed": true,
+  "sdk_sha256": "c03e96929d7b061e5cd66aba22d02ba1cb2df270ddb7654f562f8c6202f2e805",
+  "sdk_archive": "/root/test7-gdn-cache-20261018/main-adapter-cpu-r1/sdk213-r1-direct.tgz",
+  "python": "/opt/vllm-hust-r5-runtime-20261113-r2/local-sdk/b1-sdk/venv-school-r1/bin/python",
+  "metadata": {
+    "torch": "2.13.0+cpu",
+    "torch-npu": "2.13.0rc1",
+    "transformers": "5.14.1",
+    "vllm": "0.28.1.post1.dev143+gf18cf803c.empty",
+    "vllm-ascend": "0.25.1rc2.dev125+hust.20260903.4.g74f0c0a27"
+  },
+  "recovered_members": 50715,
+  "protected_files": 4771,
+  "ended": 1794575467.2187026,
+  "scope": "Exact same pinned2.13 base SDK; original Engine sources/overlay are restored and verified separately; not a native qualification"
+}

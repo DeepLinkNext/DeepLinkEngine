@@ -1,0 +1,54 @@
+{
+  "schema": "vllm-hust-frozen-mod/v1",
+  "id": "kv-materialization",
+  "name": "KV materialization",
+  "kind": "runtime-module",
+  "version": "full-answer-b1-20261113-r6",
+  "status": "enabled-in-frozen-r6",
+  "supported_engine": [
+    "full-answer-b1-20261113-r6"
+  ],
+  "default_enabled": true,
+  "default_engine": "full-answer-b1-20261113-r6",
+  "optional_search_dimension": false,
+  "engine_profile": "engines/b1-r6.json",
+  "source_inventory": "mods/active-stack-r6.json",
+  "deployment_roots": [
+    "mods/kv-materialization"
+  ],
+  "requires_mods": [
+    "extension-manager"
+  ],
+  "deployment_entrypoint_pins": {
+    "mods/kv-materialization/vllm_kv_materialization/plugin.py": "d51c0a148f0be369a1e590be1bf133f728a1df9d18a27d972f011449f7714596",
+    "mods/kv-materialization/vllm_kv_materialization/school_vllm_028.py": "6af72798a5aca44c7e36e6580d8ba644a3a4c88079ef8158d6fb863fb0304558"
+  },
+  "pin_algorithm": "sha256",
+  "pin_scope": "Selected deployed entrypoints; complete original file coverage comes from source/component manifests plus the r6 overlay and documented restore adaptations.",
+  "activation": "config/manager.json 启用 org.vllm-hust.kv-materialization-school028-recompute；general plugin 为 kv_materialization，school028 接入检查 VLLM_KV_ENABLE_SCHOOL_028=1。",
+  "features": [
+    "per-request-kv-recompute",
+    "school028-recompute-only"
+  ],
+  "resource_and_startup_cost": "逐请求重算消耗设备计算时间；本组合 KV 预算为每 rank 20 GiB，不能把重算开销从端到端测量中扣除。",
+  "constraints": [
+    "Ascend 910B2; Qwen3.5-35B-A3B; BF16; TP2/PP1",
+    "冻结模式为 school028-recompute-only，不将包内其它策略或磁盘分层功能视为本轮已经启用。"
+  ],
+  "disable_or_restore": "冻结 r6 使用完整组合，不提供临时删模块开关；历史对照需单独版本化配置和验收，恢复使用校验通过的同版快照。",
+  "performance_claim": {
+    "isolated_speedup_measured": false,
+    "independent_throughput_gain_percent": null,
+    "evidence_scope": "Frozen combined-engine evidence; not a new component ablation."
+  },
+  "evidence": [
+    "engines/b1-r4.json",
+    "engines/b1-r6.json",
+    "engines/b1-r6-overlay.json",
+    "validation/r6-self-run-status-20261115.json"
+  ],
+  "recovery_source_route": {
+    "artifact": "b1-r4-recovered-components.tar.gz",
+    "prefix": "workspace/m01-qualification-20261101/runtime-b1/kvmat-managed-payload-r1/"
+  }
+}

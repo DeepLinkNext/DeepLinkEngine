@@ -1,0 +1,68 @@
+{
+  "m01_observer_worker.py": {
+    "source": "/data/shared_upload/workspace-eff9d567-21d6-4cbd-999e-2f3b066fddf6/vllm-hust-optimization-20261115/one-click-completion-20261115-r1/third-party-test-kit/native_m01_worker.py",
+    "source_sha256": "f8809698b2a195bea6acfc00d03b51c3709bff0a9b893d1bb3ce82383b6b5762",
+    "snapshot_sha256": "4210b182c586ed45c344b8f28099041974b2906766a4ff4d48186ade5e2b6dff",
+    "adaptation": "Current ABI binding, persistent daemon raw capture, current loaded target/draft inventory, actual target query layout, graph-visible integer route recording, and live merged-MTP input/length planes; instrumented raw-only service.",
+    "frozen_original": "upstream-originals/native_m01_worker.py.source",
+    "upstream_commit": "4a16450bfca25f1ea4e5ff540773bbf8a1f057e8",
+    "changed_functions": [
+      "start",
+      "stop",
+      "native_rows"
+    ],
+    "derivation": "Current class AST resolves the actual metadata ABI. Level1 profiling persists window/rank-bound raw files; no parsing or export in daemon workers. Original failed r3 capture remains immutable.",
+    "derived_function_ast_sha256": {
+      "start": "c82ba6fb6e73403a28aa6eb6f7b4aef88703cbf9fe96cf9b863454de987e5876",
+      "stop": "ff79bb13f87a044545729071cde55de66e3300ac925c1258fb4b6c35b7412013",
+      "native_rows": "e488fb4bc2ee34e9816b68ce7e2d5deb8f9e424797fa6b44e427dd6fe7a8dc76"
+    },
+    "ancestor_snapshot_sha256": [
+      "c5a3d046628eb83e29b86be3b3dfe54e10149171662dd66d6fb7731296b8161b"
+    ]
+  },
+  "m01_observer_scheduler.py": {
+    "source": "/data/shared_upload/workspace-eff9d567-21d6-4cbd-999e-2f3b066fddf6/vllm-hust-optimization-20261115/one-click-completion-20261115-r1/third-party-test-kit/native_m01_scheduler.py",
+    "source_sha256": "264dd0f586a16d7fff916178e52a6be26c7f9fb4c24ccd474edc43800c41322a",
+    "snapshot_sha256": "5e4f774d84c4131b64d823c00d745dec3dac14e84ebdbab310c5daf1c720dadf",
+    "adaptation": "Only the scheduler import namespace changes",
+    "frozen_original": "upstream-originals/native_m01_scheduler.py.source",
+    "upstream_commit": "4a16450bfca25f1ea4e5ff540773bbf8a1f057e8"
+  },
+  "m01_observer_work.py": {
+    "source": "/workspace/vllm-hust-optimization-20261115/one-click-completion-20261115-r1/third-party-test-kit/native_m01_work.py",
+    "source_sha256": "5962674903d34980ab70a8783d7cfef88c971d00a06d924d27d9013ba4f44458",
+    "snapshot_sha256": "fcd30cc6bcc3fa4a0da167d92e2a033ca1e32eb5cfce19819a5a8cddc7c8578b",
+    "adaptation": "Import namespace changes and an unused-import lint annotation only; arithmetic remains partial and uncertified",
+    "frozen_original": "upstream-originals/native_m01_work.py.source",
+    "upstream_commit": "4a16450bfca25f1ea4e5ff540773bbf8a1f057e8"
+  },
+  "compile_boundary.py": {
+    "source": "/data/shared_upload/workspace-eff9d567-21d6-4cbd-999e-2f3b066fddf6/vllm-hust-optimization-20261115/one-click-completion-20261115-r1/scripts/compile_boundary.py",
+    "source_sha256": "ea252ac9ac2bc2206ac2eeb3a667bf7c868dd40368d835aaf90660dd81e2f4a7",
+    "snapshot_sha256": "ea252ac9ac2bc2206ac2eeb3a667bf7c868dd40368d835aaf90660dd81e2f4a7",
+    "frozen_original": "upstream-originals/compile_boundary.py.source",
+    "upstream_commit": "4a16450bfca25f1ea4e5ff540773bbf8a1f057e8",
+    "adaptation": "Exact current-tools source snapshot"
+  },
+  "runtime_identity.py": {
+    "source": "/data/shared_upload/workspace-eff9d567-21d6-4cbd-999e-2f3b066fddf6/vllm-hust-optimization-20261115/one-click-completion-20261115-r1/scripts/runtime_identity.py",
+    "source_sha256": "ed51e6a7e7af6b6791ae370e3f293082f2f9fd1024a4d5749497ab0cad8adae8",
+    "snapshot_sha256": "ed51e6a7e7af6b6791ae370e3f293082f2f9fd1024a4d5749497ab0cad8adae8",
+    "frozen_original": "upstream-originals/runtime_identity.py.source",
+    "upstream_commit": "4a16450bfca25f1ea4e5ff540773bbf8a1f057e8",
+    "adaptation": "Exact current-tools source snapshot"
+  },
+  "m01_proc_io.py": {
+    "source": "/data/shared_upload/workspace-eff9d567-21d6-4cbd-999e-2f3b066fddf6/vllm-hust-optimization-20261115/one-click-completion-20261115-r1/third-party-test-kit/reference_capture_worker.py",
+    "source_sha256": "bbf6d361647a7e4a83b8f2d0d14918756159aa84cfefb9fa614b4609480b6ab3",
+    "snapshot_sha256": "626ffa4944c8431f2924961f049289fdd4acb4f3baf4c92f26c0a925ba5fb97b",
+    "frozen_original": "upstream-originals/reference_capture_worker.py.source",
+    "upstream_commit": "4a16450bfca25f1ea4e5ff540773bbf8a1f057e8",
+    "derived_functions": [
+      "canonical_sha",
+      "write"
+    ],
+    "adaptation": "Exact function bodies from the reference JSON contract, with a standalone module header"
+  }
+}

@@ -1,0 +1,67 @@
+{
+  "schema": "vllm-hust-evaluation-entry-contract/v1",
+  "default_mode": "full",
+  "modes": {
+    "full": [
+      "mmlu",
+      "hle",
+      "frontier",
+      "swe",
+      "terminal"
+    ],
+    "quick": [
+      "mmlu"
+    ]
+  },
+  "reference_required_by_default": true,
+  "default_engine_profile": "r6",
+  "opt_in_engine_profile": "r8",
+  "profiles": {
+    "mmlu": {
+      "tasks_per_arm": 200,
+      "policy": "protocols/mmlu-fixed200.json"
+    },
+    "hle": {
+      "tasks_per_arm": 200,
+      "strata": [
+        64,
+        10,
+        113,
+        13
+      ],
+      "policy": "protocols/hle-fixed200.json"
+    },
+    "frontier": {
+      "tasks_per_arm": 160
+    },
+    "swe": {
+      "tasks_per_arm": 32,
+      "requests_per_task_max": 2,
+      "quality_scoring": false,
+      "policy": "protocols/public-agent-trace-fixed32-v1.json"
+    },
+    "terminal": {
+      "tasks_per_arm": 32,
+      "requests_per_task_max": 2,
+      "quality_scoring": false,
+      "policy": "protocols/public-agent-trace-fixed32-v1.json"
+    }
+  },
+  "scope": "Full means all five frozen profiles, not all upstream dataset rows. Explicit specialist/custom CLI scopes remain supported and must not be labeled full.",
+  "reference": "Automatically prepare and execute current-workload reference certification, without a user-authored plan. Missing full work/DAG/synchronized timing returns nonzero with explicit report; never substitute out256/native history into out8192/HTTP.",
+  "judge": "HLE/Frontier use separate, unmeasured same-model auxiliary judging; SWE/Terminal replay published traces for inference performance only.",
+  "frozen_policy_sha256": {
+    "protocols/mmlu-fixed200.json": "8124492d6c59f53817116e27b32cd86c7b06c5ce59a45d1d77df56c080772c87",
+    "protocols/hle-fixed200.json": "ffcdd5e27b0822937b0f60aea1ca7c88eac82a39fd9d55c50f41c797ba676282",
+    "protocols/public-agent-trace-fixed32-v1.json": "eacf3628cda8d7accc2e39b20fce687b1deb1cb0b0f470e8b11c8dd4517f71f8"
+  },
+  "reference_workflow": "protocols/automatic-compute-reference-v1.json",
+  "compute_capture": {
+    "default_profile": "submission-v2",
+    "contract": "protocols/compute-capture-profiles-v2.json",
+    "requests_per_repetition": 200,
+    "max_tokens": 256,
+    "formal_repetitions_per_arm": 3,
+    "quality_output_budget_unchanged": 8192
+  }
+}

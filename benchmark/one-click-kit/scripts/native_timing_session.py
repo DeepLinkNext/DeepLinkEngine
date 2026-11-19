@@ -1,0 +1,85 @@
+"""The shared B0/B1 public client, warmup, clock and compilation boundary.
+
+Role-specific preparation admits the original frozen runtime and supplies its
+cache reset operation. Both arms execute precisely this same request protocol.
+"""
+
+import json
+from pathlib import Path
+from uuid import uuid4
+
+from dataset_contract import save
+from native_public_client import ranks, save_result, timed_public_requests, validate_frames
+from native_state_cache import wait_checkpoint_admission
+
+
+def run(config, engine_args, reset_state_cache):
+    from vllm import SamplingParams
+    from vllm.sampling_params import RequestOutputKind
+    from vllm.v1.engine.llm_engine import LLMEngine
+
+    output = Path(config["output"])
+    workload = json.loads(Path(config["workload"]).read_bytes())
+    formal_tokens = workload["request_token_ids"]
+    if len(formal_tokens) != 200 or sum(map(len, formal_tokens)) != 282265:
+        raise ValueError("Current MMLU200 prompt population differs")
+    from reference_capture_profile import validate_native_plan
+
+    capture = validate_native_plan(config)
+    sampling = SamplingParams(**config["sampling"], output_kind=RequestOutputKind.DELTA)
+    warm_sampling = SamplingParams(max_tokens=32, temperature=0, seed=17, ignore_eos=True,
+                                   detokenize=False, output_kind=RequestOutputKind.DELTA)
+    engine = LLMEngine.from_engine_args(engine_args)
+    try:
+        save(output / "model-ready.json", dict(model_loaded=True))
+        wait_checkpoint_admission(Path(config["admission_root"]) / "checkpoint-cache-after-load.json")
+        identities = ranks(engine.collective_rpc("hust_native_observer_audit", timeout=120))
+        save(output / "worker-observer-audit-before.json", identities)
+        ranks(engine.collective_rpc("hust_compile_prepare", timeout=120))
+        warmup = []
+        for index, cohort in enumerate(workload["warmup_cohorts"]):
+            reset_state_cache(engine, output / f"warmup-{index:02d}-reset.json")
+            label = "native-warm-" + uuid4().hex
+            inputs = [dict(prompt_token_ids=tokens, cache_salt=f"{label}-{n}") for n, tokens in enumerate(cohort)]
+            result = timed_public_requests(engine, inputs, warm_sampling, [f"{label}-{n}" for n in range(len(inputs))])
+            responses = validate_frames(result, list(map(len, cohort)), 32)
+            if any(len(row["output_ids"]) != 32 or row["finish_reason"] != "length" for row in responses):
+                raise ValueError("Synthetic native warmup did not reach its fixed budget")
+            warmup.append(dict(cohort=index, requests=len(inputs), output_tokens=32 * len(inputs)))
+            save(output / f"warmup-{index:02d}.json", result)
+        reset_state_cache(engine, output / "after-warmup-reset.json")
+        sealed = ranks(engine.collective_rpc("hust_compile_seal", timeout=120))
+        if any(not row["sealed"] or row["failure"] is not None for row in sealed):
+            raise ValueError("Both native workers must seal compilation before formal submission")
+        save(output / "warmup.json", dict(cohorts=warmup, boundary=sealed, formal_questions_used=False))
+        timings = []
+        for repetition in range(1, config["formal_repetitions"] + 1):
+            reset_state_cache(engine, output / f"formal-{repetition}-reset.json")
+            audit = ranks(engine.collective_rpc("hust_native_observer_audit", timeout=120))
+            save(output / f"formal-{repetition}-pre-audit.json", audit)
+            label = "native-formal-" + uuid4().hex
+            ids = [f"{label}-{n:03d}" for n in range(200)]
+            inputs = [dict(prompt_token_ids=tokens, cache_salt=identity) for tokens, identity in zip(formal_tokens, ids, strict=True)]
+            save(output / f"formal-{repetition}-request-ids.json", ids)
+            result = timed_public_requests(engine, inputs, sampling, ids)
+            responses = save_result(output / f"formal-{repetition}", result, list(map(len, formal_tokens)), capture["max_tokens"])
+            from native_output_geometry import geometry
+
+            save(output / f"formal-{repetition}/public-output-geometry.json", geometry(result, formal_tokens, maximum=capture["max_tokens"]))
+            boundary = ranks(engine.collective_rpc("hust_compile_status", timeout=120))
+            if any(not row["sealed"] or row["failure"] is not None for row in boundary):
+                raise ValueError("Compilation occurred after the native formal boundary")
+            ranks(engine.collective_rpc("hust_native_observer_audit", timeout=120))
+            timing = dict(repetition=repetition, T_seconds=result["T_seconds"],
+                          start_ns=result["start_ns"], end_ns=result["end_ns"],
+                          output_tokens=sum(len(r["output_ids"]) for r in responses), boundary=boundary,
+                          ordinary_public_outputs_retained=True, necessary_work_certified=False,
+                          efficiency_percent=None)
+            timings.append(timing)
+            save(output / f"formal-{repetition}-timing.json", timing)
+            print("NATIVE_M01_TIMING", repetition, timing["T_seconds"], flush=True)
+        save(output / "timings.json", dict(schema=config["schema"], role=config.get("role", "B1"), repetitions=timings,
+             necessary_work_certified=False, efficiency_percent=None,
+             formal_numerator_pending_source_geometry_correspondence=True))
+    finally:
+        engine.engine_core.shutdown()

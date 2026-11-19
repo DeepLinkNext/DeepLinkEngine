@@ -1,0 +1,289 @@
+{
+  "schema": "vllm-hust-tradeoff-catalog/v1",
+  "scope": {
+    "model": "Qwen3.5-35B-A3B BF16",
+    "hardware": "2 x Ascend 910B2",
+    "dataset": "fixed full MMLU200",
+    "request_burst": 200,
+    "max_output_tokens": 8192,
+    "mtp_tokens": 2,
+    "graph": "FULL",
+    "scope_review": "Historical native experiments, not one common-source randomized campaign. Use original per-source comparisons for effects; separate same-condition controls remain separate configurations.",
+    "excluded": "Operator-only probes/profiler timings excluded from model-performance scatter. All E19 source/input/clock/activation/compiler/cleanup/seal/raw-readback checks passed; references remain historical. E20 completed and admitted with required GDN96; its negative TPOT/quality tradeoff remains retained."
+  },
+  "sources": [
+    {
+      "path": "E02-capacity-v2/analyses/capacity-sealed4-v2.json",
+      "sha256": "3637a43c80ea4c2a8238ba311732380a555910d7370f131198feda21614248a4",
+      "trial_ids": [
+        "E02-01-E24",
+        "E02-02-E32",
+        "E02-03-E24",
+        "E02-04-E32"
+      ]
+    },
+    {
+      "path": "E04-padding-v4/analyses/padding-sealed4-v5.json",
+      "sha256": "ec756aad0aa2d51227586b461023b5c0459b0e36a29dd02d47af5dee2aedb84e",
+      "trial_ids": [
+        "E04-01-E24",
+        "E04-02-E26",
+        "E04-03-E24",
+        "E04-04-E26"
+      ]
+    },
+    {
+      "path": "E05-state-policy-v5/analyses/policy-sealed2-v2.json",
+      "sha256": "65ad439fa56874fbddca4c435bfd79b3e6e6dd5dc8ef63b46aac0d8b761b7a0e",
+      "trial_ids": [
+        "E05-01-policy-on",
+        "E05-02-policy-off"
+      ]
+    },
+    {
+      "path": "E06-native-overlap-v6/analyses/native-overlap-sealed2-v1.json",
+      "sha256": "c6f73b6592ddfefa17e9c5b112e73e7983d83d7d405c4331db99ddf6fdb4cc71",
+      "trial_ids": [
+        "E06-01-native-off",
+        "E06-02-native-on"
+      ]
+    },
+    {
+      "path": "E08-decode-capacity-v9/analyses/decode-sealed2-v1.json",
+      "sha256": "b97faea6a8db14e32d7a48bd9e1eab86e3a614811d63bc58b27c645c9fbb22eb",
+      "trial_ids": [
+        "E08-01-decode80",
+        "E08-02-decode72"
+      ]
+    },
+    {
+      "path": "E09-weight-layout-v10/analyses/layout-sealed2-v1.json",
+      "sha256": "2e19d0f27a33fad2268c31b61951900779b745e29e34c9a8dc34db58edaebdb6",
+      "trial_ids": [
+        "E09-01-nz-mode1",
+        "E09-02-nz-mode2"
+      ]
+    },
+    {
+      "path": "E11-nz-scalar-compat-v12/analyses/scalar-sealed1-v1.json",
+      "sha256": "5c9f93a0cf2a36859303e844963f220defb5ea9013e5cb1f906118b4e57e02ff",
+      "trial_ids": [
+        "E09-01-nz-mode1",
+        "E11-01-nz2-scalar-compat"
+      ]
+    },
+    {
+      "path": "E15-nz-gates-nd-v19/analyses/four-cell-sealed1-v2.json",
+      "sha256": "0da2239f229e7daf45a88d8d3c0a139abae8ecf9512264ac8f3033f6b659b09e",
+      "trial_ids": [
+        "E09-01-nz-mode1",
+        "E13-01-nz2-linear-compat",
+        "E14-01-nd-router-precast",
+        "E15-01-nz-gates-nd-no-cache"
+      ]
+    },
+    {
+      "path": "E17-expert-nz-linear-nd-v21/analyses/expert-linear-sealed1-v1.json",
+      "sha256": "71d17ac02b1559bc8db2878526e8ab36e6d1bcc415f97ca734e1ff580f112c52",
+      "trial_ids": [
+        "E09-01-nz-mode1",
+        "E15-01-nz-gates-nd-no-cache",
+        "E17-01-expert-nz-linear-nd"
+      ]
+    },
+    {
+      "path": "E18-joint-capacity-layout-overlap-v22/analyses/joint-sealed1-v1.json",
+      "sha256": "8b2b9cd6cfba448a47d51ac8ad78d5cd359094ba8ed2fa34a78b6d2b8a8ae379",
+      "trial_ids": [
+        "E09-01-nz-mode1",
+        "E17-01-expert-nz-linear-nd",
+        "E18-01-joint-E26-NZ-linearND-overlap"
+      ]
+    },
+    {
+      "path": "E19-E26-layout-overlap-off-v23/analyses/native-off-sealed1-v1.json",
+      "sha256": "f50768d916bec4c0b2317b47f1bca60e434de52b97fed7f3003e935ab10a612b",
+      "trial_ids": [
+        "E09-01-nz-mode1",
+        "E17-01-expert-nz-linear-nd",
+        "E18-01-joint-E26-NZ-linearND-overlap",
+        "E19-01-E26-NZ-linearND-native-off"
+      ]
+    },
+    {
+      "path": "E20-capacity28-v24/analyses/capacity28-sealed1-v1.json",
+      "sha256": "6d219d7186197088508111f206d3246cc4fa761fa6fd1a1eaa9cea85e09d8bf2",
+      "trial_ids": [
+        "E09-01-nz-mode1",
+        "E20-01-E28-nativeND-off"
+      ]
+    }
+  ],
+  "configurations": [
+    {
+      "id": "E02-E24",
+      "family": "Capacity",
+      "trial_ids": [
+        "E02-01-E24",
+        "E02-03-E24"
+      ],
+      "proposal_only": true
+    },
+    {
+      "id": "E02-E32",
+      "family": "Capacity",
+      "trial_ids": [
+        "E02-02-E32",
+        "E02-04-E32"
+      ],
+      "proposal_only": true
+    },
+    {
+      "id": "E04-E24",
+      "family": "Capacity",
+      "trial_ids": [
+        "E04-01-E24",
+        "E04-03-E24"
+      ],
+      "proposal_only": true
+    },
+    {
+      "id": "E04-E26",
+      "family": "Capacity",
+      "trial_ids": [
+        "E04-02-E26",
+        "E04-04-E26"
+      ],
+      "proposal_only": true
+    },
+    {
+      "id": "E05-01-policy-on",
+      "family": "State policy",
+      "trial_ids": [
+        "E05-01-policy-on"
+      ],
+      "proposal_only": true
+    },
+    {
+      "id": "E05-02-policy-off",
+      "family": "State policy",
+      "trial_ids": [
+        "E05-02-policy-off"
+      ],
+      "proposal_only": true
+    },
+    {
+      "id": "E06-01-native-off",
+      "family": "Native multistream",
+      "trial_ids": [
+        "E06-01-native-off"
+      ],
+      "proposal_only": true
+    },
+    {
+      "id": "E06-02-native-on",
+      "family": "Native multistream",
+      "trial_ids": [
+        "E06-02-native-on"
+      ],
+      "proposal_only": true
+    },
+    {
+      "id": "E08-01-decode80",
+      "family": "Decode padding",
+      "trial_ids": [
+        "E08-01-decode80"
+      ],
+      "proposal_only": true
+    },
+    {
+      "id": "E08-02-decode72",
+      "family": "Decode padding",
+      "trial_ids": [
+        "E08-02-decode72"
+      ],
+      "proposal_only": true
+    },
+    {
+      "id": "E09-01-nz-mode1",
+      "family": "Weight layout / router",
+      "trial_ids": [
+        "E09-01-nz-mode1"
+      ],
+      "proposal_only": true
+    },
+    {
+      "id": "E09-02-nz-mode2",
+      "family": "Weight layout / router",
+      "trial_ids": [
+        "E09-02-nz-mode2"
+      ],
+      "proposal_only": true
+    },
+    {
+      "id": "E11-01-nz2-scalar-compat",
+      "family": "Weight layout / router",
+      "trial_ids": [
+        "E11-01-nz2-scalar-compat"
+      ],
+      "proposal_only": true
+    },
+    {
+      "id": "E13-01-nz2-linear-compat",
+      "family": "Weight layout / router",
+      "trial_ids": [
+        "E13-01-nz2-linear-compat"
+      ],
+      "proposal_only": true
+    },
+    {
+      "id": "E14-01-nd-router-precast",
+      "family": "Weight layout / router",
+      "trial_ids": [
+        "E14-01-nd-router-precast"
+      ],
+      "proposal_only": true
+    },
+    {
+      "id": "E15-01-nz-gates-nd-no-cache",
+      "family": "Weight layout / router",
+      "trial_ids": [
+        "E15-01-nz-gates-nd-no-cache"
+      ],
+      "proposal_only": true
+    },
+    {
+      "id": "E17-01-expert-nz-linear-nd",
+      "family": "Weight layout / router",
+      "trial_ids": [
+        "E17-01-expert-nz-linear-nd"
+      ],
+      "proposal_only": true
+    },
+    {
+      "id": "E18-01-joint-E26-NZ-linearND-overlap",
+      "family": "Joint E26/layout/multistream",
+      "trial_ids": [
+        "E18-01-joint-E26-NZ-linearND-overlap"
+      ],
+      "proposal_only": true
+    },
+    {
+      "id": "E19-01-E26-NZ-linearND-native-off",
+      "family": "Joint E26/layout/multistream",
+      "trial_ids": [
+        "E19-01-E26-NZ-linearND-native-off"
+      ],
+      "proposal_only": true
+    },
+    {
+      "id": "E20-01-E28-nativeND-off",
+      "family": "Capacity",
+      "trial_ids": [
+        "E20-01-E28-nativeND-off"
+      ],
+      "proposal_only": true
+    }
+  ],
+  "previous_catalog_sha256": "503ae602c2813f5f002e2152167ad0624444b01b2d445c1331ed77cfdbf6684a"
+}

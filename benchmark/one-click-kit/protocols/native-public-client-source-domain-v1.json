@@ -1,0 +1,23 @@
+{
+  "schema": "native-public-client-source-domain/v1",
+  "scope": "CPU readback of immutable native clients; no timing or sampling changes",
+  "sources": {
+    "native_public_client.py": {
+      "f7359cffb34f60cd04ca72372c26f550f1ee4119a5d33d2003146da62f8045f3": [
+        "full-answer-v1",
+        "submission-v2"
+      ]
+    },
+    "native_timing_session.py": {
+      "7515e51e194b6ffc1fcfae77de621d7bc2a9200563135e27d72deddcc735f7c2": [
+        "full-answer-v1"
+      ],
+      "5cae8a52370c3586b3e688913515eb839d5ac395436c34998dd064f98990d414": [
+        "full-answer-v1",
+        "submission-v2"
+      ]
+    }
+  },
+  "review": "The versioned session adds capture-budget validation before SamplingParams and uses that validated budget in save_result and geometry after the identical timed_public_requests call. The public timer, fences, workload, DELTA client and full-answer sampling remain byte-identical.",
+  "legacy_source": "third-party-test-kit/native-client-contract-sources/native_timing_session.full-answer-v1.py.source"
+}

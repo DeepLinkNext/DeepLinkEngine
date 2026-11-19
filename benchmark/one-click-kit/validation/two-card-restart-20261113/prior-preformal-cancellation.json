@@ -1,0 +1,6 @@
+{
+  "at": 1794575404.3383648,
+  "reason": "Controlled stop before formal requests: stage tokenizer imports from NFS SDK were slow. Reconstruct the exact SHA-pinned same SDK on local fast disk, with a separate deployment and new campaign; no model/grammar/input/budget changes.",
+  "formal_requests_submitted": 0,
+  "cancelled_controller": 40684
+}

@@ -1,0 +1,1517 @@
+{
+  "target": {
+    "modules": [
+      {
+        "name": "language_model.model.layers.0",
+        "type": "vllm.model_executor.models.qwen3_5.Qwen3_5DecoderLayer",
+        "parameters": {},
+        "scalars": {
+          "layer_scale": false,
+          "layer_type": "linear_attention"
+        },
+        "objects": {}
+      },
+      {
+        "name": "language_model.model.layers.0.linear_attn",
+        "type": "vllm.model_executor.layers.mamba.gdn.qwen_gdn_linear_attn.QwenGatedDeltaNetAttention",
+        "parameters": {
+          "dt_bias": {
+            "shape": [
+              16
+            ],
+            "dtype": "torch.bfloat16",
+            "device_type": "npu"
+          },
+          "A_log": {
+            "shape": [
+              16
+            ],
+            "dtype": "torch.float32",
+            "device_type": "npu"
+          }
+        },
+        "scalars": {
+          "hidden_size": 2048,
+          "tp_size": 2,
+          "key_dim": 2048,
+          "value_dim": 4096,
+          "head_k_dim": 128,
+          "head_v_dim": 128,
+          "num_k_heads": 16,
+          "num_v_heads": 32,
+          "activation": "silu"
+        },
+        "objects": {}
+      },
+      {
+        "name": "language_model.model.layers.0.linear_attn.conv1d",
+        "type": "vllm_ascend.ops.linear.AscendColumnParallelLinear",
+        "parameters": {
+          "weight": {
+            "shape": [
+              4096,
+              1,
+              4
+            ],
+            "dtype": "torch.bfloat16",
+            "device_type": "npu"
+          }
+        },
+        "scalars": {
+          "tp_size": 2
+        },
+        "objects": {
+          "quant_method": {
+            "type": "vllm_ascend.ops.linear.AscendUnquantizedLinearMethod",
+            "scalars": {}
+          }
+        }
+      },
+      {
+        "name": "language_model.model.layers.0.linear_attn.in_proj_qkvz",
+        "type": "vllm_ascend.ops.linear.AscendMergedColumnParallelLinear",
+        "parameters": {
+          "weight": {
+            "shape": [
+              6144,
+              2048
+            ],
+            "dtype": "torch.bfloat16",
+            "device_type": "npu"
+          }
+        },
+        "scalars": {
+          "tp_size": 2
+        },
+        "objects": {
+          "quant_method": {
+            "type": "vllm_ascend.ops.linear.AscendUnquantizedLinearMethod",
+            "scalars": {}
+          }
+        }
+      },
+      {
+        "name": "language_model.model.layers.0.linear_attn.in_proj_ba",
+        "type": "vllm_ascend.ops.linear.AscendMergedColumnParallelLinear",
+        "parameters": {
+          "weight": {
+            "shape": [
+              32,
+              2048
+            ],
+            "dtype": "torch.bfloat16",
+            "device_type": "npu"
+          }
+        },
+        "scalars": {
+          "tp_size": 2
+        },
+        "objects": {
+          "quant_method": {
+            "type": "vllm_ascend.ops.linear.AscendUnquantizedLinearMethod",
+            "scalars": {}
+          }
+        }
+      },
+      {
+        "name": "language_model.model.layers.0.linear_attn.norm",
+        "type": "vllm_ascend.ops.layernorm.AscendRMSNormGated",
+        "parameters": {
+          "weight": {
+            "shape": [
+              128
+            ],
+            "dtype": "torch.bfloat16",
+            "device_type": "npu"
+          }
+        },
+        "scalars": {
+          "norm_before_gate": true,
+          "eps": 1e-06,
+          "activation": "silu"
+        },
+        "objects": {}
+      },
+      {
+        "name": "language_model.model.layers.0.linear_attn.out_proj",
+        "type": "vllm_ascend.ops.linear.AscendRowParallelLinear",
+        "parameters": {
+          "weight": {
+            "shape": [
+              2048,
+              2048
+            ],
+            "dtype": "torch.bfloat16",
+            "device_type": "npu"
+          }
+        },
+        "scalars": {
+          "tp_size": 2
+        },
+        "objects": {
+          "quant_method": {
+            "type": "vllm_ascend.ops.linear.AscendUnquantizedLinearMethod",
+            "scalars": {}
+          }
+        }
+      },
+      {
+        "name": "language_model.model.layers.0.linear_attn.chunk_gated_delta_rule",
+        "type": "vllm.model_executor.layers.mamba.gdn.qwen_gdn_linear_attn.ChunkGatedDeltaRule",
+        "parameters": {},
+        "scalars": {},
+        "objects": {}
+      },
+      {
+        "name": "language_model.model.layers.0.mlp",
+        "type": "vllm.model_executor.models.qwen3_next.Qwen3NextSparseMoeBlock",
+        "parameters": {},
+        "scalars": {
+          "n_routed_experts": 256,
+          "tp_size": 2,
+          "ep_size": 2,
+          "is_sequence_parallel": false,
+          "is_fused_shared_expert_enabled": false,
+          "replicate_shared_expert": false,
+          "enable_eplb": false,
+          "n_redundant_experts": 0
+        },
+        "objects": {}
+      },
+      {
+        "name": "language_model.model.layers.0.mlp.gate",
+        "type": "vllm_ascend.ops.linear.AscendReplicatedLinear",
+        "parameters": {
+          "weight": {
+            "shape": [
+              256,
+              2048
+            ],
+            "dtype": "torch.bfloat16",
+            "device_type": "npu"
+          }
+        },
+        "scalars": {
+          "tp_size": 2
+        },
+        "objects": {
+          "quant_method": {
+            "type": "vllm_ascend.ops.linear.AscendUnquantizedLinearMethod",
+            "scalars": {}
+          }
+        }
+      },
+      {
+        "name": "language_model.model.layers.0.mlp.shared_expert_gate",
+        "type": "vllm_ascend.ops.linear.AscendReplicatedLinear",
+        "parameters": {
+          "weight": {
+            "shape": [
+              1,
+              2048
+            ],
+            "dtype": "torch.bfloat16",
+            "device_type": "npu"
+          }
+        },
+        "scalars": {
+          "tp_size": 2
+        },
+        "objects": {
+          "quant_method": {
+            "type": "vllm_ascend.ops.linear.AscendUnquantizedLinearMethod",
+            "scalars": {}
+          }
+        }
+      },
+      {
+        "name": "language_model.model.layers.0.mlp.shared_expert",
+        "type": "vllm.model_executor.models.qwen2_moe.Qwen2MoeMLP",
+        "parameters": {},
+        "scalars": {},
+        "objects": {}
+      },
+      {
+        "name": "language_model.model.layers.0.mlp.shared_expert.gate_up_proj",
+        "type": "vllm_ascend.ops.linear.AscendMergedColumnParallelLinear",
+        "parameters": {
+          "weight": {
+            "shape": [
+              512,
+              2048
+            ],
+            "dtype": "torch.bfloat16",
+            "device_type": "npu"
+          }
+        },
+        "scalars": {
+          "tp_size": 2
+        },
+        "objects": {
+          "quant_method": {
+            "type": "vllm_ascend.ops.linear.AscendUnquantizedLinearMethod",
+            "scalars": {}
+          }
+        }
+      },
+      {
+        "name": "language_model.model.layers.0.mlp.shared_expert.down_proj",
+        "type": "vllm_ascend.ops.linear.AscendRowParallelLinear",
+        "parameters": {
+          "weight": {
+            "shape": [
+              2048,
+              256
+            ],
+            "dtype": "torch.bfloat16",
+            "device_type": "npu"
+          }
+        },
+        "scalars": {
+          "tp_size": 2
+        },
+        "objects": {
+          "quant_method": {
+            "type": "vllm_ascend.ops.linear.AscendUnquantizedLinearMethod",
+            "scalars": {}
+          }
+        }
+      },
+      {
+        "name": "language_model.model.layers.0.mlp.shared_expert.act_fn",
+        "type": "vllm_ascend.ops.activation.AscendSiluAndMul",
+        "parameters": {},
+        "scalars": {},
+        "objects": {}
+      },
+      {
+        "name": "language_model.model.layers.0.mlp.experts",
+        "type": "vllm_ascend.ops.fused_moe.fused_moe.AscendMoERunner",
+        "parameters": {},
+        "scalars": {
+          "hidden_size": 2048,
+          "routed_scaling_factor": 1.0,
+          "activation": {
+            "enum_type": "vllm.model_executor.layers.fused_moe.activation.MoEActivation",
+            "name": "SILU"
+          }
+        },
+        "objects": {
+          "moe_config": {
+            "type": "vllm.model_executor.layers.fused_moe.config.FusedMoEConfig",
+            "scalars": {
+              "num_experts": 256,
+              "intermediate_size": 512,
+              "intermediate_size_per_partition": 256,
+              "tp_size": 2,
+              "ep_size": 1,
+              "is_sequence_parallel": false,
+              "activation": {
+                "enum_type": "vllm.model_executor.layers.fused_moe.activation.MoEActivation",
+                "name": "SILU"
+              }
+            }
+          },
+          "router": {
+            "type": "vllm_ascend.ops.fused_moe.router.fused_topk_router.AscendFusedTopKRouter",
+            "scalars": {
+              "top_k": 8,
+              "renormalize": true,
+              "routed_scaling_factor": 1.0,
+              "scoring_func": "softmax"
+            }
+          }
+        }
+      },
+      {
+        "name": "language_model.model.layers.0.mlp.experts.routed_experts",
+        "type": "vllm_ascend.ops.fused_moe.routed_experts.AscendRoutedExperts",
+        "parameters": {
+          "w13_weight": {
+            "shape": [
+              256,
+              2048,
+              512
+            ],
+            "dtype": "torch.bfloat16",
+            "device_type": "npu"
+          },
+          "w2_weight": {
+            "shape": [
+              256,
+              256,
+              2048
+            ],
+            "dtype": "torch.bfloat16",
+            "device_type": "npu"
+          }
+        },
+        "scalars": {
+          "top_k": 8,
+          "hidden_size": 2048,
+          "intermediate_size_per_partition": 256,
+          "renormalize": true,
+          "apply_router_weight_on_input": false,
+          "routed_scaling_factor": 1.0,
+          "activation": {
+            "enum_type": "vllm.model_executor.layers.fused_moe.activation.MoEActivation",
+            "name": "SILU"
+          },
+          "scoring_func": "softmax"
+        },
+        "objects": {
+          "moe_config": {
+            "type": "vllm.model_executor.layers.fused_moe.config.FusedMoEConfig",
+            "scalars": {
+              "num_experts": 256,
+              "intermediate_size": 512,
+              "intermediate_size_per_partition": 256,
+              "tp_size": 2,
+              "ep_size": 1,
+              "is_sequence_parallel": false,
+              "activation": {
+                "enum_type": "vllm.model_executor.layers.fused_moe.activation.MoEActivation",
+                "name": "SILU"
+              }
+            }
+          },
+          "quant_method": {
+            "type": "vllm_ascend.ops.fused_moe.routed_experts.AscendUnquantizedFusedMoEMethod",
+            "scalars": {}
+          },
+          "router": {
+            "type": "vllm_ascend.ops.fused_moe.router.fused_topk_router.AscendFusedTopKRouter",
+            "scalars": {
+              "top_k": 8,
+              "renormalize": true,
+              "routed_scaling_factor": 1.0,
+              "scoring_func": "softmax"
+            }
+          }
+        }
+      },
+      {
+        "name": "language_model.model.layers.0.mlp.experts.routed_experts.quant_method",
+        "type": "vllm_ascend.ops.fused_moe.routed_experts.AscendUnquantizedFusedMoEMethod",
+        "parameters": {},
+        "scalars": {},
+        "objects": {}
+      },
+      {
+        "name": "language_model.model.layers.0.mlp.experts._shared_experts",
+        "type": "vllm.model_executor.layers.fused_moe.runner.shared_experts.SharedExperts",
+        "parameters": {},
+        "scalars": {},
+        "objects": {}
+      },
+      {
+        "name": "language_model.model.layers.0.input_layernorm",
+        "type": "vllm_ascend.ops.layernorm.AscendGemmaRMSNorm",
+        "parameters": {
+          "weight": {
+            "shape": [
+              2048
+            ],
+            "dtype": "torch.bfloat16",
+            "device_type": "npu"
+          }
+        },
+        "scalars": {
+          "variance_epsilon": 1e-06
+        },
+        "objects": {}
+      },
+      {
+        "name": "language_model.model.layers.0.post_attention_layernorm",
+        "type": "vllm_ascend.ops.layernorm.AscendGemmaRMSNorm",
+        "parameters": {
+          "weight": {
+            "shape": [
+              2048
+            ],
+            "dtype": "torch.bfloat16",
+            "device_type": "npu"
+          }
+        },
+        "scalars": {
+          "variance_epsilon": 1e-06
+        },
+        "objects": {}
+      },
+      {
+        "name": "language_model.model.layers.1",
+        "type": "vllm.model_executor.models.qwen3_5.Qwen3_5DecoderLayer",
+        "parameters": {},
+        "scalars": {
+          "layer_scale": false,
+          "layer_type": "full_attention"
+        },
+        "objects": {}
+      },
+      {
+        "name": "language_model.model.layers.1.self_attn",
+        "type": "vllm.model_executor.models.qwen3_next.Qwen3NextAttention",
+        "parameters": {},
+        "scalars": {
+          "hidden_size": 2048,
+          "num_heads": 8,
+          "num_kv_heads": 1,
+          "head_dim": 256,
+          "attn_output_gate": true
+        },
+        "objects": {
+          "config": {
+            "type": "vllm.transformers_utils.configs.qwen3_5_moe.Qwen3_5MoeTextConfig",
+            "scalars": {
+              "num_experts": 256,
+              "hidden_size": 2048,
+              "head_dim": 256,
+              "attn_output_gate": true,
+              "rms_norm_eps": 1e-06,
+              "partial_rotary_factor": 0.25
+            }
+          }
+        }
+      },
+      {
+        "name": "language_model.model.layers.1.self_attn.qkv_proj",
+        "type": "vllm_ascend.ops.linear.AscendQKVParallelLinear",
+        "parameters": {
+          "weight": {
+            "shape": [
+              4608,
+              2048
+            ],
+            "dtype": "torch.bfloat16",
+            "device_type": "npu"
+          }
+        },
+        "scalars": {
+          "hidden_size": 2048,
+          "tp_size": 2,
+          "num_heads": 16,
+          "num_kv_heads": 1
+        },
+        "objects": {
+          "quant_method": {
+            "type": "vllm_ascend.ops.linear.AscendUnquantizedLinearMethod",
+            "scalars": {}
+          }
+        }
+      },
+      {
+        "name": "language_model.model.layers.1.self_attn.o_proj",
+        "type": "vllm_ascend.ops.linear.AscendRowParallelLinear",
+        "parameters": {
+          "weight": {
+            "shape": [
+              2048,
+              2048
+            ],
+            "dtype": "torch.bfloat16",
+            "device_type": "npu"
+          }
+        },
+        "scalars": {
+          "tp_size": 2
+        },
+        "objects": {
+          "quant_method": {
+            "type": "vllm_ascend.ops.linear.AscendUnquantizedLinearMethod",
+            "scalars": {}
+          }
+        }
+      },
+      {
+        "name": "language_model.model.layers.1.self_attn.rotary_emb",
+        "type": "vllm_ascend.ops.rotary_embedding.AscendMRotaryEmbedding",
+        "parameters": {},
+        "scalars": {
+          "rotary_dim": 64,
+          "mrope_interleaved": true,
+          "mrope_section": [
+            11,
+            11,
+            10
+          ]
+        },
+        "objects": {}
+      },
+      {
+        "name": "language_model.model.layers.1.self_attn.rotary_emb.apply_rotary_emb",
+        "type": "vllm_ascend.ops.rotary_embedding.AscendApplyRotaryEmb",
+        "parameters": {},
+        "scalars": {},
+        "objects": {}
+      },
+      {
+        "name": "language_model.model.layers.1.self_attn.attn",
+        "type": "vllm.model_executor.layers.attention.attention.Attention",
+        "parameters": {},
+        "scalars": {
+          "num_heads": 8,
+          "num_kv_heads": 1
+        },
+        "objects": {}
+      },
+      {
+        "name": "language_model.model.layers.1.self_attn.q_norm",
+        "type": "vllm_ascend.ops.layernorm.AscendGemmaRMSNorm",
+        "parameters": {
+          "weight": {
+            "shape": [
+              256
+            ],
+            "dtype": "torch.bfloat16",
+            "device_type": "npu"
+          }
+        },
+        "scalars": {
+          "variance_epsilon": 1e-06
+        },
+        "objects": {}
+      },
+      {
+        "name": "language_model.model.layers.1.self_attn.k_norm",
+        "type": "vllm_ascend.ops.layernorm.AscendGemmaRMSNorm",
+        "parameters": {
+          "weight": {
+            "shape": [
+              256
+            ],
+            "dtype": "torch.bfloat16",
+            "device_type": "npu"
+          }
+        },
+        "scalars": {
+          "variance_epsilon": 1e-06
+        },
+        "objects": {}
+      },
+      {
+        "name": "language_model.model.layers.1.mlp",
+        "type": "vllm.model_executor.models.qwen3_next.Qwen3NextSparseMoeBlock",
+        "parameters": {},
+        "scalars": {
+          "n_routed_experts": 256,
+          "tp_size": 2,
+          "ep_size": 2,
+          "is_sequence_parallel": false,
+          "is_fused_shared_expert_enabled": false,
+          "replicate_shared_expert": false,
+          "enable_eplb": false,
+          "n_redundant_experts": 0
+        },
+        "objects": {}
+      },
+      {
+        "name": "language_model.model.layers.1.mlp.gate",
+        "type": "vllm_ascend.ops.linear.AscendReplicatedLinear",
+        "parameters": {
+          "weight": {
+            "shape": [
+              256,
+              2048
+            ],
+            "dtype": "torch.bfloat16",
+            "device_type": "npu"
+          }
+        },
+        "scalars": {
+          "tp_size": 2
+        },
+        "objects": {
+          "quant_method": {
+            "type": "vllm_ascend.ops.linear.AscendUnquantizedLinearMethod",
+            "scalars": {}
+          }
+        }
+      },
+      {
+        "name": "language_model.model.layers.1.mlp.shared_expert_gate",
+        "type": "vllm_ascend.ops.linear.AscendReplicatedLinear",
+        "parameters": {
+          "weight": {
+            "shape": [
+              1,
+              2048
+            ],
+            "dtype": "torch.bfloat16",
+            "device_type": "npu"
+          }
+        },
+        "scalars": {
+          "tp_size": 2
+        },
+        "objects": {
+          "quant_method": {
+            "type": "vllm_ascend.ops.linear.AscendUnquantizedLinearMethod",
+            "scalars": {}
+          }
+        }
+      },
+      {
+        "name": "language_model.model.layers.1.mlp.shared_expert",
+        "type": "vllm.model_executor.models.qwen2_moe.Qwen2MoeMLP",
+        "parameters": {},
+        "scalars": {},
+        "objects": {}
+      },
+      {
+        "name": "language_model.model.layers.1.mlp.shared_expert.gate_up_proj",
+        "type": "vllm_ascend.ops.linear.AscendMergedColumnParallelLinear",
+        "parameters": {
+          "weight": {
+            "shape": [
+              512,
+              2048
+            ],
+            "dtype": "torch.bfloat16",
+            "device_type": "npu"
+          }
+        },
+        "scalars": {
+          "tp_size": 2
+        },
+        "objects": {
+          "quant_method": {
+            "type": "vllm_ascend.ops.linear.AscendUnquantizedLinearMethod",
+            "scalars": {}
+          }
+        }
+      },
+      {
+        "name": "language_model.model.layers.1.mlp.shared_expert.down_proj",
+        "type": "vllm_ascend.ops.linear.AscendRowParallelLinear",
+        "parameters": {
+          "weight": {
+            "shape": [
+              2048,
+              256
+            ],
+            "dtype": "torch.bfloat16",
+            "device_type": "npu"
+          }
+        },
+        "scalars": {
+          "tp_size": 2
+        },
+        "objects": {
+          "quant_method": {
+            "type": "vllm_ascend.ops.linear.AscendUnquantizedLinearMethod",
+            "scalars": {}
+          }
+        }
+      },
+      {
+        "name": "language_model.model.layers.1.mlp.shared_expert.act_fn",
+        "type": "vllm_ascend.ops.activation.AscendSiluAndMul",
+        "parameters": {},
+        "scalars": {},
+        "objects": {}
+      },
+      {
+        "name": "language_model.model.layers.1.mlp.experts",
+        "type": "vllm_ascend.ops.fused_moe.fused_moe.AscendMoERunner",
+        "parameters": {},
+        "scalars": {
+          "hidden_size": 2048,
+          "routed_scaling_factor": 1.0,
+          "activation": {
+            "enum_type": "vllm.model_executor.layers.fused_moe.activation.MoEActivation",
+            "name": "SILU"
+          }
+        },
+        "objects": {
+          "moe_config": {
+            "type": "vllm.model_executor.layers.fused_moe.config.FusedMoEConfig",
+            "scalars": {
+              "num_experts": 256,
+              "intermediate_size": 512,
+              "intermediate_size_per_partition": 256,
+              "tp_size": 2,
+              "ep_size": 1,
+              "is_sequence_parallel": false,
+              "activation": {
+                "enum_type": "vllm.model_executor.layers.fused_moe.activation.MoEActivation",
+                "name": "SILU"
+              }
+            }
+          },
+          "router": {
+            "type": "vllm_ascend.ops.fused_moe.router.fused_topk_router.AscendFusedTopKRouter",
+            "scalars": {
+              "top_k": 8,
+              "renormalize": true,
+              "routed_scaling_factor": 1.0,
+              "scoring_func": "softmax"
+            }
+          }
+        }
+      },
+      {
+        "name": "language_model.model.layers.1.mlp.experts.routed_experts",
+        "type": "vllm_ascend.ops.fused_moe.routed_experts.AscendRoutedExperts",
+        "parameters": {
+          "w13_weight": {
+            "shape": [
+              256,
+              2048,
+              512
+            ],
+            "dtype": "torch.bfloat16",
+            "device_type": "npu"
+          },
+          "w2_weight": {
+            "shape": [
+              256,
+              256,
+              2048
+            ],
+            "dtype": "torch.bfloat16",
+            "device_type": "npu"
+          }
+        },
+        "scalars": {
+          "top_k": 8,
+          "hidden_size": 2048,
+          "intermediate_size_per_partition": 256,
+          "renormalize": true,
+          "apply_router_weight_on_input": false,
+          "routed_scaling_factor": 1.0,
+          "activation": {
+            "enum_type": "vllm.model_executor.layers.fused_moe.activation.MoEActivation",
+            "name": "SILU"
+          },
+          "scoring_func": "softmax"
+        },
+        "objects": {
+          "moe_config": {
+            "type": "vllm.model_executor.layers.fused_moe.config.FusedMoEConfig",
+            "scalars": {
+              "num_experts": 256,
+              "intermediate_size": 512,
+              "intermediate_size_per_partition": 256,
+              "tp_size": 2,
+              "ep_size": 1,
+              "is_sequence_parallel": false,
+              "activation": {
+                "enum_type": "vllm.model_executor.layers.fused_moe.activation.MoEActivation",
+                "name": "SILU"
+              }
+            }
+          },
+          "quant_method": {
+            "type": "vllm_ascend.ops.fused_moe.routed_experts.AscendUnquantizedFusedMoEMethod",
+            "scalars": {}
+          },
+          "router": {
+            "type": "vllm_ascend.ops.fused_moe.router.fused_topk_router.AscendFusedTopKRouter",
+            "scalars": {
+              "top_k": 8,
+              "renormalize": true,
+              "routed_scaling_factor": 1.0,
+              "scoring_func": "softmax"
+            }
+          }
+        }
+      },
+      {
+        "name": "language_model.model.layers.1.mlp.experts.routed_experts.quant_method",
+        "type": "vllm_ascend.ops.fused_moe.routed_experts.AscendUnquantizedFusedMoEMethod",
+        "parameters": {},
+        "scalars": {},
+        "objects": {}
+      },
+      {
+        "name": "language_model.model.layers.1.mlp.experts._shared_experts",
+        "type": "vllm.model_executor.layers.fused_moe.runner.shared_experts.SharedExperts",
+        "parameters": {},
+        "scalars": {},
+        "objects": {}
+      },
+      {
+        "name": "language_model.model.layers.1.input_layernorm",
+        "type": "vllm_ascend.ops.layernorm.AscendGemmaRMSNorm",
+        "parameters": {
+          "weight": {
+            "shape": [
+              2048
+            ],
+            "dtype": "torch.bfloat16",
+            "device_type": "npu"
+          }
+        },
+        "scalars": {
+          "variance_epsilon": 1e-06
+        },
+        "objects": {}
+      },
+      {
+        "name": "language_model.model.layers.1.post_attention_layernorm",
+        "type": "vllm_ascend.ops.layernorm.AscendGemmaRMSNorm",
+        "parameters": {
+          "weight": {
+            "shape": [
+              2048
+            ],
+            "dtype": "torch.bfloat16",
+            "device_type": "npu"
+          }
+        },
+        "scalars": {
+          "variance_epsilon": 1e-06
+        },
+        "objects": {}
+      },
+      {
+        "name": "language_model.model.norm",
+        "type": "vllm_ascend.ops.layernorm.AscendGemmaRMSNorm",
+        "parameters": {
+          "weight": {
+            "shape": [
+              2048
+            ],
+            "dtype": "torch.bfloat16",
+            "device_type": "npu"
+          }
+        },
+        "scalars": {
+          "variance_epsilon": 1e-06
+        },
+        "objects": {}
+      },
+      {
+        "name": "language_model.lm_head",
+        "type": "vllm_ascend.ops.vocab_parallel_embedding.AscendParallelLMHead",
+        "parameters": {
+          "weight": {
+            "shape": [
+              124160,
+              2048
+            ],
+            "dtype": "torch.bfloat16",
+            "device_type": "npu"
+          }
+        },
+        "scalars": {
+          "tp_size": 2
+        },
+        "objects": {
+          "quant_method": {
+            "type": "vllm.model_executor.layers.vocab_parallel_embedding.UnquantizedEmbeddingMethod",
+            "scalars": {}
+          }
+        }
+      }
+    ],
+    "tensor_values_observed": false
+  },
+  "draft": {
+    "modules": [
+      {
+        "name": "",
+        "type": "vllm.model_executor.models.qwen3_5_mtp.Qwen3_5MoeMTP",
+        "parameters": {},
+        "scalars": {
+          "num_redundant_experts": 0
+        },
+        "objects": {
+          "config": {
+            "type": "vllm.transformers_utils.configs.qwen3_5_moe.Qwen3_5MoeTextConfig",
+            "scalars": {
+              "num_experts": 256,
+              "hidden_size": 2048,
+              "head_dim": 256,
+              "attn_output_gate": true,
+              "rms_norm_eps": 1e-06,
+              "partial_rotary_factor": 0.25
+            }
+          }
+        }
+      },
+      {
+        "name": "model",
+        "type": "vllm.model_executor.models.qwen3_5_mtp.Qwen3_5MultiTokenPredictor",
+        "parameters": {},
+        "scalars": {
+          "is_fused_shared_expert_enabled": false
+        },
+        "objects": {
+          "config": {
+            "type": "vllm.transformers_utils.configs.qwen3_5_moe.Qwen3_5MoeTextConfig",
+            "scalars": {
+              "num_experts": 256,
+              "hidden_size": 2048,
+              "head_dim": 256,
+              "attn_output_gate": true,
+              "rms_norm_eps": 1e-06,
+              "partial_rotary_factor": 0.25
+            }
+          }
+        }
+      },
+      {
+        "name": "model.fc",
+        "type": "vllm_ascend.ops.linear.AscendColumnParallelLinear",
+        "parameters": {
+          "weight": {
+            "shape": [
+              1024,
+              4096
+            ],
+            "dtype": "torch.bfloat16",
+            "device_type": "npu"
+          }
+        },
+        "scalars": {
+          "tp_size": 2
+        },
+        "objects": {
+          "quant_method": {
+            "type": "vllm_ascend.ops.linear.AscendUnquantizedLinearMethod",
+            "scalars": {}
+          }
+        }
+      },
+      {
+        "name": "model.layers",
+        "type": "torch.nn.modules.container.ModuleList",
+        "parameters": {},
+        "scalars": {},
+        "objects": {}
+      },
+      {
+        "name": "model.layers.0",
+        "type": "vllm.model_executor.models.qwen3_5.Qwen3_5DecoderLayer",
+        "parameters": {},
+        "scalars": {
+          "layer_scale": false,
+          "layer_type": "full_attention"
+        },
+        "objects": {}
+      },
+      {
+        "name": "model.layers.0.self_attn",
+        "type": "vllm.model_executor.models.qwen3_next.Qwen3NextAttention",
+        "parameters": {},
+        "scalars": {
+          "hidden_size": 2048,
+          "num_heads": 8,
+          "num_kv_heads": 1,
+          "head_dim": 256,
+          "attn_output_gate": true
+        },
+        "objects": {
+          "config": {
+            "type": "vllm.transformers_utils.configs.qwen3_5_moe.Qwen3_5MoeTextConfig",
+            "scalars": {
+              "num_experts": 256,
+              "hidden_size": 2048,
+              "head_dim": 256,
+              "attn_output_gate": true,
+              "rms_norm_eps": 1e-06,
+              "partial_rotary_factor": 0.25
+            }
+          }
+        }
+      },
+      {
+        "name": "model.layers.0.self_attn.qkv_proj",
+        "type": "vllm_ascend.ops.linear.AscendQKVParallelLinear",
+        "parameters": {
+          "weight": {
+            "shape": [
+              4608,
+              2048
+            ],
+            "dtype": "torch.bfloat16",
+            "device_type": "npu"
+          }
+        },
+        "scalars": {
+          "hidden_size": 2048,
+          "tp_size": 2,
+          "num_heads": 16,
+          "num_kv_heads": 1
+        },
+        "objects": {
+          "quant_method": {
+            "type": "vllm_ascend.ops.linear.AscendUnquantizedLinearMethod",
+            "scalars": {}
+          }
+        }
+      },
+      {
+        "name": "model.layers.0.self_attn.o_proj",
+        "type": "vllm_ascend.ops.linear.AscendRowParallelLinear",
+        "parameters": {
+          "weight": {
+            "shape": [
+              2048,
+              2048
+            ],
+            "dtype": "torch.bfloat16",
+            "device_type": "npu"
+          }
+        },
+        "scalars": {
+          "tp_size": 2
+        },
+        "objects": {
+          "quant_method": {
+            "type": "vllm_ascend.ops.linear.AscendUnquantizedLinearMethod",
+            "scalars": {}
+          }
+        }
+      },
+      {
+        "name": "model.layers.0.self_attn.rotary_emb",
+        "type": "vllm_ascend.ops.rotary_embedding.AscendMRotaryEmbedding",
+        "parameters": {},
+        "scalars": {
+          "rotary_dim": 64,
+          "mrope_interleaved": true,
+          "mrope_section": [
+            11,
+            11,
+            10
+          ]
+        },
+        "objects": {}
+      },
+      {
+        "name": "model.layers.0.self_attn.rotary_emb.apply_rotary_emb",
+        "type": "vllm_ascend.ops.rotary_embedding.AscendApplyRotaryEmb",
+        "parameters": {},
+        "scalars": {},
+        "objects": {}
+      },
+      {
+        "name": "model.layers.0.self_attn.attn",
+        "type": "vllm.model_executor.layers.attention.attention.Attention",
+        "parameters": {},
+        "scalars": {
+          "num_heads": 8,
+          "num_kv_heads": 1
+        },
+        "objects": {}
+      },
+      {
+        "name": "model.layers.0.self_attn.q_norm",
+        "type": "vllm_ascend.ops.layernorm.AscendGemmaRMSNorm",
+        "parameters": {
+          "weight": {
+            "shape": [
+              256
+            ],
+            "dtype": "torch.bfloat16",
+            "device_type": "npu"
+          }
+        },
+        "scalars": {
+          "variance_epsilon": 1e-06
+        },
+        "objects": {}
+      },
+      {
+        "name": "model.layers.0.self_attn.k_norm",
+        "type": "vllm_ascend.ops.layernorm.AscendGemmaRMSNorm",
+        "parameters": {
+          "weight": {
+            "shape": [
+              256
+            ],
+            "dtype": "torch.bfloat16",
+            "device_type": "npu"
+          }
+        },
+        "scalars": {
+          "variance_epsilon": 1e-06
+        },
+        "objects": {}
+      },
+      {
+        "name": "model.layers.0.mlp",
+        "type": "vllm.model_executor.models.qwen3_next.Qwen3NextSparseMoeBlock",
+        "parameters": {},
+        "scalars": {
+          "n_routed_experts": 256,
+          "tp_size": 2,
+          "ep_size": 2,
+          "is_sequence_parallel": false,
+          "is_fused_shared_expert_enabled": false,
+          "replicate_shared_expert": false,
+          "enable_eplb": false,
+          "n_redundant_experts": 0
+        },
+        "objects": {}
+      },
+      {
+        "name": "model.layers.0.mlp.gate",
+        "type": "vllm_ascend.ops.linear.AscendReplicatedLinear",
+        "parameters": {
+          "weight": {
+            "shape": [
+              256,
+              2048
+            ],
+            "dtype": "torch.bfloat16",
+            "device_type": "npu"
+          }
+        },
+        "scalars": {
+          "tp_size": 2
+        },
+        "objects": {
+          "quant_method": {
+            "type": "vllm_ascend.ops.linear.AscendUnquantizedLinearMethod",
+            "scalars": {}
+          }
+        }
+      },
+      {
+        "name": "model.layers.0.mlp.shared_expert_gate",
+        "type": "vllm_ascend.ops.linear.AscendReplicatedLinear",
+        "parameters": {
+          "weight": {
+            "shape": [
+              1,
+              2048
+            ],
+            "dtype": "torch.bfloat16",
+            "device_type": "npu"
+          }
+        },
+        "scalars": {
+          "tp_size": 2
+        },
+        "objects": {
+          "quant_method": {
+            "type": "vllm_ascend.ops.linear.AscendUnquantizedLinearMethod",
+            "scalars": {}
+          }
+        }
+      },
+      {
+        "name": "model.layers.0.mlp.shared_expert",
+        "type": "vllm.model_executor.models.qwen2_moe.Qwen2MoeMLP",
+        "parameters": {},
+        "scalars": {},
+        "objects": {}
+      },
+      {
+        "name": "model.layers.0.mlp.shared_expert.gate_up_proj",
+        "type": "vllm_ascend.ops.linear.AscendMergedColumnParallelLinear",
+        "parameters": {
+          "weight": {
+            "shape": [
+              512,
+              2048
+            ],
+            "dtype": "torch.bfloat16",
+            "device_type": "npu"
+          }
+        },
+        "scalars": {
+          "tp_size": 2
+        },
+        "objects": {
+          "quant_method": {
+            "type": "vllm_ascend.ops.linear.AscendUnquantizedLinearMethod",
+            "scalars": {}
+          }
+        }
+      },
+      {
+        "name": "model.layers.0.mlp.shared_expert.down_proj",
+        "type": "vllm_ascend.ops.linear.AscendRowParallelLinear",
+        "parameters": {
+          "weight": {
+            "shape": [
+              2048,
+              256
+            ],
+            "dtype": "torch.bfloat16",
+            "device_type": "npu"
+          }
+        },
+        "scalars": {
+          "tp_size": 2
+        },
+        "objects": {
+          "quant_method": {
+            "type": "vllm_ascend.ops.linear.AscendUnquantizedLinearMethod",
+            "scalars": {}
+          }
+        }
+      },
+      {
+        "name": "model.layers.0.mlp.shared_expert.act_fn",
+        "type": "vllm_ascend.ops.activation.AscendSiluAndMul",
+        "parameters": {},
+        "scalars": {},
+        "objects": {}
+      },
+      {
+        "name": "model.layers.0.mlp.experts",
+        "type": "vllm_ascend.ops.fused_moe.fused_moe.AscendMoERunner",
+        "parameters": {},
+        "scalars": {
+          "hidden_size": 2048,
+          "routed_scaling_factor": 1.0,
+          "activation": {
+            "enum_type": "vllm.model_executor.layers.fused_moe.activation.MoEActivation",
+            "name": "SILU"
+          }
+        },
+        "objects": {
+          "moe_config": {
+            "type": "vllm.model_executor.layers.fused_moe.config.FusedMoEConfig",
+            "scalars": {
+              "num_experts": 256,
+              "intermediate_size": 512,
+              "intermediate_size_per_partition": 256,
+              "tp_size": 2,
+              "ep_size": 1,
+              "is_sequence_parallel": false,
+              "activation": {
+                "enum_type": "vllm.model_executor.layers.fused_moe.activation.MoEActivation",
+                "name": "SILU"
+              }
+            }
+          },
+          "router": {
+            "type": "vllm_ascend.ops.fused_moe.router.fused_topk_router.AscendFusedTopKRouter",
+            "scalars": {
+              "top_k": 8,
+              "renormalize": true,
+              "routed_scaling_factor": 1.0,
+              "scoring_func": "softmax"
+            }
+          }
+        }
+      },
+      {
+        "name": "model.layers.0.mlp.experts.routed_experts",
+        "type": "vllm_ascend.ops.fused_moe.routed_experts.AscendRoutedExperts",
+        "parameters": {
+          "w13_weight": {
+            "shape": [
+              256,
+              2048,
+              512
+            ],
+            "dtype": "torch.bfloat16",
+            "device_type": "npu"
+          },
+          "w2_weight": {
+            "shape": [
+              256,
+              256,
+              2048
+            ],
+            "dtype": "torch.bfloat16",
+            "device_type": "npu"
+          }
+        },
+        "scalars": {
+          "top_k": 8,
+          "hidden_size": 2048,
+          "intermediate_size_per_partition": 256,
+          "renormalize": true,
+          "apply_router_weight_on_input": false,
+          "routed_scaling_factor": 1.0,
+          "activation": {
+            "enum_type": "vllm.model_executor.layers.fused_moe.activation.MoEActivation",
+            "name": "SILU"
+          },
+          "scoring_func": "softmax"
+        },
+        "objects": {
+          "moe_config": {
+            "type": "vllm.model_executor.layers.fused_moe.config.FusedMoEConfig",
+            "scalars": {
+              "num_experts": 256,
+              "intermediate_size": 512,
+              "intermediate_size_per_partition": 256,
+              "tp_size": 2,
+              "ep_size": 1,
+              "is_sequence_parallel": false,
+              "activation": {
+                "enum_type": "vllm.model_executor.layers.fused_moe.activation.MoEActivation",
+                "name": "SILU"
+              }
+            }
+          },
+          "quant_method": {
+            "type": "vllm_ascend.ops.fused_moe.routed_experts.AscendUnquantizedFusedMoEMethod",
+            "scalars": {}
+          },
+          "router": {
+            "type": "vllm_ascend.ops.fused_moe.router.fused_topk_router.AscendFusedTopKRouter",
+            "scalars": {
+              "top_k": 8,
+              "renormalize": true,
+              "routed_scaling_factor": 1.0,
+              "scoring_func": "softmax"
+            }
+          }
+        }
+      },
+      {
+        "name": "model.layers.0.mlp.experts.routed_experts.quant_method",
+        "type": "vllm_ascend.ops.fused_moe.routed_experts.AscendUnquantizedFusedMoEMethod",
+        "parameters": {},
+        "scalars": {},
+        "objects": {}
+      },
+      {
+        "name": "model.layers.0.mlp.experts._shared_experts",
+        "type": "vllm.model_executor.layers.fused_moe.runner.shared_experts.SharedExperts",
+        "parameters": {},
+        "scalars": {},
+        "objects": {}
+      },
+      {
+        "name": "model.layers.0.input_layernorm",
+        "type": "vllm_ascend.ops.layernorm.AscendGemmaRMSNorm",
+        "parameters": {
+          "weight": {
+            "shape": [
+              2048
+            ],
+            "dtype": "torch.bfloat16",
+            "device_type": "npu"
+          }
+        },
+        "scalars": {
+          "variance_epsilon": 1e-06
+        },
+        "objects": {}
+      },
+      {
+        "name": "model.layers.0.post_attention_layernorm",
+        "type": "vllm_ascend.ops.layernorm.AscendGemmaRMSNorm",
+        "parameters": {
+          "weight": {
+            "shape": [
+              2048
+            ],
+            "dtype": "torch.bfloat16",
+            "device_type": "npu"
+          }
+        },
+        "scalars": {
+          "variance_epsilon": 1e-06
+        },
+        "objects": {}
+      },
+      {
+        "name": "model.norm",
+        "type": "vllm_ascend.ops.layernorm.AscendGemmaRMSNorm",
+        "parameters": {
+          "weight": {
+            "shape": [
+              2048
+            ],
+            "dtype": "torch.bfloat16",
+            "device_type": "npu"
+          }
+        },
+        "scalars": {
+          "variance_epsilon": 1e-06
+        },
+        "objects": {}
+      },
+      {
+        "name": "model.pre_fc_norm_hidden",
+        "type": "vllm_ascend.ops.layernorm.AscendGemmaRMSNorm",
+        "parameters": {
+          "weight": {
+            "shape": [
+              2048
+            ],
+            "dtype": "torch.bfloat16",
+            "device_type": "npu"
+          }
+        },
+        "scalars": {
+          "variance_epsilon": 1e-06
+        },
+        "objects": {}
+      },
+      {
+        "name": "model.pre_fc_norm_embedding",
+        "type": "vllm_ascend.ops.layernorm.AscendGemmaRMSNorm",
+        "parameters": {
+          "weight": {
+            "shape": [
+              2048
+            ],
+            "dtype": "torch.bfloat16",
+            "device_type": "npu"
+          }
+        },
+        "scalars": {
+          "variance_epsilon": 1e-06
+        },
+        "objects": {}
+      },
+      {
+        "name": "model.embed_tokens",
+        "type": "vllm_ascend.ops.vocab_parallel_embedding.AscendVocabParallelEmbedding",
+        "parameters": {
+          "weight": {
+            "shape": [
+              124160,
+              2048
+            ],
+            "dtype": "torch.bfloat16",
+            "device_type": "npu"
+          }
+        },
+        "scalars": {
+          "tp_size": 2
+        },
+        "objects": {
+          "quant_method": {
+            "type": "vllm.model_executor.layers.vocab_parallel_embedding.UnquantizedEmbeddingMethod",
+            "scalars": {}
+          }
+        }
+      },
+      {
+        "name": "lm_head",
+        "type": "vllm_ascend.ops.vocab_parallel_embedding.AscendParallelLMHead",
+        "parameters": {
+          "weight": {
+            "shape": [
+              124160,
+              2048
+            ],
+            "dtype": "torch.bfloat16",
+            "device_type": "npu"
+          }
+        },
+        "scalars": {
+          "tp_size": 2
+        },
+        "objects": {
+          "quant_method": {
+            "type": "vllm.model_executor.layers.vocab_parallel_embedding.UnquantizedEmbeddingMethod",
+            "scalars": {}
+          }
+        }
+      },
+      {
+        "name": "logits_processor",
+        "type": "vllm_ascend.ops.vocab_parallel_embedding.AscendLogitsProcessor",
+        "parameters": {},
+        "scalars": {},
+        "objects": {}
+      }
+    ],
+    "tensor_values_observed": false
+  }
+}

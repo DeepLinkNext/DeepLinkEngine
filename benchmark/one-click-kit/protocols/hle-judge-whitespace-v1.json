@@ -1,0 +1,28 @@
+{
+  "schema": "vllm-hust-judge-grammar-policy/v1",
+  "id": "xgrammar-bounded-whitespace-v1",
+  "default_option": "bounded-v1",
+  "scope": [
+    "hle-judge-B0",
+    "hle-judge-B1"
+  ],
+  "service_role": "B1",
+  "structured_outputs_config": {
+    "backend": "xgrammar",
+    "disable_any_whitespace": true
+  },
+  "preserved": [
+    "frozen task IDs and order",
+    "solver answers",
+    "judge JSON Schema",
+    "judge prompt and strict parser",
+    "temperature0 and seed17",
+    "max_completion_tokens8192",
+    "concurrency16",
+    "frozen B1 r4 runtime and optimization combination"
+  ],
+  "whitespace_scope": "Disable arbitrary structural JSON whitespace. Keep grammar-required separators and ordinary whitespace inside string values. Do not strip, repair, or silently accept invalid judge outputs.",
+  "historical_reproduction_option": "--hle-judge-whitespace unrestricted",
+  "reuse": "A changed judge grammar reuses compatible sealed solver/performance stages but requires both judge arms to run under the same policy. Historical grades remain immutable and separate.",
+  "judging_revision": "This is a new prospectively frozen grading policy, not a rewrite of historical results."
+}

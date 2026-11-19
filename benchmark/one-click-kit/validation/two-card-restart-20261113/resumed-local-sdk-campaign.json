@@ -1,0 +1,49 @@
+{
+  "pid": 62933,
+  "command": [
+    "/usr/local/python3.12.13/bin/python",
+    "/data/shared_upload/vllm-hust-third-party-self-run-20261112/executors/engine-d0412c2ee52c0e0c5790ec55fbbee12b5bd51238/one_click.py",
+    "--engine-profile",
+    "r5",
+    "--deployment",
+    "/opt/vllm-hust-r5-runtime-20261113-r2/b1-r5-local-sdk",
+    "--model",
+    "/models/Qwen3.5-35B-A3B",
+    "--b1-python",
+    "/opt/vllm-hust-r5-runtime-20261113-r2/local-sdk/b1-sdk/venv-school-r1/bin/python",
+    "--baseline-deployment",
+    "/opt/vllm-hust-r5-runtime-20261113-r2/b0-image-018",
+    "--physical-devices",
+    "1,6",
+    "--devices",
+    "0,1",
+    "--cache",
+    "/data/shared_upload/vllm-hust-third-party-self-run-20261112",
+    "--out",
+    "/data/shared_upload/vllm-hust-third-party-self-run-20261112/runs/five-datasets-r5-matched-20261113-r5",
+    "--report-python",
+    "/root/vllm-hust-third-party-verify-20261111-c9c974/self-run-kit/.report-venv/bin/python",
+    "--env-file",
+    "/root/.env",
+    "--datasets",
+    "mmlu,hle,frontier,swe,terminal"
+  ],
+  "source_commit": "d0412c2ee52c0e0c5790ec55fbbee12b5bd51238",
+  "output": "/data/shared_upload/vllm-hust-third-party-self-run-20261112/runs/five-datasets-r5-matched-20261113-r5",
+  "log": "/data/shared_upload/vllm-hust-third-party-self-run-20261112/queues/five-datasets-r5-matched-20261113-r5/controller.log",
+  "started": 1794575495.3611095,
+  "new_stages": 15,
+  "reused_stages": 0,
+  "physical_cards": [
+    1,
+    6
+  ],
+  "logical_cards": [
+    0,
+    1
+  ],
+  "cgroup_limit_bytes": 68719476736,
+  "cpu_cores": 8,
+  "storage": "Byte-identical pinned SDKs and deployments on local fast disk; immutable source archives and all raw results on NFS",
+  "reason": "Before any formal requests, replace slow NFS SDK imports with exact same archive locally restored; original r5 protocol unchanged."
+}

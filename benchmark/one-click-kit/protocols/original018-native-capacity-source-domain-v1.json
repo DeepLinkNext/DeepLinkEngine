@@ -1,0 +1,80 @@
+{
+  "schema": "reviewed-original018-native-capacity-source-domain/v1",
+  "source_sha256": {
+    "text-only-overlay/vllm/vllm/v1/engine/llm_engine.py": "de5f85c95d702ae0d6826a2caf124fa03ef239ad1cda5aed313976bf5f2ba952",
+    "text-only-overlay/vllm/vllm/v1/engine/core_client.py": "d167e7bc043fbbe79820b8177551fc73337556da5c18eb66925d7d6aa7e567a6",
+    "text-only-overlay/vllm/vllm/v1/engine/output_processor.py": "55c69b4c422d58428eb2e06ab27a83bb330583c54253524fb32ba7ff041192a2",
+    "text-only-overlay/vllm/vllm/config/scheduler.py": "74451b04e063be354df1796b610bb5ef3c783c1631105f50c85669afccfceb0b",
+    "text-only-overlay/vllm/vllm/v1/core/sched/scheduler.py": "dd5dd6e7668a2f76ee0e1df92b972196485f2d515acc81d91993e9614f70608f",
+    "text-only-overlay/vllm/vllm/v1/core/sched/async_scheduler.py": "4df37e8842fb06d5cce3bc414e9423a09808e9336a96a25530dd2270f078d093",
+    "text-only-overlay/vllm/vllm/v1/engine/core.py": "b8a10b3dda030166495b3266f44c25449b63936a611985c98dfc2ea12da61439",
+    "text-only-overlay/vllm/vllm/v1/executor/multiproc_executor.py": "138fd673505d1882c6f23b02ab6ba94884cb50342a371a9b62b9ffbf979e758d",
+    "text-only-overlay/vllm/vllm/config/vllm.py": "cfe4308f67508bd091505614379394af2077852cfac2a12c837c6066271942d9",
+    "text-only-overlay/vllm/vllm/v1/kv_cache_interface.py": "52237e1865f2bd47ef572821ca55ef2261fc96e0cee2f34dae0f1c7c4d0b15a7",
+    "text-only-overlay/vllm/vllm/v1/core/kv_cache_utils.py": "993d124f027b6a4bae6bc17b9ec4a7e143720135a7ccb8910c2ae2aaf946a18b",
+    "text-only-overlay/vllm/vllm/v1/core/kv_cache_manager.py": "6169d40a2e89277db263c67291518df3fdf8f43cac35d549b96fb24b2499d896",
+    "text-only-overlay/vllm/vllm/v1/core/single_type_kv_cache_manager.py": "56e14291b64297c6fa8751b400d51c597bdc128f60794eb386ff1e6a817a7886",
+    "text-only-overlay/vllm/vllm/v1/core/block_pool.py": "2ea932628ac6a06607dd48ded7a908f705b55c3eb6801232264ee2db142c6cd9",
+    "text-only-overlay/vllm/vllm/v1/core/kv_cache_coordinator.py": "8f04e3ac6d608dc302d076b97c49bd13f81e1b05063528580b2c947c2bcc91e8",
+    "text-only-overlay/vllm/vllm/model_executor/layers/mamba/abstract.py": "f07207c5b135b61f0f51b2f6ac87e133cd67f5685a9f2530bcf7b369b1eec6c7",
+    "text-only-overlay/vllm/vllm/model_executor/models/qwen3_next.py": "a5bf57f4c3ce15c07e3cf2b3019678bbe71d2378d80f1d922bfd18203c2b0f77",
+    "text-only-overlay/vllm/vllm/model_executor/layers/attention/attention.py": "990ead07c828e26192ca46b4b8abae7a6792f67c27510705ad7b483035f3631c"
+  },
+  "arguments": {
+    "max_num_seqs": 24,
+    "max_num_batched_tokens": 4096,
+    "max_model_len": 65536,
+    "tensor_parallel_size": 2,
+    "pipeline_parallel_size": 1,
+    "data_parallel_size": 1,
+    "prefill_context_parallel_size": 1,
+    "decode_context_parallel_size": 1,
+    "stream_interval": 1,
+    "async_scheduling": true,
+    "scheduler_cls": null,
+    "speculative_config": {
+      "method": "mtp",
+      "num_speculative_tokens": 2
+    },
+    "mamba_cache_mode": "align",
+    "kv_transfer_config": null,
+    "enable_expert_parallel": false,
+    "kv_cache_memory_bytes": 21474836480
+  },
+  "claims": [
+    {
+      "id": "effective_original_sources",
+      "proof": "Bind the complete original018 text SDK source-map admission and the actual text-only-overlay import origins. Never substitute rootfs pre-backport copies."
+    },
+    {
+      "id": "publication",
+      "proof": "One oldest EngineCore result invokes one Scheduler update; per-client output messages are queued separately. SyncMPClient consumes one message and LLMEngine.step processes it once. DELTA with stream_interval1 returns this uncoalesced delivery. Scheduler counts raw accepted drafts before EOS/length trimming."
+    },
+    {
+      "id": "hybrid_pool_conversion",
+      "proof": "The source reports floor(pool_blocks/group_count)*minimum_group_block_size with CP1. One FullAttention group uses cache_config.block_size; align-mode configuration validates that size <=4096. Thus minimum_group_block_size is an integer in1..4096; every other group has at least this block size."
+    },
+    {
+      "id": "hybrid_ownership",
+      "proof": "FullAttention per-request pages are bounded by ceil(maximum_prefix/minimum_group_block_size). Align-mode Mamba pages are at most two plus num_speculative_blocks=2, including allocation of the next state page; skipped pages become null and are returned. Only FullAttention/Mamba cache families exist in the admitted Qwen3.5 model. Zero-refcount cached pages remain evictable; unique fresh salts exclude touching another request cached prefix or the Mamba same-step cached-prefix refusal."
+    },
+    {
+      "id": "native_queue",
+      "proof": "The multiprocessing executor permits two batches for PP1 async scheduling; each fixed MTP2 verification grant advances at most three tokens. Charge two queued grants and two lookahead slots beyond full8192. No connector or encoder/cross-attention cache is present for these plain token inputs."
+    },
+    {
+      "id": "no_first_capacity_preemption",
+      "proof": "Scheduler frees finished request blocks and bounds running requests by24. Charge25 full request envelopes to include a waiting allocation before running-list insertion, plus one null page per group. The shared-pool allocation requirement sums group demands and fails only when it exceeds free/evictable pages. If the bound fits for every source-permitted minimum block size, no first capacity failure can trigger active preemption. Waiting alignment/budget refusal only postpones work."
+    },
+    {
+      "id": "cold_prefix",
+      "proof": "The pinned shared native session drains each cohort, successfully resets original018 prefix cache, and submits distinct fresh per-request UUID cache salts before formal timing. No external prefix checkpoint can match; reset_running_requests is never used during formal timing."
+    }
+  ],
+  "formal_max_tokens": 8192,
+  "maximum_minimum_block_size": 4096,
+  "in_flight_batches": 2,
+  "speculative_tokens": 2,
+  "lookahead_tokens": 2,
+  "efficiency_percent": null
+}

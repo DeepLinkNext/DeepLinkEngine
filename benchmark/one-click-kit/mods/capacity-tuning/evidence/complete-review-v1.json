@@ -1,0 +1,158 @@
+{
+  "schema": "C04-all-four-evidence-review/v1",
+  "complete": true,
+  "trials": [
+    {
+      "id": "C04-01-E24-R36",
+      "planned": 200,
+      "successful": 200,
+      "population": {
+        "requests": "2d1f5fd5a6ab166b85388251c6b139f757379472d8f0b4601efb28c4988677f4",
+        "tokens": "23481dadd8461d723f01e19b9411ea8ca5c6588088871ddcbfb7108159ced5ee",
+        "scorer": "c2237c69f848e2358abe71c68f54143b5c090a81bd4f7915088b19b8ae157801"
+      },
+      "actual_capacity": [
+        {
+          "rank": 0,
+          "execution": 24,
+          "resident": 36
+        },
+        {
+          "rank": 1,
+          "execution": 24,
+          "resident": 36
+        }
+      ],
+      "service_warmup_requests": 194,
+      "client_warmup_requests": 0,
+      "client_warmup_scope": "This client sends no warmup requests; the separate service warmup above is complete.",
+      "both_rank_post_warmup_observed_Torch_Triton_compiles": 0,
+      "cann_guard": false,
+      "raw": {
+        "url": "https://github.com/vLLM-HUST/vllm-hust-engine/releases/download/performance-exploration-20261115-r1/C04-01-E24-R36-raw-v2.zip",
+        "sha256": "147191fcb8e5887591d28498e1bbc6d61fe562d6dbe4565fdc7c4f5a6d2e904f",
+        "bytes": 13826322,
+        "asset_id": 753077527,
+        "redownload_verified": true
+      },
+      "correct": 139,
+      "truncated": 24
+    },
+    {
+      "id": "C04-02-E36-R54",
+      "planned": 200,
+      "successful": 200,
+      "population": {
+        "requests": "2d1f5fd5a6ab166b85388251c6b139f757379472d8f0b4601efb28c4988677f4",
+        "tokens": "23481dadd8461d723f01e19b9411ea8ca5c6588088871ddcbfb7108159ced5ee",
+        "scorer": "c2237c69f848e2358abe71c68f54143b5c090a81bd4f7915088b19b8ae157801"
+      },
+      "actual_capacity": [
+        {
+          "rank": 0,
+          "execution": 36,
+          "resident": 54
+        },
+        {
+          "rank": 1,
+          "execution": 36,
+          "resident": 54
+        }
+      ],
+      "service_warmup_requests": 194,
+      "client_warmup_requests": 0,
+      "client_warmup_scope": "This client sends no warmup requests; the separate service warmup above is complete.",
+      "both_rank_post_warmup_observed_Torch_Triton_compiles": 0,
+      "cann_guard": false,
+      "raw": {
+        "url": "https://github.com/vLLM-HUST/vllm-hust-engine/releases/download/performance-exploration-20261115-r1/C04-02-E36-R54-raw-v2.zip",
+        "sha256": "636e5c82308694c2b85335ea8d16d93eb33cdbfa00a099896ac05bd8b4b3daae",
+        "bytes": 14254702,
+        "asset_id": 753174296,
+        "redownload_verified": true
+      },
+      "correct": 144,
+      "truncated": 22
+    },
+    {
+      "id": "C04-03-E36-R54",
+      "planned": 200,
+      "successful": 200,
+      "population": {
+        "requests": "2d1f5fd5a6ab166b85388251c6b139f757379472d8f0b4601efb28c4988677f4",
+        "tokens": "23481dadd8461d723f01e19b9411ea8ca5c6588088871ddcbfb7108159ced5ee",
+        "scorer": "c2237c69f848e2358abe71c68f54143b5c090a81bd4f7915088b19b8ae157801"
+      },
+      "actual_capacity": [
+        {
+          "rank": 0,
+          "execution": 36,
+          "resident": 54
+        },
+        {
+          "rank": 1,
+          "execution": 36,
+          "resident": 54
+        }
+      ],
+      "service_warmup_requests": 194,
+      "client_warmup_requests": 0,
+      "client_warmup_scope": "This client sends no warmup requests; the separate service warmup above is complete.",
+      "both_rank_post_warmup_observed_Torch_Triton_compiles": 0,
+      "cann_guard": false,
+      "raw": {
+        "url": "https://github.com/vLLM-HUST/vllm-hust-engine/releases/download/performance-exploration-20261115-r1/C04-03-E36-R54-raw-v2.zip",
+        "sha256": "9a6df9b27014d5396e157a754e0e81b43d5ade7abe5922072a68f252aab72c48",
+        "bytes": 14053931,
+        "asset_id": 753260400,
+        "redownload_verified": true
+      },
+      "correct": 137,
+      "truncated": 18
+    },
+    {
+      "id": "C04-04-E24-R36",
+      "planned": 200,
+      "successful": 200,
+      "population": {
+        "requests": "2d1f5fd5a6ab166b85388251c6b139f757379472d8f0b4601efb28c4988677f4",
+        "tokens": "23481dadd8461d723f01e19b9411ea8ca5c6588088871ddcbfb7108159ced5ee",
+        "scorer": "c2237c69f848e2358abe71c68f54143b5c090a81bd4f7915088b19b8ae157801"
+      },
+      "actual_capacity": [
+        {
+          "rank": 0,
+          "execution": 24,
+          "resident": 36
+        },
+        {
+          "rank": 1,
+          "execution": 24,
+          "resident": 36
+        }
+      ],
+      "service_warmup_requests": 194,
+      "client_warmup_requests": 0,
+      "client_warmup_scope": "This client sends no warmup requests; the separate service warmup above is complete.",
+      "both_rank_post_warmup_observed_Torch_Triton_compiles": 0,
+      "cann_guard": false,
+      "raw": {
+        "url": "https://github.com/vLLM-HUST/vllm-hust-engine/releases/download/performance-exploration-20261115-r1/C04-04-E24-R36-raw-v2.zip",
+        "sha256": "d6aa965cac437f0ab80e168329759fee6023e97202c7407ec0ca5d4c8960fe2a",
+        "bytes": 14332590,
+        "asset_id": 753354304,
+        "redownload_verified": true
+      },
+      "correct": 149,
+      "truncated": 24
+    }
+  ],
+  "total_successful_responses": 800,
+  "independent_original_questions": 200,
+  "same_ordered_requests_actual_token_hashes_and_scorer": true,
+  "no_new_inference_run": true,
+  "quality_equivalence_claimed": false,
+  "efficiency_percent": null,
+  "candidate_promoted": false,
+  "metadata_note": "Historical r4 comparison/no-warmup prose in original service plans is retained as sealed. Actual per-run capacity/worker/source/warmup evidence above is authoritative. Tools r7 corrects future plan metadata; no old evidence was rewritten."
+}

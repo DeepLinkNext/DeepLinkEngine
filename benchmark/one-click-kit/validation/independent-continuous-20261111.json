@@ -1,0 +1,96 @@
+{
+  "schema": "vllm-hust-engine-independent-validation/v1",
+  "scope": "Current original-protocol C8 qualification only; formal four-target acceptance remains separate",
+  "completed": true,
+  "quiescent": true,
+  "source_seal_sha256": "25c0c9a06b95939f4c45edca4a8d6b1f07f41de9a208f08c2d4f02f68ed5de95",
+  "recorded_requests": 617,
+  "successful_requests": 617,
+  "failed_requests": 0,
+  "groups": {
+    "16384-formal": {
+      "recorded": 177,
+      "successful": 177,
+      "failed": 0,
+      "successful_output_tokens": 45312,
+      "mean_ttft_ms": 3278.194255563878,
+      "mean_tpot_ms": 40.748030084559915
+    },
+    "16384-warmup": {
+      "recorded": 39,
+      "successful": 39,
+      "failed": 0,
+      "successful_output_tokens": 9984,
+      "mean_ttft_ms": 5692.214232391845,
+      "mean_tpot_ms": 31.14088436391049
+    },
+    "4096-formal": {
+      "recorded": 380,
+      "successful": 380,
+      "failed": 0,
+      "successful_output_tokens": 97280,
+      "mean_ttft_ms": 801.4611653640474,
+      "mean_tpot_ms": 21.81669807128831
+    },
+    "4096-warmup": {
+      "recorded": 21,
+      "successful": 21,
+      "failed": 0,
+      "successful_output_tokens": 5376,
+      "mean_ttft_ms": 16936.404817161107,
+      "mean_tpot_ms": 27.24186691353802
+    }
+  },
+  "activation": {
+    "request_scoped_recompute_admissions": 617,
+    "reused_tokens": 0,
+    "microflow": {
+      "0": {
+        "split_events": 130,
+        "target_mtp_graph_replays": 8625
+      },
+      "1": {
+        "split_events": 130,
+        "target_mtp_graph_replays": 8625
+      }
+    },
+    "corrected_worker": "corrected_serving_runtime.CorrectedWorker",
+    "scope": "Actual activation and request admission, not general state-isolation proof"
+  },
+  "qualification_passed": true,
+  "historical_sdk_byte_equivalence": false,
+  "formal_targets": {
+    "3.4.1": {
+      "name": "有效算力效率 ≥50%",
+      "reason": "缺少适用的整链 F/T 参考；设备利用率不能替代有效 FLOPs。",
+      "status": "unassessable",
+      "accepted": false,
+      "measured_value": null
+    },
+    "3.4.2": {
+      "name": "吞吐 ≥10%，TTFT/TPOT 各改善 ≥5%",
+      "reason": "本报告没有完整 B0/B1 正式配对及独立质量/SLO 门槛；C8 闭环请求不是正式配对负载。",
+      "status": "unassessable",
+      "accepted": false,
+      "measured_value": null
+    },
+    "3.4.3": {
+      "name": "五数据集与 16K 稳定性",
+      "reason": "本报告不包含完整五数据集验收。连续测试资格已复核；正式任务与阈值仍须单独验证。",
+      "status": "unassessable",
+      "accepted": false,
+      "measured_value": null
+    },
+    "3.4.4": {
+      "name": "单位 token 成本降低 ≥10%及高负载利用率改善",
+      "reason": "缺少完整同负载配对和适用费用证据；冻结公有价格仅为估算，不能冒充本机账单。",
+      "status": "unassessable",
+      "accepted": false,
+      "measured_value": null
+    }
+  },
+  "formal_complete": false,
+  "environment_adaptation": "Checkpoint-only clean cache hints and actual cgroup headroom admission. State remains4GiB/rank and KV20GiB/rank. Same policy is required on comparison arms.",
+  "preceding_failure": "validation/independent-inference-20261111.json",
+  "raw_evidence": "Sealed local run continuous-b1-r7; summary binds checksums.json above, not a replacement for full raw streams."
+}

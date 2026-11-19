@@ -1,0 +1,200 @@
+From cf1080ccb90e83bc05e33257067250f15412f4e9 Mon Sep 17 00:00:00 2001
+From: OpenAI Codex <codex@openai.com>
+Date: Thu, 1 Oct 2026 03:09:34 +0000
+Subject: [PATCH 1/2] Backport Qwen3.5 text-only model support
+
+---
+ vllm/model_executor/models/config.py   | 15 ++++++++
+ vllm/model_executor/models/qwen3_5.py  | 49 +++++++++++++++++++++++++-
+ vllm/model_executor/models/registry.py |  2 ++
+ vllm/transformers_utils/config.py      |  2 ++
+ 4 files changed, 67 insertions(+), 1 deletion(-)
+
+diff --git a/vllm/model_executor/models/config.py b/vllm/model_executor/models/config.py
+index 881963d..f60a8ca 100644
+--- a/vllm/model_executor/models/config.py
++++ b/vllm/model_executor/models/config.py
+@@ -618,6 +618,19 @@ class Qwen3_5ForConditionalGenerationConfig(VerifyAndUpdateConfig):
+             )
+ 
+ 
++class Qwen3_5ForCausalLMConfig(Qwen3_5ForConditionalGenerationConfig):
++    @staticmethod
++    def verify_and_update_config(vllm_config: "VllmConfig") -> None:
++        Qwen3_5ForConditionalGenerationConfig.verify_and_update_config(vllm_config)
++
++        # Text-only Qwen3.5 uses one-dimensional positions rather than M-RoPE.
++        hf_text_config = vllm_config.model_config.hf_text_config
++        rope_parameters = getattr(hf_text_config, "rope_parameters", None)
++        if rope_parameters is not None:
++            rope_parameters.pop("mrope_section", None)
++            rope_parameters.pop("mrope_interleaved", None)
++
++
+ class SnowflakeGteNewModelConfig(VerifyAndUpdateConfig):
+     @staticmethod
+     def verify_and_update_model_config(model_config: "ModelConfig") -> None:
+@@ -671,7 +684,9 @@ MODELS_CONFIG_MAP: dict[str, type[VerifyAndUpdateConfig]] = {
+     "Qwen2ForRewardModel": Qwen2ForRewardModelConfig,
+     "Qwen3ForSequenceClassification": Qwen3ForSequenceClassificationConfig,
+     "Qwen3VLForSequenceClassification": Qwen3VLForSequenceClassificationConfig,
++    "Qwen3_5ForCausalLM": Qwen3_5ForCausalLMConfig,
+     "Qwen3_5ForConditionalGeneration": Qwen3_5ForConditionalGenerationConfig,
++    "Qwen3_5MoeForCausalLM": Qwen3_5ForCausalLMConfig,
+     "Qwen3_5MoeForConditionalGeneration": Qwen3_5ForConditionalGenerationConfig,
+     "VoyageQwen3BidirectionalEmbedModel": VoyageQwen3BidirectionalEmbedModelConfig,
+     "XLMRobertaModel": JinaRobertaModelConfig,
+diff --git a/vllm/model_executor/models/qwen3_5.py b/vllm/model_executor/models/qwen3_5.py
+index 9b1dc74..cd1582b 100644
+--- a/vllm/model_executor/models/qwen3_5.py
++++ b/vllm/model_executor/models/qwen3_5.py
+@@ -99,6 +99,7 @@ from .qwen3_vl import (
+ from .utils import (
+     AutoWeightsLoader,
+     PPMissingLayer,
++    WeightsMapper,
+     _merge_multimodal_embeddings,
+     extract_layer_index,
+     is_pp_missing_parameter,
+@@ -539,6 +540,7 @@ class Qwen3_5Model(Qwen3NextModel):
+ class Qwen3_5ForCausalLMBase(
+     nn.Module,
+     HasInnerState,
++    IsHybrid,
+     SupportsEagle3,
+     SupportsLoRA,
+     SupportsPP,
+@@ -555,6 +557,12 @@ class Qwen3_5ForCausalLMBase(
+         "in_proj_ba": ["in_proj_b", "in_proj_a"],
+     }
+ 
++    # Multimodal Qwen3.5 checkpoints keep the language model below this
++    # prefix. Strip it when the text-only architecture is selected.
++    hf_to_vllm_mapper = WeightsMapper(
++        orig_to_new_prefix={"model.language_model.": "model."},
++    )
++
+     def __init__(self, *, vllm_config: VllmConfig, prefix: str = ""):
+         config = vllm_config.model_config.hf_text_config
+         self.vllm_config = vllm_config
+@@ -617,6 +625,45 @@ class Qwen3_5ForCausalLMBase(
+ 
+         return hidden_states
+ 
++    @classmethod
++    def get_mamba_state_dtype_from_config(
++        cls,
++        vllm_config: "VllmConfig",
++    ) -> tuple[torch.dtype, torch.dtype]:
++        return MambaStateDtypeCalculator.gated_delta_net_state_dtype(
++            vllm_config.model_config.dtype,
++            vllm_config.cache_config.mamba_cache_dtype,
++            vllm_config.cache_config.mamba_ssm_cache_dtype,
++        )
++
++    @classmethod
++    def get_mamba_state_shape_from_config(
++        cls, vllm_config: "VllmConfig"
++    ) -> tuple[tuple[int, int], tuple[int, int]]:
++        parallel_config = vllm_config.parallel_config
++        hf_config = vllm_config.model_config.hf_text_config
++        tp_size = parallel_config.tensor_parallel_size
++        num_spec = (
++            vllm_config.speculative_config.num_speculative_tokens
++            if vllm_config.speculative_config
++            else 0
++        )
++        return MambaStateShapeCalculator.gated_delta_net_state_shape(
++            tp_size,
++            hf_config.linear_num_key_heads,
++            hf_config.linear_num_value_heads,
++            hf_config.linear_key_head_dim,
++            hf_config.linear_value_head_dim,
++            hf_config.linear_conv_kernel_dim,
++            num_spec,
++        )
++
++    @classmethod
++    def get_mamba_state_copy_func(
++        cls,
++    ) -> tuple[MambaStateCopyFunc, MambaStateCopyFunc]:
++        return MambaStateCopyFuncCalculator.gated_delta_net_state_copy_func()
++
+     def compute_logits(
+         self,
+         hidden_states: torch.Tensor,
+@@ -628,7 +675,7 @@ class Qwen3_5ForCausalLMBase(
+             self,
+             skip_prefixes=["mtp."],
+         )
+-        return loader.load_weights(weights)
++        return loader.load_weights(weights, mapper=self.hf_to_vllm_mapper)
+ 
+ 
+ class Qwen3_5ForCausalLM(Qwen3_5ForCausalLMBase):
+diff --git a/vllm/model_executor/models/registry.py b/vllm/model_executor/models/registry.py
+index 51f370b..f0a706d 100644
+--- a/vllm/model_executor/models/registry.py
++++ b/vllm/model_executor/models/registry.py
+@@ -192,6 +192,8 @@ _TEXT_GENERATION_MODELS = {
+     "Qwen2MoeForCausalLM": ("qwen2_moe", "Qwen2MoeForCausalLM"),
+     "Qwen3ForCausalLM": ("qwen3", "Qwen3ForCausalLM"),
+     "Qwen3MoeForCausalLM": ("qwen3_moe", "Qwen3MoeForCausalLM"),
++    "Qwen3_5ForCausalLM": ("qwen3_5", "Qwen3_5ForCausalLM"),
++    "Qwen3_5MoeForCausalLM": ("qwen3_5", "Qwen3_5MoeForCausalLM"),
+     "RWForCausalLM": ("falcon", "FalconForCausalLM"),
+     "SarvamMoEForCausalLM": ("sarvam", "SarvamMoEForCausalLM"),
+     "SarvamMLAForCausalLM": ("sarvam", "SarvamMLAForCausalLM"),
+diff --git a/vllm/transformers_utils/config.py b/vllm/transformers_utils/config.py
+index 6313d34..40004cb 100644
+--- a/vllm/transformers_utils/config.py
++++ b/vllm/transformers_utils/config.py
+@@ -115,7 +115,9 @@ _CONFIG_REGISTRY: dict[str, type[PretrainedConfig]] = LazyConfigDict(
+     qwen3_asr="Qwen3ASRConfig",
+     qwen3_next="Qwen3NextConfig",
+     qwen3_5="Qwen3_5Config",
++    qwen3_5_text="Qwen3_5TextConfig",
+     qwen3_5_moe="Qwen3_5MoeConfig",
++    qwen3_5_moe_text="Qwen3_5MoeTextConfig",
+     lfm2_moe="Lfm2MoeConfig",
+     tarsier2="Tarsier2Config",
+ )
+-- 
+2.34.1
+
+
+From 9878e0432107e69082f8837b1f275d3aad71fd4e Mon Sep 17 00:00:00 2001
+From: OpenAI Codex <codex@openai.com>
+Date: Thu, 1 Oct 2026 03:21:22 +0000
+Subject: [PATCH 2/2] Backport Qwen3.5 text-only MTP config support
+
+---
+ vllm/config/speculative.py | 12 ++++++++++--
+ 1 file changed, 10 insertions(+), 2 deletions(-)
+
+diff --git a/vllm/config/speculative.py b/vllm/config/speculative.py
+index ceb82cf..1ad62bd 100644
+--- a/vllm/config/speculative.py
++++ b/vllm/config/speculative.py
+@@ -308,8 +308,16 @@ class SpeculativeConfig:
+                 {"n_predict": n_predict, "architectures": ["ExaoneMoeMTP"]}
+             )
+ 
+-        if hf_config.model_type in ("qwen3_5", "qwen3_5_moe"):
+-            is_moe = hf_config.model_type == "qwen3_5_moe"
++        if hf_config.model_type in (
++            "qwen3_5",
++            "qwen3_5_moe",
++            "qwen3_5_text",
++            "qwen3_5_moe_text",
++        ):
++            is_moe = hf_config.model_type in (
++                "qwen3_5_moe",
++                "qwen3_5_moe_text",
++            )
+             hf_config.model_type = "qwen3_5_mtp"
+             n_predict = getattr(hf_config, "mtp_num_hidden_layers", None)
+             hf_config.update(
+-- 
+2.34.1
+

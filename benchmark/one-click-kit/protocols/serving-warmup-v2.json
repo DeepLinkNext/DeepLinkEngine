@@ -1,0 +1,44 @@
+{
+  "policy": "observed-torch-triton-sealed-warmup-v2",
+  "cohorts": [
+    {
+      "minimum_prompt_tokens": 4096,
+      "concurrency": 1
+    },
+    {
+      "minimum_prompt_tokens": 4096,
+      "concurrency": 2
+    },
+    {
+      "minimum_prompt_tokens": 4096,
+      "concurrency": 4
+    },
+    {
+      "minimum_prompt_tokens": 4096,
+      "concurrency": 8
+    },
+    {
+      "minimum_prompt_tokens": 4096,
+      "concurrency": 16
+    },
+    {
+      "minimum_prompt_tokens": 4096,
+      "concurrency": 24
+    },
+    {
+      "minimum_prompt_tokens": 16384,
+      "concurrency": 16
+    }
+  ],
+  "input_source": "Original frozen C8 synthetic chat messages, validated token counts and token-ID hashes on each service",
+  "transport": "/v1/chat/completions; same request-scoped KV control path as formal traffic",
+  "request_seed": 17,
+  "output_tokens": 32,
+  "ignore_eos": true,
+  "no_prefix_reuse": true,
+  "modality_warmup": "HLE solver: original synthetic image-interface qualification on both arms",
+  "grammar_warmup": "HLE judge: same bounded-v2 generation schema, synthetic prompt,32-token non-scored response",
+  "formal_requests_unchanged": true,
+  "formal_clock_excludes_warmup": true,
+  "post_boundary_compilation": "fail-closed Torch/Dynamo and Triton; CANN not covered"
+}

@@ -1,0 +1,17 @@
+{
+  "repository": "vLLM-HUST/vllm-hust-engine",
+  "source_commit": "d185e41a4ac14fe8e0082052092efbfe0ffd9170",
+  "source_files": 215,
+  "source_bundle_sha256": "027a90367108615369c314abf5f4a3c7266e34f587d5c49b71bfb538be2758c0",
+  "manifest_sha256": "949f2676009724446350ffc59b1908c1c306665660bf9be33a48d066a8349f6c",
+  "launcher_template_sha256": "7e9cd4d746cd646b545fbae284d78ffc7589c46eb98620f7f90a62d57fd42c8d",
+  "launcher_sha256": "fecb35d881cff24cdb8a57b39602ed7185cee602d9780089a9572fd45bfc142c",
+  "release_url": "https://github.com/vLLM-HUST/vllm-hust-engine/releases/tag/full-answer-b1-20261114-r6-rc2",
+  "source_bundle_redownload_verified": true,
+  "native_execution_unchanged": "9c4699be28425d3d05112cc31214e801e59cbf33",
+  "new_native_qualification_claimed": false,
+  "recorded_at": "2026-11-14T11:50:01.096470+00:00",
+  "single_file_isolated_execution_verified": true,
+  "real_private_release_download_verified": true,
+  "bootstrap_unit_tests_passed": 4
+}

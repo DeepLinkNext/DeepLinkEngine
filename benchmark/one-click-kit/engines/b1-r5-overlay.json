@@ -1,0 +1,39 @@
+{
+  "schema": "vllm-hust-explicit-runtime-overlay/v1",
+  "release": "full-answer-b1-20261113-r5",
+  "base_release": "full-answer-b1-20261030-r4",
+  "base_commit": "dcac3fa0ebe96cfaa443c0295458ad66822c319a",
+  "upstream_fixes": [
+    "263ee2d3844c1c212c955f3e604575c9aea98c5a",
+    "a7a43ed3fed34870ddd640a4c9f2960b0cfb7914"
+  ],
+  "preserved_existing_adaptations": 14,
+  "excluded_intervening_performance_commits": [
+    "89b1e680",
+    "8eee8136"
+  ],
+  "files": {
+    "mods/betterscale/betterscale/compilation_scope.py": {
+      "before_sha256": null,
+      "after_sha256": "5acc767915206fa25d7cfb7fc15073e65159e43156548f99e919783d158aa4f4"
+    },
+    "mods/betterscale/betterscale/worker.py": {
+      "before_sha256": "b419b48636c9f94b0e2c9e6ed71ed49ebca628700412f452ba66d425d6c0b764",
+      "after_sha256": "268242426bb491fbe065cf6588c13c31bd904b5bdcc4900ffdb0e65f9023a198"
+    },
+    "mods/betterscale/betterscale/models/qwen35/__init__.py": {
+      "before_sha256": "9c42ec68ba530defafae0eae9eae5844898a258b924b0121211e76bbe9a12bc5",
+      "after_sha256": "e66b3b7890c212580abab6e25ab1a8ecd7005226b1aeb2cf446868a978c3e0c9"
+    },
+    "mods/betterscale/betterscale/models/qwen35/serving_warmup.py": {
+      "before_sha256": null,
+      "after_sha256": "918bcfdd3558ee02abbb82c8fee28491527d699067912982e2085da98b292dbc"
+    },
+    "mods/microflow/hust_prefill_microflow/school028/host-contract.json": {
+      "before_sha256": "72d2574f0f3294f1c8d549686541a4cbbe10e599fb8ee248257dc54079273e5f",
+      "after_sha256": "379ab5dca45cd1daafd3591bd4b78bb5581bec5c7e52446fd5b931d41c13ec41",
+      "kind": "explicit source-pin refresh; installed packaging-date label retained"
+    }
+  },
+  "qualification": "pending native validation; not a new performance claim"
+}

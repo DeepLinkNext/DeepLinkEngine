@@ -1,0 +1,11 @@
+{
+  "schema": "vllm-hust-r5-preflight/v2",
+  "status": "cpu_checks_passed_native_pending",
+  "engine_tests": 104,
+  "subtests": 2,
+  "runtime_overlay": "engines/b1-r5-overlay.json",
+  "measurement_policy": "observed-torch-triton-sealed-warmup-v2",
+  "rc1_correction": "Before formal inference, replace bare completion warmup with original synthetic C8 chat requests and token-hash verification. Exercise the same request-scoped KV control path as formal tests. rc1 remains immutable, controlled-stopped with zero formal rows.",
+  "native_qualified": false,
+  "score_or_latency_results_reused": false
+}

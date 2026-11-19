@@ -1,0 +1,523 @@
+{
+  "schema": "original-canonical-sampler-protocols/v1",
+  "repository": "vLLM-HUST/vllm-hust-benchmark",
+  "commit": "18257625f75799577b81d8e2e71e1eae7904985b",
+  "scope": "Exact public original sampler source and statistical/numerical controls. New current shapes require independent qualification; no old case multiplicity or timing is shipped.",
+  "families": {
+    "dense": {
+      "sampler": "dense_reference_repeat.py",
+      "sampler_sha256": "d363d6723599f3ca7afa9e3a0b92c2820d593103d7977ab80d8f838e81bd4cd5",
+      "original_plan": "dense-reference-plan-r2.json",
+      "original_plan_sha256": "9fd4aad4d0a084f8f4dcdb60b2a356e65c0e5e8023ec0a97e5821e8fde25adc2",
+      "controls": {
+        "atol": 0.002,
+        "graph_warmups_per_repetition": 20,
+        "repetitions": 5,
+        "rtol": 0.02,
+        "seed": 137,
+        "timed_replays": 100,
+        "warmups": 3
+      },
+      "source_member": "source/dense_reference_repeat.py",
+      "source_archive": {
+        "path": "dense-reference-r2/dense-reference-evidence.tar.gz.part000",
+        "git_blob": "0d1bf06b1a734c34f68943e990579c9c55079996",
+        "sha256": "3205d61488ad069f2469300cc14b10d6ffdb43144fe8f668035a569eb3741c0e",
+        "bytes": 897644
+      },
+      "required_plan_keys": [
+        "atol",
+        "cases",
+        "graph_warmups_per_repetition",
+        "repetitions",
+        "rtol",
+        "seed",
+        "timed_replays",
+        "warmups"
+      ],
+      "current_measurement": false,
+      "historical_counts_or_timings_reused": false,
+      "case_keys": [
+        "case",
+        "k",
+        "m",
+        "n",
+        "observed_calls"
+      ],
+      "case_kind_values": [],
+      "required_case_keys": [
+        "case",
+        "k",
+        "m",
+        "n"
+      ]
+    },
+    "norm": {
+      "sampler": "norm_reference_probe_r2.py",
+      "sampler_sha256": "eb8220317fb54825608fc0f21ae1c284fd30c8c33bba516ae66b15e5c519d37d",
+      "original_plan": "norm-reference-plan-r2.json",
+      "original_plan_sha256": "94c87a4434184736249c4ec88a6d12f1c1a573459ab08861d211ed89531b240e",
+      "controls": {
+        "epsilon": 1e-06,
+        "graph_warmups": 20,
+        "repetitions": 3,
+        "seed": 139,
+        "timed_replays": 100,
+        "warmups": 3
+      },
+      "source_member": "source/norm_reference_probe_r2.py",
+      "source_archive": {
+        "path": "norm-reference-r2/norm-reference-evidence.tar.gz.part000",
+        "git_blob": "9b1e491c2129cf2e36bb4e6dba0836f446e794fc",
+        "sha256": "5ae3a88a91a6768773df4b332fcfb2ab3c6e8b4562ee573ce9ad34f52c652740",
+        "bytes": 258274
+      },
+      "required_plan_keys": [
+        "cases",
+        "epsilon",
+        "graph_warmups",
+        "repetitions",
+        "seed",
+        "source_sha256",
+        "timed_replays",
+        "warmups"
+      ],
+      "current_measurement": false,
+      "historical_counts_or_timings_reused": false,
+      "historical_context_sources_not_current_admission": {
+        "runtime/vllm_ascend/ops/layernorm.py": "50dedf714c6e485d47fea1cc4f0c8fc8058b43f1ad6e33b0df36dfaca0782991",
+        "runtime/vllm_ascend/ops/triton/layernorm_gated.py": "ecdd125ce32f969e1b1c0e4f8b4e84ee8657332cd02cdcc4c72edd2bff13aff2",
+        "runtime/vllm_ascend/device/device_op.py": "151f03a3344f2651317db0c9d5503a272dcdd61ff8b5712cbef4e112f6e4a013",
+        "runtime/vllm_ascend/patch/worker/patch_qwen3_5.py": "0ea5111173d5a02e4f8ab89130a1a1bd7d44ad86885a4c64bb3cb4649afbb48c",
+        "microflow-payload-r4/hust_prefill_microflow/runtime/microflow_attention.py": "bd9f8c126a69384a0c6af597513a13fb5107dc71540e9d3da07ff45c98ff10f0",
+        "microflow-payload-r4/hust_prefill_microflow/runtime/microflow.py": "78e7d291de4e431e478991ecec273ab0a11d6e2206d1f02a1ed6ab0a1ecd1d26"
+      },
+      "case_keys": [
+        "calls",
+        "case",
+        "kind",
+        "rows",
+        "width"
+      ],
+      "case_kind_values": [
+        "gdn_output",
+        "hidden_plain",
+        "hidden_residual"
+      ],
+      "required_case_keys": [
+        "case",
+        "kind",
+        "rows",
+        "width"
+      ]
+    },
+    "preprocess": {
+      "sampler": "preprocess_reference_probe.py",
+      "sampler_sha256": "9ba28fb8cba10dee8b2e78bf7e6bdc38665a1e95b71d9c273cf8acf46d05148a",
+      "original_plan": "preprocess-reference-plan-r1.json",
+      "original_plan_sha256": "d608214c5ce06012c9df432a1c5bd059b0eec29e5cd6876f4531c93ca18518de",
+      "controls": {
+        "graph_warmups": 20,
+        "repetitions": 3,
+        "seed": 138,
+        "timed_replays": 100,
+        "warmups": 3
+      },
+      "source_member": "source/preprocess_reference_probe.py",
+      "source_archive": {
+        "path": "preprocess-reference-r1/preprocess-reference-evidence.tar.gz.part000",
+        "git_blob": "0e3989a7f0a12f8e0f5e77f889a45f739d6fb914",
+        "sha256": "d178e9fd232714273f43f59c41dd2a7d07b96c16fbe1cbd49151526db0c400e6",
+        "bytes": 386915
+      },
+      "required_plan_keys": [
+        "cases",
+        "graph_warmups",
+        "repetitions",
+        "seed",
+        "timed_replays",
+        "warmups"
+      ],
+      "current_measurement": false,
+      "historical_counts_or_timings_reused": false,
+      "case_keys": [
+        "calls",
+        "case",
+        "mapped",
+        "output_rows",
+        "q_head_major",
+        "source_rows"
+      ],
+      "case_kind_values": [],
+      "required_case_keys": [
+        "case",
+        "mapped",
+        "output_rows",
+        "q_head_major",
+        "source_rows"
+      ]
+    },
+    "rope": {
+      "sampler": "rope_reference_probe_r2.py",
+      "sampler_sha256": "bb1d941bfa3d1a378b767f760356c5cc549d9e626f04dcb2b6dcdf928927638a",
+      "original_plan": "rope-reference-plan-r2.json",
+      "original_plan_sha256": "523bcc97bc1419cc7b0d4599e20471371dd83651fab336f7313d86c58af9cce4",
+      "controls": {
+        "graph_warmups": 20,
+        "repetitions": 3,
+        "seed": 140,
+        "timed_replays": 100,
+        "warmups": 3
+      },
+      "source_member": "source/rope_reference_probe_r2.py",
+      "source_archive": {
+        "path": "rope-reference-r2/rope-reference-evidence.tar.gz.part000",
+        "git_blob": "75b8418ab31b01831b869cd754cc523b80ad206a",
+        "sha256": "16d24763d78b45dca3784df43ab57defafe43f8f8456bab91a0db671c1fa337b",
+        "bytes": 482918
+      },
+      "required_plan_keys": [
+        "cases",
+        "graph_warmups",
+        "repetitions",
+        "seed",
+        "source_sha256",
+        "timed_replays",
+        "warmups"
+      ],
+      "current_measurement": false,
+      "historical_counts_or_timings_reused": false,
+      "historical_context_sources_not_current_admission": {
+        "runtime/vllm_ascend/ops/triton/linearnorm/split_qkv_rmsnorm_mrope.py": "ba3c7e740c3a2a9c8850733d3be77fefac79bc3ed02a45b4be076b58d6f7632d",
+        "runtime/vllm_ascend/patch/worker/patch_qwen3_5.py": "0ea5111173d5a02e4f8ab89130a1a1bd7d44ad86885a4c64bb3cb4649afbb48c",
+        "microflow-payload-r4/hust_prefill_microflow/runtime/microflow_rope.py": "5fce33befe9ccf5fd20910d7dcb83e4ba86d4f42872623761151f0aad384c2e4",
+        "microflow-payload-r4/hust_prefill_microflow/runtime/microflow_attention.py": "bd9f8c126a69384a0c6af597513a13fb5107dc71540e9d3da07ff45c98ff10f0",
+        "microflow-payload-r4/hust_prefill_microflow/runtime/microflow.py": "78e7d291de4e431e478991ecec273ab0a11d6e2206d1f02a1ed6ab0a1ecd1d26",
+        "runtime/vllm_ascend/ops/triton/triton_utils.py": "f94d81f163f0076e8243990dd687f7ec8d42ce1ed30d67eea3155bf1c3a073a4"
+      },
+      "case_keys": [
+        "calls",
+        "case",
+        "cos_tokens",
+        "kind",
+        "offset",
+        "rows"
+      ],
+      "case_kind_values": [
+        "contiguous",
+        "partitioned"
+      ],
+      "required_case_keys": [
+        "case",
+        "cos_tokens",
+        "kind",
+        "offset",
+        "rows"
+      ]
+    },
+    "router": {
+      "sampler": "router_gate_reference_probe.py",
+      "sampler_sha256": "c9f137b66c4647cc3fe08b663be7c033bc3a948b4bdb32aab6695e1fdf7d3d0f",
+      "original_plan": "router-gate-reference-plan-r1.json",
+      "original_plan_sha256": "d583292cac8d7d1a224d75b977f8e3a88a6a55013ee1acb4c6135046be5c479f",
+      "controls": {
+        "graph_warmups": 20,
+        "repetitions": 3,
+        "seed": 143,
+        "timed_replays": 100,
+        "warmups": 3
+      },
+      "source_member": "source/router_gate_reference_probe.py",
+      "source_archive": {
+        "path": "router-gate-reference-r1/router-gate-reference-evidence.tar.gz.part000",
+        "git_blob": "3a8d02036f6f9caee579d8e40989008bdda2794b",
+        "sha256": "edae5f0fb8bc167a239440e08f8d542029319f57cc8d089d2d664e8dab657fdc",
+        "bytes": 252550
+      },
+      "required_plan_keys": [
+        "cases",
+        "graph_warmups",
+        "repetitions",
+        "seed",
+        "source_sha256",
+        "timed_replays",
+        "warmups"
+      ],
+      "current_measurement": false,
+      "historical_counts_or_timings_reused": false,
+      "historical_context_sources_not_current_admission": {
+        "runtime/vllm_ascend/device/device_op.py": "151f03a3344f2651317db0c9d5503a272dcdd61ff8b5712cbef4e112f6e4a013",
+        "runtime/vllm_ascend/ops/fused_moe/router/router_factory.py": "3043c3ff106ae811ed7b7e1d78683c8266f8288a88603db6abe8e1421987b3ef",
+        "runtime/vllm_ascend/ops/fused_moe/router/fused_topk_router.py": "ab6147b770c11a22c9cfdf46aee2995fb9ce19ce25174995f1541ab2f54f97a6",
+        "runtime/vllm_ascend/ops/fused_moe/router/grouped_topk_router.py": "2c952bfe7d39809f1e01944e5c6461ab16bcf778338393ef7c911cdeef18520f",
+        "microflow-payload-r4/hust_prefill_microflow/runtime/microflow_attention.py": "bd9f8c126a69384a0c6af597513a13fb5107dc71540e9d3da07ff45c98ff10f0",
+        "runtime/vllm_ascend/patch/worker/patch_qwen3_5.py": "0ea5111173d5a02e4f8ab89130a1a1bd7d44ad86885a4c64bb3cb4649afbb48c",
+        "runtime/vllm_ascend/_cann_ops_custom/vendors/custom_transformer/op_impl/ai_core/tbe/custom_transformer_impl/ascendc/moe_gating_top_k/moe_gating_top_k.cpp": "3b995e06d726b6c4f7b041d69f7f46a59feab5232c2ddbc6ba749cebdedff7eb",
+        "runtime/vllm_ascend/_cann_ops_custom/vendors/custom_transformer/op_impl/ai_core/tbe/custom_transformer_impl/ascendc/moe_gating_top_k/moe_gating_top_k_without_group.h": "0a3ba990a9503c48129a03b28d178f0040fb73b34eb37b7dfdda25726e5845d6"
+      },
+      "case_keys": [
+        "calls",
+        "case",
+        "kind",
+        "rows"
+      ],
+      "case_kind_values": [
+        "fa_gate",
+        "router"
+      ],
+      "required_case_keys": [
+        "case",
+        "kind",
+        "rows"
+      ]
+    },
+    "swiglu": {
+      "sampler": "swiglu_reference_probe.py",
+      "sampler_sha256": "41e031b2972cd72571c944c159001e495bcdc10a84845b6629f2e4cf70f3cafb",
+      "original_plan": "swiglu-reference-plan-r1.json",
+      "original_plan_sha256": "74664854e54f064977bcf9e581a32cc1502dc248aa38b462b4ed6bbf9a3bc759",
+      "controls": {
+        "atol": 0.002,
+        "graph_warmups": 20,
+        "repetitions": 3,
+        "rtol": 0.02,
+        "seed": 141,
+        "timed_replays": 100,
+        "warmups": 3
+      },
+      "source_member": "source/swiglu_reference_probe.py",
+      "source_archive": {
+        "path": "swiglu-reference-r1/swiglu-reference-evidence.tar.gz.part000",
+        "git_blob": "186fee6c5608998f81fa1c3022e11bbfe7834f83",
+        "sha256": "37019b543c02ab596832d9f97ac4e44a0de9b1e4b308ad36d3cad1f56bd3de6e",
+        "bytes": 234529
+      },
+      "required_plan_keys": [
+        "atol",
+        "cases",
+        "graph_warmups",
+        "repetitions",
+        "rtol",
+        "seed",
+        "source_sha256",
+        "timed_replays",
+        "warmups"
+      ],
+      "current_measurement": false,
+      "historical_counts_or_timings_reused": false,
+      "historical_context_sources_not_current_admission": {
+        "runtime/vllm_ascend/ops/activation.py": "79185cd8bae9801aef50873cb082bb977ff8d2b3ddb27766e4f42ffbfa12b5c0",
+        "runtime/vllm_ascend/ops/fused_moe/moe_mlp.py": "2bf107e3287e3a4c69512e60e65495448f34a4451eab32ae3b23b5c2a46d2558",
+        "runtime/vllm_ascend/ops/fused_moe/routed_experts.py": "b17e5a105d59fc280f244bdc4036b4cb41efd1d5a2ff1accca4b56620cc91ab7",
+        "runtime/vllm_ascend/ops/fused_moe/shared_experts.py": "78d6ad231159b907571b609538e38fa682a7d5e994d7c24749c1ece075fcc881"
+      },
+      "case_keys": [
+        "calls",
+        "case",
+        "kind",
+        "rows",
+        "width"
+      ],
+      "case_kind_values": [
+        "routed",
+        "shared"
+      ],
+      "required_case_keys": [
+        "case",
+        "kind",
+        "rows",
+        "width"
+      ]
+    },
+    "vocab": {
+      "sampler": "vocab_reference_probe.py",
+      "sampler_sha256": "488c550094060d8db186f517f79d8fc6eac655e1ee1d7ae2b5ebab39b823ccbf",
+      "original_plan": "vocab-reference-plan-r1.json",
+      "original_plan_sha256": "50b487e575bd60ca851cf32b4bf2ee441fa5dd0595fa1399021f83016075bc26",
+      "controls": {
+        "atol": 0.002,
+        "repetitions": 3,
+        "rtol": 0.02,
+        "seed": 731,
+        "timed_replays": 10,
+        "warmups": 3
+      },
+      "source_member": "source/vocab_reference_probe.py",
+      "source_archive": {
+        "path": "vocab-reference-r1/vocab-reference-evidence.tar.gz.part000",
+        "git_blob": "490843f584020f10e360745caa285cf368c5a8b6",
+        "sha256": "ddf0dcd9eaaba2b4b9771d9cdc7bbd5152c60c2d1cfb9ad5b5a647cbd87dba02",
+        "bytes": 217431
+      },
+      "required_plan_keys": [
+        "atol",
+        "cases",
+        "repetitions",
+        "rtol",
+        "seed",
+        "timed_replays",
+        "warmups"
+      ],
+      "current_measurement": false,
+      "historical_counts_or_timings_reused": false,
+      "case_keys": [
+        "case",
+        "draft_calls",
+        "k",
+        "m",
+        "n",
+        "target_calls"
+      ],
+      "case_kind_values": [],
+      "required_case_keys": [
+        "case",
+        "m"
+      ]
+    },
+    "moe": {
+      "sampler": "moe_reference_full.py",
+      "sampler_sha256": "2b318fcc46c9304c942738b721071536b91ad11400017b7be2f6a7e8081664f8",
+      "original_plan": "moe-reference-plan-r2.json",
+      "original_plan_sha256": "4814f8127ae282e2fcdd00d19a0446256ee645123a35a2fd7e333742d226e98e",
+      "controls": {
+        "operators": [
+          {
+            "name": "w13",
+            "k": 2048,
+            "n": 512
+          },
+          {
+            "name": "w2",
+            "k": 256,
+            "n": 2048
+          }
+        ],
+        "experts": 256,
+        "group_list_type": 1,
+        "split_item": 2,
+        "group_type": 0,
+        "weight_layout": "ND contiguous",
+        "warmups": 3,
+        "repetitions": 3,
+        "timed_replays": 1,
+        "seed": 119,
+        "atol": 0.002,
+        "rtol": 0.02
+      },
+      "source_member": "source/moe_reference_full.py",
+      "source_archive": {
+        "descriptor_git_blob": "91bbceb40fd08171c41cdf293ca0d163fc53d779",
+        "descriptor_sha256": "066c2db8baf1102e1dd4c95f77898706a13b7289c9e35821a4ec3ea353085b63",
+        "concatenated_sha256": "7790a701156d536661aa7dfd63ad1ec1a356891125b1700138cc2f88956e2d70",
+        "parts": 23,
+        "bytes": 20349933
+      },
+      "required_plan_keys": [
+        "operators",
+        "experts",
+        "group_list_type",
+        "split_item",
+        "group_type",
+        "weight_layout",
+        "warmups",
+        "repetitions",
+        "timed_replays",
+        "seed",
+        "atol",
+        "rtol",
+        "cases"
+      ],
+      "current_measurement": false,
+      "historical_counts_or_timings_reused": false,
+      "case_keys": [
+        "case",
+        "rows",
+        "group_counts"
+      ],
+      "required_case_keys": [
+        "case",
+        "rows",
+        "group_counts"
+      ],
+      "case_kind_values": [],
+      "qualified_shape_domain": {
+        "minimum_source_tokens": 3,
+        "top_k": 8,
+        "experts": 256,
+        "small_m_1_or_2_requires_later_batch32_protocol": true
+      },
+      "source_protocol_limitations": [
+        "Device group lists include graph padding; per-expert useful-row distribution is not reconstructed.",
+        "Synthetic bounded inputs and one resident expert weight bank do not reproduce the model working set.",
+        "CPU FP32 checks sample output rows/columns, not every output element.",
+        "The qualification excludes routing, activation, combination, shared experts and communication.",
+        "No full-model effective FLOPs, reference capacity or M01 attainment is inferred.",
+        "Graph reuse is qualified at the first and last group list of every row-count bucket, not every timed result.",
+        "Per-call device events exclude the group-buffer copy but can include host submission gaps.",
+        "Each case has three single-replay timings; use dispersion, not the fastest observation."
+      ]
+    },
+    "gdn_ho": {
+      "sampler": "gdn_reference_probe_r9.py",
+      "sampler_sha256": "d3444c035139740bfe0ade2f0b59a1266ab63373e9cef0ea9579e235d90d78d5",
+      "original_plan": "gdn-reference-plan-r3.json",
+      "original_plan_sha256": "2aeb9d8383645cf6c09a0989a1592265e40886d4f4e40a0fd5552c4b6db4f49d",
+      "controls": {
+        "key_heads": 8,
+        "value_heads": 16,
+        "head_dim": 128,
+        "warmups": 3,
+        "timed_replays": 30,
+        "repetitions": 3,
+        "atol": 0.01,
+        "rtol": 0.01,
+        "seed": 91
+      },
+      "source_member": "source/gdn_reference_probe_r9.py",
+      "source_archive": {
+        "path": "gdn-reference-r3/gdn-reference-r9-evidence.tar.gz.part000",
+        "git_blob": "26be72cb9efa230fb1fc8314c7ea96558225067b",
+        "sha256": "161edc9b7e39573acc2279f9c2759a00d99e75da0d6a9da172534173434aeb2a",
+        "bytes": 280892
+      },
+      "required_plan_keys": [
+        "key_heads",
+        "value_heads",
+        "head_dim",
+        "warmups",
+        "timed_replays",
+        "repetitions",
+        "atol",
+        "rtol",
+        "seed",
+        "cases"
+      ],
+      "current_measurement": false,
+      "historical_counts_or_timings_reused": false,
+      "case_keys": [
+        "case",
+        "capacity",
+        "requests",
+        "lengths",
+        "initial_flags"
+      ],
+      "required_case_keys": [
+        "case",
+        "capacity",
+        "requests",
+        "lengths",
+        "initial_flags"
+      ],
+      "case_kind_values": [],
+      "library_sha256": "1c522f04a701d3423798b4b7f157737ef41956be25cf46842b6ba33c7ec41bea",
+      "source_protocol_limitations": [
+        "Inputs are synthetic; state slots are compacted. This is not full-model working-set timing.",
+        "H/O excludes WY, KKT, convolution, preprocessing and the rest of the model.",
+        "Source shapes are host-observed; component timings do not establish whole-model effective FLOPs."
+      ]
+    }
+  },
+  "deferred_families": {
+    "moe_small_m": "M=1/2 is outside the original M>=3 single-replay protocol. Restore the later steady batch32 primary protocol, or explicitly omit unqualified complete nodes from a source-proved time lower-bound graph; never assign them zero duration."
+  }
+}

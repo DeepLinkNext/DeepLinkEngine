@@ -1,0 +1,106 @@
+{
+  "id": "guarded-progress-async",
+  "version": "1.0.0-rc1",
+  "status": "paired-performance-met;native-and-C8-passed;integrated-quality-screen-not-met",
+  "role": "B1 default upgrade candidate; retains source and consumer fences",
+  "supported_engine": "full-answer-b1-20261116-r7",
+  "previous_engine": "full-answer-b1-20261113-r6",
+  "implementation": "overlays/b1-r7/mods/correction/guarded_owned_copy_policy.py",
+  "initialization": "overlays/b1-r7/mods/correction/guarded_source_lifecycle.py",
+  "activation": "Native OwnedOptimisticOperand default; --engine-profile r7. No experimental plugin or per-request environment switch.",
+  "parameters": {
+    "non_blocking": true,
+    "execution": 24,
+    "resident": 36,
+    "MTP": 2,
+    "row_tile": 16
+  },
+  "prerequisites": [
+    "Ascend910B2 pair, TP2, Qwen3.5-35B-A3B BF16",
+    "Exact native source bindings and unchanged preparation stream",
+    "Two pinned host snapshots, consumer fences and owned device destination",
+    "One-time unused guard rebind after actual State/KV initialization, before preparation"
+  ],
+  "measured_pairs": [
+    {
+      "baseline": "K03copy4-01-sync",
+      "candidate": "K03copy4-02-async",
+      "complete": true,
+      "changes_percent": {
+        "output_tokens_per_second": 14.15531625385813,
+        "duration_seconds": -14.477149868155559,
+        "output_tokens": -2.3711199626798685,
+        "mean_ttft_ms": -13.508735770513303,
+        "mean_tpot_ms": -12.24277410881751,
+        "ttft_p95_ms": -15.266281230370316,
+        "ttft_p99_ms": -14.888216032190071,
+        "tpot_p95_ms": -11.06997612904892,
+        "tpot_p99_ms": -10.902635590599264
+      },
+      "quality": {
+        "planned": 200,
+        "baseline_correct": 138,
+        "candidate_correct": 149,
+        "both_correct": 120,
+        "baseline_only_correct": 18,
+        "candidate_only_correct": 29,
+        "both_incorrect": 33
+      },
+      "performance_screen_met": true
+    },
+    {
+      "baseline": "K03copy4-04-sync",
+      "candidate": "K03copy4-03-async",
+      "complete": true,
+      "changes_percent": {
+        "output_tokens_per_second": 12.040300488839527,
+        "duration_seconds": -11.59636850953637,
+        "output_tokens": -0.9523056350381753,
+        "mean_ttft_ms": -16.89450345544715,
+        "mean_tpot_ms": -11.672334356002768,
+        "ttft_p95_ms": -12.525933687325818,
+        "ttft_p99_ms": -10.442012981092441,
+        "tpot_p95_ms": -11.94639584465451,
+        "tpot_p99_ms": -12.32330950913435
+      },
+      "quality": {
+        "planned": 200,
+        "baseline_correct": 150,
+        "candidate_correct": 145,
+        "both_correct": 127,
+        "baseline_only_correct": 23,
+        "candidate_only_correct": 18,
+        "both_incorrect": 32
+      },
+      "performance_screen_met": true
+    }
+  ],
+  "additional_device_buffer": "Existing owned integer progress buffer; no new model-sized allocation.",
+  "limitations": [
+    "No extrapolated gain on another model/capacity/workload.",
+    "Correct138→149 and150→145; truncated18→22 and21→18 on original200.",
+    "CANN compilation is outside the existing post-ready guard.",
+    "After default absorption, future optimizers share this baseline; old sync comparisons stay historical."
+  ],
+  "negative_and_repair_evidence": [
+    "K03 full r1/r2/r3 failed startup and K04 source-guard repair retained.",
+    "K04 r2 actual State initializer, native position consumer and full integer arrays accepted."
+  ],
+  "evidence": "experiments/optimization-20261115/K03-owned-copy-full-answer-20261116-r4/RESULTS-v1.md",
+  "integrated_validation": "experiments/optimization-20261115/B1-r7-async-promotion-20261116-r1",
+  "task_quality_equivalence_claimed": false,
+  "current_default_promoted": false,
+  "integrated_validation_result": {
+    "correct": 138,
+    "minimum_correct": 144,
+    "truncated": 22,
+    "successful": 200,
+    "failed": 0,
+    "unparsed": 0,
+    "output_tokens_per_second": 1200.4515251576117,
+    "mean_tpot_ms": 18.56590848224385,
+    "native_and_C8": true,
+    "original_screen_passed": false,
+    "quality_context": "experiments/optimization-20261115/Q01-r7-quality-context-20261116-r1/README.md"
+  }
+}

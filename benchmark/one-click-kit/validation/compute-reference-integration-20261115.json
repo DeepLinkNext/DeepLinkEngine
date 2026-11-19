@@ -1,0 +1,46 @@
+{
+  "scope": "One-click live MMLU200 reference integration; no live reference efficiency measured",
+  "cpu_tests_passed": 35,
+  "real_reference_only_admission": {
+    "compute_reference": {
+      "schema": "one-click-current-compute-reference/v1",
+      "status": "blocked",
+      "binding": {
+        "profile": "mmlu-fixed200-v1",
+        "quality_plan_sha256": "f4ed4ce5956c9ed08f360400b5a996ef92a217ce295d50648d4dc06443db768e",
+        "requests": 200,
+        "max_completion_tokens": 8192,
+        "temperature": 0,
+        "seed": 0,
+        "eos": "enabled",
+        "model": "/models/Qwen3.5-35B-A3B",
+        "physical_cards": [
+          1,
+          6
+        ],
+        "engine_release": "full-answer-b1-20261113-r6"
+      },
+      "historical_substitution_allowed": false,
+      "blockers": [
+        "冻结的MMLU200现场标定计划及其独立SHA256",
+        "目标侧完整必要算量认证（含GDN、标量/卷积和保留草稿依赖）",
+        "独立参考算子/整链实现、标定及整链验证绑定"
+      ]
+    },
+    "target_3_4_1": {
+      "name": "有效算力效率 ≥50%",
+      "accepted": false,
+      "status": "current_workload_reference_not_measured",
+      "display_value": "现场参考未完成",
+      "measured_value": null,
+      "accepted_scope": null,
+      "reason": "冻结的MMLU200现场标定计划及其独立SHA256；目标侧完整必要算量认证（含GDN、标量/卷积和保留草稿依赖）；独立参考算子/整链实现、标定及整链验证绑定"
+    }
+  },
+  "performance_inference_rerun": false,
+  "full_reference_certifiers_implemented": false,
+  "default_full_run_fails_before_performance_if_reference_unready": true,
+  "raw_r3_campaign_unchanged": true,
+  "copied_collector_module_identity_checked": true,
+  "reference_stage_live_logs_tested": true
+}

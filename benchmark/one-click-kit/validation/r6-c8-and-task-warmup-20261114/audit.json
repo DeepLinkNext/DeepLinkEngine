@@ -1,0 +1,83 @@
+{
+  "schema": "vllm-hust-r6-c8-and-task-warmup-audit/v1",
+  "checked_at": "2026-11-14T03:35:36.808532+00:00",
+  "campaign": "/data/shared_upload/vllm-hust-third-party-self-run-20261112/runs/five-datasets-r6-matched-20261113-r1",
+  "execution_commit": "ec757e655557e18991f6e7fa17339b0dde87c6f8",
+  "campaign_status": "failed",
+  "completed_or_reused_stages": 2,
+  "planned_stages": 15,
+  "continuous_B1_formal_requests": 592,
+  "continuous_B1_original_warmup_requests": 126,
+  "continuous_B1_common_warmup_requests": 71,
+  "continuous_B1_failed_requests": 0,
+  "continuous_source_audit_replayed": true,
+  "post_boundary_torch_triton_compiles": 0,
+  "mmlu_B0_requests": 200,
+  "mmlu_B0_failed_requests": 200,
+  "mmlu_B1_started": false,
+  "cause": "B0 MMLU reaches causal_conv1d_update B_TILE=2; existing long-input/32-output warmup compiled only B_TILE=1. Measurement boundary correctly fails closed.",
+  "failed_at_china_time": "2026-11-14 00:08",
+  "kernel": "_causal_conv1d_update_kernel_npu_tiled",
+  "columns_excluded_from_quality": "200 engine failures are execution failures,not model wrong answers",
+  "comparison_scope": "Synthetic C8 closed-loop out256 only; not five-dataset quality or full project acceptance",
+  "formal_targets": {
+    "3.4.1": "Historical M01/out256 ≥59.76% reaches milestone; no new efficiency measurement",
+    "3.4.2": "C8 throughput/TTFT/TPOT numeric improvements demonstrated; new MMLU pair pending",
+    "3.4.3": "4K/16K C8 runs completed; all-five task execution pending;≥32K not demonstrated",
+    "3.4.4": "C8 equal-rate cost estimates and sampled utilization improve; new full task comparison pending"
+  },
+  "groups": {
+    "4096-formal": {
+      "B0": {
+        "recorded": 152,
+        "successful": 152,
+        "failed": 0,
+        "successful_output_tokens": 38912,
+        "mean_ttft_ms": 1709.4214221250886,
+        "mean_tpot_ms": 56.21754155438561,
+        "cohort_wall_seconds": 307.07979921600054,
+        "output_tokens_per_second": 126.71624802199777
+      },
+      "B1": {
+        "recorded": 410,
+        "successful": 410,
+        "failed": 0,
+        "successful_output_tokens": 104960,
+        "mean_ttft_ms": 690.6729389245412,
+        "mean_tpot_ms": 20.395569694126934,
+        "cohort_wall_seconds": 302.9056311659988,
+        "output_tokens_per_second": 346.51056038796344
+      },
+      "throughput_ratio": 2.7345393017619153,
+      "ttft_reduction_percent": 59.5960990084047,
+      "tpot_reduction_percent": 63.720274615004314,
+      "same_hourly_rate_token_cost_reduction_percent": 63.43076878230709
+    },
+    "16384-formal": {
+      "B0": {
+        "recorded": 73,
+        "successful": 73,
+        "failed": 0,
+        "successful_output_tokens": 18688,
+        "mean_ttft_ms": 5645.442650068505,
+        "mean_tpot_ms": 110.9640982979321,
+        "cohort_wall_seconds": 312.67479561300024,
+        "output_tokens_per_second": 59.76816891608451
+      },
+      "B1": {
+        "recorded": 182,
+        "successful": 182,
+        "failed": 0,
+        "successful_output_tokens": 46592,
+        "mean_ttft_ms": 3715.9957444397387,
+        "mean_tpot_ms": 37.829714622516626,
+        "cohort_wall_seconds": 305.0576808020014,
+        "output_tokens_per_second": 152.73177150468365
+      },
+      "throughput_ratio": 2.5554032233967474,
+      "ttft_reduction_percent": 34.17707034195722,
+      "tpot_reduction_percent": 65.90814938995308,
+      "same_hourly_rate_token_cost_reduction_percent": 60.86723258215356
+    }
+  }
+}

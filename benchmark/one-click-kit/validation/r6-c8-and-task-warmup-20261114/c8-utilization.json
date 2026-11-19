@@ -1,0 +1,50 @@
+{
+  "B0": {
+    "4096-formal": {
+      "per_card_percent": {
+        "1": 23.684891310211153,
+        "6": 22.85085724857203
+      },
+      "mean_percent": 23.26787427939159,
+      "covered_seconds": 307.07979921600054,
+      "missing_seconds": 0.0,
+      "max_hold_age_seconds": 6.805517184000564,
+      "method": "Sampler clock midpoint; request interval clipped; left-hold, time weighted. A sample estimate, not continuous hardware truth."
+    },
+    "16384-formal": {
+      "per_card_percent": {
+        "1": 32.855255934231145,
+        "6": 33.72157866394426
+      },
+      "mean_percent": 33.2884172990877,
+      "covered_seconds": 312.67479561300024,
+      "missing_seconds": 0.0,
+      "max_hold_age_seconds": 6.770766053001353,
+      "method": "Sampler clock midpoint; request interval clipped; left-hold, time weighted. A sample estimate, not continuous hardware truth."
+    }
+  },
+  "B1": {
+    "4096-formal": {
+      "per_card_percent": {
+        "1": 68.9970068414572,
+        "6": 69.6993131788151
+      },
+      "mean_percent": 69.34816001013616,
+      "covered_seconds": 302.9056311659988,
+      "missing_seconds": 0.0,
+      "max_hold_age_seconds": 6.767914219501108,
+      "method": "Sampler clock midpoint; request interval clipped; left-hold, time weighted. A sample estimate, not continuous hardware truth."
+    },
+    "16384-formal": {
+      "per_card_percent": {
+        "1": 83.5257971200155,
+        "6": 82.2943910277891
+      },
+      "mean_percent": 82.9100940739023,
+      "covered_seconds": 305.0576808020014,
+      "missing_seconds": 0.0,
+      "max_hold_age_seconds": 7.248017170502862,
+      "method": "Sampler clock midpoint; request interval clipped; left-hold, time weighted. A sample estimate, not continuous hardware truth."
+    }
+  }
+}

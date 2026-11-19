@@ -1,0 +1,924 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>推理引擎 · 验收实验台</title>
+<style>
+:root {
+  color-scheme: light;
+  --ink: #162439;
+  --muted: #66758c;
+  --line: #e6ebf1;
+  --blue: #315ee8;
+  --bg: #f5f7fa;
+  --nav: #121e30;
+  --teal: #12a18d;
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  font: 14px/1.55 system-ui,-apple-system,"Microsoft YaHei",sans-serif;
+  background: var(--bg);
+  color: var(--ink);
+}
+button,select {
+  font: inherit;
+}
+button:focus-visible,select:focus-visible {
+  outline: 3px solid #9bb6ff;
+  outline-offset: 2px;
+}
+.layout {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 234px minmax(0,1fr);
+}
+aside {
+  background: var(--nav);
+  color: #eaf0ff;
+  padding: 30px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  font-weight: 700;
+  letter-spacing: .04em;
+}
+.brand-mark {
+  background: #446ff3;
+  width: 35px;
+  height: 35px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  font-size: 18px;
+}
+.brand small {
+  display: block;
+  font-weight: 400;
+  color: #93a5bf;
+  font-size: 10px;
+  letter-spacing: .1em;
+}
+.side-label {
+  font-size: 11px;
+  letter-spacing: .12em;
+  color: #8091a9;
+  margin: 0 10px 10px;
+}
+.nav button {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: #b9c6d9;
+  padding: 11px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  text-align: left;
+  gap: 11px;
+}
+.nav button:hover,.nav button.active {
+  color: white;
+  background: #263a5a;
+}
+.nav button.active {
+  box-shadow: inset 3px 0 #7395ff;
+}
+.nav .badge {
+  margin-left: auto;
+  font-size: 10px;
+  color: #95a9c6;
+}
+.nav .num {
+  font-size: 11px;
+  color: #7e91aa;
+}
+.side-note {
+  margin-top: auto;
+  border-top: 1px solid #2d3b51;
+  padding: 18px 10px 0;
+  color: #93a5bf;
+  font-size: 12px;
+}
+main {
+  min-width: 0;
+  padding: 32px 42px 56px;
+  max-width: 1600px;
+  width: 100%;
+  margin: auto;
+}
+.top {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  align-items: flex-start;
+}
+.eyebrow {
+  color: #5571b8;
+  text-transform: uppercase;
+  letter-spacing: .13em;
+  font-size: 11px;
+  font-weight: 700;
+}
+.top h1 {
+  font-size: 28px;
+  letter-spacing: -.03em;
+  margin: 4px 0 3px;
+}
+.subtitle {
+  margin: 0;
+  color: var(--muted);
+}
+.top-right {
+  text-align: right;
+  color: var(--muted);
+  font-size: 12px;
+}
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #e7f5f1;
+  color: #177b6b;
+  border-radius: 30px;
+  padding: 5px 10px;
+  font-size: 11px;
+  font-weight: 700;
+}
+.pill:before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  background: #16a289;
+  border-radius: 50%;
+}
+.toolbar {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 14px;
+  margin: 28px 0 20px;
+}
+.toolbar label {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  margin-bottom: 6px;
+}
+.toolbar select {
+  min-width: 340px;
+  max-width: 100%;
+  background: #fff;
+  border: 1px solid #d9e1ec;
+  border-radius: 8px;
+  padding: 10px 32px 10px 12px;
+  color: var(--ink);
+}
+.scope {
+  font-size: 12px;
+  color: var(--muted);
+  text-align: right;
+}
+.tabs {
+  display: flex;
+  gap: 6px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 22px;
+  overflow: auto;
+}
+.tabs button {
+  background: none;
+  border: 0;
+  padding: 12px 15px;
+  color: var(--muted);
+  cursor: pointer;
+  white-space: nowrap;
+  border-bottom: 2px solid transparent;
+}
+.tabs button.active {
+  color: var(--blue);
+  border-color: var(--blue);
+  font-weight: 700;
+}
+.section-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: end;
+  margin: 24px 0 12px;
+  gap: 12px;
+}
+.section-title h2 {
+  font-size: 17px;
+  margin: 0;
+}
+.section-title p {
+  color: var(--muted);
+  font-size: 12px;
+  margin: 0;
+}
+.grid {
+  display: grid;
+  grid-template-columns: repeat(4,minmax(0,1fr));
+  gap: 12px;
+}
+.card,.panel {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  box-shadow: 0 4px 15px #172c4d07;
+}
+.card {
+  padding: 17px;
+  min-width: 0;
+}
+.card-label {
+  color: var(--muted);
+  font-size: 12px;
+}
+.card-value {
+  font-size: 21px;
+  font-weight: 700;
+  margin: 6px 0;
+  color: #1c2f4c;
+}
+.card-detail {
+  font-size: 12px;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+.panel {
+  padding: 21px;
+  margin-bottom: 14px;
+}
+.panel h3 {
+  margin: 0 0 3px;
+  font-size: 15px;
+}
+.panel .hint {
+  color: var(--muted);
+  font-size: 12px;
+  margin: 0 0 16px;
+}
+.charts {
+  display: grid;
+  grid-template-columns: repeat(3,minmax(0,1fr));
+  gap: 12px;
+}
+.metric-panel {
+  background: #fbfcfe;
+  border: 1px solid #edf1f5;
+  border-radius: 9px;
+  padding: 16px;
+  min-width: 0;
+}
+.metric-panel h4 {
+  margin: 0 0 2px;
+  font-size: 13px;
+}
+.metric-panel .unit {
+  font-size: 11px;
+  color: var(--muted);
+}
+.bar-row {
+  display: grid;
+  grid-template-columns: 23px minmax(0,1fr) auto;
+  align-items: center;
+  gap: 8px;
+  margin-top: 14px;
+  font-size: 11px;
+}
+.bar-track {
+  height: 9px;
+  border-radius: 5px;
+  background: #edf1f7;
+}
+.bar {
+  height: 9px;
+  border-radius: 5px;
+  background: #9daabd;
+  min-width: 2px;
+}
+.bar.b1 {
+  background: #5277ee;
+}
+.bar-value {
+  font-variant-numeric: tabular-nums;
+}
+.hint-box {
+  background: #f3f6fc;
+  color: #5b6c87;
+  border-radius: 8px;
+  padding: 12px 14px;
+  font-size: 12px;
+}
+.warn {
+  background: #fff7e8;
+  color: #8a5c19;
+}
+.table-wrap {
+  overflow: auto;
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+th,td {
+  padding: 12px 9px;
+  border-bottom: 1px solid var(--line);
+  vertical-align: top;
+}
+th {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 500;
+}
+td {
+  font-size: 13px;
+}
+.tag {
+  display: inline-block;
+  padding: 3px 7px;
+  border-radius: 5px;
+  font-size: 11px;
+  background: #f1f4f8;
+  color: #607087;
+}
+.tag.ok {
+  background: #e5f5ef;
+  color: #178163;
+}
+.tag.pending {
+  background: #fff3df;
+  color: #a46b18;
+}
+.tag.bad {
+  background: #fff0ed;
+  color: #b24a38;
+}
+.target-name {
+  font-weight: 650;
+  min-width: 130px;
+}
+.target-reason {
+  color: #68768b;
+  max-width: 650px;
+}
+.empty {
+  background: #fff;
+  border: 1px dashed #ced8e6;
+  border-radius: 12px;
+  padding: 45px 32px;
+  text-align: center;
+}
+.empty .icon {
+  font-size: 24px;
+  color: #8aa0bf;
+}
+.empty h2 {
+  font-size: 18px;
+  margin: 10px 0 5px;
+}
+.empty p {
+  color: var(--muted);
+  margin: 0 auto;
+  max-width: 560px;
+}
+.empty ul {
+  text-align: left;
+  display: inline-block;
+  color: #6b788a;
+  line-height: 1.9;
+  margin-bottom: 0;
+}
+.config-row {
+  display: grid;
+  grid-template-columns: 170px minmax(0,1fr);
+  gap: 15px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+}
+.config-row span:first-child {
+  color: var(--muted);
+}
+pre {
+  white-space: pre-wrap;
+  word-break: break-word;
+  background: #f7f9fc;
+  border: 1px solid #edf1f5;
+  border-radius: 8px;
+  padding: 14px;
+  font-size: 12px;
+  color: #45556e;
+}
+details summary {
+  cursor: pointer;
+  color: #4768ba;
+  font-size: 12px;
+  margin: 12px 0;
+}
+.footer {
+  font-size: 11px;
+  color: #97a4b5;
+  margin-top: 30px;
+}
+a {
+  color: var(--blue);
+}
+@media(max-width:980px) {
+  main {
+    padding: 25px;
+  }
+  .grid {
+    grid-template-columns: repeat(2,1fr);
+  }
+  .charts {
+    grid-template-columns: 1fr;
+  }
+  .layout {
+    grid-template-columns: 190px 1fr;
+  }
+}
+@media(max-width:650px) {
+  .layout {
+    display: block;
+  }
+  aside {
+    padding: 15px;
+    gap: 12px;
+  }
+  .side-note,.side-label {
+    display: none;
+  }
+  .nav {
+    display: flex;
+    overflow: auto;
+  }
+  .nav button {
+    width: auto;
+    white-space: nowrap;
+  }
+  .nav .badge {
+    display: none;
+  }
+  main {
+    padding: 22px 16px;
+  }
+  .top,.toolbar {
+    display: block;
+  }
+  .top-right,.scope {
+    text-align: left;
+    margin-top: 12px;
+  }
+  .toolbar select {
+    min-width: 0;
+    width: 100%;
+  }
+  .grid {
+    grid-template-columns: 1fr 1fr;
+  }
+  .config-row {
+    grid-template-columns: 1fr;
+    gap: 3px;
+  }
+}
+html { scrollbar-gutter: stable; }
+main { align-self: start; margin-block: 0; }
+.batch-picker { min-width: 0; }
+.batch-picker select { width: 100%; min-width: 0; }
+.evidence-link { border: 0; background: none; padding: 0; color: var(--blue); cursor: pointer; font-size: 12px; text-align: left; }
+.evidence-link:hover { text-decoration: underline; }
+.acceptance-panel { margin-top: 14px; }
+.acceptance-table { min-width: 760px; table-layout: fixed; }
+.acceptance-table thead { background: #f5f7fb; }
+.acceptance-table th, .acceptance-table td { padding: 12px; }
+.acceptance-table .target-name { color: var(--ink); font-size: 13px; }
+.target-code { color: var(--muted); font-variant-numeric: tabular-nums; }
+.target-value { color: var(--ink); font-weight: 700; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.target-reason strong { color: var(--ink); }
+.target-reason p { margin: 4px 0 0; }
+.target-source { color: var(--muted); overflow-wrap: anywhere; }
+.target-source details { margin-top: 8px; }
+.target-source details summary { margin: 0 0 4px; }
+</style>
+</head>
+<body>
+  <div class="layout">
+    <aside>
+      <div class="brand">
+        <div class="brand-mark">◈</div>
+        <div>推理引擎实验台<small>ACCEPTANCE WORKSPACE</small></div>
+      </div>
+      <div>
+        <p class="side-label">数据集 / DATASETS</p>
+        <nav class="nav" id="nav" aria-label="选择数据集"></nav>
+      </div>
+      <div class="side-note">五项数据集统一查看<br>实验结果 · 配置 · 验收证据</div>
+    </aside>
+    <main>
+      <div class="top">
+        <div>
+          <div class="eyebrow">Third-party evaluation / Experiment results</div>
+          <h1 id="title"></h1>
+          <p class="subtitle" id="subtitle"></p>
+        </div>
+        <div class="top-right">
+          <span class="pill">封存报告校验</span>
+          <div id="generated"></div>
+        </div>
+      </div>
+      <div id="content"></div>
+      <div class="footer">结果仅适用于所展示的实验范围。适用范围和证据来源见各批次详情。</div>
+    </main>
+  </div>
+<script>
+const DATA=/*__REPORT_DATA__*/;
+const defs = {
+  mmlu: { name: 'MMLU-Pro', sub: '通用知识与推理 · 固定子集', icon: '01' },
+  hle: { name: 'HLE-Verified', sub: '高难度知识与多模态 · 分层子集', icon: '02' },
+  frontier: { name: 'FrontierScience', sub: '前沿科学推理 · 两个独立分组', icon: '03' },
+  swe: { name: 'SWE-bench Pro', sub: '公开轨迹请求回放 · 推理性能', icon: '04' },
+  terminal: { name: 'TerminalBench 2.1', sub: '公开轨迹请求回放 · 推理性能', icon: '05' },
+};
+const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const number=(v,d=2)=>typeof v==='number'&&Number.isFinite(v)?v.toLocaleString('zh-CN',{maximumFractionDigits:d,minimumFractionDigits:d}):'—';
+const txt=v=>v===null||v===undefined||v===''?'未记录':esc(typeof v==='object'?JSON.stringify(v):v);
+let dataset='project', tab='overview', selected='';
+const nav=document.getElementById('nav'), content=document.getElementById('content');
+document.getElementById('generated').textContent='网页生成时间 '+new Date(DATA.generated_at).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });
+function records(){return DATA.records.filter(r=>r.dataset===dataset)}
+function openDataset(name, run = '') {
+  dataset = name;
+  selected = run;
+  tab = 'overview';
+  render();
+  window.scrollTo(0, 0);
+}
+
+function drawNav() {
+  const home = `<button type="button" data-set="project" class="${dataset==='project'?'active':''}" ${dataset==='project'?'aria-current="page"':''}><span class="num">◈</span>项目验收总览</button>`;
+  nav.innerHTML = home + Object.entries(defs).map(([name, definition]) =>
+    `<button type="button" data-set="${name}" class="${name===dataset?'active':''}" ${name===dataset?'aria-current="page"':''}><span class="num">${definition.icon}</span>${esc(definition.name)}<span class="badge">${DATA.records.filter(report => report.dataset===name).length||'待测'}</span></button>`
+  ).join('');
+  nav.querySelectorAll('button').forEach(button => {
+    button.onclick = () => openDataset(button.dataset.set);
+  });
+}
+const roles = ['B0', 'B1'];
+const performanceMetrics = [
+  { key: 'output_tokens_per_second', label: '输出吞吐', unit: 'tok/s', axis: 'tokens / s' },
+  { key: 'mean_ttft_ms', label: '平均首 token 时延', unit: 'ms', axis: 'ms · 越低越好' },
+  { key: 'mean_tpot_ms', label: '平均每 token 时延', unit: 'ms / token', axis: 'ms / token · 越低越好' },
+];
+
+function chart(metric, arms) {
+  const values = roles
+    .map(role => [role, arms[role]?.[metric.key]])
+    .filter(([, value]) => Number.isFinite(value));
+  const max = Math.max(...values.map(([, value]) => value), 0);
+  const bars = values.map(([role, value]) => {
+    const width = max ? Math.max(0, Math.min(100, value / max * 100)) : 0;
+    return `<div class="bar-row">
+      <b>${role}</b><div class="bar-track"><div class="bar ${role === 'B1' ? 'b1' : ''}" style="width:${width}%"></div></div>
+      <span class="bar-value">${number(value)}</span>
+    </div>`;
+  }).join('');
+  return `<div class="metric-panel">
+    <h4>${metric.label}</h4>
+    <div class="unit">${metric.axis}</div>
+    ${bars || '<p class="card-detail">没有可用测量数据</p>'}
+  </div>`;
+}
+
+function qualityRows(quality) {
+  const rows = [];
+  for (const role of roles) {
+    const arm = quality[role];
+    if (!arm) continue;
+    if (arm.tracks) {
+      for (const [track, stats] of Object.entries(arm.tracks)) {
+        const { total, successes } = stats;
+        const score = Number.isFinite(total) && total > 0 && Number.isFinite(successes)
+          ? 100 * successes / total : null;
+        rows.push({
+          role, track, total, score,
+          correct: successes,
+          unresolved: stats.unresolved ?? stats.judge_unresolved ?? null,
+        });
+      }
+    } else if (arm.planned_denominator) {
+      rows.push({
+        role, track: '固定子集', score: arm.accuracy_pct_of_planned200,
+        total: arm.planned_denominator, correct: arm.correct, unresolved: arm.unreturned ?? null,
+      });
+    }
+  }
+  return rows;
+}
+
+function kpi(report) {
+  const groups = new Set(qualityRows(report.quality).map(row => row.track)).size;
+  const metrics = performanceMetrics.map(({ key, label, unit }) => {
+    const arms = report.performance;
+    const current = number(arms.B1?.[key]);
+    const comparison = roles.map(role => `${role} ${number(arms[role]?.[key])}`).join(' / ');
+    return `<div class="card">
+      <div class="card-label">${label} · B1</div>
+      <div class="card-value">${current} <small>${unit}</small></div>
+      <div class="card-detail">${comparison}</div>
+    </div>`;
+  }).join('');
+  return `<div class="grid">${metrics}
+    <div class="card">
+      <div class="card-label">评分分组</div>
+      <div class="card-value">${groups || '—'} <small>${groups ? '个分组' : '暂无评分'}</small></div>
+      <div class="card-detail">${dataset === 'swe' || dataset === 'terminal' ? '公开轨迹推理性能' : '在质量评分中查看分母与未决数'}</div>
+    </div>
+  </div>`;
+}
+
+function performance(report) {
+  return `<div class="section-title">
+    <div><h2>推理性能</h2><p>solver 端统计，评分流量单独计量</p></div>
+    <span class="tag">B0 对照 / B1 优化</span>
+  </div>
+  <div class="panel">
+    <div class="charts">${performanceMetrics.map(metric => chart(metric, report.performance)).join('')}</div>
+    <p class="hint" style="margin:16px 0 0">数值来自本批次封存汇总。请结合请求数和测试工况比较。</p>
+  </div>`;
+}
+
+function quality(report) {
+  const rows = qualityRows(report.quality);
+  const title = '<div class="section-title"><h2>质量与评分</h2></div>';
+  if (!rows.length) {
+    const description = dataset === 'swe' || dataset === 'terminal'
+      ? '本批次为公开轨迹推理性能回放，未采集任务解决率。' : '该批次没有可展示的质量评分。';
+    return `${title}<div class="hint-box">${description}</div>`;
+  }
+  const scores = rows.map(row => `<tr>
+    <td><b>${esc(row.role)}</b></td>
+    <td>${esc(row.track)}</td>
+    <td>${txt(row.correct)} / ${txt(row.total)}</td>
+    <td>${Number.isFinite(row.score) ? number(row.score) + '%' : '未记录'}</td>
+    <td>${txt(row.unresolved)}</td>
+  </tr>`).join('');
+  return `${title}<div class="panel">
+    <div class="table-wrap">
+      <table><thead><tr><th>版本</th><th>分组</th><th>成功 / 计划</th><th>成功比例</th><th>未决</th></tr></thead>
+        <tbody>${scores}</tbody>
+      </table>
+    </div>
+    <p class="hint" style="margin:14px 0 0">分母采用批次计划题数，包含未决题。HLE / Frontier 使用同模型辅助裁判。</p>
+  </div>`;
+}
+function evidenceChoice(key) {
+  const reports = DATA.records.filter(report => report.targets?.[key]);
+  if (key === '3.4.2' || key === '3.4.4') {
+    return reports.find(report => {
+      const target = report.targets[key];
+      return report.dataset === 'mmlu' && (target.measured_value != null || typeof target.numeric_threshold_met === 'boolean');
+    });
+  }
+  if (key === '3.4.1') {
+    return reports.find(report => report.targets[key].status === 'current_workload_measured')
+      || reports.find(report => report.targets[key].measured_value != null)
+      || reports[0];
+  }
+  return reports[0];
+}
+const acceptanceTargets = {
+  '3.4.1': { label: '有效算力效率', scope: '独立算力参考工况' },
+  '3.4.2': { label: '吞吐与时延', scope: 'MMLU-Pro 固定 200 题配对' },
+  '3.4.3': { label: '数据集与稳定性', scope: '五数据集覆盖与 16K 稳定性' },
+  '3.4.4': { label: '单位 token 成本与利用率', scope: 'MMLU-Pro 固定 200 题配对的同费率估算' },
+};
+
+function evidenceRow(key, { label, scope }) {
+  const name = `<th scope="row" class="target-name"><span class="target-code">${key}</span><br>${label}</th>`;
+  const report = evidenceChoice(key);
+  const target = report?.targets?.[key];
+  if (!target) {
+    return `<tr>${name}<td>—</td><td><span class="tag pending">暂无证据</span></td><td>已纳入报告未提供该项测量或判定。</td><td>—</td></tr>`;
+  }
+
+  const value = target.display_value ?? target.measured_value;
+  const displayedValue = value == null || /^(incomplete|pending|unavailable)$/i.test(String(value)) ? '—' : txt(value);
+  const isPairTarget = key === '3.4.2' || key === '3.4.4';
+  const isCurrentReference = key === '3.4.1' && target.status === 'current_workload_measured';
+  const evidenceScope = isCurrentReference ? '本轮固定 MMLU200 独立标定' : scope;
+  let status = String(target.status ?? '未提供');
+  let badge = target.accepted ? 'ok' : 'pending';
+  if (isCurrentReference || (isPairTarget && typeof target.accepted === 'boolean')) {
+    status = target.accepted ? '该工况达标' : '未满足该项条件';
+    badge = target.accepted ? 'ok' : 'bad';
+  } else if (key === '3.4.1' && status === 'reference_available_current_numerator_not_measured') {
+    status = '本轮效率待测';
+  } else if (key === '3.4.1' && target.accepted) {
+    status = '历史工况达标';
+  } else if (key === '3.4.3' && /incomplete|未完成/i.test(status)) {
+    status = '范围未完成';
+  }
+
+  const sourceDetails = report.dataset === 'mmlu' && isPairTarget
+    ? `<br><button type="button" class="evidence-link" data-open="mmlu" data-run="${esc(report.id)}">查看 MMLU 对应批次 →</button>`
+    : `<details><summary>查看引用详情</summary><div>来源 ${txt(target.source_url)}</div><div>范围 ${txt(target.accepted_scope)}</div></details>`;
+  return `<tr>
+    ${name}
+    <td class="target-value">${displayedValue}</td>
+    <td><span class="tag ${badge}">${esc(status)}</span></td>
+    <td class="target-reason"><strong>${evidenceScope}</strong><p>${txt(target.reason)}</p></td>
+    <td class="target-source">${esc(report.label)}${sourceDetails}</td>
+  </tr>`;
+}
+
+const datasetContributions = {
+  mmlu: '固定子集配对可为 3.4.2 性能和 3.4.4 同费率估算提供证据，也属于 3.4.3 覆盖范围。',
+  hle: '提供 HLE 的实测结果，属于 3.4.3 覆盖范围。',
+  frontier: '提供 FrontierScience 的实测结果，属于 3.4.3 覆盖范围。',
+  swe: '属于 3.4.3 覆盖范围。公开轨迹回放衡量推理性能，任务解决率需单独测量。',
+  terminal: '属于 3.4.3 覆盖范围。公开轨迹回放衡量推理性能，任务解决率需单独测量。',
+};
+
+function projectOverview() {
+  const rows = Object.entries(acceptanceTargets).map(([key, target]) => evidenceRow(key, target)).join('');
+  const datasets = Object.entries(defs).map(([name, definition]) => {
+    const count = DATA.records.filter(report => report.dataset === name).length;
+    return `<tr>
+      <td class="target-name">${esc(definition.name)}</td>
+      <td><span class="tag ${count?'ok':'pending'}">${count?`${count} 个批次`:'暂无已纳入结果'}</span></td>
+      <td class="target-reason">${datasetContributions[name]}</td>
+      <td><button type="button" class="evidence-link" data-open="${name}">查看数据集 →</button></td>
+    </tr>`;
+  }).join('');
+
+  return `<div class="section-title"><h2 id="acceptance-title">四项任务书指标</h2></div>
+    <div class="hint-box">各项判定适用于表中所列工况。历史封存结果和接入状态以原批次为准。</div>
+    <div class="panel acceptance-panel">
+      <div class="table-wrap" role="region" aria-labelledby="acceptance-title" tabindex="0">
+        <table class="acceptance-table" aria-labelledby="acceptance-title">
+          <colgroup><col style="width:16%"><col style="width:10%"><col style="width:13%"><col style="width:42%"><col style="width:19%"></colgroup>
+          <thead><tr><th scope="col">验收指标</th><th scope="col">记录值</th><th scope="col">判定</th><th scope="col">贡献与适用范围</th><th scope="col">引用报告</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    </div>
+    <div class="section-title"><div><h2>数据集证据与覆盖</h2><p>选择数据集查看具体批次、性能、评分和设定</p></div></div>
+    <div class="panel">
+      <div class="table-wrap"><table><thead><tr><th>数据集</th><th>当前可见记录</th><th>与验收目标的关系</th><th>明细</th></tr></thead><tbody>${datasets}</tbody></table></div>
+      <p class="hint" style="margin:14px 0 0">完整覆盖和 16K 稳定性需要按 3.4.3 的证据单独核验。</p>
+    </div>${reportWarnings()}`;
+}
+const batchClock = new Intl.DateTimeFormat('zh-CN', {
+  timeZone: 'Asia/Shanghai',
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit',
+  second: '2-digit',
+  hourCycle: 'h23',
+});
+
+function formatBatchTime(seconds) {
+  if (typeof seconds !== 'number' || !Number.isFinite(seconds)) return null;
+  const date = new Date(seconds * 1000);
+  return Number.isNaN(date.getTime()) ? null : batchClock.format(date);
+}
+
+function batchOptionText(batch) {
+  const start = formatBatchTime(batch.started);
+  const end = formatBatchTime(batch.ended);
+  const time = start || (end ? `结束于 ${end}` : '时间未记录');
+  return [time, batch.regraded ? '重新评分' : '', batch.label, batch.status].filter(Boolean).join(' · ');
+}
+
+function config(report) {
+  const setup = report.config || {};
+  const originalInference = report.regraded ? [
+    ['批次类型', '重新评分（复用原推理）'],
+    ['原推理开始（北京时间）', formatBatchTime(report.inference_started)],
+    ['原推理结束（北京时间）', formatBatchTime(report.inference_ended)],
+  ] : [];
+  const details = [
+    ['报告批次', report.label],
+    ['执行状态', report.status],
+    ['批次开始（北京时间）', formatBatchTime(report.started)],
+    ['批次结束（北京时间）', formatBatchTime(report.ended)],
+    ...originalInference,
+    ['引擎版本', setup.engine_release],
+    ['模型', setup.model],
+    ['物理设备', setup.physical_cards],
+    ['逻辑设备', setup.logical_devices],
+    ['数据范围', setup.dataset?.execution_scope?.profile ?? (typeof setup.mmlu_scope === 'string' ? setup.mmlu_scope : setup.mmlu_scope?.profile)],
+    ['数据量', setup.dataset?.tasks],
+    ['图像题', setup.dataset?.image_tasks],
+    ['历史参考来源', report.evidence_basis],
+    ['报告来源', report.source],
+  ];
+  const statistics = { performance: report.performance, quality: report.quality, gains: report.gains };
+  return `<div class="section-title"><div><h2>实验设定与来源</h2><p>以下为该批次的原始记录</p></div></div>
+    <div class="panel">
+      ${details.map(([key, value]) => `<div class="config-row"><span>${esc(key)}</span><span>${txt(value)}</span></div>`).join('')}
+      <details><summary>查看完整的已筛选设定</summary><pre>${esc(JSON.stringify(setup, null, 2))}</pre></details>
+      <details><summary>查看本批次统计与评分详情</summary><pre>${esc(JSON.stringify(statistics, null, 2))}</pre></details>
+    </div>`;
+}
+
+function empty() {
+  if (dataset === 'swe' || dataset === 'terminal') {
+    return '<div class="empty"><h2>暂时没有可展示的性能结果</h2><p>测评报告生成后，刷新即可查看。</p></div>';
+  }
+  return `<div class="empty"><div class="icon">◌</div><h2>暂无可展示的正式结果</h2>
+    <p>未发现通过报告校验且包含 ${esc(defs[dataset].name)} 实测数据的批次。测试完成并生成封存报告后，重新生成总览即可显示。</p>
+    <ul><li>缺测不会绘制成零，也不会判断为达标或未达标。</li></ul></div>`;
+}
+const datasetTabs = {
+  overview: { label: '实验总览', view: report => kpi(report) + performance(report) + quality(report) },
+  performance: { label: '推理性能', view: performance },
+  quality: { label: '质量评分', view: quality },
+  config: { label: '实验设定', view: config },
+};
+
+function reportWarnings() {
+  if (!DATA.warnings.length) return '';
+  return `<details><summary>有 ${DATA.warnings.length} 份报告未纳入，请查看原因</summary><pre>${esc(JSON.stringify(DATA.warnings, null, 2))}</pre></details>`;
+}
+
+function renderDataset() {
+  const batches = records();
+  if (!batches.length) {
+    content.innerHTML = `<div style="height:28px"></div>${empty()}`;
+    return;
+  }
+
+  if (!batches.some(batch => batch.id === selected)) selected = batches[0].id;
+  const batchOptions = batches.map(batch =>
+    `<option value="${esc(batch.id)}"${batch.id === selected ? ' selected' : ''}>${esc(batchOptionText(batch))}</option>`
+  ).join('');
+  const tabs = Object.entries(datasetTabs).map(([id, { label }]) =>
+    `<button type="button" role="tab" id="report-tab-${id}" data-tab="${id}" aria-controls="report-tab-panel">${label}</button>`
+  ).join('');
+
+  content.innerHTML = `
+    <div class="toolbar">
+      <div class="batch-picker"><label for="run">实验批次（北京时间）</label><select id="run">${batchOptions}</select></div>
+      <div class="scope">数据来源已通过 summary.json 校验<br>不同批次与测试范围不直接混算</div>
+    </div>
+    <div class="tabs" role="tablist" aria-label="实验信息">${tabs}</div>
+    <div id="report-tab-panel" role="tabpanel"></div>${reportWarnings()}`;
+
+  const batchSelector = content.querySelector('#run');
+  const panel = content.querySelector('#report-tab-panel');
+  const buttons = content.querySelectorAll('[data-tab]');
+
+  function updatePanel() {
+    const report = batches.find(batch => batch.id === selected);
+    for (const button of buttons) {
+      const active = button.dataset.tab === tab;
+      button.classList.toggle('active', active);
+      button.setAttribute('aria-selected', String(active));
+    }
+    panel.setAttribute('aria-labelledby', `report-tab-${tab}`);
+    panel.innerHTML = datasetTabs[tab].view(report);
+  }
+
+  batchSelector.onchange = () => {
+    selected = batchSelector.value;
+    updatePanel();
+  };
+  buttons.forEach(button => {
+    button.onclick = () => {
+      tab = button.dataset.tab;
+      updatePanel();
+    };
+  });
+  updatePanel();
+}
+
+function render() {
+  drawNav();
+  const title = document.getElementById('title');
+  const subtitle = document.getElementById('subtitle');
+  if (dataset === 'project') {
+    title.textContent = '项目验收总览';
+    subtitle.textContent = '四项共同目标 · 证据来源与数据集覆盖';
+    content.innerHTML = projectOverview();
+    content.querySelectorAll('[data-open]').forEach(button => {
+      button.onclick = () => openDataset(button.dataset.open, button.dataset.run);
+    });
+    return;
+  }
+
+  title.textContent = defs[dataset].name;
+  subtitle.textContent = defs[dataset].sub;
+  renderDataset();
+}
+render();
+</script></body></html>

@@ -1,0 +1,18 @@
+[
+  {
+    "repository": "vLLM-HUST/vllm-hust-benchmark",
+    "commit": "d67aea6eb3eb0dee271a01b4d66acce8b65bd034",
+    "path": "scripts/audit_fixed018_retrieval.py",
+    "source_sha256": "87e34f05d386c19f0b97ee10d0ca1e3ccee179f00fa6bd070e37b1890465a30a",
+    "function": "audit_activation",
+    "function_sha256": "ff93d3d4ef4d6c0e24e7c258483181d7d576c11741b6470a45d8d4351ba525f6"
+  },
+  {
+    "repository": "vLLM-HUST/vllm-hust-benchmark",
+    "commit": "d67aea6eb3eb0dee271a01b4d66acce8b65bd034",
+    "path": "scripts/audit_fixed018_continuous.py",
+    "source_sha256": "ff67ab1f6a4ce413ecd5dd913441f50d276d9c23abf78b7bc22efe677e91a9f9",
+    "function": "reconstruct",
+    "function_sha256": "45d69fdc72fe3ac5115b4cc2b47b46f6416656c5d0bd76fcdf7111589b7afe1c"
+  }
+]

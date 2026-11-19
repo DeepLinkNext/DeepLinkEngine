@@ -1,0 +1,56 @@
+{
+  "schema": "async-http-device-input-source-domain/v1",
+  "sources": {
+    "mods/betterscale/betterscale/models/qwen35/apc_boundary.py": "0d4a94276faa8f61460c81e8e91b9a3f9311ab81e4df7299b69bf0155ac653d5",
+    "mods/betterscale/betterscale/models/qwen35/draft_sampling.py": "486dbdd884f898ef1dab0079c80492846503adb4bd8fb55fae483032b5421787",
+    "runtime/ascend/vllm_ascend/spec_decode/llm_base_proposer.py": "d106cb3cc2e048734fa2986394c43c2177d04190715dc390d8a62d50830cb6e2",
+    "runtime/engine-core/vllm/v1/spec_decode/llm_base_proposer.py": "86fdf5cc84b35ff568ba8d0ab067ce827c1b32f3c5f5e49b9bcdd8f89accfb81",
+    "mods/betterscale/betterscale/models/qwen35/seat_scheduler.py": "37c6308e6ec569aa81dbd3f1affa3b64692b48fada7504b51e6e1ecbbcb41400",
+    "runtime/ascend/vllm_ascend/worker/model_runner_v1.py": "83da7d9c6c53f718322328bb43d80651a7cd62992a8d0e8d723d62769bd0b346",
+    "mods/correction/corrected_serving_runtime.py": "8b831502c8f8fb6115d58b5fc6b3ce8321d7d3ebcb02e470397432e5f2093944",
+    "runtime/engine-core/vllm/v1/worker/gpu_model_runner.py": "5c246e2c6c2178d98df69bc3b6a63b44cd815eb129547051816782bcd3cd00b4",
+    "mods/correction/causal_draft_lengths.py": "b47a21fcdf732a28359d72dd8e050c667398b47ed6ee874a43caef05b65aa2e1",
+    "mods/betterscale/betterscale/models/qwen35/draft_fia.py": "8ca998cf2a2749862bd3c104d9f28a1427ed1cac65bf8007100ddd86bb1388bb",
+    "mods/betterscale/betterscale/patches/qwen_fia/owned.py": "c94f38f3fd666bc187257716f2796780f9d9c79a868df0e88a8f4dbb74fda546",
+    "mods/betterscale/betterscale/patches/qwen_fia/wave.py": "cddaeb1abbf9db5644171551e910f3946f47207b34d691d97456d800fa502bee"
+  },
+  "worker_helper_sha256": "4210b182c586ed45c344b8f28099041974b2906766a4ff4d48186ade5e2b6dff",
+  "scheduler_class": "betterscale.models.qwen35.seat_scheduler.LiveStateScheduler",
+  "engine_core_class": "vllm.v1.engine.core.EngineCoreProc",
+  "proposer_methods": {
+    "set_inputs_first_pass": {
+      "relative": "mods/betterscale/betterscale/models/qwen35/apc_boundary.py",
+      "sha256": "0d4a94276faa8f61460c81e8e91b9a3f9311ab81e4df7299b69bf0155ac653d5",
+      "qualified_name": "install_draft_boundary.<locals>.prepare"
+    },
+    "_run_merged_draft": {
+      "relative": "mods/betterscale/betterscale/models/qwen35/draft_sampling.py",
+      "sha256": "486dbdd884f898ef1dab0079c80492846503adb4bd8fb55fae483032b5421787",
+      "qualified_name": "AscendSpecDecodeBaseProposer._run_merged_draft"
+    },
+    "prepare_inputs_padded": {
+      "relative": "runtime/ascend/vllm_ascend/spec_decode/llm_base_proposer.py",
+      "sha256": "d106cb3cc2e048734fa2986394c43c2177d04190715dc390d8a62d50830cb6e2",
+      "qualified_name": "AscendSpecDecodeBaseProposer.prepare_inputs_padded"
+    },
+    "_get_positions": {
+      "relative": "runtime/engine-core/vllm/v1/spec_decode/llm_base_proposer.py",
+      "sha256": "86fdf5cc84b35ff568ba8d0ab067ce827c1b32f3c5f5e49b9bcdd8f89accfb81",
+      "qualified_name": "SpecDecodeBaseProposer._get_positions"
+    },
+    "_set_positions": {
+      "relative": "runtime/engine-core/vllm/v1/spec_decode/llm_base_proposer.py",
+      "sha256": "86fdf5cc84b35ff568ba8d0ab067ce827c1b32f3c5f5e49b9bcdd8f89accfb81",
+      "qualified_name": "SpecDecodeBaseProposer._set_positions"
+    }
+  },
+  "claims": [
+    "The frozen GPUModelRunner._prepare_input_ids scatters previous live GPU draft outputs by prev_positions into scheduled speculative slots. CPU -1 slots carry width only.",
+    "The captured unreindexed MTP first-pass input positions and IDs follow the target hidden rows; merged step-zero query ends partition those rows by the captured live request order.",
+    "Only immediately previous same-request device producers may resolve uniform -1 slots. Retained prefixes must independently agree with current device first-pass IDs and native retained IDs.",
+    "Actual device positions replace optimistic host starts only in a separate derived input view. Original streams and failed receipts remain immutable.",
+    "CorrectedWorker.load_model unconditionally installs CausalLengths outside the native merged runnable. The raw observer wraps that object and therefore observes step-one device lengths both before and after its publication.",
+    "causal_draft_lengths.publish changes only the second-step device length to selected first-pass position + 2 on the caller stream before draft_fia.Runnable invokes Frame.prepare and copies the actual lengths. First-step device lengths and all host envelopes remain unchanged.",
+    "A first-pass sampled row causally reads its own prefix within the full contiguous query segment. Device KV extent binds the segment end, including rejected padding rows; a retained full/logit root ends at the selected position. No discarded suffix is charged as a necessary dependency."
+  ]
+}

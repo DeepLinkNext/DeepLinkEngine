@@ -1,0 +1,60 @@
+"""Wait for an owned stage's cleanup before allowing its parent to seal evidence."""
+
+from contextlib import contextmanager
+import signal
+import subprocess
+
+
+@contextmanager
+def cancellation_handlers():
+    def cancel(signum, frame):
+        raise KeyboardInterrupt("Execution cancelled by signal " + str(signum))
+
+    previous = signal.signal(signal.SIGTERM, cancel)
+    try:
+        yield
+    finally:
+        signal.signal(signal.SIGTERM, previous)
+
+
+def run_stage(command, *, env=None, stdout=None, stderr=None):
+    """Only signal our direct child; it owns and cleans its service descendants.
+
+    A new session keeps terminal interrupts from bypassing the stage controller's
+    cleanup. Defer cancellation during Popen so a pending signal cannot orphan a
+    just-created child. Repeated interrupts cannot interrupt the cleanup wait.
+    """
+    cancelled = []
+
+    def remember(signum, frame):
+        cancelled.append(signum)
+
+    previous = {
+        signum: signal.signal(signum, remember)
+        for signum in (signal.SIGINT, signal.SIGTERM)
+    }
+    child = None
+    try:
+        child = subprocess.Popen(
+            command, env=env, start_new_session=True, stdout=stdout, stderr=stderr
+        )
+        while True:
+            if cancelled:
+                raise KeyboardInterrupt(
+                    "Execution cancelled by signal " + str(cancelled[0])
+                )
+            try:
+                return subprocess.CompletedProcess(command, child.wait(timeout=0.2))
+            except subprocess.TimeoutExpired:
+                continue
+    except BaseException:
+        if child is not None:
+            if child.poll() is None:
+                child.send_signal(signal.SIGINT)
+            # Do not declare quiescence or seal a parent while a child controller
+            # can still be writing results or holding its NPU leases.
+            child.wait()
+        raise
+    finally:
+        for signum, handler in previous.items():
+            signal.signal(signum, handler)

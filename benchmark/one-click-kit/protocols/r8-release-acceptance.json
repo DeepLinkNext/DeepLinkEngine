@@ -1,0 +1,46 @@
+{
+  "schema": "vllm-hust-r8-release-acceptance/v1",
+  "study": "C15-r7-tail-combination-model-20261117-r1",
+  "stage_count": 8,
+  "context_pairs": [
+    [
+      1,
+      2
+    ],
+    [
+      4,
+      3
+    ]
+  ],
+  "task_pairs": [
+    [
+      5,
+      6
+    ],
+    [
+      8,
+      7
+    ]
+  ],
+  "frozen_screens": "experiments/optimization-20261115/C15-r7-tail-combination-model-20261117-r1/plan-v1.json",
+  "candidate_runtime_files_identical_to_C15": true,
+  "C10_metrics_are_development_not_r8_measurements": true,
+  "reference_efficiency_reuse": false,
+  "default_promotion_requires_all_original_screens": false,
+  "historical_default_promotion_requires_all_original_screens": true,
+  "scope": "Historical C15 r6-vs-r8 development study; all original screen thresholds and results remain preserved at frozen_screens.",
+  "current_publication_policy": {
+    "frozen_r8_published": true,
+    "historical_internal_screens_are_project_targets": false,
+    "original_screen_failure_is_publication_veto": false,
+    "default_promoted": false,
+    "default_promotion_decision": "Use the project outline, complete new B0/r8 measurements and disclosed r6 tradeoffs; no replacement post-hoc numeric screen is introduced.",
+    "current_manifest": {
+      "url": "https://github.com/vLLM-HUST/vllm-hust-engine/releases/download/full-answer-b1-20261117-r8/r8-release-manifest-v2.json",
+      "sha256": "cb827ba7700956f9898891a1ad4961ede4dd236c0e22ec271196ae173ae47d49",
+      "bytes": 11217,
+      "asset_id": 759287099,
+      "redownload_verified": true
+    }
+  }
+}

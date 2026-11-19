@@ -1,0 +1,404 @@
+{
+  "schema": "vllm-hust-mod-registry/v1",
+  "entries": [
+    {
+      "id": "sealed-serving-warmup",
+      "status": "absorbed-default-r6;startup-and-measurement-stability",
+      "manifest": "sealed-serving-warmup/mod.json",
+      "implementation_already_in_repository": true,
+      "optional_search_dimension": false,
+      "default_engine": "r6",
+      "isolated_speedup_claimed": false,
+      "documentation": "sealed-serving-warmup/README.md"
+    },
+    {
+      "id": "guarded-progress-async",
+      "status": "paired-performance-met;native-and-C8-passed;integrated-quality-screen-not-met",
+      "manifest": "guarded-progress-async/mod.json",
+      "documentation": "guarded-progress-async/README.md"
+    },
+    {
+      "id": "capacity-tuning",
+      "status": "repeated-throughput-gain-with-latency-and-quality-tradeoffs",
+      "documentation": "capacity-tuning/README.md",
+      "implementation_already_in_repository": true,
+      "historical_engine": "r6",
+      "new_r7_combination_measured": true,
+      "version": "0.2.0",
+      "paired_execution_residency_entrypoint": "capacity-tuning/execution_residency.py",
+      "paired_operating_points": [
+        [
+          24,
+          36
+        ],
+        [
+          36,
+          54
+        ]
+      ],
+      "retained_full_model_trials": 4,
+      "complete_pairs": 2,
+      "r7_joint_combination_measured": true,
+      "note": "C04 repeated throughput gains include TPOT and quality tradeoffs; new API emits a checked r6 proposal, not an r7 execution claim.",
+      "r7_joint_scope": "All four original full200 services complete; both paired performance gates met; original quality/truncation and dated4K gates not met",
+      "r7_joint_default_promoted": false,
+      "r7_joint_context_screen": "4K meanTTFT/P95 not met;16K met under original dated screen",
+      "r7_joint_evidence": "../experiments/optimization-20261115/C10-joint-capacity-async-model-20261116-r1/complete-review-v1.json",
+      "manifest": "capacity-tuning/mod.json",
+      "r7_joint_first_task_pair": {
+        "throughput_change_pct": 42.643824294014095,
+        "mean_TPOT_change_pct": 1.2466638932643992,
+        "control_correct": 143,
+        "candidate_correct": 143,
+        "original_correctness_floor": 144,
+        "performance_gates_met": true,
+        "correctness_gate_met": false,
+        "independent_questions": 200,
+        "evidence": "../experiments/optimization-20261115/C10-joint-capacity-async-model-20261116-r1/first-complete-task-pair-v1.json"
+      },
+      "r7_joint_candidate_points": [
+        {
+          "id": "C10-02-joint",
+          "TPS": 1467.8914325745543,
+          "mean_TPOT_ms": 21.303090700578995,
+          "correct": 143,
+          "truncated": 22,
+          "original_absolute_quality_checks": {
+            "correctness": false,
+            "truncation": true
+          }
+        },
+        {
+          "id": "C10-03-joint",
+          "TPS": 1479.2373000912955,
+          "mean_TPOT_ms": 21.17978262236311,
+          "correct": 146,
+          "truncated": 25,
+          "original_absolute_quality_checks": {
+            "correctness": true,
+            "truncation": false
+          }
+        }
+      ],
+      "r7_joint_complete_pairs": [
+        {
+          "control": "C10-01-r6",
+          "candidate": "C10-02-joint",
+          "relative_change_pct": {
+            "output_tokens_per_second": 42.643824294014095,
+            "mean_ttft_ms": -34.43596530829283,
+            "mean_tpot_ms": 1.2466638932643992,
+            "ttft_p95_ms": -35.630266904689556,
+            "ttft_p99_ms": -35.26458185057118,
+            "tpot_p95_ms": 1.9753441086217238,
+            "tpot_p99_ms": 1.0110435596459855
+          },
+          "checks": {
+            "throughput": true,
+            "mean_TPOT": true,
+            "mean_TTFT": true,
+            "tails": true,
+            "correctness": false,
+            "truncation": true,
+            "complete": true
+          },
+          "screen_met": false,
+          "before_correct": 143,
+          "after_correct": 143,
+          "lost_correct": [
+            5,
+            21,
+            28,
+            38,
+            40,
+            43,
+            46,
+            58,
+            60,
+            63,
+            106,
+            120,
+            128,
+            137,
+            150,
+            154,
+            161,
+            169,
+            178,
+            181,
+            190,
+            194,
+            197
+          ],
+          "gained_correct": [
+            1,
+            4,
+            9,
+            19,
+            22,
+            41,
+            56,
+            67,
+            86,
+            87,
+            89,
+            90,
+            91,
+            96,
+            104,
+            110,
+            111,
+            112,
+            115,
+            126,
+            159,
+            165,
+            179
+          ],
+          "independent_questions": 200,
+          "statistical_quality_equivalence_claimed": false
+        },
+        {
+          "control": "C10-04-r6",
+          "candidate": "C10-03-joint",
+          "relative_change_pct": {
+            "output_tokens_per_second": 42.07982193603901,
+            "mean_ttft_ms": -36.58524073815968,
+            "mean_tpot_ms": 0.6754745945068308,
+            "ttft_p95_ms": -34.928675163570745,
+            "ttft_p99_ms": -35.20317213412978,
+            "tpot_p95_ms": 0.7908087316513379,
+            "tpot_p99_ms": 1.0023451175477094
+          },
+          "checks": {
+            "throughput": true,
+            "mean_TPOT": true,
+            "mean_TTFT": true,
+            "tails": true,
+            "correctness": true,
+            "truncation": false,
+            "complete": true
+          },
+          "screen_met": false,
+          "before_correct": 149,
+          "after_correct": 146,
+          "lost_correct": [
+            2,
+            8,
+            18,
+            28,
+            33,
+            37,
+            59,
+            63,
+            66,
+            67,
+            73,
+            83,
+            108,
+            111,
+            115,
+            119,
+            124,
+            133,
+            170,
+            175,
+            177,
+            181,
+            186,
+            194
+          ],
+          "gained_correct": [
+            4,
+            16,
+            26,
+            29,
+            38,
+            40,
+            49,
+            60,
+            87,
+            95,
+            96,
+            105,
+            107,
+            112,
+            113,
+            123,
+            138,
+            141,
+            147,
+            157,
+            180
+          ],
+          "independent_questions": 200,
+          "statistical_quality_equivalence_claimed": false
+        }
+      ]
+    },
+    {
+      "id": "tradeoff-tuning",
+      "status": "offline-evidence-and-constraint-selection-tool",
+      "documentation": "tradeoff-tuning/README.md",
+      "implementation_already_in_repository": true,
+      "historical_engine": "r6",
+      "new_r7_combination_measured": false,
+      "manifest": "tradeoff-tuning/mod.json"
+    },
+    {
+      "id": "nz-scalar-compat",
+      "status": "layout-compatibility-repair; not a standalone speedup",
+      "documentation": "../experiments/optimization-20261115/mods/nz-scalar-compat/README.md",
+      "implementation_already_in_repository": true,
+      "historical_engine": "r6",
+      "new_r7_combination_measured": false,
+      "manifest": "../experiments/optimization-20261115/mods/nz-scalar-compat/mod.json"
+    },
+    {
+      "id": "nz-linear-compat",
+      "status": "full-model-throughput-screen-not-met",
+      "documentation": "../experiments/optimization-20261115/mods/nz-linear-compat/README.md",
+      "implementation_already_in_repository": true,
+      "historical_engine": "r6",
+      "new_r7_combination_measured": false,
+      "manifest": "../experiments/optimization-20261115/mods/nz-linear-compat/mod.json"
+    },
+    {
+      "id": "router-precast",
+      "status": "full-model-throughput-screen-not-met",
+      "documentation": "../experiments/optimization-20261115/mods/router-precast/README.md",
+      "implementation_already_in_repository": true,
+      "historical_engine": "r6",
+      "new_r7_combination_measured": false,
+      "manifest": "../experiments/optimization-20261115/mods/router-precast/mod.json"
+    },
+    {
+      "id": "nz-gates-nd",
+      "status": "full-model-negative-throughput",
+      "documentation": "../experiments/optimization-20261115/mods/nz-gates-nd/README.md",
+      "implementation_already_in_repository": true,
+      "historical_engine": "r6",
+      "new_r7_combination_measured": false,
+      "manifest": "../experiments/optimization-20261115/mods/nz-gates-nd/mod.json"
+    },
+    {
+      "id": "expert-nz-linear-nd",
+      "status": "full-model-throughput-screen-not-met",
+      "documentation": "../experiments/optimization-20261115/mods/expert-nz-linear-nd/README.md",
+      "implementation_already_in_repository": true,
+      "historical_engine": "r6",
+      "new_r7_combination_measured": false,
+      "manifest": "../experiments/optimization-20261115/mods/expert-nz-linear-nd/mod.json"
+    },
+    {
+      "id": "restore-gated-rms-fusion",
+      "version": "0.2.1",
+      "status": "graph-role-invariant-component-pool-met;actual-serving-domain-and-full-model-integration-in-progress",
+      "documentation": "restore-gated-rms-fusion/README.md",
+      "manifest": "restore-gated-rms-fusion/mod.json",
+      "implementation_already_in_repository": true,
+      "component_only": true,
+      "default_enabled": false,
+      "default_promoted": false,
+      "complete_original_component_pool_met": true,
+      "full_model_integrated": false,
+      "source_evidence": "../experiments/optimization-20261115/C14-graph-invariant-packed-RMS-component-20261117-r1/analysis-v1.json",
+      "graph_role_invariant_component_pool_met": true
+    },
+    {
+      "id": "betterscale",
+      "status": "enabled-in-frozen-r6",
+      "kind": "runtime-module",
+      "manifest": "betterscale/mod.json",
+      "documentation": "betterscale/README.md",
+      "default_enabled": true,
+      "default_engine": "r6",
+      "optional_search_dimension": false,
+      "isolated_speedup_claimed": false,
+      "source_inventory": "active-stack-r6.json"
+    },
+    {
+      "id": "microflow",
+      "status": "enabled-in-frozen-r6",
+      "kind": "runtime-module",
+      "manifest": "microflow/mod.json",
+      "documentation": "microflow/README.md",
+      "default_enabled": true,
+      "default_engine": "r6",
+      "optional_search_dimension": false,
+      "isolated_speedup_claimed": false,
+      "source_inventory": "active-stack-r6.json"
+    },
+    {
+      "id": "kv-materialization",
+      "status": "enabled-in-frozen-r6",
+      "kind": "runtime-module",
+      "manifest": "kv-materialization/mod.json",
+      "documentation": "kv-materialization/README.md",
+      "default_enabled": true,
+      "default_engine": "r6",
+      "optional_search_dimension": false,
+      "isolated_speedup_claimed": false,
+      "source_inventory": "active-stack-r6.json"
+    },
+    {
+      "id": "m01-correction",
+      "status": "enabled-in-frozen-r6",
+      "kind": "correctness-module",
+      "manifest": "m01-correction/mod.json",
+      "documentation": "m01-correction/README.md",
+      "default_enabled": true,
+      "default_engine": "r6",
+      "optional_search_dimension": false,
+      "isolated_speedup_claimed": false,
+      "source_inventory": "active-stack-r6.json"
+    },
+    {
+      "id": "packed-host",
+      "status": "enabled-in-frozen-r6",
+      "kind": "memory-module",
+      "manifest": "packed-host/mod.json",
+      "documentation": "packed-host/README.md",
+      "default_enabled": true,
+      "default_engine": "r6",
+      "optional_search_dimension": false,
+      "isolated_speedup_claimed": false,
+      "source_inventory": "active-stack-r6.json"
+    },
+    {
+      "id": "extension-manager",
+      "status": "enabled-in-frozen-r6",
+      "kind": "lifecycle-infrastructure",
+      "manifest": "extension-manager/mod.json",
+      "documentation": "extension-manager/README.md",
+      "default_enabled": true,
+      "default_engine": "r6",
+      "optional_search_dimension": false,
+      "isolated_speedup_claimed": false,
+      "source_inventory": "active-stack-r6.json"
+    },
+    {
+      "id": "short-prefill-tail",
+      "version": "0.1.0",
+      "status": "combined-context-4K-1of2;16K-2of2;reverse4K-TTFT-screen-not-met;full-task-running",
+      "manifest": "short-prefill-tail/mod.json",
+      "documentation": "short-prefill-tail/README.md",
+      "default_enabled": false,
+      "default_promoted": false,
+      "isolated_speedup_claimed": false,
+      "context_evidence": "experiments/optimization-20261115/C15-complete-matched-context-20261117-r1/analysis-v1.json"
+    }
+  ],
+  "rules": [
+    "Record implementation, source version, activation, conditions, overhead, every paired result and failures.",
+    "Default engine capabilities remain documented modules; do not weaken the next common baseline.",
+    "Preserve baseline/all-off when selecting optional modules; no forced-on selection.",
+    "Do not merge component timing, historical full-model references and fresh paired evidence into one gain."
+  ],
+  "followup": "C10 complete: both paired throughput gains+42.64%/+42.08%, original performance gates pass; first candidate143<144 correct, reverse candidate25>22 truncations, dated4K tails fail. C11 both numeric pools pass, both original all48 performance screens fail; T80/108 mixed conditional component gains now explicitly cataloged, all large-shape negatives retained. Default r6 and historical compute milestone remain unchanged. C12 packed32/64 now both meet all original32 numeric and48 paired performance checks; old C11 failures retained. C14 repeats entire pool with role-invariant PREFILL_ONLY=False. Components not yet certified in full model.",
+  "documentation_standard": "STANDARD.md",
+  "default_promotion_policy": "Stable improvements graduate to the next default B1 after frozen native, context and full-task integration acceptance; retained historical ablations do not weaken the next common baseline.",
+  "catalog_integrity": "mods/catalog-integrity-20261117-v6.json",
+  "enabled_stack": "active-stack-r6.json",
+  "r8_candidate_stack": "active-stack-r8.json"
+}

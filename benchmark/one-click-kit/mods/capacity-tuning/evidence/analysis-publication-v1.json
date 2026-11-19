@@ -1,0 +1,10 @@
+{
+  "asset": {
+    "url": "https://github.com/vLLM-HUST/vllm-hust-engine/releases/download/performance-exploration-20261115-r1/C04-full-answer-capacity36-results-20261116-v1.zip",
+    "sha256": "8180c906d762e6616eb60eeca0c59c45656745bb7505700525985f67983043fa",
+    "bytes": 201175,
+    "asset_id": 753356121,
+    "redownload_verified": true
+  },
+  "analysis_sha256": "7ee1afa94d404ea11f5a8b448a0c293009b6a979b2062230e3291b6bcf22f7bd"
+}

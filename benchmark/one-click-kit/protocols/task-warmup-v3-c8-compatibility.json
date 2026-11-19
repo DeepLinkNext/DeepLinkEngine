@@ -1,0 +1,32 @@
+{
+  "schema": "vllm-hust-c8-warmup-source-compatibility/v1",
+  "scope": "continuous-B0 only; short-prompt addition is exclusive to task runs, C8 still uses the byte-identical original cohorts,32-token budget and protocol v2",
+  "previous_sha256": [
+    "48be8e9da80e365b1935606b1399e61f66630c78ee4709c58e99110f398dc3cb",
+    "55a7c4997782fb8fd2e12608249b5e0463604c17e0a15ec189d8c17e77c2ee85",
+    "8dc7eda1d6a498c78cbf5c6125a882bbeb20df31ec9c75a9be9cd23dc24a9376"
+  ],
+  "current_sha256": "eeec13dc35158dcf01330e9dd80757f03a63c6ba1dbf37216b33f3718d1dc907",
+  "unchanged_continuous_source_adaptations": {
+    "scripts/baseline_entry.py": {
+      "previous_sha256": [
+        "64929cf0ece437d240afa5355be9b01b56690247e53e4f9251b80b540629ae23",
+        "92aa27aea62a5e6ce26e7eacc78abcf9a0782f98bd7336f97e7af369ed8b1a58",
+        "faf134f8be15de5b96fce6a3031d186a8e2ba6a085ba76b06f2151840f32dbef",
+        "73955ea428e031e410d79529fece1f1148f4b7897dbac55a4d60efc4c4823542"
+      ],
+      "current_sha256": "021579736ac8d0821e2f742678c068a60d66d70362e97f6ffd616eec51533e51",
+      "scope": "Add B0 profile admission and the separately described per-run CANN log path: cross-check the restored text or HLE argv, argv source and serving entry against engines/b0-vllm-v018.json, then record the profile sha256, variant and argv digest in the service plan. Restored serve arguments, kind-dependent reasoning-parser handling, original input recipes and shared warmup metadata are unchanged. faf134f8 is the source shipped in the published r8 tools package and equals the pre-change main; 92aa27ae is the r6-rc2 source, kept so older sealed B0 stages stay reusable.",
+      "effective_args_check": "scripts/reuse_campaign.py re-derives the expected argv from engines/b0-vllm-v018.json and requires the sealed service/plan.json base argv (controller-appended arguments removed) to match before accepting this adaptation.",
+      "log_path_adaptation": "Set ASCEND_PROCESS_LOG_PATH under this run after relocating the B0 image environment. Runtime source/binaries, CANN version, inputs, sampling, model/host/device budgets and graph/compile policy are unchanged. Preserve prior sealed run identity; do not claim it used the new log directory."
+    },
+    "scripts/engine_entry.py": {
+      "previous_sha256": [
+        "ef0d8f5a6a435b4e4c8134aaff82351270c0a8a8a31a75e34a4689c6bfaaf174"
+      ],
+      "current_sha256": "7a1a46ad5ef815a9c4807cccb8cf2403e17df202964eba2cc7e418f55685ee8e",
+      "scope": "Only pass original kind to versioned warmup metadata; continuous output staysv2"
+    }
+  },
+  "r7_change": "Only release selection gains r7; shared C8 and task warmup implementations and input populations unchanged."
+}

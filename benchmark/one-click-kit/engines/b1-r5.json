@@ -1,0 +1,30 @@
+{
+  "schema": "vllm-hust-engine-profile/v2",
+  "release": "full-answer-b1-20261113-r5",
+  "base_profile": "engines/b1-r4.json",
+  "runtime_overlay": "engines/b1-r5-overlay.json",
+  "unchanged_combination": {
+    "E": 24,
+    "R": 36,
+    "MTP": 2,
+    "graph": "FULL",
+    "kv_recompute": "per-request",
+    "microflow": true,
+    "packed_host": "per-object/per-dtype",
+    "host_bytes_per_rank": 4294967296,
+    "kv_bytes_per_rank": 21474836480
+  },
+  "baseline": "original018/CANN8.5.1 fixed image; shared new pre-measurement warmup only",
+  "judge_policy": "xgrammar-bounded-whitespace-confidence-v2",
+  "measurement_policy": "observed-torch-triton-sealed-warmup-v2",
+  "datasets": {
+    "mmlu": "fixed200",
+    "hle": "proportional four-strata fixed200",
+    "frontier": "full160",
+    "swe": "published trace32 tasks/64 requests",
+    "terminal": "published trace32 tasks/48 requests"
+  },
+  "qualification": "candidate; native admission pending",
+  "historical_r4_metrics_reused": false,
+  "release_promotion": "Only after matched native warmup and inference evidence; no unqualified performance claim"
+}

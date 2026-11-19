@@ -1,0 +1,11 @@
+.env
+.env.*
+__pycache__/
+release-bytes/
+deployment/
+results/
+*.partial
+
+# Generated CPU CI reports and sealed candidate archives
+/reports/
+/dist/

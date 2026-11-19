@@ -1,0 +1,54 @@
+{
+  "schema": "vllm-hust-frozen-mod/v1",
+  "id": "packed-host",
+  "name": "Packed host state",
+  "kind": "memory-module",
+  "version": "full-answer-b1-20261113-r6",
+  "status": "enabled-in-frozen-r6",
+  "supported_engine": [
+    "full-answer-b1-20261113-r6"
+  ],
+  "default_enabled": true,
+  "default_engine": "full-answer-b1-20261113-r6",
+  "optional_search_dimension": false,
+  "engine_profile": "engines/b1-r6.json",
+  "source_inventory": "mods/active-stack-r6.json",
+  "deployment_roots": [
+    "mods/packed-host"
+  ],
+  "requires_mods": [
+    "betterscale"
+  ],
+  "deployment_entrypoint_pins": {
+    "mods/packed-host/joint_packed_plugin.py": "6d46d14f97ba0f76b8b6674921ae74df8b8ecbe763c6802cb58451d13ffa7515",
+    "mods/packed-host/packed_host_state.py": "aa96163c12c0671a3d898586bc8abfbf9ca03cad3aba72cff2526261546ad42c"
+  },
+  "pin_algorithm": "sha256",
+  "pin_scope": "Selected deployed entrypoints; complete original file coverage comes from source/component manifests plus the r6 overlay and documented restore adaptations.",
+  "activation": "general plugin hust_joint_packed = joint_packed_plugin:register；显式 HUST_JOINT_PACKED_HOST=1 后调用 packed_host_state.install。",
+  "features": [
+    "per-object/per-dtype-pinned-packing",
+    "host-state-4GiB-per-rank"
+  ],
+  "resource_and_startup_cost": "主机锁页状态预算每 rank 4 GiB；状态布局、申请粒度和生命周期属于固定组合的一部分。",
+  "constraints": [
+    "Ascend 910B2; Qwen3.5-35B-A3B; BF16; TP2/PP1",
+    "合并范围限定在同一状态对象/同一 dtype；不能写成跨请求全局合并，也不能省略主机预算或将其当作独立已测加速百分比。"
+  ],
+  "disable_or_restore": "冻结 r6 使用完整组合，不提供临时删模块开关；历史对照需单独版本化配置和验收，恢复使用校验通过的同版快照。",
+  "performance_claim": {
+    "isolated_speedup_measured": false,
+    "independent_throughput_gain_percent": null,
+    "evidence_scope": "Frozen combined-engine evidence; not a new component ablation."
+  },
+  "evidence": [
+    "engines/b1-r4.json",
+    "engines/b1-r6.json",
+    "engines/b1-r6-overlay.json",
+    "validation/r6-self-run-status-20261115.json"
+  ],
+  "recovery_source_route": {
+    "artifact": "full-answer-frozen-sources-20261030-r4.tar.gz",
+    "prefix": "/root/joint-fullanswer-20261030/"
+  }
+}

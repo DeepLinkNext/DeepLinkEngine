@@ -1,0 +1,28 @@
+{
+  "schema": "compute-capture-profiles/v2",
+  "default": "submission-v2",
+  "authority": {
+    "repository": "vLLM-HUST/vllm-hust-benchmark",
+    "commit": "4d539805a08268253719ec9894d86716b7290c34",
+    "path": "docs/topic4-submission-v2-20261119.md"
+  },
+  "profiles": {
+    "submission-v2": {
+      "max_tokens": 256,
+      "formal_repetitions": 3,
+      "ignore_eos": false,
+      "requests_per_repetition": 200
+    },
+    "full-answer-v1": {
+      "max_tokens": 8192,
+      "formal_repetitions": 1,
+      "ignore_eos": false,
+      "requests_per_repetition": 200
+    }
+  },
+  "aggregation": "Sum necessary work, reference lower times and native synchronized times across all predeclared repetitions before division; no best-run selection.",
+  "frontend": "native_inproc_client_with_proc_workers",
+  "timing": "two-rank fences and ordinary public outputs from the same execution; includes host accounting and output collection overhead",
+  "scope": "Reference capture is separate from MMLU200 out8192 quality/performance. Full-answer-v1 remains an explicit development protocol and is not the three-repeat submission.",
+  "calibration_order": "Independent canonical statistics are qualified and frozen before any formal native target interval. Reuse preserves the original freeze and identical statistics."
+}

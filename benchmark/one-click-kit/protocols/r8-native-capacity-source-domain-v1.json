@@ -1,0 +1,128 @@
+{
+  "schema": "reviewed-r8-native-capacity-source-domain/v1",
+  "release": "full-answer-b1-20261117-r8",
+  "source_sha256": {
+    "mods/betterscale/betterscale/models/qwen35/capacity.py": "c5983610603a37ef32b95ba9990688007f815be29816e62f9c31fcd2cce3aa0c",
+    "mods/betterscale/betterscale/models/qwen35/resident_leases.py": "2d9a0f9d00b82aae100a5aaf568907f83384876394251952230324f95619ea57",
+    "mods/betterscale/betterscale/models/qwen35/seat_scheduler.py": "37c6308e6ec569aa81dbd3f1affa3b64692b48fada7504b51e6e1ecbbcb41400",
+    "mods/betterscale/betterscale/models/qwen35/cache_actions.py": "e548d35dc1acc158a4098333f5229b1f0417a507324a3cebf3b2f66efe732ef4",
+    "mods/betterscale/betterscale/models/qwen35/cache_policy.py": "b0895659e6a8ba70d026650650e2f958256c34ee1ba93afbb1ecad722270e516",
+    "mods/betterscale/betterscale/models/qwen35/cache_identity.py": "3355cd1640cd5d6544b71c4adbe264aef0b6956fa948d590446d864bfb565fd9",
+    "mods/betterscale/betterscale/models/qwen35/partial_reclaim.py": "5f2257d88be4d348c71b2fc312dd552af24848afa369628949960bd475bc67da",
+    "runtime/engine-core/vllm/config/vllm.py": "52c6479ac939eb99735d72dc6d47f89e8d17f17b5edf37cee70ff12ff18ddbd0",
+    "runtime/engine-core/vllm/v1/core/kv_cache_manager.py": "ef312a280a1746ca4adc8516d87a05b3c8b331a18015e20758513a33efc7421f",
+    "runtime/engine-core/vllm/v1/core/kv_cache_utils.py": "70e289eb278f96bd4a49f63f7d96d533ec2f2728fbefb734ce6eb2a244c2569f",
+    "runtime/engine-core/vllm/v1/core/sched/scheduler.py": "50e7cea25eea05fa192bdd99f30e990f45c499eb327c42b247bf61220d7b64b7",
+    "runtime/engine-core/vllm/v1/core/sched/async_scheduler.py": "e586a0ef3c6778be56a93e7f9bb712d4de9de6e7d7fe7e3e1d51dae83ecfc508",
+    "runtime/ascend/vllm_ascend/utils.py": "8d717066885aaa13fba91eea12b81bdab4b3179c36c1debae0ebe4c6061bdc74",
+    "runtime/ascend/vllm_ascend/attention/attention_v1.py": "ab53725b841070e62fdae81e9651a8a0d926651ed0cb640606829975b87feda2"
+  },
+  "arguments": {
+    "max_num_seqs": 36,
+    "max_num_batched_tokens": 4096,
+    "max_model_len": 65536,
+    "pipeline_parallel_size": 1,
+    "tensor_parallel_size": 2,
+    "data_parallel_size": 1,
+    "prefill_context_parallel_size": 1,
+    "decode_context_parallel_size": 1,
+    "async_scheduling": true,
+    "block_size": null,
+    "watermark": 0.0,
+    "preemption_policy": null,
+    "batch_admission_policy": null,
+    "kv_transfer_config": null
+  },
+  "additional": {
+    "state_resident_seats": 54,
+    "state_cache_incremental": true,
+    "state_cache_streaming": true,
+    "state_cache_policy": true,
+    "state_cache_partial_reclaim": true,
+    "state_cache_host_bytes": 4294967296
+  },
+  "claims": [
+    {
+      "id": "resident_ownership",
+      "sources": [
+        "capacity.seat_counts",
+        "ResidentLeases.offer",
+        "ResidentLeases.claim",
+        "ResidentLeases.retire",
+        "LiveStateScheduler._free_request_blocks",
+        "LiveStateScheduler._publish_completed_residents"
+      ],
+      "proof": "The54 fixed Seat objects cover active owners, retained-hot prefixes and all deferred writer fences. A fenced, owned or I/O-owned seat cannot be offered to another request. pending-hot only touches the same existing page IDs; its refcounts do not allocate a second prefix."
+    },
+    {
+      "id": "transfers",
+      "sources": [
+        "CacheActions.can_dispatch",
+        "CacheActions._queue",
+        "CacheActions._pin_sources",
+        "CacheActions.load",
+        "CacheActions.receive"
+      ],
+      "proof": "Streaming admission admits at most one store and one load direction. Copies of detached prefixes and newly allocated load destinations are therefore bounded by two maximal prefixes. All immutable host objects use host memory; their device page refs are released on the matching TP completion quorum."
+    },
+    {
+      "id": "one_allocation",
+      "sources": [
+        "LiveStateScheduler._allocate",
+        "ResidentLeases.claim"
+      ],
+      "proof": "The scheduler thread discards an unprotected old resident, calls native allocation, and synchronously claims that offered seat before returning. At most one just-allocated prefix can be temporarily unassigned to a Seat."
+    },
+    {
+      "id": "queue_bound",
+      "sources": [
+        "VllmConfig.max_concurrent_batches",
+        "AsyncScheduler._update_after_schedule",
+        "Scheduler.schedule",
+        "Frontier.advance"
+      ],
+      "proof": "PP1 and native async scheduling imply two concurrent batches. A fixed MTP2 verification grant advances at most three positions; two queued grants plus two lookahead slots bound allocation ahead of the formal8192 output budget. Prompt grants end within the own prompt prefix. This bound includes EOS feedback delay."
+    },
+    {
+      "id": "no_external_prefix",
+      "sources": [
+        "native_timing_session.run",
+        "reset_state_cache",
+        "state_salt",
+        "ResidentLeases.offer",
+        "CachePolicy.restore"
+      ],
+      "proof": "The pinned client drains all host State and resets native/hot prefixes before formal submission, then assigns each plain token request a distinct fresh cache_salt. The State identity equals that salt for plain text. No external/previous-run checkpoint can match."
+    },
+    {
+      "id": "no_capacity_preemption",
+      "sources": [
+        "Scheduler.schedule",
+        "KVCacheManager.allocate_slots",
+        "PartialReclaim.demand",
+        "PartialReclaim.runnable",
+        "LiveStateScheduler._allocate"
+      ],
+      "proof": "For the fixed no-connector/no-policy path, active preemption occurs only after native allocation refusal. The page envelope charges every resident, both transfer directions, one transient allocation and the null page. It also covers the next-frame demand of every active request. With zero native watermark and no external KV load reserve, the envelope fitting the pool implies allocation and partial-reclaim capacity cannot fail. Induction from the cold reset rules out the first active preemption/recomputation. Waiting seat refusal merely defers new admission."
+    },
+    {
+      "id": "pool_readout",
+      "sources": [
+        "update_kv_cache_capacity",
+        "get_max_concurrency_for_kv_cache_config",
+        "PartialReclaim.__init__",
+        "LiveStateScheduler.__init__",
+        "refresh_block_size",
+        "AscendAttentionBackend.get_supported_kernel_block_sizes"
+      ],
+      "proof": "The admitted scheduler rejects native Mamba groups and connectors; the enabled partial-reclaim constructor requires one cache group. This fixed text Qwen path has uniform full-attention pages of128 tokens. For this single group with aligned max_model_len65536, the logged token capacity divided by128 recovers the pool block count; the envelope separately charges the null page."
+    }
+  ],
+  "formal_max_tokens": 8192,
+  "block_size": 128,
+  "in_flight_batches": 2,
+  "speculative_tokens": 2,
+  "lookahead_tokens": 2,
+  "transfer_directions": 2,
+  "efficiency_percent": null
+}

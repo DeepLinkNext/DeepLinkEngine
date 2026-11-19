@@ -1,0 +1,142 @@
+{
+  "schema": "vllm-hust-enabled-stack/v1",
+  "release": "full-answer-b1-20261117-r8",
+  "status": "frozen-published-for-reproduction-and-further-optimization",
+  "default_engine": "r6",
+  "profile": "engines/b1-r8.json",
+  "inherited": [
+    "extension-manager",
+    "betterscale",
+    "microflow",
+    "kv-materialization",
+    "m01-correction",
+    "packed-host",
+    "sealed-serving-warmup"
+  ],
+  "additions": [
+    "guarded-progress-async",
+    "capacity-tuning",
+    "short-prefill-tail"
+  ],
+  "excluded": [
+    "restore-gated-rms-fusion"
+  ],
+  "runtime_equivalence": "All10 runtime overlay SHA256 values match the prospectively frozen C15 candidate.",
+  "measured_current": "experiments/optimization-20261115/C15-r7-tail-combination-model-20261117-r1/complete-review-v1.json",
+  "full_release_gate": "protocols/r8-release-acceptance.json",
+  "enabled_mods": [
+    {
+      "id": "extension-manager",
+      "name": "Extension Manager",
+      "manifest": "mods/extension-manager/mod.json",
+      "documentation": "mods/extension-manager/README.md",
+      "version": "full-answer-b1-20261113-r6",
+      "enabled_in": "r8",
+      "inclusion": "inherited",
+      "badge": "r8 included"
+    },
+    {
+      "id": "betterscale",
+      "name": "BetterScale",
+      "manifest": "mods/betterscale/mod.json",
+      "documentation": "mods/betterscale/README.md",
+      "version": "full-answer-b1-20261113-r6",
+      "enabled_in": "r8",
+      "inclusion": "inherited",
+      "badge": "r8 included"
+    },
+    {
+      "id": "microflow",
+      "name": "Microflow",
+      "manifest": "mods/microflow/mod.json",
+      "documentation": "mods/microflow/README.md",
+      "version": "full-answer-b1-20261113-r6",
+      "enabled_in": "r8",
+      "inclusion": "inherited",
+      "badge": "r8 included"
+    },
+    {
+      "id": "kv-materialization",
+      "name": "KV materialization",
+      "manifest": "mods/kv-materialization/mod.json",
+      "documentation": "mods/kv-materialization/README.md",
+      "version": "full-answer-b1-20261113-r6",
+      "enabled_in": "r8",
+      "inclusion": "inherited",
+      "badge": "r8 included"
+    },
+    {
+      "id": "m01-correction",
+      "name": "M01 correction",
+      "manifest": "mods/m01-correction/mod.json",
+      "documentation": "mods/m01-correction/README.md",
+      "version": "full-answer-b1-20261113-r6",
+      "enabled_in": "r8",
+      "inclusion": "inherited",
+      "badge": "r8 included"
+    },
+    {
+      "id": "packed-host",
+      "name": "Packed host state",
+      "manifest": "mods/packed-host/mod.json",
+      "documentation": "mods/packed-host/README.md",
+      "version": "full-answer-b1-20261113-r6",
+      "enabled_in": "r8",
+      "inclusion": "inherited",
+      "badge": "r8 included"
+    },
+    {
+      "id": "sealed-serving-warmup",
+      "name": "Sealed serving warmup",
+      "manifest": "mods/sealed-serving-warmup/mod.json",
+      "documentation": "mods/sealed-serving-warmup/README.md",
+      "version": "1.0.0",
+      "enabled_in": "r8",
+      "inclusion": "inherited",
+      "badge": "r8 included"
+    },
+    {
+      "id": "guarded-progress-async",
+      "name": "Guarded progress async",
+      "manifest": "mods/guarded-progress-async/mod.json",
+      "documentation": "mods/guarded-progress-async/README.md",
+      "version": "1.0.0-rc1",
+      "enabled_in": "r8",
+      "inclusion": "r8-addition",
+      "badge": "r8 included"
+    },
+    {
+      "id": "capacity-tuning",
+      "name": "Capacity tuning",
+      "manifest": "mods/capacity-tuning/mod.json",
+      "documentation": "mods/capacity-tuning/README.md",
+      "version": "0.2.0",
+      "enabled_in": "r8",
+      "inclusion": "r8-addition",
+      "badge": "r8 included"
+    },
+    {
+      "id": "short-prefill-tail",
+      "name": "Short prefill tail",
+      "manifest": "mods/short-prefill-tail/mod.json",
+      "documentation": "mods/short-prefill-tail/README.md",
+      "version": "0.1.0",
+      "enabled_in": "r8",
+      "inclusion": "r8-addition",
+      "badge": "r8 included"
+    }
+  ],
+  "parameters": {
+    "execution_seats": 36,
+    "resident_seats": 54,
+    "MTP": 2,
+    "graph": "FULL",
+    "short_prefill_tail_max_tokens": 256,
+    "host_bytes_per_rank": 4294967296,
+    "kv_bytes_per_rank": 21474836480,
+    "prefill_tokens": 4096
+  },
+  "actual_worker": "corrected_serving_runtime.CorrectedWorker",
+  "runtime_overlay": "engines/b1-r8-overlay.json",
+  "measurement_warning": "Measured gains are joint full-model results, not additive per-MOD speedups; original internal-screen outcomes remain historical."
+}

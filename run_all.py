@@ -4,7 +4,6 @@ import json
 import os
 from pathlib import Path
 import platform
-import subprocess
 import sys
 import sysconfig
 
@@ -55,7 +54,12 @@ def run(data):
         receipt["stages"].append(record)
         save()
         print(name, flush=True)
-        result = subprocess.run(args, cwd=ROOT, check=False)
+        try:
+            result = run_owned_stage(args)
+        except BaseException as error:
+            record.update(status="failed", failure=str(error) or type(error).__name__)
+            save()
+            raise
         record.update(returncode=result.returncode,
                       status="completed" if result.returncode == 0 else "failed")
         save()
@@ -63,17 +67,33 @@ def run(data):
             raise RuntimeError(name + " failed; original results retained, no automatic retry")
 
     try:
+        from one_click import verify_kit
+        verify_kit()
+        sys.path.insert(0, str(ROOT / "benchmark/one-click-kit/scripts"))
+        from child_runner import run_stage as run_owned_stage
         stage("install-package", [sys.executable, "-m", "pip", "install", "--no-deps",
               "-r", str(ROOT / "engine/r8-pip-requirements-deeplinkengine.txt")])
         stage("verify-engine", [cli, "verify"])
         stage("install-engine", [cli, "install", "--out", str(installation)])
-        evaluation = dict(data, engine_profile="r8", test_mode="full",
+        evaluation = dict(data, engine_profile="r8", test_mode="full", reference_profile="submission-v2",
                           deployment=str(installation / "sdk"), out=str(out / "fixed-five"))
         config = out / "evaluation.json"
         config.write_text(json.dumps(evaluation, indent=2) + "\n")
-        evaluate = [cli, "evaluate", "--installation", str(installation), "--"]
+        # The frozen distribution retains its original evaluator. Route new
+        # assessments through the independently versioned public repair kit.
+        evaluate = [sys.executable, str(ROOT / "one_click.py")]
         stage("prepare-fixed-five", [*evaluate, "prepare", "--config", str(config)])
         stage("run-fixed-five", [*evaluate, "run", "--config", str(config)])
+        campaign = json.loads((out / "fixed-five/campaign.json").read_text())
+        sys.path.insert(0, str(ROOT / "benchmark/one-click-kit/scripts"))
+        from compute_reference import target
+        reference = campaign.get("compute_reference", {})
+        reference_target = target(reference)
+        receipt.update(compute_reference=reference, compute_reference_target=reference_target)
+        save()
+        if (reference.get("certificate_kind") != "qualified_full_reference_denominator_reuse/v1"
+                or reference_target["status"] != "current_workload_measured"):
+            raise RuntimeError("Current-workload effective-compute reference remains incomplete")
         plan = json.loads((out / "fixed-five/frozen-execution-plan.json").read_text())
         supplement = [*evaluate, "--context-tenant-only", "--deployment", plan["optimized_deployment"],
                       "--baseline-deployment", plan["baseline_deployment"],
@@ -87,10 +107,9 @@ def run(data):
         for path in reports.values():
             if not (out / path).is_file():
                 raise RuntimeError("Missing generated report: " + path)
-        campaign = json.loads((out / "fixed-five/campaign.json").read_text())
         receipt.update(status="completed", reports=reports,
                        fixed_five_execution=campaign.get("selected_execution_complete"),
-                       compute_reference=campaign.get("compute_reference"))
+                       compute_reference=reference, compute_reference_target=reference_target)
         return 0
     except (Exception, KeyboardInterrupt) as error:
         receipt.update(status="failed", error=str(error) or type(error).__name__)

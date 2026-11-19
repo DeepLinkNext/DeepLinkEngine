@@ -1,0 +1,25 @@
+{
+  "recorded_at": "2026-11-14T11:46:30.226513+00:00",
+  "failed_campaign": "five-datasets-r6-matched-20261114-r2",
+  "failed_stage": "hle-judge-B1",
+  "model_service_started": false,
+  "client_started": false,
+  "failure": "4GiB conservative working-set memory reserve reached",
+  "cause": "Checkpoint hashing populated active file cache; working-set check ran before existing checkpoint-only fadvise could release it. No OOM was observed.",
+  "change": "Record initial raw sample, issue existing read-only hints on admitted checkpoint files, require actual12GiB raw headroom, then run unchanged conservative memory/OOM checks.",
+  "cpu_checks_passed": 21,
+  "real_preflight": {
+    "out": "/data/shared_upload/vllm-hust-third-party-self-run-20261112/preflights/checkpoint-cache-startup-20261114-114436",
+    "before_gib": 63.78227615356445,
+    "after_gib": 8.740318298339844,
+    "required_raw_reserve_gib": 12,
+    "weights_content_written": false,
+    "global_drop_caches": false,
+    "model_started": false,
+    "admitted": true
+  },
+  "runtime_overlay_and_measurement_policy_unchanged": true,
+  "reuse_completed_stages": 10,
+  "remaining_new_stages": 5,
+  "native_full_acceptance": false
+}
