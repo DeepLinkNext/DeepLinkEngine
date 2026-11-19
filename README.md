@@ -6,7 +6,7 @@ DeepLinkEngine fork 自 [vllm-hust-engine](https://vllm-hust.sage.org.ai/engine.
 
 ## 课题四现场测试说明
 
-[下载 Word（可编辑 .docx）](https://github.com/DeepLinkNext/DeepLinkEngine/releases/download/topic4-test-guide-v5/topic4-test-guide.docx) · [下载 PDF](https://github.com/DeepLinkNext/DeepLinkEngine/releases/download/topic4-test-guide-v5/topic4-test-guide.pdf) · [在线预览 PDF](benchmark/docs/topic4-test-guide.pdf)
+[下载 Word（可编辑 .docx）](https://github.com/DeepLinkNext/DeepLinkEngine/releases/download/topic4-test-guide-standalone/topic4-test-guide.docx) · [下载 PDF](https://github.com/DeepLinkNext/DeepLinkEngine/releases/download/topic4-test-guide-standalone/topic4-test-guide.pdf) · [在线预览 PDF](benchmark/docs/topic4-test-guide.pdf)
 
 ## 一键安装与测试
 
