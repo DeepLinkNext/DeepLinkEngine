@@ -40,6 +40,12 @@ class ArtifactCacheTests(unittest.TestCase):
              patch.dict(os.environ, {}, clear=True):
             return artifact_cache.release(self.cache)
 
+    def test_missing_cgroup_counters_remain_explicit_in_diagnostics(self):
+        with patch.object(Path, "read_text", side_effect=FileNotFoundError("no cgroup v2 counters")):
+            result = artifact_cache.memory()
+        self.assertIsNone(result["memory.current"])
+        self.assertIn("no cgroup", result["read_error"])
+
     def test_unlimited_cgroup_is_recorded_without_inventing_a_finite_limit(self):
         with patch.object(Path, "read_text", side_effect=["123", "max"]):
             self.assertEqual(artifact_cache.memory(), {"memory.current": 123, "memory.max": None})

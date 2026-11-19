@@ -10,7 +10,10 @@ ROOT = Path(__file__).resolve().parent
 
 def memory():
     base = Path('/sys/fs/cgroup')
-    values = {name: (base / name).read_text().strip() for name in ('memory.current', 'memory.max')}
+    try:
+        values = {name: (base / name).read_text().strip() for name in ('memory.current', 'memory.max')}
+    except OSError as error:
+        return {'memory.current': None, 'memory.max': None, 'read_error': str(error)}
     return {name: int(value) if value.isdigit() else None for name, value in values.items()}
 
 
