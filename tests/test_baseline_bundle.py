@@ -45,6 +45,50 @@ class BaselineBundleTests(unittest.TestCase):
              patch("urllib.request.urlopen", side_effect=AssertionError("network forbidden")):
             return bundle.prepare(self.cache)
 
+    def test_successful_restore_removes_only_local_staging_and_retains_all_originals(self):
+        sys.path.insert(0, str(ROOT / "benchmark/one-click-kit/scripts"))
+        raw = self.root / "persistent-originals"
+        raw.mkdir()
+        for identity, body in self.originals.items():
+            (raw / identity.replace(":", "-")).write_bytes(body)
+        captured = []
+        def restored(folder, name, explicit, build):
+            captured.append(folder)
+            (folder / "oci").mkdir(parents=True)
+            for identity, body in self.originals.items():
+                (folder / "oci" / identity.replace(":", "-")).write_bytes(body)
+            (folder / "oci/unrelated").write_bytes(b"retained")
+            sdk = folder / "original018-sdk"
+            sdk.mkdir()
+            return sdk
+        with patch.object(bundle, "prepare", return_value=raw), \
+             patch.object(bundle, "inventory", return_value=self.index), \
+             patch.object(bundle, "local_runtime_cache", return_value=self.root / "local"), \
+             patch("third_party.cached_runtime", side_effect=restored):
+            sdk = bundle.ensure_deployment(self.cache)
+        self.assertTrue(sdk.is_dir())
+        for identity, body in self.originals.items():
+            self.assertFalse((captured[0] / "oci" / identity.replace(":", "-")).exists())
+            self.assertEqual((raw / identity.replace(":", "-")).read_bytes(), body)
+        self.assertEqual((captured[0] / "oci/unrelated").read_bytes(), b"retained")
+        self.assertTrue(json.loads((captured[0] / "staging-cleanup.json").read_text())["persistent_originals_retained"])
+
+    def test_failed_restore_does_not_remove_local_staging(self):
+        sys.path.insert(0, str(ROOT / "benchmark/one-click-kit/scripts"))
+        captured = []
+        def failed(folder, name, explicit, build):
+            (folder / "oci").mkdir(parents=True)
+            target = folder / "oci" / next(iter(self.originals)).replace(":", "-")
+            target.write_bytes(b"retained failed-stage original")
+            captured.append(target)
+            raise RuntimeError("restore failed")
+        with patch.object(bundle, "prepare", return_value=self.root / "raw"), \
+             patch.object(bundle, "local_runtime_cache", return_value=self.root / "local"), \
+             patch("third_party.cached_runtime", side_effect=failed):
+            with self.assertRaisesRegex(RuntimeError, "restore failed"):
+                bundle.ensure_deployment(self.cache)
+        self.assertEqual(captured[0].read_bytes(), b"retained failed-stage original")
+
     def test_metadata_credential_is_never_forwarded_to_anonymous_original_downloads(self):
         self.index["release"] = "fixture-v1"
         assets, bodies = [], {}
