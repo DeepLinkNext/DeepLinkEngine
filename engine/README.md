@@ -9,7 +9,7 @@ python deeplink.py install --out /workspace/deeplink-install \
   --cache /workspace/deeplink-cache
 ```
 
-自动探测 CPython 3.12、加载已安装的 CANN 9.1.0，在专用 venv 中准备依赖，再安装引擎并校验运行时文件。安装不需要权重或评测数据。目标目录须为新目录，安装收据为 `installation.json`。
+自动探测 CPython 3.12、加载已安装的 CANN 9.1.0，在专用 venv 中准备依赖，再安装引擎并校验运行时文件。安装不需要权重或评测数据。目标目录须为新目录，安装收据为 `installation.json`。未指定 `--cache` 时，缓存放在安装目录的同级位置。
 
 可用 `--wheelhouse /path/to/packages` 指定已下载的包，`--python /path/to/python3.12`、`--cann-home /path/to/cann` 指定系统环境。已有满足版本要求的专用 venv 可通过 `--use-environment /path/to/venv/bin/python` 显式复用。Python 包可自动补齐；系统驱动、CANN 和模型权重需事先准备。
 

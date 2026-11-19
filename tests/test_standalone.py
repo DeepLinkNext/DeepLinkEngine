@@ -181,6 +181,29 @@ class Standalone(unittest.TestCase):
     def test_serving_rejects_old_triton_despite_other_qualified_dependencies(self):
         self.check_service_environment_rejection(changed_version=True)
 
+    def test_default_install_cache_follows_target_storage_instead_of_cwd(self):
+        import environment_setup as setup
+        with tempfile.TemporaryDirectory() as folder,patch.dict(os.environ):
+            target=Path(folder)/'large-volume/install'
+            args=argparse.Namespace(out=str(target),cache=None,python=None,wheelhouse=None,cann_home=None,use_environment=None)
+            with patch.object(setup,'ensure_environment',return_value=None) as environment,patch.object(setup,'run_repair_stage',return_value=types.SimpleNamespace(returncode=0)) as run:
+                self.assertEqual(deeplink.install(args),0)
+            expected=target.parent/'.cache/deeplinkengine'
+            self.assertEqual(environment.call_args.args[0]['cache'],str(expected))
+            command=run.call_args_list[0].args[0]
+            self.assertEqual(command[command.index('--cache')+1],str(expected))
+            self.assertEqual(os.environ['TMPDIR'],str(expected/'tmp'))
+
+    def test_default_service_cache_follows_installation_storage(self):
+        import environment_setup as setup
+        with tempfile.TemporaryDirectory() as folder:
+            installed=Path(folder)/'large-volume/install'
+            args=argparse.Namespace(installation=str(installed),model='/models/example',physical_devices='0,7',host='127.0.0.1',port=8000,served_model_name='deeplink',cache=None,lease_timeout=0,work_dir=None,devices=None,dry_run=True)
+            with patch.object(deeplink,'installation',return_value=(installed,{'python':'/private/bin/python'})),patch.object(setup,'cann_environment',return_value=({},{})),patch.object(deeplink.os,'execve',side_effect=SystemExit) as execute:
+                with self.assertRaises(SystemExit):deeplink.serve(args)
+            command=execute.call_args.args[1]
+            self.assertEqual(command[command.index('--cache')+1],str(installed.parent/'.cache/deeplinkengine/serving'))
+
     def test_chat_example_sends_real_http(self):
         observed=[]
         class Handler(BaseHTTPRequestHandler):
