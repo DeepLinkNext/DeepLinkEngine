@@ -17,7 +17,7 @@ cp benchmark/run-all.example.json evaluation.json
 python run_all.py --config evaluation.json
 ```
 
-依次安装并校验引擎，执行 B0/B1 固定五项、长上下文和四租户测试，生成结果与报告。所需数据及项目证据的获取方式见[测试说明](benchmark/README.md#昇腾实机配对测试)。
+入口按锁定索引从本仓库 Release 下载四个引擎安装包，逐个校验大小和 SHA-256，再从本地安装。随后执行 B0/B1 固定五项、长上下文和四租户测试，生成结果与报告。所需数据及项目证据的获取方式见[测试说明](benchmark/README.md#昇腾实机配对测试)。
 
 结果目录包含 `results.json`、`fixed-five-report/report.html` 和 `context-tenant/paired-report/report.html`，同时保留原始记录与校验值。第三方见证现场运行并复核当次原始记录。4.1 随此入口自动生成本轮原生计时、有效算量和明确标记为原完整参考分母复用的结果；不冒充现场重新标定的完整参考 DAG。正式见证方案及现场新标定要求见[现场采集说明](benchmark/indicator-retest.md)。
 
@@ -56,7 +56,7 @@ python one_click.py run --config evaluation.json
 
 该命令默认运行全部五项 B0/B1 配对、辅助评分和有效算力参考认证，生成 `<out>-report/report.html`、JSON、曲线及封存校验清单。参考阶段另用固定 MMLU200/out256、每臂三轮的原生同步墙钟；完整回答评测的性能与质量保留各自预算。`test_mode: "quick"` 只缩短五项范围为 MMLU200，仍自动执行参考认证。
 
-根入口使用仓库内[修正版工具源码](benchmark/one-click-kit/one_click.py)，自动从本仓库公开 Release 下载并校验固定参考证据，无需 GitHub 凭据。B0 从固定公开镜像自动恢复；原题数据按来源获取并校验。环境及模型须先准备好，详见[测试指南](benchmark/README.md)。可先运行 `python one_click.py prepare --config evaluation.json` 检查环境，再用 `run` 正式测试；两者使用独立输出目录。
+根入口使用仓库内[修正版工具源码](benchmark/one-click-kit/one_click.py)，自动从本仓库公开 Release 下载并校验固定参考证据，无需 GitHub 凭据。B0 从固定公开镜像自动恢复；原题数据从本仓库固定数据包恢复并校验。环境及模型须先准备好，详见[测试指南](benchmark/README.md)。可先运行 `python one_click.py prepare --config evaluation.json` 检查环境，再用 `run` 正式测试；两者使用独立输出目录。
 
 ```sh
 python one_click.py verify

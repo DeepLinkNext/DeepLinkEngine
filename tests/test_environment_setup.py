@@ -144,8 +144,22 @@ class EnvironmentTests(unittest.TestCase):
         self.assertNotIn("Authorization", network.call_args.args[0].headers)
 
     def test_wrong_download_hash_is_rejected(self):
-        with patch.object(setup.urllib.request, "urlopen", return_value=io.BytesIO(b"wrong")):
+        with patch.object(setup.urllib.request, "urlopen", return_value=io.BytesIO(b"x" * len(self.payload))):
             with self.assertRaisesRegex(ValueError, "SHA-256"):
+                setup.cached_wheel(self.source, [], self.root / "wheels")
+        self.assertFalse((self.root / "wheels/fixture.whl").exists())
+
+    def test_early_eof_is_retried_and_only_complete_verified_bytes_are_installed(self):
+        with patch.object(setup.urllib.request, "urlopen", side_effect=[
+                io.BytesIO(self.payload[:5]), io.BytesIO(self.payload)]) as network:
+            result = setup.cached_wheel(self.source, [], self.root / "wheels")
+        self.assertEqual(network.call_count, 2)
+        self.assertEqual(result.read_bytes(), self.payload)
+        self.assertFalse(list((self.root / "wheels").glob("wheel-*")))
+
+    def test_persistent_truncation_retains_failure_and_never_creates_valid_cache_entry(self):
+        with patch.object(setup.urllib.request, "urlopen", side_effect=lambda *a, **k: io.BytesIO(b"short")):
+            with self.assertRaisesRegex(OSError, "received 5, expected"):
                 setup.cached_wheel(self.source, [], self.root / "wheels")
         self.assertFalse((self.root / "wheels/fixture.whl").exists())
 

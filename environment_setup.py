@@ -1,5 +1,6 @@
 """Repair Python dependencies in a private cache; load an installed CANN toolkit."""
 import hashlib
+import http.client
 import json
 import os
 from pathlib import Path
@@ -161,12 +162,21 @@ def cached_wheel(source, links, cache):
                                 stream.write(block)
                                 if stream.tell() > source.get("bytes", 2 * 1024**3):
                                     raise ValueError("Dependency download exceeds its fixed size")
+                    observed_bytes = temporary.stat().st_size
+                    if "bytes" in source and observed_bytes < source["bytes"]:
+                        # read(size) may return EOF without raising IncompleteRead.
+                        # Retry a truncated transfer, but never admit its bytes.
+                        raise OSError(f"Truncated dependency download: {filename}: "
+                                      f"received {observed_bytes}, expected {source['bytes']} bytes")
                     if not valid(temporary):
-                        raise ValueError("Dependency wheel size or SHA-256 mismatch: " + filename)
+                        raise ValueError("Dependency wheel size or SHA-256 mismatch: " + filename
+                                         + "; bytes=" + str(observed_bytes)
+                                         + "; sha256=" + wheel_digest(temporary))
                     temporary.replace(target)
                     return target.resolve()
-                except (urllib.error.URLError, TimeoutError, OSError) as error:
+                except (urllib.error.URLError, TimeoutError, OSError, http.client.IncompleteRead) as error:
                     last_error = error
+                    print("ENVIRONMENT download retry:", str(error), flush=True)
                 finally:
                     if temporary is not None:
                         temporary.unlink(missing_ok=True)

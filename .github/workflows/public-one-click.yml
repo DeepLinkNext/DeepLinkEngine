@@ -33,6 +33,14 @@ jobs:
       - run: python -B tests/test_run_all.py
       - run: python -B tests/test_environment_setup.py
       - run: python -B tests/test_dataset_bundle.py
+      - run: python -B tests/test_engine_install.py
+      - name: Cache frozen engine installation assets
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/deeplink-engine/wheels
+          key: engine-assets-${{ hashFiles('engine/r8-lock.json') }}
+      - name: Download and verify all four real installation inputs
+        run: python -B engine_install.py --download-only --cache "${RUNNER_TEMP}/deeplink-engine"
       - name: Cache fixed dataset originals
         uses: actions/cache@v4
         with:
