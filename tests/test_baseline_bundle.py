@@ -1,4 +1,5 @@
 """Exercise offline OCI reassembly and fail-closed original-image integrity."""
+import io
 import hashlib
 import json
 import os
@@ -43,6 +44,34 @@ class BaselineBundleTests(unittest.TestCase):
              patch.dict(os.environ, environment, clear=True), \
              patch("urllib.request.urlopen", side_effect=AssertionError("network forbidden")):
             return bundle.prepare(self.cache)
+
+    def test_metadata_credential_is_never_forwarded_to_anonymous_original_downloads(self):
+        self.index["release"] = "fixture-v1"
+        assets, bodies = [], {}
+        for kind, blob in zip(["manifest", "config", "layer"], self.index["blobs"]):
+            blob["kind"] = kind
+            for part in blob["parts"]:
+                number = len(assets) + 1
+                part["url"] = "https://fixture.invalid/" + part["name"]
+                part["api_url"] = "https://api.github.com/repos/DeepLinkNext/DeepLinkEngine/releases/assets/" + str(number)
+                assets.append(dict(name=part["name"], size=part["bytes"], digest="sha256:" + part["sha256"], id=number))
+                bodies[part["api_url"]] = (self.parts / part["name"]).read_bytes()
+        for credential in ("", "fixture-read-only-token"):
+            with self.subTest(authenticated_metadata=bool(credential)):
+                downloads = []
+                def fetch(request, **kwargs):
+                    headers = {key.lower(): value for key, value in request.header_items()}
+                    if "/releases/tags/" in request.full_url:
+                        self.assertEqual(headers.get("authorization"), "Bearer " + credential if credential else None)
+                        return io.BytesIO(json.dumps(dict(draft=False, assets=assets)).encode())
+                    self.assertNotIn("authorization", headers)
+                    downloads.append(request.full_url)
+                    return io.BytesIO(bodies[request.full_url])
+                with patch.object(bundle, "inventory", return_value=self.index), \
+                     patch.dict(os.environ, {"GH_TOKEN": credential}, clear=True), \
+                     patch("urllib.request.urlopen", side_effect=fetch):
+                    bundle.verify_release(self.root / ("auth" if credential else "anon"))
+                self.assertTrue(downloads)
 
     def test_offline_parts_reassemble_to_all_original_digest_pinned_blobs(self):
         out = self.prepare()

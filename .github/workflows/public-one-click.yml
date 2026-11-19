@@ -40,6 +40,8 @@ jobs:
       - run: python -B tests/test_engine_install.py
       - run: python -B tests/test_baseline_bundle.py
       - name: Verify public B0 archive hashes and the original OCI inventory
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: python -B baseline_bundle.py --verify-release --cache "${RUNNER_TEMP}/deeplink-b0"
       - run: python -B tests/test_baseline_setup.py
       - name: Cache frozen engine installation assets

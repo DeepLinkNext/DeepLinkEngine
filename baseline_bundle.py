@@ -55,8 +55,13 @@ def verify_release(cache):
     """Verify public assets and original manifest/config without fetching 6 GB in CI."""
     data = inventory()
     url = "https://api.github.com/repos/DeepLinkNext/DeepLinkEngine/releases/tags/" + data["release"]
-    request = urllib.request.Request(url, headers={"Accept": "application/vnd.github+json",
-                                                  "User-Agent": "DeepLinkEngine-B0-verification"})
+    headers = {"Accept": "application/vnd.github+json", "User-Agent": "DeepLinkEngine-B0-verification"}
+    # CI shares anonymous API quotas. Use its read-only credential for release
+    # metadata only; cached_wheel keeps artifact requests anonymous.
+    token = os.environ.get("GH_TOKEN") or os.environ.get("GITHUB_TOKEN")
+    if token:
+        headers["Authorization"] = "Bearer " + token
+    request = urllib.request.Request(url, headers=headers)
     with urllib.request.urlopen(request, timeout=45) as response:
         release = json.load(response)
     if release["draft"]:
