@@ -13,19 +13,24 @@ def reclaim_plan(value, required):
     """Bound temporary anonymous memory by conservatively reclaimable cache."""
     current, limit = value.get("current"), value.get("limit")
     fields = value.get("stat", {})
-    names = ("file", "inactive_file", "shmem", "file_dirty", "file_writeback")
+    names = ("file", "inactive_file", "shmem", "file_dirty", "file_writeback", "file_mapped", "unevictable")
     if (type(current) is not int or type(limit) is not int or not 0 <= current <= limit
             or any(type(fields.get(n)) is not int for n in names)
             or fields.get("file", 0) > current
             or any(not 0 <= fields[n] <= fields["file"] for n in names)):
         return dict(eligible=False, reason="Complete valid finite cache counters required")
-    clean = max(0, fields["inactive_file"] - fields["shmem"] - fields["file_dirty"] - fields["file_writeback"])
+    # Repeated SDK/checkpoint hashing promotes unused cache to the active LRU.
+    # This is a pre-service reclamation bound, not the model working-set gate:
+    # clean active pages are reclaimable too. Exclude every mapped/locked page,
+    # shared memory and all dirty/writeback bytes, even where those overlap.
+    clean = max(0, fields["file"] - sum(fields[n] for n in (
+        "shmem", "file_dirty", "file_writeback", "file_mapped", "unevictable")))
     working = current - min(current, clean)
     budget = min(16 * GIB, clean - 4 * GIB, limit - working - 4 * GIB - 64 * 2**20)
     budget = max(0, budget // (64 * 2**20) * (64 * 2**20))
     return dict(eligible=limit - current < required and budget >= required + GIB,
-                reason="Pre-service allocation capped by initial clean cache and the original reserve; original model gates rechecked after all temporary pages are released",
-                clean_inactive_bytes=clean, working_estimate=working, temporary_bytes=budget)
+                reason="Pre-service allocation bounded by clean unmapped active/inactive file cache; original model gates rechecked after every temporary page is released",
+                clean_unmapped_file_cache_bytes=clean, non_file_estimate=working, inactive_file_observed_bytes=fields["inactive_file"], temporary_bytes=budget)
 
 
 def allocate_private_chunk(size):
