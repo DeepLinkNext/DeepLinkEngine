@@ -9,12 +9,24 @@ import sys
 
 ROOT = Path(__file__).resolve().parent
 RUNTIME_ROOTS = ("vllm", "vllm-ascend", "vllm-hust-engine", "torchvision")
+# The frozen runtime ships the manager as SDK source without distribution requirements.
+ADAPTER_REQUIREMENTS = ("platformdirs>=4", "jcs>=0.2.1", "packaging>=24", "cryptography>=3.4")
 
 
 def dependency_audit():
     from packaging.requirements import Requirement
     queue = [(name, frozenset()) for name in RUNTIME_ROOTS]
     seen, observed, issues = set(), {}, []
+    for text in ADAPTER_REQUIREMENTS:
+        requirement = Requirement(text)
+        try:
+            version = metadata.version(requirement.name)
+        except metadata.PackageNotFoundError:
+            version = None
+        if version is None or not requirement.specifier.contains(version, prereleases=True):
+            issues.append(dict(package="runtime-adapter", requires=text, found=version))
+        else:
+            queue.append((requirement.name, frozenset(requirement.extras)))
     while queue:
         name, extras = queue.pop()
         key = (name.lower().replace("_", "-"), extras)
@@ -77,7 +89,7 @@ def resolve_runtime_dependencies(cache):
             expected["numpy"] = "1.26.4"
     folder = Path(cache) / "engine-install"
     folder.mkdir(parents=True, exist_ok=True)
-    requirements = sorted({str(Requirement(text)) for name in RUNTIME_ROOTS for text in metadata.requires(name) or []})
+    requirements = sorted(set(ADAPTER_REQUIREMENTS) | {str(Requirement(text)) for name in RUNTIME_ROOTS for text in metadata.requires(name) or []})
     content = "\n".join(requirements) + "\n"
     key = hashlib.sha256(content.encode()).hexdigest()[:16]
     required = folder / ("runtime-" + key + ".txt")
@@ -112,7 +124,13 @@ def resolve_runtime_dependencies(cache):
                           env=dict(os.environ, TORCH_DEVICE_BACKEND_AUTOLOAD="0"))
     if completed.returncode:
         raise RuntimeError("Runtime native/processor import smoke failed; see " + str(smoke))
+    manager_smoke = folder / "manager-import-smoke.json"
+    completed = run_stage([sys.executable, "-I", "-B", str(ROOT / "tools/manager_import_smoke.py"),
+                           "--out", str(manager_smoke)])
+    if completed.returncode:
+        raise RuntimeError("Runtime manager entry check failed; see " + str(manager_smoke))
     report = dict(before=before, after=after, vendor_integrity=integrity, compatibility_integrity=compatibility,
+                  manager_smoke=json.loads(manager_smoke.read_text()), adapter_requirements=ADAPTER_REQUIREMENTS,
                   import_smoke=json.loads(smoke.read_text()),
                   requirements_sha256=hashlib.sha256(content.encode()).hexdigest(), constraints=expected)
     (folder / "runtime-dependencies.json").write_text(json.dumps(report, indent=2) + "\n")

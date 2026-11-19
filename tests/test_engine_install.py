@@ -82,6 +82,20 @@ class EngineInstallTests(unittest.TestCase):
 
 
 class RuntimeDependencyTests(unittest.TestCase):
+    def test_source_only_manager_dependencies_are_required_even_without_wheel_metadata(self):
+        for installed in (None, "3.9", "4.5"):
+            with self.subTest(installed=installed):
+                version = {"return_value": installed} if installed else {"side_effect": engine_install.metadata.PackageNotFoundError}
+                with patch.object(engine_install, "RUNTIME_ROOTS", ()), \
+                     patch.object(engine_install, "ADAPTER_REQUIREMENTS", ("platformdirs>=4",)), \
+                     patch.object(engine_install.metadata, "version", **version), \
+                     patch.object(engine_install.metadata, "distribution", return_value=types.SimpleNamespace(version=installed, requires=[])):
+                    result = engine_install.dependency_audit()
+                self.assertEqual(result["verified"], installed == "4.5")
+                if installed != "4.5":
+                    self.assertEqual(result["issues"][0]["package"], "runtime-adapter")
+                    self.assertEqual(result["issues"][0]["requires"], "platformdirs>=4")
+
     def test_extras_and_transitive_requirements_are_checked_even_when_core_versions_match(self):
         distributions = {
             "vllm": types.SimpleNamespace(version="0.28", requires=["fastapi[standard]>=0.133"]),
@@ -90,6 +104,7 @@ class RuntimeDependencyTests(unittest.TestCase):
             "uvicorn": types.SimpleNamespace(version="0.35", requires=[]),
         }
         with patch.object(engine_install, "RUNTIME_ROOTS", ("vllm",)), \
+             patch.object(engine_install, "ADAPTER_REQUIREMENTS", ()), \
              patch.object(engine_install.metadata, "distribution", side_effect=lambda name: distributions[name]), \
              patch.object(engine_install.metadata, "version", side_effect=lambda name: distributions[name].version):
             before = engine_install.dependency_audit()
@@ -101,6 +116,7 @@ class RuntimeDependencyTests(unittest.TestCase):
     def test_missing_transitive_package_is_not_hidden_by_an_installed_parent(self):
         dist = types.SimpleNamespace(version="0.28", requires=["missing-api-dependency>=1"])
         with patch.object(engine_install, "RUNTIME_ROOTS", ("vllm",)), \
+             patch.object(engine_install, "ADAPTER_REQUIREMENTS", ()), \
              patch.object(engine_install.metadata, "distribution", return_value=dist), \
              patch.object(engine_install.metadata, "version", side_effect=engine_install.metadata.PackageNotFoundError):
             result = engine_install.dependency_audit()
