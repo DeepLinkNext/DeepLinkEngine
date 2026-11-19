@@ -1,5 +1,7 @@
 # 测试与复核
 
+[返回 vllm-hust-engine 官网](https://vllm-hust.sage.org.ai/engine.html) · [本仓库首页](../README.md)
+
 | 任务 | 入口 | 输入及产出 |
 | --- | --- | --- |
 | 公开材料快速复核 | `python tools/review_results.py` | 仓库汇总和固定清单。输出五项吞吐、TTFT、TPOT、答题正确数和四组专项成本、利用率对照。 |

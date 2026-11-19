@@ -1,5 +1,9 @@
 # 冻结 r8 引擎
 
+[返回 vllm-hust-engine 官网](https://vllm-hust.sage.org.ai/engine.html)
+
+DeepLinkEngine 基于 vllm-hust-engine 的 fork，由浦江统管。本页记录该 fork 采用的冻结 r8 安装与校验方式。
+
 [下载冻结 r8 发行包](https://github.com/DeepLinkNext/DeepLinkEngine/releases/download/r8-frozen-20261117/vllm_hust_engine-2026.11.17.8.post2.tar.gz)。包与 [PyPI 2026.11.17.8.post2](https://pypi.org/project/vllm-hust-engine/2026.11.17.8.post2/) 的发行包一致。冻结引擎提交为 `c6059a6d3d1cf7ea16340d79cccf7bb1a13fa661`，随附评测工具提交为 `bd5448c9f266cc0301c3d4cef2a10b9ab98f7205`。发行包中的 `sdk-r8.tar.gz` 包含冻结 SDK、vLLM 和 vLLM-Ascend 源码、MOD 与部署配置，`tools-r4.tar.gz` 是该 r8 版本一并锁定的评测工具归档。
 
 ## 下载与校验
