@@ -212,7 +212,7 @@ def main():
         "physical_cards": cards(),
         "logical_devices": args.devices,
         "scope": "Original pinned018 image SDK/CANN8.5.1; original text-only or full multimodal recipe selected explicitly per dataset. Host OS/driver/compiler observed separately.",
-        "cache_policy": "Same checkpoint-only clean-cache hints and raw cgroup reserve; fresh writable service/compiler caches",
+        "cache_policy": "Same checkpoint-only clean-cache hints; 12GiB raw admission before model allocation, original SDK4GiB working-set/OOM guard thereafter; fresh writable service/compiler caches",
     }
     admission = verify_profile(
         plan["serve_args"],

@@ -250,6 +250,36 @@ class WorkflowTests(unittest.TestCase):
         self.assertEqual((previous / "fixed-five/campaign.json").read_bytes(), original)
         self.assertEqual(receipt["stages"][1]["mode"], "verify_existing")
 
+    def startup_failure(self):
+        self.before_model_failure()
+        self.write("fixed-five/continuous-B0/receipt.json",dict(completed=False,role="B0",kind="continuous",model_service_started=True,client_started=False,quiescent=True))
+        self.write("fixed-five/continuous-B0/service-process.json",dict(pid=123))
+
+    def test_failed_model_startup_can_resume_without_repeating_any_formal_request(self):
+        self.startup_failure()
+        with patch("qualification.sealed_files") as sealed,patch("third_party_report.verify_campaign_bindings") as bindings, \
+             patch("one_click.verify_kit"),patch("child_runner.run_stage",side_effect=self.execute), \
+             contextlib.redirect_stdout(io.StringIO()),contextlib.redirect_stderr(io.StringIO()):
+            self.assertEqual(workflow.run(self.data,resume_before_inference=True),0)
+        sealed.assert_called_once();bindings.assert_called_once()
+        receipt=json.loads((self.root/'result/results.json').read_text())
+        self.assertTrue(receipt['previous_attempts'][-1]['campaign_directory'])
+
+    def test_startup_recovery_rejects_a_started_formal_client(self):
+        self.startup_failure()
+        path=self.root/'result/fixed-five/continuous-B0/receipt.json'
+        data=json.loads(path.read_text());data['client_started']=True;path.write_text(json.dumps(data))
+        with self.assertRaisesRegex(ValueError,'refuses to repeat'):workflow.before_model_resume(self.data,allow_model_startup=True)
+
+    def test_startup_recovery_rejects_client_evidence_even_if_flag_is_false(self):
+        self.startup_failure();self.write('fixed-five/continuous-B0/client.log','request sent')
+        with self.assertRaisesRegex(ValueError,'possible formal client'):workflow.before_model_resume(self.data,allow_model_startup=True)
+
+    def test_startup_recovery_requires_intact_sealed_originals(self):
+        self.startup_failure()
+        with patch('qualification.sealed_files',side_effect=ValueError('seal changed')):
+            with self.assertRaisesRegex(ValueError,'seal changed'):workflow.before_model_resume(self.data,allow_model_startup=True)
+
     def test_pre_model_recovery_rejects_any_started_service(self):
         self.before_model_failure()
         self.write("fixed-five/continuous-B0/service-process.json", dict(pid=123))

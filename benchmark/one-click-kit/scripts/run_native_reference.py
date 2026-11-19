@@ -132,8 +132,8 @@ def run(args):
                                 memory = check_memory(memory_guard, initial, root)
                                 admitted_cache = True
                                 receipt["model_service_started"] = True
-                        if admitted_cache and memory["limit"] - memory["current"] < 4 * 2**30:
-                            raise RuntimeError("Native raw cgroup allocation reserve reached")
+                        # check_memory above enforces the original SDK4GiB
+                        # conservative working-set reserve and every OOM event.
                         if now - last_sample >= 5:
                             sample = subprocess.run(["npu-smi", "info"], capture_output=True, text=True, timeout=20, check=True)
                             samples.write(json.dumps(dict(monotonic=now, wall=time.time(), raw=sample.stdout)) + "\n")

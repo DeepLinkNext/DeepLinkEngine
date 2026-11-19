@@ -134,11 +134,11 @@
     },
     {
       "kind": "tools",
-      "name": "engine-tools-startup-cache-20261120-v6.tar.gz",
-      "bytes": 1160419,
-      "sha256": "4a64d2fa34234108b45246e376b99a2cb9d02592a26f812f2f9f4405a3136db0",
-      "url": "https://github.com/DeepLinkNext/DeepLinkEngine/releases/download/r8-runtime-dependencies-20261119-v1/engine-tools-startup-cache-20261120-v6.tar.gz",
-      "api_url": "https://api.github.com/repos/DeepLinkNext/DeepLinkEngine/releases/assets/769209423"
+      "name": "engine-tools-memory-reserve-20261120-v8.tar.gz",
+      "bytes": 1162182,
+      "sha256": "0b0600b3cb4c6486986706ffbc14f6515805afdbf26a530be1ee00ab64c5db05",
+      "url": "https://github.com/DeepLinkNext/DeepLinkEngine/releases/download/r8-runtime-dependencies-20261119-v1/engine-tools-memory-reserve-20261120-v8.tar.gz",
+      "api_url": "https://api.github.com/repos/DeepLinkNext/DeepLinkEngine/releases/assets/769551950"
     }
   ]
 }

@@ -153,8 +153,9 @@ def release_loaded_checkpoint_cache(model, weights, out, sample, *, before_servi
         "files": files,
         "before": before,
         "after": after,
-        "required_raw_headroom_bytes": 12 * 2**30,
-        "reason": "8GiB total host State budget plus 4GiB raw cgroup allocation reserve; cached bytes are not guaranteed reclaimable by the driver",
+        "required_raw_headroom_bytes": 12 * 2**30 if before_service else 0,
+        "reserve_policy": "12GiB raw before model allocation; original 4GiB working-set/OOM guard after allocation",
+        "reason": "Before model creation reserve8GiB host State plus4GiB raw; after allocation clean inactive file cache is governed by the unchanged SDK working-set/OOM check",
     }
     if before_service and after["limit"] - after["current"] < record["required_raw_headroom_bytes"]:
         # SDK hashing can refill cache even after installation archives were
@@ -167,7 +168,7 @@ def release_loaded_checkpoint_cache(model, weights, out, sample, *, before_servi
     out.write_text(json.dumps(record, indent=2) + "\n")
     if record.get("bounded_pre_service_reclaim", {}).get("status") == "failed":
         raise RuntimeError("Pre-service cache recovery failed; original memory/OOM gates remain unchanged")
-    if after["limit"] - after["current"] < record["required_raw_headroom_bytes"]:
+    if before_service and after["limit"] - after["current"] < record["required_raw_headroom_bytes"]:
         raise RuntimeError(
             "Insufficient raw cgroup headroom after startup cache admission; budgets remain unchanged"
         )
