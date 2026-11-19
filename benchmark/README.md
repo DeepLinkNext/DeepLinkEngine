@@ -21,7 +21,7 @@ python benchmark/reports/r8-context-tenant-20261119/reproduce_publication.py \
 
 ## 昇腾实机配对测试
 
-五项实机评测脚本随 [r8 评测工具归档](https://github.com/DeepLinkNext/DeepEngine/releases/download/r8-frozen-20261117/tools-r4.tar.gz) 提供。入口是 `one_click.py`，数据核验由 `scripts/dataset_contract.py` 和 `scripts/agent_trace.py` 执行，配对流程由 `scripts/third_party.py` 调度，报告由 `scripts/report_execution.py` 生成。
+五项实机评测脚本随 [r8 评测工具归档](https://github.com/DeepLinkNext/DeepLinkEngine/releases/download/r8-frozen-20261117/tools-r4.tar.gz) 提供。入口是 `one_click.py`，数据核验由 `scripts/dataset_contract.py` 和 `scripts/agent_trace.py` 执行，配对流程由 `scripts/third_party.py` 调度，报告由 `scripts/report_execution.py` 生成。
 
 B0 为固定的 `original018-cann8.5.1`，由工具核验上游镜像摘要并恢复，或指定已按该版本制备的 SDK。B1 为 [冻结 r8](../engine/README.md)。两臂使用同一套 Qwen3.5-35B-A3B 权重和同一对 910B2。物理卡号按实机分配填写。
 

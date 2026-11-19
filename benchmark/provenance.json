@@ -300,6 +300,11 @@
       "path": "benchmark/website-publication/data/m01-qualified-pair-20261103.json",
       "source": "https://github.com/vLLM-HUST/vllm-hust-benchmark/blob/4d539805a08268253719ec9894d86716b7290c34/website-publication/data/m01-qualified-pair-20261103.json",
       "sha256": "95c6bd465c4beb558cd25284e221a166e33634ea2f9b6d44364d2b1114863bd0"
+    },
+    {
+      "path": "benchmark/website-publication/data/r8-context-tenant-20261119/paired-curves.svg",
+      "source": "https://github.com/vLLM-HUST/vllm-hust-benchmark/blob/4d539805a08268253719ec9894d86716b7290c34/website-publication/data/r8-context-tenant-20261119/paired-curves.svg",
+      "sha256": "35a72b56d635c4e9d70cfe2723e8354db03ccd42358f36d58b6b059ab5685136"
     }
   ]
 }

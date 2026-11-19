@@ -7,6 +7,6 @@
     0,
     1
   ],
-  "cache": "/data/deepengine/cache",
-  "out": "/data/deepengine/new-run"
+  "cache": "/data/deeplinkengine/cache",
+  "out": "/data/deeplinkengine/new-run"
 }

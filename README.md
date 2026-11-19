@@ -1,12 +1,29 @@
-# DeepEngine
+# DeepLinkEngine
 
-DeepEngine 归档课题四的 **冻结 r8 推理引擎、五项评测清单和复核脚本**。公开材料可直接下载，可在普通电脑上校验和复算。
+DeepLinkEngine 归档课题四的 **冻结 r8 推理引擎、五项评测清单和复核脚本**。公开材料可直接下载，可在普通电脑上校验和复算。
 
 | 我想查看 | 从这里开始 |
 | --- | --- |
-| 下载 r8、查看版本和运行环境 | [冻结 r8 Release](https://github.com/DeepLinkNext/DeepEngine/releases/tag/r8-frozen-20261117) · [引擎安装与校验](engine/README.md) |
+| 下载 r8、查看版本和运行环境 | [冻结 r8 Release](https://github.com/DeepLinkNext/DeepLinkEngine/releases/tag/r8-frozen-20261117) · [引擎安装与校验](engine/README.md) |
 | 查看五项固定题单或回放清单 | [评测范围与数据入口](#五项评测) |
 | 复算公开结果或查看实机测试命令 | [测试与复核指南](benchmark/README.md) |
+
+## 仓库结构
+
+| 目录 | 内容与入口 |
+| --- | --- |
+| [`engine/`](engine/README.md) | 冻结 r8 的安装说明、发行包锁定信息及带哈希的安装清单。引擎源码随 Release 发行包提供。 |
+| [`datasets/`](datasets/README.md) | 五项固定题单、回放清单、评测协议和清单校验脚本。 |
+| [`benchmark/`](benchmark/README.md) | 实机测试配置、公开结果、证据来源和复算脚本。 |
+| [`evidence/`](evidence/mmlu-r8-window.json) | MMLU-Pro 同窗占卡、输出 token、利用率及成本复核记录。 |
+| [`tools/`](tools/verify_snapshot.py) | 仓库快照校验及公开结果检查工具。 |
+
+## 获取仓库
+
+```sh
+git clone https://github.com/DeepLinkNext/DeepLinkEngine.git
+cd DeepLinkEngine
+```
 
 ## 快速复核
 

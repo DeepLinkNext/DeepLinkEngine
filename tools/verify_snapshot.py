@@ -119,11 +119,11 @@ def main():
     requirements = "r8-pip-requirements-post2.txt"
     source_requirements = ROOT / "engine" / requirements
     verify_hash(source_requirements, assets[requirements])
-    mirror_requirements = ROOT / "engine/r8-pip-requirements-deepengine.txt"
+    mirror_requirements = ROOT / "engine/r8-pip-requirements-deeplinkengine.txt"
     upstream = b"https://github.com/vLLM-HUST/vllm-hust-website/releases/expanded_assets/engine-wheels-r8-v1"
-    mirror = b"https://github.com/DeepLinkNext/DeepEngine/releases/expanded_assets/r8-frozen-20261117"
+    mirror = b"https://github.com/DeepLinkNext/DeepLinkEngine/releases/expanded_assets/r8-frozen-20261117"
     if mirror_requirements.read_bytes() != source_requirements.read_bytes().replace(upstream, mirror):
-        raise SystemExit("DeepEngine installation requirements differ from the frozen requirements")
+        raise SystemExit("DeepLinkEngine installation requirements differ from the frozen requirements")
     if args.engine:
         verify_engine(args.engine, assets)
     if args.tools:
