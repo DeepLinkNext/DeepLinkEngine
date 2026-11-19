@@ -10,7 +10,7 @@ DeepLinkEngine fork 自 [vllm-hust-engine](https://vllm-hust.sage.org.ai/engine.
 
 ## 一键安装与测试
 
-准备双卡昇腾 910B2、模型权重及[运行环境](engine/README.md#安装)。复制[配置示例](benchmark/run-all.example.json)，填写模型路径、物理卡号、缓存和新的结果目录：
+准备双卡昇腾 910B2、模型权重和已安装的 CANN 9.1.0。脚本自动探测 Python、加载 CANN 环境，并在缓存中的独立环境补齐不匹配的依赖。复制[配置示例](benchmark/run-all.example.json)，填写模型路径、物理卡号、缓存和新的结果目录：
 
 ```sh
 cp benchmark/run-all.example.json evaluation.json

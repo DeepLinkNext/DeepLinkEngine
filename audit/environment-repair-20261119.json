@@ -1,0 +1,62 @@
+{
+  "schema": "deeplinkengine-environment-repair/v1",
+  "base_commit": "72a677b591f9c5c0d911e9a280759278bc0f4a74",
+  "v3_evaluator_and_reference_files_unchanged": true,
+  "automatic_steps": [
+    "detect compatible CPython 3.12",
+    "load installed CANN 9.1.0 environment",
+    "create an output-specific private venv under configured cache",
+    "fetch fixed Torch and recovered Triton wheels with SHA-256 checks",
+    "install exact vendor packages and resolve Python dependencies in that venv",
+    "recheck versions and exec the same evaluation command with the verified interpreter",
+    "record preparation and preserve the v3 reference/report pipeline"
+  ],
+  "validation": {
+    "real_vendor_repair": true,
+    "base_environment_unchanged": true,
+    "isolated_sdk_metadata": {
+      "torch": "2.13.0+cpu",
+      "torch-npu": "2.13.0rc1",
+      "triton-ascend": "3.6.0",
+      "transformers": "5.14.1",
+      "tokenizers": "0.22.2"
+    },
+    "cache_reuse_without_pip": true,
+    "prepare_only_created_no_campaign": true,
+    "new_model_launches": 0,
+    "host_packages": {
+      "torch": "2.10.0+cpu",
+      "torch-npu": "2.10.0.post4",
+      "triton-ascend": "3.2.2",
+      "transformers": "5.5.4",
+      "tokenizers": "0.22.2"
+    },
+    "environment_report": "/workspace/deeplinkengine-env-repair-20261119/integration/cache/environments/0eb1157f5d6265f9-9d90a882a339/environment.json"
+  },
+  "existing_entry_tests_passed": 24,
+  "new_environment_tests_passed": 19,
+  "anonymous_reference_recomputation": {
+    "B1_efficiency_lower_percent": "89.78382533250482332421774762109257529198",
+    "new_model_execution": false
+  },
+  "triton_recovery": {
+    "packaged_files_original_record_verified": 562,
+    "all_hashed_installed_files_verified": 565,
+    "version": "3.6.0",
+    "sha256": "7d561749d668033e707e24be592cb1434220e81496c582e04e23a317d25ad97d",
+    "original_wheel_available": false,
+    "recompiled": false,
+    "retagged": false,
+    "release": "https://github.com/DeepLinkNext/DeepLinkEngine/releases/tag/r8-runtime-dependencies-20261119-v1"
+  },
+  "limits": [
+    "Requires an installed compatible host driver/CANN toolkit and a usable CPython 3.12 interpreter; no system driver or OS replacement is attempted.",
+    "No new model or NPU benchmark was launched; v3 numerical certification and retained 32K failures are unchanged."
+  ],
+  "publication_base_commit": "804ac59486ad7fc8022590f12f74b18a0eec708c",
+  "concurrent_changes_preserved": [
+    "README.md",
+    "benchmark/docs/topic4-test-guide.docx",
+    "benchmark/docs/topic4-test-guide.pdf"
+  ]
+}

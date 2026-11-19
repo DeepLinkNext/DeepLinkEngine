@@ -28,7 +28,7 @@ python vllm-hust-engine/one_click.py prepare --help
 | 运行平台 | Linux aarch64，CPython 3.12，CANN 9.1.0 |
 | 预装依赖 | Torch 2.13.0+cpu、Torch-NPU 2.13.0rc1、Triton-Ascend 3.6.0、Transformers 5.14.1、tokenizers 0.22.2 |
 
-一键入口会先检查这些依赖版本，不符合时在安装前退出。先准备上述环境及独立的 Python 环境。驱动、CANN 和模型权重按各自渠道配置。以下命令锁定引擎与轮包的哈希，并保留预装厂商依赖：
+一键入口会探测可用的 CPython 3.12 和 CANN 9.1.0，自动加载环境、在专用 venv 中补齐不匹配的 Python 依赖，再复核版本后继续。共享环境和驱动不作修改。先准备上述环境及独立的 Python 环境。驱动、CANN 和模型权重按各自渠道配置。以下命令锁定引擎与轮包的哈希，并保留预装厂商依赖：
 
 ```sh
 python -m pip install --no-deps -r engine/r8-pip-requirements-deeplinkengine.txt
@@ -41,3 +41,9 @@ vllm-hust-engine install --out /path/to/new-r8-installation
 ## 版本与命名
 
 仓库和发行入口使用 **DeepLinkEngine**。冻结发行包沿用 `vllm-hust-engine` 包名和 CLI，安装包及轮包的文件名、版本与 SHA-256 保持原有身份。锁文件中的 `deepengine_url` 字段，以及公开 JSON 中的 `deepengine-*` schema 标识，保留为已有数据格式的兼容字段；下载地址已指向本仓库的新名称。
+
+## 自动环境准备
+
+默认无需增加配置。依赖下载到配置中的缓存目录，修复记录随结果保存在 `environment.json`。仅准备环境可执行 `python run_all.py --config evaluation.json --prepare-environment`。已有离线包或非默认安装路径时，可选填写 `environment` 对象中的 `wheelhouse`、`python`、`cann_home`，相对路径以配置文件为准。
+
+Triton-Ascend 3.6.0 使用[已核验的恢复包](https://github.com/DeepLinkNext/DeepLinkEngine/releases/tag/r8-runtime-dependencies-20261119-v1)，下载时核对固定 SHA-256。包内代码和二进制保持原安装记录的字节；原始 wheel 缺失，恢复来源及新旧归档身份随 Release 公布。

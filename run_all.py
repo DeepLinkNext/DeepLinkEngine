@@ -8,10 +8,11 @@ from pathlib import Path
 import platform
 import sys
 import sysconfig
+import subprocess
 
 ROOT = Path(__file__).resolve().parent
 PATH_FIELDS = {"model", "cache", "out", "baseline_deployment", "dataset_assets", "env_file"}
-FIELDS = PATH_FIELDS | {"physical_devices", "devices"}
+FIELDS = PATH_FIELDS | {"physical_devices", "devices", "environment"}
 
 
 def configuration(path):
@@ -35,6 +36,16 @@ def configuration(path):
         if (not isinstance(pair, list) or len(pair) != 2
             or any(type(x) is not int or x < 0 for x in pair) or pair[0] == pair[1]):
             raise ValueError(name + " requires two distinct non-negative integers")
+    if "environment" in data:
+        from environment_setup import OPTIONS
+        options = data["environment"]
+        if not isinstance(options, dict) or set(options) - OPTIONS:
+            raise ValueError("environment accepts only python, wheelhouse and cann_home")
+        for name, value in options.items():
+            if not isinstance(value, str) or not value.strip():
+                raise ValueError("environment." + name + " requires a path")
+            if name != "python" or "/" in value or "\\" in value:
+                options[name] = str((path.parent / Path(value).expanduser()).resolve())
     if not Path(data["model"]).is_dir():
         raise ValueError("Model directory does not exist: " + data["model"])
     if os.path.lexists(data["out"]):
@@ -102,6 +113,12 @@ def run(data):
     cli = str(Path(sysconfig.get_path("scripts")) / "vllm-hust-engine")
     receipt = {"status": "running", "stages": [], "third_party_verification": "pending"}
 
+    environment_report = os.environ.get("DEEPLINKENGINE_ENVIRONMENT_REPORT")
+    if environment_report:
+        import shutil
+        shutil.copyfile(environment_report, out / "environment.json")
+        receipt["environment"] = {"path": "environment.json", "sha256": hashlib.sha256((out / "environment.json").read_bytes()).hexdigest()}
+
     def save():
         (out / "results.json").write_text(json.dumps(receipt, ensure_ascii=False, indent=2) + "\n")
 
@@ -132,7 +149,7 @@ def run(data):
               "-r", str(ROOT / "engine/r8-pip-requirements-deeplinkengine.txt")])
         stage("verify-engine", [cli, "verify"])
         stage("install-engine", [cli, "install", "--out", str(installation)])
-        evaluation = dict(data, engine_profile="r8", test_mode="full", reference_profile="submission-v2",
+        evaluation = dict({k: v for k, v in data.items() if k != "environment"}, engine_profile="r8", test_mode="full", reference_profile="submission-v2",
                           deployment=str(installation / "sdk"), out=str(out / "fixed-five"))
         config = out / "evaluation.json"
         config.write_text(json.dumps(evaluation, indent=2) + "\n")
@@ -174,12 +191,21 @@ def run(data):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--config", required=True, type=Path)
+    parser.add_argument("--prepare-environment", action="store_true", help="Repair and verify the environment without starting model tests")
     args = parser.parse_args()
     try:
         data = configuration(args.config)
+        from environment_setup import ensure_environment
+        prepared = ensure_environment(data)
+        if prepared is not None:
+            os.execve(prepared["python"], [prepared["python"], str(Path(__file__).resolve()), *sys.argv[1:]], prepared["env"])
+            raise ValueError("Could not hand off to the prepared Python environment")
         preflight()
-    except (ValueError, OSError) as error:
+    except (ValueError, OSError, subprocess.SubprocessError) as error:
         parser.error(str(error))
+    if args.prepare_environment:
+        print("ENVIRONMENT verified; no model tests started", flush=True)
+        return 0
     return run(data)
 
 

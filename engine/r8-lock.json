@@ -54,5 +54,22 @@
     "triton-ascend": "3.6.0",
     "transformers": "5.14.1",
     "tokenizers": "0.22.2"
+  },
+  "environment_sources": {
+    "torch": {
+      "filename": "torch-2.13.0+cpu-cp312-cp312-manylinux_2_28_aarch64.whl",
+      "url": "https://download-r2.pytorch.org/whl/cpu/torch-2.13.0%2Bcpu-cp312-cp312-manylinux_2_28_aarch64.whl",
+      "sha256": "6f307c2c32d764ffc6ff6893b801fad6d4752f3e67966cb8abf1843427c02604"
+    },
+    "triton-ascend": {
+      "filename": "triton_ascend-3.6.0-cp312-cp312-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl",
+      "url": "https://github.com/DeepLinkNext/DeepLinkEngine/releases/download/r8-runtime-dependencies-20261119-v1/triton_ascend-3.6.0-cp312-cp312-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl",
+      "api_url": "https://api.github.com/repos/DeepLinkNext/DeepLinkEngine/releases/assets/768101650",
+      "sha256": "7d561749d668033e707e24be592cb1434220e81496c582e04e23a317d25ad97d",
+      "bytes": 362717762,
+      "provenance_url": "https://github.com/DeepLinkNext/DeepLinkEngine/releases/download/r8-runtime-dependencies-20261119-v1/recovery.json",
+      "recovered_from_installed_record": true,
+      "original_wheel_sha256": "f10e5b1eedbafe94d058dda15794c94b38af71890f8bfa3cb1223f0437c81043"
+    }
   }
 }
