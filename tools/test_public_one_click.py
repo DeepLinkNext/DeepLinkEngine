@@ -46,6 +46,7 @@ class PublicEntryTests(unittest.TestCase):
                 observed.append(run.call_args.args[0])
         with tempfile.TemporaryDirectory() as temp, \
                 patch.object(entry, "reference_evidence", return_value=Path(temp)), \
+                patch.object(entry, "prepare_data", side_effect=lambda args: args), \
                 patch.object(entry.os, "execve", side_effect=execute), \
                 patch.object(sys, "argv", list(sys.argv)):
             with self.assertRaises(SystemExit) as exited:

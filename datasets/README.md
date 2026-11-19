@@ -23,8 +23,7 @@ tools，tool_choice=none，不执行工具。 trace 输入上限 16384，冻结 
 HLE/Frontier 两臂使用同一固定 judge，并公开替代 judge 身份；judge 请求不计 solver 吞吐/费用。 失败、未返回、非法答案、length
 stop、未决评分均保留计划分母。按 HLE 四层及 Frontier 两轨 单列结果。trace 不给任务成功率；有限批次分位数不替代连续 4K/16K C8 长稳与四目标验收。
 
-不分发题目、答案或原始对话。Terminal 作者抓取受 research-only 条款约束；只保存原始定位与哈希。 SWE 工具恢复保留官方 SWE-agent MIT
-来源。第三方须有来源访问权及私有参考引擎读取权； 公开标准不是软件授权或数据再分发授权。参考实现与 bootstrap 固定提交见 standard.json。
+完整题目、答案、图像和轨迹原件已封存到[本仓库固定数据Release](https://github.com/DeepLinkNext/DeepLinkEngine/releases/tag/fixed-five-data-20261120-v1)。[数据正文说明](../data/README.md)及[逐文件清单](../data/bundles.json)给出使用方式和原始使用条件。根目录一键入口自动获取、核验并恢复正文，正常评测无需访问原数据站点；离线机器可预先下载同一批数据包。两项轨迹保留原始输入和工具历史，仍按上述范围测推理性能。
 每轮另记模型、硬件、B0/B1、实际执行提交和评分身份，不把本标准当作运行成绩。
 
 v1 不覆盖修改：样本、顺序、来源、生成预算、评分、tokenizer 或统计口径变化须发布新版本； 旧实验保留原身份，不自动升级为本标准。两个 benchmark 中的本目录应逐字节相同。

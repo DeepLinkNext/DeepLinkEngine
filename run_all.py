@@ -145,6 +145,10 @@ def run(data):
         verify_kit()
         sys.path.insert(0, str(ROOT / "benchmark/one-click-kit/scripts"))
         from child_runner import run_stage as run_owned_stage
+        data_command = [sys.executable, str(ROOT / "tools/prepare_datasets.py"), "--cache", data["cache"], "--context"]
+        if data.get("dataset_assets"):
+            data_command += ["--assets", data["dataset_assets"]]
+        stage("prepare-datasets", data_command)
         stage("install-package", [sys.executable, "-m", "pip", "install", "--no-deps",
               "-r", str(ROOT / "engine/r8-pip-requirements-deeplinkengine.txt")])
         stage("verify-engine", [cli, "verify"])

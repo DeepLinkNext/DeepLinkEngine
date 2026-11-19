@@ -1,0 +1,400 @@
+{
+  "schema": "deeplinkengine-fixed-dataset-bundles/v1",
+  "standard_id": "five-datasets-20261113-v1",
+  "release": "fixed-five-data-20261120-v1",
+  "repository": "DeepLinkNext/DeepLinkEngine",
+  "components": {
+    "mmlu": {
+      "name": "fixed-five-data-mmlu-20261113-v1.tar.gz",
+      "bytes": 3816437,
+      "sha256": "f6bc27330c80065f7e78de279913d7d1b4332f425a20f5ec4d953dbf4a39ede0",
+      "files": {
+        "mmlu/inputs/mmlu-quality018-r2/quality-request-plan.json": {
+          "bytes": 1085882,
+          "sha256": "f4ed4ce5956c9ed08f360400b5a996ef92a217ce295d50648d4dc06443db768e"
+        },
+        "mmlu/inputs/mmlu-quality018-r2/quality-tokenize-preflight.json": {
+          "bytes": 38375,
+          "sha256": "5851407b052fd600a8d425057667c24b478777609652c2b7a0cd3887fae6b57d"
+        },
+        "mmlu/inputs/model-metadata/chat_template.jinja": {
+          "bytes": 7756,
+          "sha256": "a4aee8afcf2e0711942cf848899be66016f8d14a889ff9ede07bca099c28f715"
+        },
+        "mmlu/inputs/model-metadata/config.json": {
+          "bytes": 3544,
+          "sha256": "5e4d7f74fec2f360eb9cfbfcd6ec0c4c76e684d3a11caaed259d9fd9bfbc7944"
+        },
+        "mmlu/inputs/model-metadata/tokenizer.json": {
+          "bytes": 12807982,
+          "sha256": "5f9e4d4901a92b997e463c1f46055088b6cca5ca61a6522d1b9f64c4bb81cb42"
+        },
+        "mmlu/inputs/model-metadata/tokenizer_config.json": {
+          "bytes": 16710,
+          "sha256": "316230d6a809701f4db5ea8f8fc862bc3a6f3229c937c174e674ff3ca0a64ac8"
+        },
+        "mmlu/inputs/recovered-mmlu-cases.json": {
+          "bytes": 1012429,
+          "sha256": "0fe202235190be0d1143ba68f7264ae263d13c004a474843ac9c8a6245e2415e"
+        },
+        "mmlu/inputs/verified-mmlu-quality-inputs.json": {
+          "bytes": 72911,
+          "sha256": "708056e54a5a50a78a3f794fb6f5ec70f50d18384d938d8d67b45d7f1d405959"
+        }
+      },
+      "url": "https://github.com/DeepLinkNext/DeepLinkEngine/releases/download/fixed-five-data-20261120-v1/fixed-five-data-mmlu-20261113-v1.tar.gz",
+      "api_url": "https://api.github.com/repos/DeepLinkNext/DeepLinkEngine/releases/assets/768414008",
+      "asset_id": 768414008
+    },
+    "hle": {
+      "name": "fixed-five-data-hle-20261113-v1.tar.gz",
+      "bytes": 128856168,
+      "sha256": "da2e23d3a878ac8768fca88a7b23c8eabdf5c312db9537c17b006ee1dc608dcb",
+      "files": {
+        "hle/gold/test.jsonl": {
+          "bytes": 97945135,
+          "sha256": "f03c2632400970ffe5167d5ecde169ad38d34ce4dceb2eb8cfb54ece9c5fae00"
+        },
+        "hle/revision/test.jsonl": {
+          "bytes": 84866749,
+          "sha256": "a5a1b1d84edfb90844dfd2f506f331e69d58cb8ef9488ef5f4ebd420fb30cec6"
+        }
+      },
+      "url": "https://github.com/DeepLinkNext/DeepLinkEngine/releases/download/fixed-five-data-20261120-v1/fixed-five-data-hle-20261113-v1.tar.gz",
+      "api_url": "https://api.github.com/repos/DeepLinkNext/DeepLinkEngine/releases/assets/768414112",
+      "asset_id": 768414112
+    },
+    "frontier": {
+      "name": "fixed-five-data-frontier-20261113-v1.tar.gz",
+      "bytes": 138740,
+      "sha256": "99931173c64daf59aee247a45b3026f3c126a98f2960de19b2400a304a41c891",
+      "files": {
+        "frontier/olympiad/test.jsonl": {
+          "bytes": 142436,
+          "sha256": "450e7fceb53c8140283a752f0d62a3abc69a85e252d4dbbd5d9dfbfb762db4e4"
+        },
+        "frontier/research/test.jsonl": {
+          "bytes": 372607,
+          "sha256": "96c0434abfcbadd6ef6f59a03cc374be4caf9c1f2d5e62d8fe921e768f66aa46"
+        }
+      },
+      "url": "https://github.com/DeepLinkNext/DeepLinkEngine/releases/download/fixed-five-data-20261120-v1/fixed-five-data-frontier-20261113-v1.tar.gz",
+      "api_url": "https://api.github.com/repos/DeepLinkNext/DeepLinkEngine/releases/assets/768415345",
+      "asset_id": 768415345
+    },
+    "swe": {
+      "name": "fixed-five-data-swe-20261113-v1.tar.gz",
+      "bytes": 6462310,
+      "sha256": "d10c4f8c376fe3c95c476a26135bc16fd77c8dfe688bd4207ef21d97c828e469",
+      "files": {
+        "public-agent-traces/swe/instance_NodeBB__NodeBB-6489e9fd9ed16ea743cc5627f4d86c72fbdb3a8a-v2c59007b1005cd5cd14cbb523ca5229db1fd2dd8.traj": {
+          "bytes": 995679,
+          "sha256": "578b83aca286d66a0578fe839bfa3ed91f7c52ecee3b09537e449ef96778b84e"
+        },
+        "public-agent-traces/swe/instance_NodeBB__NodeBB-a5afad27e52fd336163063ba40dcadc80233ae10-vd59a5728dfc977f44533186ace531248c2917516.traj": {
+          "bytes": 1013049,
+          "sha256": "5a0928aa13341a2611b730eb71b840e234095096810754b61d359dc988335bce"
+        },
+        "public-agent-traces/swe/instance_ansible__ansible-34db57a47f875d11c4068567b9ec7ace174ec4cf-v1055803c3a812189a1133297f7f5468579283f86.traj": {
+          "bytes": 1169315,
+          "sha256": "c1b25a8db49a2a41723a2ec58bd0cd7dc5a13767dcb943fb884fb24f8ed746b1"
+        },
+        "public-agent-traces/swe/instance_ansible__ansible-3889ddeb4b780ab4bac9ca2e75f8c1991bcabe83-v0f01c69f1e2528b935359cfe578530722bca2c59.traj": {
+          "bytes": 1074744,
+          "sha256": "bccdc67b2ab15c331013ca3ae88024594f8f41d5cdb872d4bc77fe4f739f6a84"
+        },
+        "public-agent-traces/swe/instance_ansible__ansible-5260527c4a71bfed99d803e687dd19619423b134-vba6da65a0f3baefda7a058ebbd0a8dcafb8512f5.traj": {
+          "bytes": 578648,
+          "sha256": "58c9f040566a92465540608b710985aa5d9b630c9f5d905337b6d9b57442af02"
+        },
+        "public-agent-traces/swe/instance_ansible__ansible-949c503f2ef4b2c5d668af0492a5c0db1ab86140-v0f01c69f1e2528b935359cfe578530722bca2c59.traj": {
+          "bytes": 1031558,
+          "sha256": "a4d99eb41a2aa9d2bd6e9bc67b8422edbd4be98961837bcd647480426387f930"
+        },
+        "public-agent-traces/swe/instance_ansible__ansible-d2f80991180337e2be23d6883064a67dcbaeb662-vba6da65a0f3baefda7a058ebbd0a8dcafb8512f5.traj": {
+          "bytes": 1066424,
+          "sha256": "766847aecf6c029dd701a9889cf3a7efee82732d08c8359f7a5a714e37824b35"
+        },
+        "public-agent-traces/swe/instance_element-hq__element-web-18c03daa865d3c5b10e52b669cd50be34c67b2e5-vnan.traj": {
+          "bytes": 239644,
+          "sha256": "45023ccfc0ce79a83cea6466330147d7d35f6c7cab54011500463a65555da07a"
+        },
+        "public-agent-traces/swe/instance_element-hq__element-web-dae13ac8522fc6d41e64d1ac6e3174486fdcce0c-vnan.traj": {
+          "bytes": 976000,
+          "sha256": "793b0a6ea88810677deaa1889e56f483a67a34ff26e5efc721ab9c2e456ad9aa"
+        },
+        "public-agent-traces/swe/instance_element-hq__element-web-ecfd1736e5dd9808e87911fc264e6c816653e1a9-vnan.traj": {
+          "bytes": 1005022,
+          "sha256": "009e7cd42c7ea2d997f5b0540b6ef845c47b303b289fbdb9a9cfff3b71b0a689"
+        },
+        "public-agent-traces/swe/instance_flipt-io__flipt-65581fef4aa807540cb933753d085feb0d7e736f.traj": {
+          "bytes": 1270707,
+          "sha256": "79aefb1d098a0620c197822ff1ef380e41124643ce443a817d64c7e34866ad55"
+        },
+        "public-agent-traces/swe/instance_flipt-io__flipt-b68b8960b8a08540d5198d78c665a7eb0bea4008.traj": {
+          "bytes": 1062520,
+          "sha256": "fe77319c9d20f21621aa894172bcdf019dc17312db3a50a93f40f3287fde4fde"
+        },
+        "public-agent-traces/swe/instance_flipt-io__flipt-c1fd7a81ef9f23e742501bfb26d914eb683262aa.traj": {
+          "bytes": 1063845,
+          "sha256": "1439d83043498b782cf1607c8b50d4a7ff6446577e6d58654a1acd24665ac6eb"
+        },
+        "public-agent-traces/swe/instance_flipt-io__flipt-e50808c03e4b9d25a6a78af9c61a3b1616ea356b.traj": {
+          "bytes": 1045389,
+          "sha256": "1721fc02475fad8a8dd5ad75cc5b439c43c4c679b1371ae42ece289fcef48921"
+        },
+        "public-agent-traces/swe/instance_future-architect__vuls-0ec945d0510cdebf92cdd8999f94610772689f14.traj": {
+          "bytes": 1103279,
+          "sha256": "d936aa13346a5fcabcfb447ee8aabe3a365720c3716fe4648979f814626890ed"
+        },
+        "public-agent-traces/swe/instance_future-architect__vuls-17ae386d1e185ba742eea4668ca77642e22b54c4.traj": {
+          "bytes": 1039983,
+          "sha256": "f062079c12bc84b36f9153fbd675d09c4e2c792747ecb7a1b445717671b5f933"
+        },
+        "public-agent-traces/swe/instance_future-architect__vuls-73f0adad95c4d227e2ccfa876c85cc95dd065e13.traj": {
+          "bytes": 1193420,
+          "sha256": "7fae479aabdbba5f61e6d13e83b8d53ea32ef3213e67659ae2d902715d890978"
+        },
+        "public-agent-traces/swe/instance_gravitational__teleport-10123c046e21e1826098e485a4c2212865a49d9f.traj": {
+          "bytes": 1069975,
+          "sha256": "b2f32e6312bf7fb5626b1ad9f9f73092e6f4d4d211bfc60be4cfce42bef6da37"
+        },
+        "public-agent-traces/swe/instance_gravitational__teleport-e6681abe6a7113cfd2da507f05581b7bdf398540-v626ec2a48416b10a88641359a169d99e935ff037.traj": {
+          "bytes": 1091101,
+          "sha256": "8774ba13759f7b415a99b8a9668e7c638dfd4e517a39df2d9ef5f690c70fbba7"
+        },
+        "public-agent-traces/swe/instance_internetarchive__openlibrary-03095f2680f7516fca35a58e665bf2a41f006273-v8717e18970bcdc4e0d2cea3b1527752b21e74866.traj": {
+          "bytes": 1030273,
+          "sha256": "eaa7a2323f6bc36c1016cb0d82399e8576573f7cb25013c3e6482bdcfd1aef1c"
+        },
+        "public-agent-traces/swe/instance_internetarchive__openlibrary-0a90f9f0256e4f933523e9842799e39f95ae29ce-v76304ecdb3a5954fcf13feb710e8c40fcf24b73c.traj": {
+          "bytes": 916164,
+          "sha256": "101c779b4592edc398f1c79be0b49a9264f175a31b3631bf88d24064432371ae"
+        },
+        "public-agent-traces/swe/instance_internetarchive__openlibrary-798055d1a19b8fa0983153b709f460be97e33064-v13642507b4fc1f8d234172bf8129942da2c2ca26.traj": {
+          "bytes": 1162958,
+          "sha256": "1e24bfff0a11d8bfb019416e923f1761620968cc45a8f46fc400de763b9c31cc"
+        },
+        "public-agent-traces/swe/instance_internetarchive__openlibrary-89e4b4431fe7506c365a6f6eb6f6d048d04c044c-v08d8e8889ec945ab821fb156c04c7d2e2810debb.traj": {
+          "bytes": 1035051,
+          "sha256": "5899891e4ef6726770a7ee1747d0d30ae93103cda0fb6b43d8f5e60c206618bc"
+        },
+        "public-agent-traces/swe/instance_navidrome__navidrome-3982ba725883e71d4e3e618c61d5140eeb8d850a.traj": {
+          "bytes": 1018502,
+          "sha256": "84a9c2b146e139112d271e306d60d6e7b4ca0acf418a67504a86f8f24e397498"
+        },
+        "public-agent-traces/swe/instance_navidrome__navidrome-812dc2090f20ac4f8ac271b6ed95be5889d1a3ca.traj": {
+          "bytes": 1067420,
+          "sha256": "351c46dbd5362d0af31d3a39e86a994cd501acdcd5cabff7ce7864c633b330a5"
+        },
+        "public-agent-traces/swe/instance_navidrome__navidrome-f7d4fcdcc1a59d1b4f835519efb402897757e371.traj": {
+          "bytes": 1209653,
+          "sha256": "5e53eac8a79b957f3d5f29197140930f6bacc0c4183ec81b2af76f49ff7c94f7"
+        },
+        "public-agent-traces/swe/instance_protonmail__webclients-2c3559cad02d1090985dba7e8eb5a129144d9811.traj": {
+          "bytes": 934356,
+          "sha256": "0820151f92146b28ab88e129ee9609f7e29e16d79169ea6b6bb4f004b29176d1"
+        },
+        "public-agent-traces/swe/instance_qutebrowser__qutebrowser-01d1d1494411380d97cac14614a829d3a69cecaf-v2ef375ac784985212b1805e1d0431dc8f1b3c171.traj": {
+          "bytes": 1049476,
+          "sha256": "4911a1f9912b2faea9c7e560689d879f8f413ed7ce7b7cc08b2a055d040fb629"
+        },
+        "public-agent-traces/swe/instance_qutebrowser__qutebrowser-0b621cb0ce2b54d3f93d8d41d8ff4257888a87e5-v2ef375ac784985212b1805e1d0431dc8f1b3c171.traj": {
+          "bytes": 800391,
+          "sha256": "28b7c055423024c532ad4dca4c1c3f4ccfcd580a214c08411ece47c388ae6de5"
+        },
+        "public-agent-traces/swe/instance_qutebrowser__qutebrowser-473a15f7908f2bb6d670b0e908ab34a28d8cf7e2-v363c8a7e5ccdf6968fc7ab84a2053ac78036691d.traj": {
+          "bytes": 935747,
+          "sha256": "16bf7e9803a272eeed48b718a17471f6298280eaf172131f0145997ab7a3abbd"
+        },
+        "public-agent-traces/swe/instance_qutebrowser__qutebrowser-5cef49ff3074f9eab1da6937a141a39a20828502-v02ad04386d5238fe2d1a1be450df257370de4b6a.traj": {
+          "bytes": 1042002,
+          "sha256": "b08b4e42f574b145748020f53590189133c3056430c3f81f454834a4bdb6f6e4"
+        },
+        "public-agent-traces/swe/instance_tutao__tutanota-219bc8f05d7b980e038bc1524cb021bf56397a1b-vee878bb72091875e912c52fc32bc60ec3760227b.traj": {
+          "bytes": 1097320,
+          "sha256": "f95cc015de0c6c25018e8b9f6e929d7595335ea85f5272412634a381d79a16ed"
+        }
+      },
+      "url": "https://github.com/DeepLinkNext/DeepLinkEngine/releases/download/fixed-five-data-20261120-v1/fixed-five-data-swe-20261113-v1.tar.gz",
+      "api_url": "https://api.github.com/repos/DeepLinkNext/DeepLinkEngine/releases/assets/768415423",
+      "asset_id": 768415423
+    },
+    "terminal": {
+      "name": "fixed-five-data-terminal-20261113-v1.tar.gz",
+      "bytes": 12759560,
+      "sha256": "ea580a492e9ce6a881833d8982cab6039f87799ed827f48d60b1a326858bd5da",
+      "files": {
+        "public-agent-traces/terminal/break-filter-js-from-html__subagents__2026-08-16__04-31-31/requests-1453.jsonl": {
+          "bytes": 1932893,
+          "sha256": "167a961fe0b4937d409f972fe9aa992d70b64c6a706be907924e330ffeecdb91"
+        },
+        "public-agent-traces/terminal/build-cython-ext__subagents__2026-08-16__04-31-31/requests-1448.jsonl": {
+          "bytes": 91755,
+          "sha256": "2c22db219ecf508ca60be093a96a048ae352b197820370567358212565409422"
+        },
+        "public-agent-traces/terminal/constraints-scheduling__subagents__2026-08-16__04-31-31/requests-1600.jsonl": {
+          "bytes": 125588,
+          "sha256": "cdcf0fe93bd8129827e2cdf8251e842d01eda14f16c5529dddbf42a2dd55907e"
+        },
+        "public-agent-traces/terminal/custom-memory-heap-crash__subagents__2026-08-16__04-31-31/requests-1486.jsonl": {
+          "bytes": 119764,
+          "sha256": "0670868478c456252344e16eb3a3fa4951a35d48ab2c4b430375cc2d619c7e03"
+        },
+        "public-agent-traces/terminal/db-wal-recovery__subagents__2026-08-16__04-31-31/requests-1560.jsonl": {
+          "bytes": 1304274,
+          "sha256": "8ed37260b3a6ffc306367507c1cb683eb7b4e6d548d3991d0db6847c2a1408c2"
+        },
+        "public-agent-traces/terminal/distribution-search__subagents__2026-08-16__04-31-31/requests-1599.jsonl": {
+          "bytes": 120472,
+          "sha256": "1da2d74f9dac1e07d2d7bf5efd302822a531b6a00fafac00f84e47e81e67437e"
+        },
+        "public-agent-traces/terminal/dna-insert__subagents__2026-08-16__04-31-31/requests-3761.jsonl": {
+          "bytes": 2087626,
+          "sha256": "0ce81f1b7f331e0084923a6601467f2e3318ceb0480e52ba765e1b7ff6812f23"
+        },
+        "public-agent-traces/terminal/feal-differential-cryptanalysis__subagents__2026-08-16__04-31-31/requests-1602.jsonl": {
+          "bytes": 118016,
+          "sha256": "c91a86c7add08f0f5d958a35ced243f5a0da006e2ed045a1c3577acca053daec"
+        },
+        "public-agent-traces/terminal/filter-js-from-html__subagents__2026-08-16__04-31-31/requests-1464.jsonl": {
+          "bytes": 118468,
+          "sha256": "d4c9fbdde0792173f1b25d2b660a31c75db267c0c482f440b6fd0cc65da278ba"
+        },
+        "public-agent-traces/terminal/financial-document-processor__subagents__2026-08-16__04-31-31/requests-3761.jsonl": {
+          "bytes": 120144,
+          "sha256": "7f13af8654bced98339236d48f44af43aa6632d80128ab01caee43a055486bf4"
+        },
+        "public-agent-traces/terminal/fix-git__subagents__2026-08-16__02-00-29/requests-1426.jsonl": {
+          "bytes": 205294,
+          "sha256": "3a4e71315e87bb889ce83299438c84f15babf9565bf315f0ebb8c9db4eab3e36"
+        },
+        "public-agent-traces/terminal/install-windows-3.11__subagents__2026-08-16__04-31-31/requests-1496.jsonl": {
+          "bytes": 1608407,
+          "sha256": "f96107b1589f35b474a5c0e3134e21e112f70cad1fdcdc4d70941cb0856932a1"
+        },
+        "public-agent-traces/terminal/kv-store-grpc__subagents__2026-08-16__04-31-31/requests-1603.jsonl": {
+          "bytes": 709387,
+          "sha256": "70f3ea7c7a8f0782984529ed338ac6c6f4684b9a1f331814931e8d0f334ddd4a"
+        },
+        "public-agent-traces/terminal/large-scale-text-editing__subagents__2026-08-16__04-31-31/requests-1604.jsonl": {
+          "bytes": 906322,
+          "sha256": "086d2e1c78ed28a44360401cfdad708c797aaebdf8b4e0e89a0944f032bc1f31"
+        },
+        "public-agent-traces/terminal/log-summary-date-ranges__subagents__2026-08-16__04-31-31/requests-1604.jsonl": {
+          "bytes": 91110,
+          "sha256": "6f2ea2e66e22dcb6defcd36319c0dd1ae074776e83a0277e1fe373c31e68a844"
+        },
+        "public-agent-traces/terminal/make-doom-for-mips__subagents__2026-08-16__04-31-31/requests-1327.jsonl": {
+          "bytes": 117808,
+          "sha256": "e200575ac2d7e84257b75ec1a91894288195d72d0e52f1d5a280061ebcb29e9b"
+        },
+        "public-agent-traces/terminal/make-mips-interpreter__subagents__2026-08-16__04-31-31/requests-1327.jsonl": {
+          "bytes": 117800,
+          "sha256": "8da1c1437d4458411037e97dddd85bcda9b4dc46a23f2ff583177fc7c1c3a430"
+        },
+        "public-agent-traces/terminal/mcmc-sampling-stan__subagents__2026-08-16__04-31-31/requests-1267.jsonl": {
+          "bytes": 4823856,
+          "sha256": "b1146e2de2b3c9b64e77208ec4915beae0e4ac4f3d6d179618355c0637d393fa"
+        },
+        "public-agent-traces/terminal/merge-diff-arc-agi-task__subagents__2026-08-16__04-31-31/requests-3761.jsonl": {
+          "bytes": 868949,
+          "sha256": "aa787a51aed701d75886c21ba751c47ebb5f24fbff2954526bb4b193059ea0fd"
+        },
+        "public-agent-traces/terminal/password-recovery__subagents__2026-08-16__04-31-31/requests-1429.jsonl": {
+          "bytes": 88821,
+          "sha256": "a98ace9a5c53ce6c498bd294d568842b04c24586214deb3b7f158afba3523306"
+        },
+        "public-agent-traces/terminal/path-tracing-reverse__subagents__2026-08-16__04-31-31/requests-1264.jsonl": {
+          "bytes": 117928,
+          "sha256": "9db4404dbbfcf585a6dfbdfd94c6f070642091d7f2bd90977a3bfc3cfd50c166"
+        },
+        "public-agent-traces/terminal/polyglot-c-py__subagents__2026-08-16__04-31-31/requests-3751.jsonl": {
+          "bytes": 1586738,
+          "sha256": "1399715f79f38da4f9df8bb31b852b7b1faaf3f2b87e5c2a7ff95aac537b2cce"
+        },
+        "public-agent-traces/terminal/polyglot-rust-c__subagents__2026-08-16__04-31-31/requests-3751.jsonl": {
+          "bytes": 1756251,
+          "sha256": "25b626420f87693d2323b8c8a532b1d7bf96a57274bf11ab6fbfd812d0919936"
+        },
+        "public-agent-traces/terminal/pytorch-model-cli__subagents__2026-08-16__04-31-31/requests-1604.jsonl": {
+          "bytes": 1703598,
+          "sha256": "b99df29b79c68f052e30dbce23a8e5d9aea0e012f2ab52f5d7b7042366692ec6"
+        },
+        "public-agent-traces/terminal/raman-fitting__subagents__2026-08-16__04-31-31/requests-1604.jsonl": {
+          "bytes": 88617,
+          "sha256": "c7b6377bab05328aa3aa71381c63ba962ff2d97113ba211a0c6f802034895dad"
+        },
+        "public-agent-traces/terminal/regex-log__subagents__2026-08-16__04-31-31/requests-3760.jsonl": {
+          "bytes": 89976,
+          "sha256": "2e510acb20c669e82714f2b14f3fe3cce3736f582bb7111168b2d22584d2516e"
+        },
+        "public-agent-traces/terminal/reshard-c4-data__subagents__2026-08-16__04-31-31/requests-1604.jsonl": {
+          "bytes": 121028,
+          "sha256": "2d3ed88f92b6ba384128401e3cb818b9e97145c15ab42ce76b0c2738c8a6edfc"
+        },
+        "public-agent-traces/terminal/rstan-to-pystan__subagents__2026-08-16__04-31-31/requests-1599.jsonl": {
+          "bytes": 30792405,
+          "sha256": "815534e85d094fc7d07175772fde76575295a254cdd9921f43c47d168f2b5b78"
+        },
+        "public-agent-traces/terminal/sparql-university__subagents__2026-08-16__04-31-31/requests-3757.jsonl": {
+          "bytes": 90729,
+          "sha256": "2959d5b5c4d799f280a3f4500d5d034b16340c18232679b09dc8332be558d53c"
+        },
+        "public-agent-traces/terminal/sqlite-db-truncate__subagents__2026-08-16__04-31-31/requests-1601.jsonl": {
+          "bytes": 1073774,
+          "sha256": "f6c8689716ebd6eaed994b7e06a0ed8650cca03fb0a9d9a7296ed4512e1eecde"
+        },
+        "public-agent-traces/terminal/torch-tensor-parallelism__subagents__2026-08-16__04-31-31/requests-3761.jsonl": {
+          "bytes": 397066,
+          "sha256": "f4ccb3c27efb7c601b408e3e5dbe0c91482ea72fe74b5bf85be6d2c9710795b2"
+        },
+        "public-agent-traces/terminal/winning-avg-corewars__subagents__2026-08-16__04-31-31/requests-1342.jsonl": {
+          "bytes": 9777490,
+          "sha256": "00776c28227ee4f49075ba5121fc675a6900111511e09a22e7ffbea31879fbeb"
+        }
+      },
+      "url": "https://github.com/DeepLinkNext/DeepLinkEngine/releases/download/fixed-five-data-20261120-v1/fixed-five-data-terminal-20261113-v1.tar.gz",
+      "api_url": "https://api.github.com/repos/DeepLinkNext/DeepLinkEngine/releases/assets/768415540",
+      "asset_id": 768415540
+    }
+  },
+  "notice": {
+    "name": "DATA-NOTICES.txt",
+    "bytes": 13542,
+    "sha256": "041de0599fc061ab771196af54aa70c8889b5409b5834d7fad1b038ce792f5b5",
+    "api_url": "https://api.github.com/repos/DeepLinkNext/DeepLinkEngine/releases/assets/768431185",
+    "asset_id": 768431185
+  },
+  "frozen_protocols": {
+    "datasets/standard.json": "66c050b7c6d705853f10bc437e6ace1707a9b46d43b6bdb7159724045045b756",
+    "datasets/frontier-full160.json": "aefdc72f23240d59ba5b54e1b1294cec31937ed993fac2617daec61258d04311",
+    "datasets/hle-fixed200.json": "ffcdd5e27b0822937b0f60aea1ca7c88eac82a39fd9d55c50f41c797ba676282",
+    "datasets/mmlu-fixed200.json": "8124492d6c59f53817116e27b32cd86c7b06c5ce59a45d1d77df56c080772c87",
+    "datasets/public-agent-trace-fixed32-v1.json": "eacf3628cda8d7accc2e39b20fce687b1deb1cb0b0f470e8b11c8dd4517f71f8",
+    "datasets/public-agent-trace-source-selection-v1.json": "f88229564ca29589608055c08859aaaab04d6e6f6259d6be4e88919b44eef08f",
+    "datasets/swe-agent-v110-tools.json": "95c0546bbc92c4a6a9e6780ae825d78e05e2c436211603790502303b7f74fcf8"
+  },
+  "execution_scope": {
+    "mmlu": {
+      "tasks": 200,
+      "requests": 200
+    },
+    "hle": {
+      "tasks": 200,
+      "requests": 200
+    },
+    "frontier": {
+      "tasks": 160,
+      "requests": 160
+    },
+    "swe": {
+      "tasks": 32,
+      "requests": 64
+    },
+    "terminal": {
+      "tasks": 32,
+      "requests": 48
+    }
+  }
+}

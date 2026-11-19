@@ -86,11 +86,12 @@ class WorkflowTests(unittest.TestCase):
     def test_failed_install_never_starts_tests_or_retries(self):
         def failed(args, **kwargs):
             self.calls.append(args)
-            return types.SimpleNamespace(returncode=9)
+            return types.SimpleNamespace(returncode=0 if "prepare_datasets.py" in str(args[1]) else 9)
         result, receipt = self.invoke(failed)
         self.assertEqual(result, 1)
-        self.assertEqual(len(self.calls), 1)
-        self.assertEqual(receipt["stages"][0]["returncode"], 9)
+        self.assertEqual(len(self.calls), 2)
+        self.assertEqual(receipt["stages"][-1]["name"], "install-package")
+        self.assertEqual(receipt["stages"][-1]["returncode"], 9)
 
     def test_launch_failure_does_not_leave_running_stage(self):
         def failed(*args, **kwargs):
