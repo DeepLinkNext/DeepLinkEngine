@@ -4,6 +4,10 @@ DeepLinkEngine fork 自 [vllm-hust-engine](https://vllm-hust.sage.org.ai/engine.
 
 提供冻结 r8 引擎的一键安装、配对测试和报告生成。课题四正式验收在第三方见证下现场运行，按当次采集的数据判定。
 
+## 课题四现场测试说明
+
+[下载课题四第三方现场测试说明（PDF）](https://github.com/DeepLinkNext/DeepLinkEngine/raw/refs/heads/main/benchmark/docs/topic4-test-guide.pdf) · [在线预览](benchmark/docs/topic4-test-guide.pdf)
+
 ## 一键安装与测试
 
 准备双卡昇腾 910B2、模型权重及[运行环境](engine/README.md#安装)。复制[配置示例](benchmark/run-all.example.json)，填写模型路径、物理卡号、缓存和新的结果目录：
