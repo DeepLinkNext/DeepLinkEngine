@@ -31,7 +31,7 @@ class FullSuiteEntryTests(unittest.TestCase):
 
         def command(args):
             commands.append(args)
-            if "install" in args:
+            if "install" in args or (len(args)>1 and Path(args[1]).name=="runtime_storage.py"):
                 record = out / "installation/installation.json"
                 record.parent.mkdir(parents=True, exist_ok=True)
                 record.write_text(json.dumps(dict(release="full-answer-b1-20261117-r8")))

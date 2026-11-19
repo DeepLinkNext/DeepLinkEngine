@@ -77,7 +77,8 @@ class Standalone(unittest.TestCase):
             self.assertEqual(downloads, [])
             self.assertEqual(calls[0][:2], [sys.executable, str(ROOT / "engine_install.py")])
             self.assertEqual(calls[0][calls[0].index("--cache") + 1], str(cache))
-            self.assertEqual([x[1] for x in calls[1:]], ["verify", "install"])
+            self.assertEqual(calls[1][1], "verify")
+            self.assertEqual(Path(calls[2][1]).name, "runtime_storage.py")
             self.assertFalse(any("reference" in str(x) or "evaluate" in str(x) for x in calls))
 
     def test_explicit_environment_with_matching_versions_but_changed_vendor_files_is_rejected(self):

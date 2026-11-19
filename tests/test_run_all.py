@@ -38,7 +38,7 @@ class WorkflowTests(unittest.TestCase):
 
     def execute(self, args, **kwargs):
         self.calls.append(args)
-        if "install" in args:
+        if "install" in args or (len(args)>1 and Path(args[1]).name=="runtime_storage.py"):
             self.write("installation/installation.json", {"release": "full-answer-b1-20261117-r8"})
         if "run" in args:
             self.write("fixed-five/frozen-execution-plan.json", dict(
@@ -183,6 +183,21 @@ class WorkflowTests(unittest.TestCase):
         prepare = next(args for args in self.calls if "prepare" in args)
         self.assertIn("--out", prepare)
         self.assertNotEqual(prepare[prepare.index("--out") + 1], str(self.root / "result/fixed-five-prepare"))
+
+    def test_installation_verification_timeout_is_recoverable_before_any_campaign(self):
+        def failed(args, **kwargs):
+            result=self.execute(args, **kwargs)
+            if len(args)>1 and Path(args[1]).name=="runtime_storage.py":
+                return types.SimpleNamespace(returncode=124)
+            return result
+        result,_=self.invoke(failed)
+        self.assertEqual(result,1)
+        prior=workflow.bootstrap_resume(self.data)
+        self.assertEqual(prior["stages"][-1]["name"],"install-engine")
+        with patch("one_click.verify_kit"),patch("child_runner.run_stage",side_effect=self.execute), \
+             contextlib.redirect_stdout(io.StringIO()),contextlib.redirect_stderr(io.StringIO()):
+            self.assertEqual(workflow.run(self.data,resume_bootstrap=True),0)
+        self.assertTrue(any(Path(a[1]).name=="runtime_storage.py" and "--reuse" in a for a in self.calls))
 
     def test_bootstrap_recovery_rejects_changed_physical_devices_before_work(self):
         self.failed_preflight()
