@@ -346,7 +346,10 @@ def ensure_environment(data):
             report["differences"] = missing
             managed = directory / "venv"
             if managed.is_symlink():
-                raise ValueError("Managed venv must not be a symlink")
+                from python_storage import admitted, ensure as restore_python
+                if not admitted(managed / "bin/python", data["cache"]):
+                    raise ValueError("Managed venv must not be an unmanaged symlink")
+                restore_python(managed)
             python = str(managed / "bin/python")
             if not Path(python).is_file():
                 command([str(before["python"]), "-m", "venv", "--system-site-packages", str(managed)],

@@ -125,9 +125,13 @@ def recovery_environment(data):
     else:
         info = json.loads((out / "environment.json").read_text())
         python = Path(info["after"]["python"]).absolute()
-    if (not (python.parent.parent / "pyvenv.cfg").is_file()
-            or not python.parent.parent.resolve().is_relative_to((Path(data["cache"]) / "environments").resolve())):
+    from python_storage import admitted, ensure as restore_python
+    if not admitted(python, data["cache"]):
         raise ValueError("Recovery requires the installation's private interpreter")
+    restore_python(python.parent.parent)
+    if not (python.parent.parent / "pyvenv.cfg").is_file():
+        from environment_setup import ensure_environment
+        return ensure_environment(data)
     lock = json.loads((ROOT / "engine/r8-lock.json").read_text())
     env, _ = cann_environment(data.get("environment", {}))
     observed = probe(python, lock["required_python_packages"], env)
@@ -292,6 +296,13 @@ def run(data, *, resume_bootstrap=False, resume_before_model=False):
             receipt["runtime_dependencies"] = dict(path="runtime-dependencies.json",
                 sha256=hashlib.sha256((out / "runtime-dependencies.json").read_bytes()).hexdigest())
             save()
+        from python_storage import admitted, ensure as local_python
+        if admitted(Path(sys.executable),data["cache"]):
+            managed=local_python(Path(sys.executable).parent.parent,allow_current=True)
+            from python_storage import marker as python_storage_marker
+            if python_storage_marker(managed).is_file():
+                receipt["python_storage"] = json.loads(python_storage_marker(managed).read_text())
+                save()
         stage("verify-engine", [cli, "verify"])
         runtime_command = [sys.executable, str(ROOT / "runtime_storage.py"), "--out", str(installation)]
         if reuse_installation:

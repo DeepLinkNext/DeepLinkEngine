@@ -127,6 +127,8 @@ def restore_missing(logical):
     if record.get('logical')!=str(logical) or record.get('verified') is not True:
         raise ValueError('Runtime storage marker differs')
     python=Path(record['python'])
+    from python_storage import ensure as restore_python
+    restore_python(python.parent.parent)
     if not (python.parent.parent/'pyvenv.cfg').is_file():
         raise ValueError('Restore the recorded private environment before rebuilding runtime storage')
     from environment_setup import cann_environment
