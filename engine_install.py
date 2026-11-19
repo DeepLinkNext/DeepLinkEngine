@@ -59,6 +59,9 @@ def install(cache, *, wheelhouse=None, download_only=False):
         receipt.write_text(json.dumps(result, indent=2) + "\n")
         if completed.returncode:
             raise RuntimeError("Frozen engine installation failed; see " + str(receipt))
+        from package_metadata import prepare
+        result["package_metadata"] = prepare(sys.executable)
+        receipt.write_text(json.dumps(result, indent=2) + "\n")
     print("ENGINE_ARTIFACTS", receipt, flush=True)
     return result
 

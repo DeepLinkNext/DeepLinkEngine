@@ -263,6 +263,29 @@ print(json.dumps(module.distribution_integrity('triton-ascend')))
     return dict(verified=result["verified"], packages={"triton-ascend": result})
 
 
+def runtime_imports(python, required, env):
+    """Exercise the CPU TorchVision ABI without loading the Ascend backend."""
+    if "torchvision" not in required:
+        return {"status": "not_required"}
+    isolated = dict(env, TORCH_DEVICE_BACKEND_AUTOLOAD="0", ASCEND_RT_VISIBLE_DEVICES="",
+                    CUDA_VISIBLE_DEVICES="", OMP_NUM_THREADS="1", OPENBLAS_NUM_THREADS="1")
+    code = """import json,sys
+import torch,torchvision
+from torchvision.ops import nms
+result=nms(torch.tensor([[0.,0.,1.,1.],[0.,0.,1.,1.]]),torch.tensor([.9,.8]),.5)
+assert result.tolist()==[0], 'TorchVision CPU operator failed'
+assert not any(n in sys.modules for n in ('torch_npu','vllm','vllm_ascend'))
+print(json.dumps({'status':'verified','torch':torch.__version__,'torchvision':torchvision.__version__,
+                  'cpu_operator':'torchvision.ops.nms','model_loaded':False,'npu_backend_imported':False}))
+"""
+    try:
+        observed = subprocess.run([str(python), "-I", "-c", code], env=isolated,
+                                  capture_output=True, text=True, check=True, timeout=180)
+        return json.loads(observed.stdout)
+    except subprocess.CalledProcessError as error:
+        raise ValueError("Torch/TorchVision CPU ABI check failed: " + error.stderr[-3000:]) from error
+
+
 def ensure_environment(data):
     """Return an exec handoff when repair/loading is needed; None in a verified child."""
     if platform.system() != "Linux" or platform.machine() != "aarch64":
@@ -299,10 +322,18 @@ def ensure_environment(data):
                 and current.get("after", {}).get("prefix") == sys.prefix):
             integrity = vendor_integrity(python, required, env)
             if integrity["verified"]:
-                current["vendor_integrity"] = integrity
-                save(report_path, current)
-                os.environ.update(env)
-                return None
+                from package_metadata import prepare
+                current["package_metadata"] = prepare(python)
+                try:
+                    current["runtime_imports"] = runtime_imports(python, required, env)
+                except (ValueError, subprocess.SubprocessError) as error:
+                    current.update(status="invalid", runtime_import_error=str(error))
+                    save(report_path, current)
+                else:
+                    current["vendor_integrity"] = integrity
+                    save(report_path, current)
+                    os.environ.update(env)
+                    return None
     import fcntl
     with (directory / "repair.lock").open("a+b") as lease:
         fcntl.flock(lease, fcntl.LOCK_EX)
@@ -333,6 +364,15 @@ def ensure_environment(data):
             install = [python, "-m", "pip", "install", "--disable-pip-version-check", "--only-binary=:all:", "--no-compile"]
             for folder in links:
                 install += ["--find-links", folder]
+            qualified_imports = None
+            if reusable and not differences(info, required):
+                from package_metadata import prepare
+                report["package_metadata"] = prepare(python)
+                try:
+                    qualified_imports = runtime_imports(python, required, env)
+                except (ValueError, subprocess.SubprocessError) as error:
+                    reusable = False
+                    report["runtime_import_error_before_repair"] = str(error)
             if differences(info, required) or not reusable:
                 requirements = directory / "requirements.txt"
                 lines = []
@@ -368,6 +408,9 @@ def ensure_environment(data):
             after = probe(python, required, env)
             if differences(after, required):
                 raise ValueError("Dependency versions remain inconsistent after repair")
+            from package_metadata import prepare
+            report["package_metadata"] = prepare(python)
+            report["runtime_imports"] = qualified_imports or runtime_imports(python, required, env)
             report.update(status="ready", after=after, vendor_integrity=integrity)
             save(report_path, report)
             env["DEEPLINKENGINE_ENVIRONMENT_REPORT"] = str(report_path)

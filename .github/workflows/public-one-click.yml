@@ -34,6 +34,7 @@ jobs:
       - run: python -B tests/test_environment_setup.py
       - run: python -B tests/test_standalone.py
       - run: python -B tests/test_dataset_bundle.py
+      - run: python -B tests/test_package_metadata.py
       - run: python -B tests/test_engine_install.py
       - run: python -B tests/test_baseline_setup.py
       - name: Cache frozen engine installation assets

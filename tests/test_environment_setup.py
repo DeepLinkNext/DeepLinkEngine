@@ -53,6 +53,24 @@ class EnvironmentTests(unittest.TestCase):
             result = setup.ensure_environment(self.data)
         return result, execute
 
+    def test_cpu_abi_probe_disables_backend_loading_and_preserves_parent_environment(self):
+        inherited = {"TORCH_DEVICE_BACKEND_AUTOLOAD": "1", "ASCEND_RT_VISIBLE_DEVICES": "0,1"}
+        observed = type("Result", (), {"stdout": '{"status":"verified"}'})()
+        with patch.object(setup.subprocess, "run", return_value=observed) as execute:
+            result = setup.runtime_imports("/private/python", {"torchvision": "0.28.0+cpu"}, inherited)
+        self.assertEqual(result["status"], "verified")
+        self.assertEqual(inherited["ASCEND_RT_VISIBLE_DEVICES"], "0,1")
+        self.assertEqual(execute.call_args.kwargs["env"]["TORCH_DEVICE_BACKEND_AUTOLOAD"], "0")
+        self.assertEqual(execute.call_args.kwargs["env"]["ASCEND_RT_VISIBLE_DEVICES"], "")
+        self.assertIn("nms", execute.call_args.args[0][-1])
+
+    def test_cpu_abi_failure_is_reported_before_environment_ready(self):
+        import subprocess
+        failure = subprocess.CalledProcessError(1, [], stderr="operator torchvision::nms does not exist")
+        with patch.object(setup.subprocess, "run", side_effect=failure):
+            with self.assertRaisesRegex(ValueError, "torchvision::nms"):
+                setup.runtime_imports("/private/python", {"torchvision": "0.28.0+cpu"}, {})
+
     def test_qualified_base_is_readonly_and_a_private_environment_is_created(self):
         result, execute = self.prepare()
         self.assertEqual(len(execute.call_args_list), 3)
@@ -84,6 +102,23 @@ class EnvironmentTests(unittest.TestCase):
         python.touch()
         _, execute = self.prepare(before=info("1"), probes=[info(), info()])
         execute.assert_not_called()
+
+    def test_cached_matching_versions_with_broken_cpu_abi_are_reinstalled(self):
+        (self.root / "engine/r8-lock.json").write_text(json.dumps({
+            "required_python_packages": {"vendor": "2", "torchvision": "0.28.0+cpu"}}))
+        observation = info()
+        observation["packages"]["torchvision"] = "0.28.0+cpu"
+        with patch.object(setup, "runtime_imports", return_value={"status": "verified"}):
+            first, _ = self.prepare(before=observation, probes=[observation, observation])
+        python = Path(first["python"])
+        python.parent.mkdir(parents=True, exist_ok=True)
+        python.touch()
+        with patch.object(setup, "runtime_imports", side_effect=[ValueError("broken ABI"), {"status": "verified"}]):
+            result, execute = self.prepare(before=observation, probes=[observation, observation])
+        self.assertEqual(len(execute.call_args_list), 2)
+        report = json.loads(Path(result["report"]).read_text())
+        self.assertEqual(report["status"], "ready")
+        self.assertEqual(report["runtime_import_error_before_repair"], "broken ABI")
 
     def test_failed_cached_repair_is_not_trusted_just_because_versions_match(self):
         first, _ = self.prepare(before=info("1"))

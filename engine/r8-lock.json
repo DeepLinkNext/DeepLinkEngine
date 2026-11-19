@@ -64,7 +64,8 @@
     "torch-npu": "2.13.0rc1",
     "triton-ascend": "3.6.0",
     "transformers": "5.14.1",
-    "tokenizers": "0.22.2"
+    "tokenizers": "0.22.2",
+    "torchvision": "0.28.0+cpu"
   },
   "environment_sources": {
     "torch": {
@@ -109,6 +110,14 @@
       "api_url": "https://api.github.com/repos/DeepLinkNext/DeepLinkEngine/releases/assets/768200974",
       "sha256": "2249487018adec45d6e3554c71d46eb39fa8ea67156c640f7513eb26f318cec7",
       "bytes": 3290736
+    },
+    "torchvision": {
+      "filename": "torchvision-0.28.0+cpu-cp312-cp312-manylinux_2_28_aarch64.whl",
+      "url": "https://github.com/DeepLinkNext/DeepLinkEngine/releases/download/r8-runtime-dependencies-20261119-v1/torchvision-0.28.0%2Bcpu-cp312-cp312-manylinux_2_28_aarch64.whl",
+      "sha256": "2f768c4f6d5adf6d5535061fd69ec44827608bac0e96e12114942a6fdfce1107",
+      "bytes": 2209748,
+      "upstream_url": "https://download-r2.pytorch.org/whl/cpu/torchvision-0.28.0%2Bcpu-cp312-cp312-manylinux_2_28_aarch64.whl",
+      "api_url": "https://api.github.com/repos/DeepLinkNext/DeepLinkEngine/releases/assets/768813955"
     }
   }
 }
