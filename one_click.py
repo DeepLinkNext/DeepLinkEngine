@@ -136,12 +136,23 @@ def reference_evidence(lock):
     return root
 
 
+def validate_deployment(arguments):
+    path = Path(option(arguments, "--deployment"))
+    profile = path / "deployment.json"
+    lock = json.loads((ROOT / "engine/r8-lock.json").read_bytes())
+    if not profile.is_file() or json.loads(profile.read_bytes()).get("release") != lock["upstream_release"]:
+        raise ValueError("Provide an installed frozen r8 SDK before downloading test inputs: " + str(path))
+
+
 def prepare_data(arguments):
     from dataset_bundle import prepare
+    validate_deployment(arguments)
     cache = option(arguments, "--cache") or str(Path.home() / ".cache/vllm-hust-engine/third-party")
     if option(arguments, "--baseline-deployment") is None:
-        from baseline_bundle import prepare as prepare_baseline
-        prepare_baseline(cache)
+        from baseline_bundle import ensure_deployment
+        baseline = ensure_deployment(cache)
+        if baseline is not None:
+            arguments += ["--baseline-deployment", str(baseline)]
     context = "--context-tenant-only" in arguments
     selected = [] if context else (option(arguments, "--datasets") or "mmlu,hle,frontier,swe,terminal").split(",")
     if "--compute-reference-only" in arguments:
@@ -158,6 +169,16 @@ def prepare_data(arguments):
                     arguments[index + 1] = str(root)
                 elif value.startswith("--dataset-assets="):
                     arguments[index] = "--dataset-assets=" + str(root)
+    return arguments
+
+
+def prepare_baseline(arguments):
+    if (option(arguments, "--baseline-deployment") is None
+            and "--context-tenant-only" not in arguments
+            and "--compute-reference-only" not in arguments):
+        from baseline_setup import prepare
+        cache = option(arguments, "--cache") or str(Path.home() / ".cache/vllm-hust-engine/third-party")
+        prepare(cache)
     return arguments
 
 
@@ -193,6 +214,7 @@ def main(arguments=None):
         if option(effective, "--deployment") is None:
             raise ValueError("Provide deployment: /path/to/r8-installation/sdk from the public r8 installation; see engine/README.md")
         effective = prepare_data(effective)
+        effective = prepare_baseline(effective)
         os.environ["VLLM_HUST_PROJECT_EVIDENCE"] = str(reference_evidence(lock))
         arguments = effective
     sys.dont_write_bytecode = True

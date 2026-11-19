@@ -10,6 +10,8 @@ sha256:2467d259ff068ca4edd7b50b849152910f3c05e435f314639fc06bcc7a00f9fa
 
 根目录一键评测自动准备这些原件，再交给既有冻结恢复器重建 B0。无需 Docker 服务，也不依赖测试时能访问 Quay 的 blob 服务。原始镜像、源码、二进制及镜像内使用条件均保留，恢复后仅应用已冻结的文本适配补丁。
 
+原始包和结果使用配置的缓存及输出目录。包含大量小文件的 B0 运行目录优先在本机 `/tmp` 或 `/var/tmp` 的磁盘文件系统重建，避免 NFS 元数据操作拖慢首次启动；本机需有至少 40 GiB 空闲。可用 `DEEPLINKENGINE_B0_RUNTIME_CACHE` 指定高速盘目录。目录随容器丢失时，会从已校验原件重建；已采集结果仍保留在原输出目录。没有可用本机磁盘时，沿用配置中的缓存目录。
+
 已存在且哈希相符的 OCI blob 优先复用。可通过 `DEEPLINKENGINE_B0_OCI_CACHE` 指定保存 `sha256-<digest>` 文件的目录。默认也检查 `~/.cache/vllm-hust-engine/b0-image-018`。本次缓存目录中已有的原件仍会校验，不重复下载。
 
 完全离线时，将 Release 的分片下载到同一目录并设置 `DEEPLINKENGINE_B0_ARCHIVES=/path/to/b0-parts`。每片和重组后的原始 blob 均须通过校验，随后核对完整原始 manifest 清单。缺片、错序、损坏和额外 blob 均不能进入模型测试。

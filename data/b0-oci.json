@@ -105,13 +105,17 @@
           "name": "b0-oci-65b43563b0ffd8742210cb242d9bf2ccfbc49b607310158aa7d3ccd4d39bd642.part-003",
           "bytes": 1073741824,
           "sha256": "45523af6c3ba0dd22337899c75a4c075d65a3d87256207b445c7e544c9be154c",
-          "url": "https://github.com/DeepLinkNext/DeepLinkEngine/releases/download/b0-original018-oci-20261120-v1/b0-oci-65b43563b0ffd8742210cb242d9bf2ccfbc49b607310158aa7d3ccd4d39bd642.part-003"
+          "url": "https://github.com/DeepLinkNext/DeepLinkEngine/releases/download/b0-original018-oci-20261120-v1/b0-oci-65b43563b0ffd8742210cb242d9bf2ccfbc49b607310158aa7d3ccd4d39bd642.part-003",
+          "asset_id": 768637409,
+          "api_url": "https://api.github.com/repos/DeepLinkNext/DeepLinkEngine/releases/assets/768637409"
         },
         {
           "name": "b0-oci-65b43563b0ffd8742210cb242d9bf2ccfbc49b607310158aa7d3ccd4d39bd642.part-004",
           "bytes": 575580723,
           "sha256": "17fe4152501a80e27c939e3e02d2d093ec4e6de3d8d89fbe04904bbd423fcdd5",
-          "url": "https://github.com/DeepLinkNext/DeepLinkEngine/releases/download/b0-original018-oci-20261120-v1/b0-oci-65b43563b0ffd8742210cb242d9bf2ccfbc49b607310158aa7d3ccd4d39bd642.part-004"
+          "url": "https://github.com/DeepLinkNext/DeepLinkEngine/releases/download/b0-original018-oci-20261120-v1/b0-oci-65b43563b0ffd8742210cb242d9bf2ccfbc49b607310158aa7d3ccd4d39bd642.part-004",
+          "asset_id": 768645530,
+          "api_url": "https://api.github.com/repos/DeepLinkNext/DeepLinkEngine/releases/assets/768645530"
         }
       ]
     },
@@ -124,7 +128,9 @@
           "name": "b0-oci-205f0afc760ddca51407046dea374d48696b902a01e4fc325303b56fcccbf495.part-001",
           "bytes": 216,
           "sha256": "205f0afc760ddca51407046dea374d48696b902a01e4fc325303b56fcccbf495",
-          "url": "https://github.com/DeepLinkNext/DeepLinkEngine/releases/download/b0-original018-oci-20261120-v1/b0-oci-205f0afc760ddca51407046dea374d48696b902a01e4fc325303b56fcccbf495.part-001"
+          "url": "https://github.com/DeepLinkNext/DeepLinkEngine/releases/download/b0-original018-oci-20261120-v1/b0-oci-205f0afc760ddca51407046dea374d48696b902a01e4fc325303b56fcccbf495.part-001",
+          "asset_id": 768650058,
+          "api_url": "https://api.github.com/repos/DeepLinkNext/DeepLinkEngine/releases/assets/768650058"
         }
       ]
     },
@@ -137,7 +143,9 @@
           "name": "b0-oci-06d0d69210eecf0af1e8e32f8d232f3e0373ea4e729a665b1d97bb2cb55d487d.part-001",
           "bytes": 1892,
           "sha256": "06d0d69210eecf0af1e8e32f8d232f3e0373ea4e729a665b1d97bb2cb55d487d",
-          "url": "https://github.com/DeepLinkNext/DeepLinkEngine/releases/download/b0-original018-oci-20261120-v1/b0-oci-06d0d69210eecf0af1e8e32f8d232f3e0373ea4e729a665b1d97bb2cb55d487d.part-001"
+          "url": "https://github.com/DeepLinkNext/DeepLinkEngine/releases/download/b0-original018-oci-20261120-v1/b0-oci-06d0d69210eecf0af1e8e32f8d232f3e0373ea4e729a665b1d97bb2cb55d487d.part-001",
+          "asset_id": 768650178,
+          "api_url": "https://api.github.com/repos/DeepLinkNext/DeepLinkEngine/releases/assets/768650178"
         }
       ]
     },
@@ -150,7 +158,9 @@
           "name": "b0-oci-d5315ee97208ec0f10a5c30a5b179f12fccb9f6e0139c73d18763e3096b3b5ba.part-001",
           "bytes": 99,
           "sha256": "d5315ee97208ec0f10a5c30a5b179f12fccb9f6e0139c73d18763e3096b3b5ba",
-          "url": "https://github.com/DeepLinkNext/DeepLinkEngine/releases/download/b0-original018-oci-20261120-v1/b0-oci-d5315ee97208ec0f10a5c30a5b179f12fccb9f6e0139c73d18763e3096b3b5ba.part-001"
+          "url": "https://github.com/DeepLinkNext/DeepLinkEngine/releases/download/b0-original018-oci-20261120-v1/b0-oci-d5315ee97208ec0f10a5c30a5b179f12fccb9f6e0139c73d18763e3096b3b5ba.part-001",
+          "asset_id": 768650235,
+          "api_url": "https://api.github.com/repos/DeepLinkNext/DeepLinkEngine/releases/assets/768650235"
         }
       ]
     },
@@ -163,7 +173,9 @@
           "name": "b0-oci-294eef2ef556c64a7a4471c954592af13916e3f5ebf902c288f36b3809c35239.part-001",
           "bytes": 44988139,
           "sha256": "294eef2ef556c64a7a4471c954592af13916e3f5ebf902c288f36b3809c35239",
-          "url": "https://github.com/DeepLinkNext/DeepLinkEngine/releases/download/b0-original018-oci-20261120-v1/b0-oci-294eef2ef556c64a7a4471c954592af13916e3f5ebf902c288f36b3809c35239.part-001"
+          "url": "https://github.com/DeepLinkNext/DeepLinkEngine/releases/download/b0-original018-oci-20261120-v1/b0-oci-294eef2ef556c64a7a4471c954592af13916e3f5ebf902c288f36b3809c35239.part-001",
+          "asset_id": 768650288,
+          "api_url": "https://api.github.com/repos/DeepLinkNext/DeepLinkEngine/releases/assets/768650288"
         }
       ]
     },
@@ -176,7 +188,9 @@
           "name": "b0-oci-66d3d5bbe846a153a96589e9c59ae19e9e192c42a9486b6bab30f3af0cb02eec.part-001",
           "bytes": 442323399,
           "sha256": "66d3d5bbe846a153a96589e9c59ae19e9e192c42a9486b6bab30f3af0cb02eec",
-          "url": "https://github.com/DeepLinkNext/DeepLinkEngine/releases/download/b0-original018-oci-20261120-v1/b0-oci-66d3d5bbe846a153a96589e9c59ae19e9e192c42a9486b6bab30f3af0cb02eec.part-001"
+          "url": "https://github.com/DeepLinkNext/DeepLinkEngine/releases/download/b0-original018-oci-20261120-v1/b0-oci-66d3d5bbe846a153a96589e9c59ae19e9e192c42a9486b6bab30f3af0cb02eec.part-001",
+          "asset_id": 768650702,
+          "api_url": "https://api.github.com/repos/DeepLinkNext/DeepLinkEngine/releases/assets/768650702"
         }
       ]
     },
@@ -189,7 +203,9 @@
           "name": "b0-oci-9eca4e4f9bff6bb540fc7438495854266ea27fb087f1528179b05e8d014a11d9.part-001",
           "bytes": 216,
           "sha256": "9eca4e4f9bff6bb540fc7438495854266ea27fb087f1528179b05e8d014a11d9",
-          "url": "https://github.com/DeepLinkNext/DeepLinkEngine/releases/download/b0-original018-oci-20261120-v1/b0-oci-9eca4e4f9bff6bb540fc7438495854266ea27fb087f1528179b05e8d014a11d9.part-001"
+          "url": "https://github.com/DeepLinkNext/DeepLinkEngine/releases/download/b0-original018-oci-20261120-v1/b0-oci-9eca4e4f9bff6bb540fc7438495854266ea27fb087f1528179b05e8d014a11d9.part-001",
+          "asset_id": 768653387,
+          "api_url": "https://api.github.com/repos/DeepLinkNext/DeepLinkEngine/releases/assets/768653387"
         }
       ]
     },
@@ -202,7 +218,9 @@
           "name": "b0-oci-76d7270348456e6d5bcc8dcd2026b302cc5ffac7f868cb9ccf2ea069eabaf5ca.part-001",
           "bytes": 63069361,
           "sha256": "76d7270348456e6d5bcc8dcd2026b302cc5ffac7f868cb9ccf2ea069eabaf5ca",
-          "url": "https://github.com/DeepLinkNext/DeepLinkEngine/releases/download/b0-original018-oci-20261120-v1/b0-oci-76d7270348456e6d5bcc8dcd2026b302cc5ffac7f868cb9ccf2ea069eabaf5ca.part-001"
+          "url": "https://github.com/DeepLinkNext/DeepLinkEngine/releases/download/b0-original018-oci-20261120-v1/b0-oci-76d7270348456e6d5bcc8dcd2026b302cc5ffac7f868cb9ccf2ea069eabaf5ca.part-001",
+          "asset_id": 768653433,
+          "api_url": "https://api.github.com/repos/DeepLinkNext/DeepLinkEngine/releases/assets/768653433"
         }
       ]
     },
@@ -215,7 +233,9 @@
           "name": "b0-oci-31c71ee5af0d1b16f65eeca55d247dfb504239d02155df03badff09bdb18c748.part-001",
           "bytes": 579996775,
           "sha256": "31c71ee5af0d1b16f65eeca55d247dfb504239d02155df03badff09bdb18c748",
-          "url": "https://github.com/DeepLinkNext/DeepLinkEngine/releases/download/b0-original018-oci-20261120-v1/b0-oci-31c71ee5af0d1b16f65eeca55d247dfb504239d02155df03badff09bdb18c748.part-001"
+          "url": "https://github.com/DeepLinkNext/DeepLinkEngine/releases/download/b0-original018-oci-20261120-v1/b0-oci-31c71ee5af0d1b16f65eeca55d247dfb504239d02155df03badff09bdb18c748.part-001",
+          "asset_id": 768653935,
+          "api_url": "https://api.github.com/repos/DeepLinkNext/DeepLinkEngine/releases/assets/768653935"
         }
       ]
     },
@@ -228,7 +248,9 @@
           "name": "b0-oci-73901475f53bc4e8731ec085686fba3d11e10420ef3f9eba0e451a0cfad550cb.part-001",
           "bytes": 474082166,
           "sha256": "73901475f53bc4e8731ec085686fba3d11e10420ef3f9eba0e451a0cfad550cb",
-          "url": "https://github.com/DeepLinkNext/DeepLinkEngine/releases/download/b0-original018-oci-20261120-v1/b0-oci-73901475f53bc4e8731ec085686fba3d11e10420ef3f9eba0e451a0cfad550cb.part-001"
+          "url": "https://github.com/DeepLinkNext/DeepLinkEngine/releases/download/b0-original018-oci-20261120-v1/b0-oci-73901475f53bc4e8731ec085686fba3d11e10420ef3f9eba0e451a0cfad550cb.part-001",
+          "asset_id": 768662216,
+          "api_url": "https://api.github.com/repos/DeepLinkNext/DeepLinkEngine/releases/assets/768662216"
         }
       ]
     },
@@ -241,7 +263,9 @@
           "name": "b0-oci-888e94ab5df153c30a3f8080b4b7b3ca0aa250aad911a6f4f68e1d38acba5f3c.part-001",
           "bytes": 171289578,
           "sha256": "888e94ab5df153c30a3f8080b4b7b3ca0aa250aad911a6f4f68e1d38acba5f3c",
-          "url": "https://github.com/DeepLinkNext/DeepLinkEngine/releases/download/b0-original018-oci-20261120-v1/b0-oci-888e94ab5df153c30a3f8080b4b7b3ca0aa250aad911a6f4f68e1d38acba5f3c.part-001"
+          "url": "https://github.com/DeepLinkNext/DeepLinkEngine/releases/download/b0-original018-oci-20261120-v1/b0-oci-888e94ab5df153c30a3f8080b4b7b3ca0aa250aad911a6f4f68e1d38acba5f3c.part-001",
+          "asset_id": 768666210,
+          "api_url": "https://api.github.com/repos/DeepLinkNext/DeepLinkEngine/releases/assets/768666210"
         }
       ]
     },
@@ -254,7 +278,9 @@
           "name": "b0-oci-3e4c9430373c126a28b7f883556c5b46a683584301825e2dcaabea57eab9cddf.part-001",
           "bytes": 94972059,
           "sha256": "3e4c9430373c126a28b7f883556c5b46a683584301825e2dcaabea57eab9cddf",
-          "url": "https://github.com/DeepLinkNext/DeepLinkEngine/releases/download/b0-original018-oci-20261120-v1/b0-oci-3e4c9430373c126a28b7f883556c5b46a683584301825e2dcaabea57eab9cddf.part-001"
+          "url": "https://github.com/DeepLinkNext/DeepLinkEngine/releases/download/b0-original018-oci-20261120-v1/b0-oci-3e4c9430373c126a28b7f883556c5b46a683584301825e2dcaabea57eab9cddf.part-001",
+          "asset_id": 768667096,
+          "api_url": "https://api.github.com/repos/DeepLinkNext/DeepLinkEngine/releases/assets/768667096"
         }
       ]
     },
@@ -267,7 +293,9 @@
           "name": "b0-oci-0f6fc30e8c2bb4541303c454bdd9d41ee591be9cac505b056bc7f618889c8200.part-001",
           "bytes": 1683,
           "sha256": "0f6fc30e8c2bb4541303c454bdd9d41ee591be9cac505b056bc7f618889c8200",
-          "url": "https://github.com/DeepLinkNext/DeepLinkEngine/releases/download/b0-original018-oci-20261120-v1/b0-oci-0f6fc30e8c2bb4541303c454bdd9d41ee591be9cac505b056bc7f618889c8200.part-001"
+          "url": "https://github.com/DeepLinkNext/DeepLinkEngine/releases/download/b0-original018-oci-20261120-v1/b0-oci-0f6fc30e8c2bb4541303c454bdd9d41ee591be9cac505b056bc7f618889c8200.part-001",
+          "asset_id": 768667608,
+          "api_url": "https://api.github.com/repos/DeepLinkNext/DeepLinkEngine/releases/assets/768667608"
         }
       ]
     },
@@ -280,7 +308,9 @@
           "name": "b0-oci-b0f5332386ca9be5fddee6b50c1c9ec3273c94df6ff904a7d374456837b51150.part-001",
           "bytes": 1869,
           "sha256": "b0f5332386ca9be5fddee6b50c1c9ec3273c94df6ff904a7d374456837b51150",
-          "url": "https://github.com/DeepLinkNext/DeepLinkEngine/releases/download/b0-original018-oci-20261120-v1/b0-oci-b0f5332386ca9be5fddee6b50c1c9ec3273c94df6ff904a7d374456837b51150.part-001"
+          "url": "https://github.com/DeepLinkNext/DeepLinkEngine/releases/download/b0-original018-oci-20261120-v1/b0-oci-b0f5332386ca9be5fddee6b50c1c9ec3273c94df6ff904a7d374456837b51150.part-001",
+          "asset_id": 768667658,
+          "api_url": "https://api.github.com/repos/DeepLinkNext/DeepLinkEngine/releases/assets/768667658"
         }
       ]
     }

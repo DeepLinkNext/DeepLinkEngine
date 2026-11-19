@@ -4,7 +4,7 @@
 
 ## 安装与使用
 
-当前支持 Linux aarch64、双昇腾 910B2、CANN 9.1.0 和 Qwen3.5-35B-A3B。准备模型权重及系统运行环境后执行：
+当前支持 Linux aarch64、双昇腾 910B2、CANN 9.1.0 和 Qwen3.5-35B-A3B。准备模型权重及系统运行环境后执行；无法克隆时可[下载源码归档](https://api.github.com/repos/DeepLinkNext/DeepLinkEngine/tarball/main)：
 
 ```sh
 git clone https://github.com/DeepLinkNext/DeepLinkEngine.git

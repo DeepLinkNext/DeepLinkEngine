@@ -156,6 +156,72 @@ def prepare(cache):
     return out
 
 
+def local_runtime_cache():
+    """Keep the many-file image tree on local disk, with raw inputs persistent."""
+    explicit = os.environ.get("DEEPLINKENGINE_B0_RUNTIME_CACHE")
+    if explicit:
+        path = Path(explicit).expanduser().resolve()
+        path.mkdir(parents=True, exist_ok=True)
+        return path
+    mounts = []
+    try:
+        for line in Path("/proc/self/mountinfo").read_text().splitlines():
+            left, right = line.split(" - ", 1)
+            mounts.append((Path(left.split()[4]), right.split()[0]))
+    except OSError:
+        return None
+    for base in (Path("/tmp"), Path("/var/tmp")):
+        candidates = [(mount, kind) for mount, kind in mounts if base.resolve().is_relative_to(mount)]
+        if not candidates:
+            continue
+        _, kind = max(candidates, key=lambda row: len(str(row[0])))
+        if kind in ("tmpfs", "nfs", "nfs4", "cifs") or kind.startswith("fuse"):
+            continue
+        if shutil.disk_usage(base).free < 40 * 1024**3:
+            continue
+        path = base / ("deeplinkengine-b0-" + str(os.getuid()))
+        if path.is_symlink():
+            raise ValueError("Local B0 runtime cache must not be a symlink")
+        path.mkdir(mode=0o700, exist_ok=True)
+        return path
+    return None
+
+
+def ensure_deployment(cache):
+    raw = prepare(cache)
+    local = local_runtime_cache()
+    if local is None:
+        # The frozen controller retains the original configured-cache fallback.
+        return None
+    from restore_b0_image import MANIFEST, restore
+    from restore_b0_018 import PATCHES, prepare as prepare_sdk
+    from third_party import cached_runtime
+    key = hashlib.sha256(json.dumps(dict(manifest=MANIFEST, patches=PATCHES), sort_keys=True).encode()).hexdigest()[:20]
+    local = local / key
+    local.mkdir(parents=True, exist_ok=True)
+    print("B0_LOCAL_RUNTIME_STORAGE", local, flush=True)
+    def build(target):
+        # Copy the compressed blobs sequentially, then keep decompression and
+        # small-file extraction off the shared result volume.
+        blobs = local / "oci"
+        blobs.mkdir(exist_ok=True)
+        for record in inventory()["blobs"]:
+            name = record["digest"].replace(":", "-")
+            dest = blobs / name
+            if valid(dest, record["bytes"], record["digest"][7:]):
+                continue
+            if os.path.lexists(dest):
+                raise ValueError("Local B0 OCI cache differs: " + str(dest))
+            temporary = dest.with_suffix(".partial")
+            shutil.copyfile(raw / name, temporary)
+            if not valid(temporary, record["bytes"], record["digest"][7:]):
+                raise ValueError("Local B0 OCI copy differs: " + name)
+            temporary.replace(dest)
+        restore(blobs, target)
+        prepare_sdk(target)
+    return cached_runtime(local, "original018-sdk", None, build)
+
+
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser(description=__doc__)

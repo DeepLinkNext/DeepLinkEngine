@@ -158,6 +158,67 @@ class Standalone(unittest.TestCase):
                     service.main()
                 build.assert_not_called()
 
+    def check_service_environment_rejection(self, *, changed_version=False):
+        import one_click
+        import environment_setup as setup
+        with tempfile.TemporaryDirectory() as folder:
+            out=Path(folder);model=out/'model';model.mkdir();sdk=out/'sdk';sdk.mkdir()
+            (model/'config.json').write_text(json.dumps({'model_type':'qwen3_5_moe_text','num_hidden_layers':40,'hidden_size':2048}))
+            (sdk/'deployment.json').write_text(json.dumps({'python':str(out/'venv/bin/python')}))
+            args=['service','--installation',str(out),'--model',str(model),'--physical-devices','0,7','--cache',str(out/'cache')]
+            required=json.loads((ROOT/'engine/r8-lock.json').read_bytes())['required_python_packages']
+            observed=dict(required)
+            if changed_version:observed['triton-ascend']='3.2.2'
+            guard=types.SimpleNamespace(acquire=unittest.mock.Mock())
+            with patch.object(deeplink,'installation',return_value=(out,{})),patch.object(one_click,'verify_kit'),patch.dict(os.environ),patch.dict(sys.modules,engine_entry=types.SimpleNamespace(),resource_guard=guard,restore_b1_r4=types.SimpleNamespace(verify_installed_sources=lambda root:None),dependency_admission=types.SimpleNamespace(admit_dependencies=lambda root:None)),patch.object(setup,'probe',return_value={'packages':observed}),patch.object(setup,'vendor_integrity',return_value={'verified':False}),patch.object(sys,'argv',args):
+                os.environ.pop('DEEPLINK_SERVICE_BOOTSTRAPPED',None)
+                with self.assertRaisesRegex(ValueError,'versions differ' if changed_version else 'files are overwritten'):service.main()
+            guard.acquire.assert_not_called()
+
+    def test_serving_rejects_changed_vendor_files_before_any_device_lease(self):
+        self.check_service_environment_rejection()
+
+    def test_serving_rejects_old_triton_despite_other_qualified_dependencies(self):
+        self.check_service_environment_rejection(changed_version=True)
+
+    def test_default_install_cache_follows_target_storage_instead_of_cwd(self):
+        import environment_setup as setup
+        with tempfile.TemporaryDirectory() as folder,patch.dict(os.environ):
+            target=Path(folder)/'large-volume/install'
+            args=argparse.Namespace(out=str(target),cache=None,python=None,wheelhouse=None,cann_home=None,use_environment=None)
+            with patch.object(setup,'ensure_environment',return_value=None) as environment,patch.object(setup,'run_repair_stage',return_value=types.SimpleNamespace(returncode=0)) as run:
+                self.assertEqual(deeplink.install(args),0)
+            expected=target.parent/'.cache/deeplinkengine'
+            self.assertEqual(environment.call_args.args[0]['cache'],str(expected))
+            command=run.call_args_list[0].args[0]
+            self.assertEqual(command[command.index('--cache')+1],str(expected))
+            self.assertEqual(os.environ['TMPDIR'],str(expected/'tmp'))
+
+    def test_default_service_cache_follows_installation_storage(self):
+        import environment_setup as setup
+        with tempfile.TemporaryDirectory() as folder:
+            installed=Path(folder)/'large-volume/install'
+            args=argparse.Namespace(installation=str(installed),model='/models/example',physical_devices='0,7',host='127.0.0.1',port=8000,served_model_name='deeplink',cache=None,lease_timeout=0,work_dir=None,devices=None,dry_run=True)
+            with patch.object(deeplink,'installation',return_value=(installed,{'python':'/private/bin/python'})),patch.object(setup,'cann_environment',return_value=({},{})),patch.object(deeplink.os,'execve',side_effect=SystemExit) as execute:
+                with self.assertRaises(SystemExit):deeplink.serve(args)
+            command=execute.call_args.args[1]
+            self.assertEqual(command[command.index('--cache')+1],str(installed.parent/'.cache/deeplinkengine/serving'))
+
+    def test_qualified_service_reaches_device_admission(self):
+        import one_click
+        import environment_setup as setup
+        with tempfile.TemporaryDirectory() as folder:
+            out=Path(folder);model=out/'model';model.mkdir();sdk=out/'sdk';sdk.mkdir()
+            (model/'config.json').write_text(json.dumps({'model_type':'qwen3_5_moe_text','num_hidden_layers':40,'hidden_size':2048}))
+            (sdk/'deployment.json').write_text(json.dumps({'python':str(out/'venv/bin/python')}))
+            required=json.loads((ROOT/'engine/r8-lock.json').read_bytes())['required_python_packages']
+            args=['service','--installation',str(out),'--model',str(model),'--physical-devices','0,7','--devices','0,1','--cache',str(out/'cache')]
+            guard=types.SimpleNamespace(verify_mapping=lambda logical:None,acquire=unittest.mock.Mock(side_effect=RuntimeError('device-admission-boundary')))
+            with patch.object(deeplink,'installation',return_value=(out,{})),patch.object(one_click,'verify_kit'),patch.dict(os.environ),patch.dict(sys.modules,engine_entry=types.SimpleNamespace(),resource_guard=guard,restore_b1_r4=types.SimpleNamespace(verify_installed_sources=lambda root:None),dependency_admission=types.SimpleNamespace(admit_dependencies=lambda root:None)),patch.object(setup,'probe',return_value={'packages':required}),patch.object(setup,'vendor_integrity',return_value={'verified':True}),patch.object(sys,'argv',args):
+                os.environ.pop('DEEPLINK_SERVICE_BOOTSTRAPPED',None)
+                with self.assertRaisesRegex(RuntimeError,'device-admission-boundary'):service.main()
+            guard.acquire.assert_called_once()
+
     def test_chat_example_sends_real_http(self):
         observed=[]
         class Handler(BaseHTTPRequestHandler):

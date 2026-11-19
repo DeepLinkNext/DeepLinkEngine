@@ -108,15 +108,26 @@ class DataBundleTests(unittest.TestCase):
         import one_click
         for mode, expected in [('mmlu',['mmlu']),('hle,frontier,swe,terminal',['hle','frontier','swe','terminal'])]:
             with patch.object(bundle,'prepare',return_value=self.root/'assets') as prepare, \
-                 patch('baseline_bundle.prepare'):
+                 patch('baseline_bundle.ensure_deployment', return_value=Path('/baseline')), patch.object(one_click, 'validate_deployment'):
                 args=one_click.prepare_data(['--cache',str(self.cache),'--deployment','/sdk','--datasets',mode])
             self.assertEqual(prepare.call_args.args[1],expected)
             self.assertEqual(args[-2:],['--dataset-assets',str(self.root/'assets')])
         with patch.object(bundle,'prepare',return_value=self.root/'assets') as prepare, \
-             patch('baseline_bundle.prepare'):
+             patch('baseline_bundle.ensure_deployment', return_value=Path('/baseline')), patch.object(one_click, 'validate_deployment'):
             args=one_click.prepare_data(['--context-tenant-only','--cache',str(self.cache),'--deployment','/sdk'])
         self.assertTrue(prepare.call_args.kwargs['context'])
         self.assertNotIn('--dataset-assets',args)
+
+    def test_old_engine_release_is_rejected_before_any_large_input_download(self):
+        import one_click
+        sdk = self.root / 'old-sdk'
+        sdk.mkdir()
+        (sdk / 'deployment.json').write_text(json.dumps({'release':'full-answer-b1-20261030-r4'}))
+        with patch('baseline_bundle.ensure_deployment') as baseline, patch.object(bundle, 'prepare') as data:
+            with self.assertRaisesRegex(ValueError, 'installed frozen r8 SDK'):
+                one_click.prepare_data(['--cache',str(self.cache),'--deployment',str(sdk)])
+        baseline.assert_not_called()
+        data.assert_not_called()
 
 if __name__ == '__main__':
     unittest.main()

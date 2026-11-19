@@ -100,6 +100,7 @@ def preflight():
 
 
 def completed_evidence(out):
+    fixed_five_plan(out)
     campaign = json.loads((out / "fixed-five/campaign.json").read_text())
     execution = json.loads((out / "context-tenant/execution.json").read_text())
     pair = json.loads((out / "context-tenant/paired-summary.json").read_text())
@@ -121,6 +122,13 @@ def completed_evidence(out):
         with (out / name).open("rb") as stream:
             hashes[name] = hashlib.file_digest(stream, "sha256").hexdigest()
     return campaign, reports, hashes
+
+
+def fixed_five_plan(out):
+    plan = json.loads((out / "fixed-five/frozen-execution-plan.json").read_text())
+    if plan.get("datasets") != ["mmlu", "hle", "frontier", "swe", "terminal"]:
+        raise ValueError("The full suite must contain all five fixed datasets in canonical order")
+    return plan
 
 
 def qualified_reference(campaign):
@@ -191,12 +199,17 @@ def run(data, *, resume_bootstrap=False):
         if data.get("environment", {}).get("wheelhouse"):
             install_command += ["--wheelhouse", data["environment"]["wheelhouse"]]
         if resume_bootstrap:
-            stage("install-package", [sys.executable, "-c",
-                  "import importlib.metadata as m,sys; assert m.version('vllm-hust-engine') == sys.argv[1]",
-                  json.loads((ROOT / "engine/r8-lock.json").read_text())["public_distribution"].split("==")[1]],
+            stage("install-package", [sys.executable, str(ROOT / "engine_install.py"), "--cache", data["cache"], "--repair-dependencies"],
                   mode="verify_existing")
         else:
             stage("install-package", install_command)
+        dependency_report = Path(data["cache"]) / "engine-install/runtime-dependencies.json"
+        if dependency_report.is_file():
+            import shutil
+            shutil.copyfile(dependency_report, out / "runtime-dependencies.json")
+            receipt["runtime_dependencies"] = dict(path="runtime-dependencies.json",
+                sha256=hashlib.sha256((out / "runtime-dependencies.json").read_bytes()).hexdigest())
+            save()
         stage("verify-engine", [cli, "verify"])
         if resume_bootstrap:
             verify_install = """import json,sys
@@ -226,7 +239,7 @@ print('EXISTING_INSTALLATION_VERIFIED',result['verified_runtime_files'])
         reference_target = qualified_reference(current)
         receipt.update(compute_reference=current["compute_reference"], compute_reference_target=reference_target)
         save()
-        plan = json.loads((out / "fixed-five/frozen-execution-plan.json").read_text())
+        plan = fixed_five_plan(out)
         # The frozen package evaluate() injects --engine-profile, which this
         # separate frozen controller does not accept. Verify its source first.
         stage("verify-installed-tools", [sys.executable, "-c",

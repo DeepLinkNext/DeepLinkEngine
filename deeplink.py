@@ -24,7 +24,7 @@ def installation(path):
 def install(args):
     from environment_setup import ensure_environment, cann_environment, probe, differences, compatible_python, vendor_integrity
     target = Path(os.path.abspath(Path(args.out).expanduser()))
-    cache = Path(args.cache).expanduser().resolve()
+    cache = Path(args.cache or target.parent / ".cache/deeplinkengine").expanduser().resolve()
     if os.path.lexists(target):
         raise ValueError("Choose a new installation directory: " + str(target))
     for name, folder in {"TMPDIR": cache / "tmp", "PIP_CACHE_DIR": cache / "pip"}.items():
@@ -75,7 +75,7 @@ def serve(args):
     command = [python, str(ROOT / "engine/service.py"), "--installation", str(root),
                "--model", str(Path(args.model).expanduser().resolve()), "--physical-devices", args.physical_devices,
                "--host", args.host, "--port", str(args.port), "--served-model-name", args.served_model_name,
-               "--cache", str(Path(args.cache).expanduser().resolve()), "--lease-timeout", str(args.lease_timeout)]
+               "--cache", str(Path(args.cache or root.parent / ".cache/deeplinkengine/serving").expanduser().resolve()), "--lease-timeout", str(args.lease_timeout)]
     if args.work_dir:
         command += ["--work-dir", os.path.abspath(Path(args.work_dir).expanduser())]
     if args.devices:
@@ -91,7 +91,7 @@ def main():
     sub = parser.add_subparsers(dest="action", required=True)
     setup = sub.add_parser("install", help="Prepare dependencies and install the runtime; no model or dataset required")
     setup.add_argument("--out", required=True)
-    setup.add_argument("--cache", default=str(Path.cwd() / ".cache/deeplinkengine"))
+    setup.add_argument("--cache", help="Cache directory; defaults beside the installation on its target filesystem")
     setup.add_argument("--python")
     setup.add_argument("--wheelhouse")
     setup.add_argument("--cann-home")
@@ -104,7 +104,7 @@ def main():
     run.add_argument("--host", default="127.0.0.1")
     run.add_argument("--port", type=int, default=8000)
     run.add_argument("--served-model-name", default="deeplink")
-    run.add_argument("--cache", default=str(Path.cwd() / ".cache/deeplinkengine/serving"))
+    run.add_argument("--cache", help="Service state and caches; defaults beside the installation")
     run.add_argument("--work-dir", help="New per-service directory for logs and runtime state")
     run.add_argument("--lease-timeout", type=float, default=0)
     run.add_argument("--dry-run", action="store_true", help="Build and verify the launch plan without loading a model or reserving NPUs")

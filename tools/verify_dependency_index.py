@@ -40,6 +40,8 @@ def build_index(runtime, evaluation):
     add("frozen-evaluator", record, record["name"], record["deepengine_url"])
     for package, record in runtime["environment_sources"].items():
         add("python", record, record["filename"], record["url"], runtime["required_python_packages"][package])
+    for package, record in runtime.get("runtime_compatibility_sources", {}).items():
+        add("python-compatibility", record, record["filename"], record["url"], record["version"])
     for key in ("tools", "reference_evidence"):
         record = evaluation[key]
         add(key, record, record.get("name", record.get("archive")), record["url"])

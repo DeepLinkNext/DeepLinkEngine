@@ -42,7 +42,8 @@ class WorkflowTests(unittest.TestCase):
             self.write("installation/installation.json", {"release": "full-answer-b1-20261117-r8"})
         if "run" in args:
             self.write("fixed-five/frozen-execution-plan.json", dict(
-                optimized_deployment="/actual/b1", baseline_deployment="/actual/b0", logical_devices="0,1"))
+                optimized_deployment="/actual/b1", baseline_deployment="/actual/b0", logical_devices="0,1",
+                datasets=["mmlu", "hle", "frontier", "swe", "terminal"]))
             self.write("fixed-five/campaign.json", dict(status="completed",
                        selected_execution_complete=not self.incomplete,
                        compute_reference=reference()))
@@ -83,6 +84,20 @@ class WorkflowTests(unittest.TestCase):
         self.assertEqual(result, 1)
         self.assertEqual(receipt["status"], "failed")
         self.assertIn("not show all", receipt["error"])
+
+    def test_selected_three_dataset_success_cannot_pass_as_the_full_suite(self):
+        def execute(args, **kwargs):
+            result = self.execute(args, **kwargs)
+            if "run" in args:
+                path = self.root / "result/fixed-five/frozen-execution-plan.json"
+                plan = json.loads(path.read_text())
+                plan["datasets"] = ["mmlu", "hle", "frontier"]
+                path.write_text(json.dumps(plan))
+            return result
+        result, receipt = self.invoke(execute)
+        self.assertEqual(result, 1)
+        self.assertIn("all five fixed datasets", receipt["error"])
+        self.assertFalse(any("--context-tenant-only" in args for args in self.calls))
 
     def test_failed_install_never_starts_tests_or_retries(self):
         def failed(args, **kwargs):

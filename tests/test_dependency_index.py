@@ -15,9 +15,9 @@ class DependencyIndexTests(unittest.TestCase):
         self.runtime = json.loads((ROOT / "engine/r8-lock.json").read_bytes())
         self.evaluation = json.loads((ROOT / "benchmark/one-click-lock.json").read_bytes())
 
-    def test_all_twelve_fixed_inputs_share_the_central_release(self):
+    def test_all_fixed_inputs_share_the_central_release(self):
         actual = index.build_index(self.runtime, self.evaluation)
-        self.assertEqual(len(actual["artifacts"]), 12)
+        self.assertEqual(len(actual["artifacts"]), 14)
         self.assertEqual(actual, json.loads((ROOT / "engine/dependencies.json").read_bytes()))
 
     def test_external_active_wheel_url_is_rejected(self):

@@ -48,7 +48,8 @@ class FullSuiteEntryTests(unittest.TestCase):
                 (fixed / "campaign.json").write_text(json.dumps(dict(
                     status="completed", selected_execution_complete=True, compute_reference=current)))
                 (fixed / "frozen-execution-plan.json").write_text(json.dumps(dict(
-                    optimized_deployment="/new/sdk", baseline_deployment="/new/b0", logical_devices="0,1")))
+                    optimized_deployment="/new/sdk", baseline_deployment="/new/b0", logical_devices="0,1",
+                    datasets=["mmlu", "hle", "frontier", "swe", "terminal"])))
                 report = out / "fixed-five-report/report.html"
                 report.parent.mkdir()
                 report.write_text("fixture only")
