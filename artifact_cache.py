@@ -10,7 +10,8 @@ ROOT = Path(__file__).resolve().parent
 
 def memory():
     base = Path('/sys/fs/cgroup')
-    return {name: int((base / name).read_text()) for name in ('memory.current', 'memory.max')}
+    values = {name: (base / name).read_text().strip() for name in ('memory.current', 'memory.max')}
+    return {name: int(value) if value.isdigit() else None for name, value in values.items()}
 
 
 def release(cache, baseline=None):

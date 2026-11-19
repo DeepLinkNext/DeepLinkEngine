@@ -40,6 +40,10 @@ class ArtifactCacheTests(unittest.TestCase):
              patch.dict(os.environ, {}, clear=True):
             return artifact_cache.release(self.cache)
 
+    def test_unlimited_cgroup_is_recorded_without_inventing_a_finite_limit(self):
+        with patch.object(Path, "read_text", side_effect=["123", "max"]):
+            self.assertEqual(artifact_cache.memory(), {"memory.current": 123, "memory.max": None})
+
     def test_known_readonly_file_is_advised_without_changing_its_identity_or_bytes(self):
         before = self.path.stat()
         unrelated = self.path.parent / 'unrelated.bin'
