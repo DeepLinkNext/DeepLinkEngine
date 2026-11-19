@@ -21,6 +21,9 @@ class EngineInstallTests(unittest.TestCase):
         self.wheels = self.root / "local wheels"
         self.wheels.mkdir()
         self.records = []
+        resolver = patch.object(engine_install, "resolve_runtime_dependencies", return_value={"verified": True})
+        self.resolver = resolver.start()
+        self.addCleanup(resolver.stop)
         for index in range(4):
             data = ("fixed engine artifact " + str(index)).encode()
             name = "fixture_" + str(index) + ".whl"
@@ -41,6 +44,7 @@ class EngineInstallTests(unittest.TestCase):
              patch("child_runner.run_stage", return_value=types.SimpleNamespace(returncode=0)) as run:
             result = engine_install.install(self.root / "cache", wheelhouse=self.wheels)
         self.assertEqual(result["status"], "installed")
+        self.resolver.assert_called_once()
         args = run.call_args.args[0]
         self.assertIn("--no-deps", args)
         self.assertIn("--require-hashes", args)
@@ -56,6 +60,7 @@ class EngineInstallTests(unittest.TestCase):
              patch("child_runner.run_stage") as run:
             result = engine_install.install(self.root / "cache", wheelhouse=self.wheels, download_only=True)
         self.assertEqual(result["status"], "downloaded")
+        self.resolver.assert_not_called()
         run.assert_not_called()
 
     def test_corrupt_artifact_cannot_reach_pip(self):
@@ -74,6 +79,33 @@ class EngineInstallTests(unittest.TestCase):
                 engine_install.install(self.root / "cache", wheelhouse=self.wheels)
         receipt = next((self.root / "cache/engine-install").glob("*.json"))
         self.assertEqual(json.loads(receipt.read_text())["returncode"], 17)
+
+
+class RuntimeDependencyTests(unittest.TestCase):
+    def test_extras_and_transitive_requirements_are_checked_even_when_core_versions_match(self):
+        distributions = {
+            "vllm": types.SimpleNamespace(version="0.28", requires=["fastapi[standard]>=0.133"]),
+            "fastapi": types.SimpleNamespace(version="0.136", requires=["starlette>=1.0.1", "uvicorn>=0.40; extra == 'standard'"]),
+            "starlette": types.SimpleNamespace(version="1.0.1", requires=[]),
+            "uvicorn": types.SimpleNamespace(version="0.35", requires=[]),
+        }
+        with patch.object(engine_install, "RUNTIME_ROOTS", ("vllm",)), \
+             patch.object(engine_install.metadata, "distribution", side_effect=lambda name: distributions[name]), \
+             patch.object(engine_install.metadata, "version", side_effect=lambda name: distributions[name].version):
+            before = engine_install.dependency_audit()
+            self.assertFalse(before["verified"])
+            self.assertEqual(before["issues"][0]["found"], "0.35")
+            distributions["uvicorn"].version = "0.40"
+            self.assertTrue(engine_install.dependency_audit()["verified"])
+
+    def test_missing_transitive_package_is_not_hidden_by_an_installed_parent(self):
+        dist = types.SimpleNamespace(version="0.28", requires=["missing-api-dependency>=1"])
+        with patch.object(engine_install, "RUNTIME_ROOTS", ("vllm",)), \
+             patch.object(engine_install.metadata, "distribution", return_value=dist), \
+             patch.object(engine_install.metadata, "version", side_effect=engine_install.metadata.PackageNotFoundError):
+            result = engine_install.dependency_audit()
+        self.assertFalse(result["verified"])
+        self.assertIsNone(result["issues"][0]["found"])
 
 
 if __name__ == "__main__":

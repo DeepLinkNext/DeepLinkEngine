@@ -119,5 +119,19 @@
       "upstream_url": "https://download-r2.pytorch.org/whl/cpu/torchvision-0.28.0%2Bcpu-cp312-cp312-manylinux_2_28_aarch64.whl",
       "api_url": "https://api.github.com/repos/DeepLinkNext/DeepLinkEngine/releases/assets/768813955"
     }
+  },
+  "runtime_compatibility_sources": {
+    "opencv-python-headless": {
+      "filename": "opencv_python_headless-5.0.0.93+deeplink.np126-cp37-abi3-manylinux_2_28_aarch64.whl",
+      "version": "5.0.0.93+deeplink.np126",
+      "bytes": 39645527,
+      "sha256": "38dc0481a8f202bb21af94dbf55b6b57cac551c75f46da1f2642619ac15c19d5",
+      "url": "https://github.com/DeepLinkNext/DeepLinkEngine/releases/download/r8-runtime-dependencies-20261119-v1/opencv_python_headless-5.0.0.93%2Bdeeplink.np126-cp37-abi3-manylinux_2_28_aarch64.whl",
+      "upstream_url": "https://files.pythonhosted.org/packages/3a/98/1a28a7101e31801042b3098871a74b76c61581d328ef40774ff4edb53a56/opencv_python_headless-5.0.0.93-cp37-abi3-manylinux_2_28_aarch64.whl",
+      "api_url": "https://api.github.com/repos/DeepLinkNext/DeepLinkEngine/releases/assets/768733285",
+      "provenance_url": "https://github.com/DeepLinkNext/DeepLinkEngine/releases/download/r8-runtime-dependencies-20261119-v1/opencv-compat-provenance.json",
+      "upstream_sha256": "840bd717c21e5c11cadadc022a823315ea417f961213d06b4df010e019eb16f4",
+      "upstream_bytes": 39648433
+    }
   }
 }

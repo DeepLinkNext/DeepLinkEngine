@@ -17,7 +17,7 @@ class DependencyIndexTests(unittest.TestCase):
 
     def test_all_fixed_inputs_share_the_central_release(self):
         actual = index.build_index(self.runtime, self.evaluation)
-        self.assertEqual(len(actual["artifacts"]), 13)
+        self.assertEqual(len(actual["artifacts"]), 14)
         self.assertEqual(actual, json.loads((ROOT / "engine/dependencies.json").read_bytes()))
 
     def test_external_active_wheel_url_is_rejected(self):

@@ -1,12 +1,123 @@
 """Install the four frozen distributions from verified repository release assets."""
 import argparse
 import hashlib
+from importlib import metadata
 import json
 from pathlib import Path
 import subprocess
 import sys
 
 ROOT = Path(__file__).resolve().parent
+RUNTIME_ROOTS = ("vllm", "vllm-ascend", "vllm-hust-engine", "torchvision")
+
+
+def dependency_audit():
+    from packaging.requirements import Requirement
+    queue = [(name, frozenset()) for name in RUNTIME_ROOTS]
+    seen, observed, issues = set(), {}, []
+    while queue:
+        name, extras = queue.pop()
+        key = (name.lower().replace("_", "-"), extras)
+        if key in seen:
+            continue
+        seen.add(key)
+        try:
+            distribution = metadata.distribution(name)
+        except metadata.PackageNotFoundError:
+            issues.append(dict(package=name, requires=name, found=None))
+            continue
+        observed[name] = distribution.version
+        for text in distribution.requires or []:
+            requirement = Requirement(text)
+            if requirement.marker and not any(requirement.marker.evaluate({"extra": extra})
+                                              for extra in {"", *extras}):
+                continue
+            try:
+                version = metadata.version(requirement.name)
+            except metadata.PackageNotFoundError:
+                version = None
+            if version is None or not requirement.specifier.contains(version, prereleases=True):
+                issues.append(dict(package=name, requires=text, found=version))
+            else:
+                queue.append((requirement.name, frozenset(requirement.extras)))
+    return dict(verified=not issues, issues=issues, observed_versions=observed)
+
+
+def resolve_runtime_dependencies(cache):
+    """Resolve engine API dependencies while retaining all frozen vendor versions."""
+    from packaging.requirements import Requirement
+    from environment_setup import vendor_integrity, cached_wheel, distribution_integrity
+    import os
+    sys.path.insert(0, str(ROOT / "benchmark/one-click-kit/scripts"))
+    from child_runner import run_stage
+    from one_click import verify_kit
+    verify_kit()
+    lock = json.loads((ROOT / "engine/r8-lock.json").read_bytes())
+    expected = dict(lock["required_python_packages"])
+    for row in sources():
+        stem = row["filename"].removesuffix(".tar.gz")
+        name, version = stem.split("-", 2)[:2]
+        expected[name.replace("_", "-")] = version
+    for name, version in expected.items():
+        if metadata.version(name) != version:
+            raise ValueError("Frozen runtime version differs before dependency resolution: " + name)
+    for name, source in lock.get("runtime_compatibility_sources", {}).items():
+        try:
+            observed = metadata.version(name)
+        except metadata.PackageNotFoundError:
+            observed = None
+        if observed != source["version"] or not distribution_integrity(name)["verified"]:
+            wheel = cached_wheel(source, [], Path(cache) / "wheels")
+            completed = run_stage([sys.executable, "-m", "pip", "install", "--disable-pip-version-check",
+                                   "--no-deps", "--ignore-installed", "--no-compile", str(wheel)])
+            if completed.returncode:
+                raise RuntimeError("Runtime compatibility package installation failed: " + name)
+        expected[name] = source["version"]
+        if name == "opencv-python-headless":
+            expected["numpy"] = "1.26.4"
+    folder = Path(cache) / "engine-install"
+    folder.mkdir(parents=True, exist_ok=True)
+    requirements = sorted({str(Requirement(text)) for name in RUNTIME_ROOTS for text in metadata.requires(name) or []})
+    content = "\n".join(requirements) + "\n"
+    key = hashlib.sha256(content.encode()).hexdigest()[:16]
+    required = folder / ("runtime-" + key + ".txt")
+    constraints = folder / ("runtime-" + key + "-constraints.txt")
+    required.write_text(content)
+    constraints.write_text("\n".join(name + "==" + version for name, version in sorted(expected.items())) + "\n")
+    before = dependency_audit()
+    if not before["verified"]:
+        print("RUNTIME_DEPENDENCIES repairing", len(before["issues"]), "requirements", flush=True)
+        completed = run_stage([sys.executable, "-m", "pip", "install", "--disable-pip-version-check",
+                              "--only-binary=:all:", "--no-compile", "-c", str(constraints), "-r", str(required)])
+        if completed.returncode:
+            raise RuntimeError("Engine Python dependency resolution failed: " + str(completed.returncode))
+    integrity = vendor_integrity(sys.executable, lock["required_python_packages"], dict(os.environ))
+    if not integrity["verified"]:
+        source = lock["environment_sources"]["triton-ascend"]
+        wheel = cached_wheel(source, [], Path(cache) / "wheels")
+        result = run_stage([sys.executable, "-m", "pip", "install", "--no-deps", "--ignore-installed", "--no-compile", str(wheel)])
+        if result.returncode:
+            raise RuntimeError("Could not restore Ascend Triton after engine dependency resolution")
+        integrity = vendor_integrity(sys.executable, lock["required_python_packages"], dict(os.environ))
+    after = dependency_audit()
+    compatibility = {name: distribution_integrity(name) for name in lock.get("runtime_compatibility_sources", {})}
+    if not after["verified"] or not integrity["verified"] or not all(r["verified"] for r in compatibility.values()):
+        raise ValueError("Engine dependency/file verification failed: " + json.dumps(after["issues"]))
+    # Metadata can match while inherited native extensions are ABI-incompatible.
+    # Probe the actual multimodal import and CPU image/NMS operators before any
+    # model service starts; this work is outside benchmark timing.
+    smoke = folder / "runtime-import-smoke.json"
+    probe = ROOT / "tools/runtime_import_smoke.py"
+    completed = run_stage([sys.executable, "-I", "-B", str(probe), "--out", str(smoke)],
+                          env=dict(os.environ, TORCH_DEVICE_BACKEND_AUTOLOAD="0"))
+    if completed.returncode:
+        raise RuntimeError("Runtime native/processor import smoke failed; see " + str(smoke))
+    report = dict(before=before, after=after, vendor_integrity=integrity, compatibility_integrity=compatibility,
+                  import_smoke=json.loads(smoke.read_text()),
+                  requirements_sha256=hashlib.sha256(content.encode()).hexdigest(), constraints=expected)
+    (folder / "runtime-dependencies.json").write_text(json.dumps(report, indent=2) + "\n")
+    print("RUNTIME_DEPENDENCIES_VERIFIED", len(after["observed_versions"]), "distributions", flush=True)
+    return report
 
 
 def sources():
@@ -59,8 +170,14 @@ def install(cache, *, wheelhouse=None, download_only=False):
         receipt.write_text(json.dumps(result, indent=2) + "\n")
         if completed.returncode:
             raise RuntimeError("Frozen engine installation failed; see " + str(receipt))
-        from package_metadata import prepare
-        result["package_metadata"] = prepare(sys.executable)
+        try:
+            from package_metadata import prepare
+            result["package_metadata"] = prepare(sys.executable)
+            result["runtime_dependencies"] = resolve_runtime_dependencies(cache)
+        except BaseException:
+            result["status"] = "failed"
+            receipt.write_text(json.dumps(result, indent=2) + "\n")
+            raise
         receipt.write_text(json.dumps(result, indent=2) + "\n")
     print("ENGINE_ARTIFACTS", receipt, flush=True)
     return result
@@ -71,9 +188,13 @@ def main():
     parser.add_argument("--cache", required=True, type=Path)
     parser.add_argument("--wheelhouse", type=Path)
     parser.add_argument("--download-only", action="store_true")
+    parser.add_argument("--repair-dependencies", action="store_true", help="Verify/repair dependencies of the already installed frozen runtime")
     args = parser.parse_args()
     try:
-        install(args.cache, wheelhouse=args.wheelhouse, download_only=args.download_only)
+        if args.repair_dependencies:
+            resolve_runtime_dependencies(args.cache)
+        else:
+            install(args.cache, wheelhouse=args.wheelhouse, download_only=args.download_only)
     except (ValueError, OSError, RuntimeError) as error:
         parser.error(str(error))
 

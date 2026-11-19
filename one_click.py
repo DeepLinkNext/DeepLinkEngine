@@ -136,9 +136,23 @@ def reference_evidence(lock):
     return root
 
 
+def validate_deployment(arguments):
+    path = Path(option(arguments, "--deployment"))
+    profile = path / "deployment.json"
+    lock = json.loads((ROOT / "engine/r8-lock.json").read_bytes())
+    if not profile.is_file() or json.loads(profile.read_bytes()).get("release") != lock["upstream_release"]:
+        raise ValueError("Provide an installed frozen r8 SDK before downloading test inputs: " + str(path))
+
+
 def prepare_data(arguments):
     from dataset_bundle import prepare
+    validate_deployment(arguments)
     cache = option(arguments, "--cache") or str(Path.home() / ".cache/vllm-hust-engine/third-party")
+    if option(arguments, "--baseline-deployment") is None:
+        from baseline_bundle import ensure_deployment
+        baseline = ensure_deployment(cache)
+        if baseline is not None:
+            arguments += ["--baseline-deployment", str(baseline)]
     context = "--context-tenant-only" in arguments
     selected = [] if context else (option(arguments, "--datasets") or "mmlu,hle,frontier,swe,terminal").split(",")
     if "--compute-reference-only" in arguments:
