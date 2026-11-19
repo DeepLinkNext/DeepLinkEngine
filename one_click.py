@@ -169,6 +169,8 @@ def prepare_data(arguments):
                     arguments[index + 1] = str(root)
                 elif value.startswith("--dataset-assets="):
                     arguments[index] = "--dataset-assets=" + str(root)
+    from artifact_cache import release
+    release(cache, option(arguments, "--baseline-deployment"))
     return arguments
 
 

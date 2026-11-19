@@ -82,6 +82,59 @@ def bootstrap_resume(data):
     return prior
 
 
+def before_model_resume(data):
+    """Recover only a sealed first-stage failure that never started a model."""
+    out = Path(data["out"])
+    if out.is_symlink() or not out.is_dir():
+        raise ValueError("Pre-model recovery requires an existing result directory")
+    prior = json.loads((out / "results.json").read_text())
+    stages = prior.get("stages", [])
+    names = ["prepare-datasets", "install-package", "verify-engine", "install-engine", "prepare-fixed-five", "run-fixed-five"]
+    if (prior.get("status") != "failed" or [r.get("name") for r in stages] != names
+            or any(r.get("status") != "completed" for r in stages[:5])
+            or stages[-1].get("status") != "failed"):
+        raise ValueError("Pre-model recovery requires a failed first campaign stage")
+    campaign = out / "fixed-five"
+    ledger = json.loads((campaign / "campaign.json").read_text())
+    rows = ledger.get("stages", [])
+    first = json.loads((campaign / "continuous-B0/receipt.json").read_text())
+    if (ledger.get("status") != "failed" or ledger.get("selected_execution_complete") is not False
+            or not rows or rows[0].get("name") != "continuous-B0" or rows[0].get("status") != "failed"
+            or any(r.get("status") != "planned" for r in rows[1:])
+            or first.get("model_service_started") is not False or first.get("client_started") is not False
+            or first.get("quiescent") is not True or first.get("completed") is not False
+            or any(campaign.rglob("service-process.json")) or (out / "context-tenant").exists()):
+        raise ValueError("A model may have started; pre-model recovery refuses to repeat inference")
+    if json.loads((out / "evaluation.json").read_text()) != evaluation_configuration(data, out / "installation"):
+        raise ValueError("Recovery configuration differs from the original full-test configuration")
+    return prior
+
+
+def recovery_environment(data):
+    """Reuse the installation's private interpreter after fresh version/file probes."""
+    from environment_setup import cann_environment, probe, differences, compatible_python, vendor_integrity, runtime_imports
+    info = json.loads((Path(data["out"]) / "installation/installation.json").read_text())
+    python = Path(info["python"]).absolute()
+    if (not (python.parent.parent / "pyvenv.cfg").is_file()
+            or not python.parent.parent.resolve().is_relative_to((Path(data["cache"]) / "environments").resolve())):
+        raise ValueError("Recovery requires the installation's private interpreter")
+    lock = json.loads((ROOT / "engine/r8-lock.json").read_text())
+    env, _ = cann_environment(data.get("environment", {}))
+    observed = probe(python, lock["required_python_packages"], env)
+    if not compatible_python(observed) or differences(observed, lock["required_python_packages"]):
+        raise ValueError("Recovery interpreter versions differ from the current runtime lock")
+    integrity = vendor_integrity(python, lock["required_python_packages"], env)
+    if not integrity["verified"]:
+        raise ValueError("Recovery interpreter vendor files differ")
+    if str(python) != sys.executable:
+        return dict(python=str(python), env=env)
+    imports = runtime_imports(python, lock["required_python_packages"], env)
+    (Path(data["out"]) / "environment-recovery.json").write_text(json.dumps(
+        dict(verified=True, observed=observed, vendor_integrity=integrity, runtime_imports=imports), indent=2) + "\n")
+    os.environ.update(env)
+    return None
+
+
 def preflight():
     if (sys.version_info[:2] != (3, 12) or platform.python_implementation() != "CPython"
         or platform.system() != "Linux" or platform.machine() != "aarch64"):
@@ -143,10 +196,11 @@ def qualified_reference(campaign):
     return result
 
 
-def run(data, *, resume_bootstrap=False):
+def run(data, *, resume_bootstrap=False, resume_before_model=False):
     out = Path(data["out"])
-    prior = bootstrap_resume(data) if resume_bootstrap else None
-    out.mkdir(parents=True, exist_ok=resume_bootstrap)
+    prior = before_model_resume(data) if resume_before_model else bootstrap_resume(data) if resume_bootstrap else None
+    reuse_installation = resume_bootstrap or resume_before_model
+    out.mkdir(parents=True, exist_ok=reuse_installation)
     installation = out / "installation"
     cli = str(Path(sysconfig.get_path("scripts")) / "vllm-hust-engine")
     receipt = {"status": "running", "stages": [], "third_party_verification": "pending"}
@@ -158,6 +212,13 @@ def run(data, *, resume_bootstrap=False):
         archived.write_bytes(raw)
         receipt["previous_attempts"] = [*prior.get("previous_attempts", []),
             {"path": str(archived.relative_to(out)), "sha256": hashlib.sha256(raw).hexdigest()}]
+        if resume_before_model:
+            original = history / ("pre-model-failure-" + uuid.uuid4().hex)
+            original.mkdir()
+            for name in ("fixed-five", "fixed-five-logs", "fixed-five-report"):
+                if (out / name).exists():
+                    (out / name).rename(original / name)
+            receipt["previous_attempts"][-1]["campaign_directory"] = str(original.relative_to(out))
 
     environment_report = os.environ.get("DEEPLINKENGINE_ENVIRONMENT_REPORT")
     if environment_report:
@@ -198,7 +259,7 @@ def run(data, *, resume_bootstrap=False):
         install_command = [sys.executable, str(ROOT / "engine_install.py"), "--cache", data["cache"]]
         if data.get("environment", {}).get("wheelhouse"):
             install_command += ["--wheelhouse", data["environment"]["wheelhouse"]]
-        if resume_bootstrap:
+        if reuse_installation:
             stage("install-package", [sys.executable, str(ROOT / "engine_install.py"), "--cache", data["cache"], "--repair-dependencies"],
                   mode="verify_existing")
         else:
@@ -211,7 +272,7 @@ def run(data, *, resume_bootstrap=False):
                 sha256=hashlib.sha256((out / "runtime-dependencies.json").read_bytes()).hexdigest())
             save()
         stage("verify-engine", [cli, "verify"])
-        if resume_bootstrap:
+        if reuse_installation:
             verify_install = """import json,sys
 from pathlib import Path
 from vllm_hust_engine.cli import verify,audit_install,verify_tools
@@ -231,9 +292,13 @@ print('EXISTING_INSTALLATION_VERIFIED',result['verified_runtime_files'])
         config.write_text(json.dumps(evaluation, indent=2) + "\n")
         evaluate = [sys.executable, str(ROOT / "one_click.py")]
         prepare_command = [*evaluate, "prepare", "--config", str(config)]
-        if resume_bootstrap:
+        if reuse_installation:
             prepare_command += ["--out", str(out / ("preflight-" + uuid.uuid4().hex))]
-        stage("prepare-fixed-five", prepare_command)
+        if resume_before_model:
+            receipt["reused_preflight"] = prior["stages"][4]
+            stage("prepare-fixed-five", [*evaluate, "verify"], mode="verify_existing_preflight")
+        else:
+            stage("prepare-fixed-five", prepare_command)
         stage("run-fixed-five", [*evaluate, "run", "--config", str(config)])
         current = json.loads((out / "fixed-five/campaign.json").read_text())
         reference_target = qualified_reference(current)
@@ -272,13 +337,18 @@ def main():
     parser.add_argument("--config", required=True, type=Path)
     parser.add_argument("--prepare-environment", action="store_true", help="Repair and verify the environment without starting model tests")
     parser.add_argument("--resume-bootstrap", action="store_true", help="Recover a failed preflight using its verified installation; refuses existing inference campaigns")
+    parser.add_argument("--resume-before-model", action="store_true", help="Recover a sealed first-stage failure only when no service or inference ever started")
     args = parser.parse_args()
     try:
-        data = configuration(args.config, allow_existing=args.resume_bootstrap)
+        data = configuration(args.config, allow_existing=args.resume_bootstrap or args.resume_before_model)
+        if args.resume_bootstrap and args.resume_before_model:
+            raise ValueError("Choose only one recovery mode")
+        if args.resume_before_model:
+            before_model_resume(data)
         if args.resume_bootstrap:
             bootstrap_resume(data)
         from environment_setup import ensure_environment
-        prepared = ensure_environment(data)
+        prepared = recovery_environment(data) if args.resume_before_model else ensure_environment(data)
         if prepared is not None:
             os.execve(prepared["python"], [prepared["python"], str(Path(__file__).resolve()), *sys.argv[1:]], prepared["env"])
             raise ValueError("Could not hand off to the prepared Python environment")
@@ -288,7 +358,7 @@ def main():
     if args.prepare_environment:
         print("ENVIRONMENT verified; no model tests started", flush=True)
         return 0
-    return run(data, resume_bootstrap=args.resume_bootstrap)
+    return run(data, resume_bootstrap=args.resume_bootstrap, resume_before_model=args.resume_before_model)
 
 
 if __name__ == "__main__":

@@ -195,6 +195,46 @@ class WorkflowTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "inference campaign already exists"):
             workflow.bootstrap_resume(self.data)
 
+    def before_model_failure(self):
+        def fail(args, **kwargs):
+            result = self.execute(args, **kwargs)
+            if "run" in args:
+                self.write("fixed-five/campaign.json", dict(status="failed", selected_execution_complete=False,
+                    stages=[dict(name="continuous-B0", status="failed"), dict(name="continuous-B1", status="planned")]))
+                self.write("fixed-five/continuous-B0/receipt.json", dict(completed=False,
+                    model_service_started=False, client_started=False, quiescent=True))
+                return types.SimpleNamespace(returncode=2)
+            return result
+        self.invoke(fail)
+
+    def test_pre_model_failure_can_be_archived_and_recovered_without_losing_evidence(self):
+        self.before_model_failure()
+        original = (self.root / "result/fixed-five/campaign.json").read_bytes()
+        with patch("one_click.verify_kit"), patch("child_runner.run_stage", side_effect=self.execute), \
+             contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+            self.assertEqual(workflow.run(self.data, resume_before_model=True), 0)
+        receipt = json.loads((self.root / "result/results.json").read_text())
+        previous = self.root / "result" / receipt["previous_attempts"][-1]["campaign_directory"]
+        self.assertEqual((previous / "fixed-five/campaign.json").read_bytes(), original)
+        self.assertEqual(receipt["stages"][1]["mode"], "verify_existing")
+
+    def test_pre_model_recovery_rejects_any_started_service(self):
+        self.before_model_failure()
+        self.write("fixed-five/continuous-B0/service-process.json", dict(pid=123))
+        with self.assertRaisesRegex(ValueError, "refuses to repeat"):
+            workflow.before_model_resume(self.data)
+
+    def test_pre_model_recovery_requires_explicit_false_model_receipt(self):
+        self.before_model_failure()
+        self.write("fixed-five/continuous-B0/receipt.json", dict(completed=False, quiescent=True))
+        with self.assertRaisesRegex(ValueError, "refuses to repeat"):
+            workflow.before_model_resume(self.data)
+
+    def test_pre_model_recovery_rejects_changed_devices(self):
+        self.before_model_failure()
+        with self.assertRaisesRegex(ValueError, "configuration differs"):
+            workflow.before_model_resume(dict(self.data, physical_devices=[2, 3]))
+
     def test_bootstrap_recovery_never_repeats_a_completed_workflow(self):
         self.invoke()
         with self.assertRaisesRegex(ValueError, "failed fixed-five preflight"):
