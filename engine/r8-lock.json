@@ -8,7 +8,8 @@
       "name": "vllm_hust_engine-2026.11.17.8.post2.tar.gz",
       "url": "https://files.pythonhosted.org/packages/6b/55/9e123415bb59ad3343ed7502a6faa985729fa28546df70fe93ceb1ef9929/vllm_hust_engine-2026.11.17.8.post2.tar.gz",
       "sha256": "2ccb1e14cc58840bee730832d29ac519e6ca98de5d48ecc8701a9df265c0c935",
-      "bytes": 124758930
+      "bytes": 124758930,
+      "deepengine_url": "https://github.com/DeepLinkNext/DeepEngine/releases/download/r8-frozen-20261117/vllm_hust_engine-2026.11.17.8.post2.tar.gz"
     },
     {
       "name": "r8-pip-requirements-post2.txt",
@@ -20,20 +21,31 @@
       "name": "vllm-0.28.1.post1.dev143+gf18cf803c.empty-cp312-cp312-linux_aarch64.whl",
       "url": "https://github.com/vLLM-HUST/vllm-hust-website/releases/download/engine-wheels-r8-v1/vllm-0.28.1.post1.dev143%2Bgf18cf803c.empty-cp312-cp312-linux_aarch64.whl",
       "sha256": "4854cce2e713499e9f1b9bd514f0a1136008758b2b367ba943100ed9f97d01dc",
-      "bytes": 32374960
+      "bytes": 32374960,
+      "deepengine_url": "https://github.com/DeepLinkNext/DeepEngine/releases/download/r8-frozen-20261117/vllm-0.28.1.post1.dev143%2Bgf18cf803c.empty-cp312-cp312-linux_aarch64.whl"
     },
     {
       "name": "vllm_ascend-0.25.1rc2.dev125+hust.20260903.4.g74f0c0a27-cp312-cp312-linux_aarch64.whl",
       "url": "https://github.com/vLLM-HUST/vllm-hust-website/releases/download/engine-wheels-r8-v1/vllm_ascend-0.25.1rc2.dev125%2Bhust.20260903.4.g74f0c0a27-cp312-cp312-linux_aarch64.whl",
       "sha256": "a04f758a6973c1afe42a4fe2f123c7de295e32a3fe2583e7445dd7047c9186a9",
-      "bytes": 23698984
+      "bytes": 23698984,
+      "deepengine_url": "https://github.com/DeepLinkNext/DeepEngine/releases/download/r8-frozen-20261117/vllm_ascend-0.25.1rc2.dev125%2Bhust.20260903.4.g74f0c0a27-cp312-cp312-linux_aarch64.whl"
     },
     {
       "name": "vllm_hust_runtime-2026.11.17.8+r8.3f7eacc1-cp312-cp312-linux_aarch64.whl",
       "url": "https://github.com/vLLM-HUST/vllm-hust-website/releases/download/engine-wheels-r8-v1/vllm_hust_runtime-2026.11.17.8%2Br8.3f7eacc1-cp312-cp312-linux_aarch64.whl",
       "sha256": "1dea132a69efb3a6ce05e893e52d65777b5907b17b2b5c227cb8ecf9cacc0ce5",
-      "bytes": 123765275
+      "bytes": 123765275,
+      "deepengine_url": "https://github.com/DeepLinkNext/DeepEngine/releases/download/r8-frozen-20261117/vllm_hust_runtime-2026.11.17.8%2Br8.3f7eacc1-cp312-cp312-linux_aarch64.whl"
     }
   ],
-  "tested_environment": "CPython 3.12, Linux aarch64, CANN 9.1.0"
+  "tested_environment": "CPython 3.12, Linux aarch64, CANN 9.1.0",
+  "evaluator": {
+    "name": "tools-r4.tar.gz",
+    "source_commit": "bd5448c9f266cc0301c3d4cef2a10b9ab98f7205",
+    "deepengine_url": "https://github.com/DeepLinkNext/DeepEngine/releases/download/r8-frozen-20261117/tools-r4.tar.gz",
+    "bytes": 850304,
+    "sha256": "060461e6deb35733d13e5024f3e06e5938f6f9cf7c37192a100f8cabb850cf28",
+    "manifest_sha256": "c7342ded7fe35914e89c6a956c2f2396c1f9506f67000aa814ce892be2700f74"
+  }
 }
