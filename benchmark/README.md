@@ -37,7 +37,7 @@ python benchmark/reports/r8-context-tenant-20261119/reproduce_publication.py \
 
 使用仓库根目录 `one_click.py`。该入口校验仓库内 [one-click-kit](one-click-kit/one_click.py) 的全部工具源码，自动获取本仓库公开 Release 的固定参考证据。工具和证据的字节数、SHA-256 及来源版本见 [one-click-lock.json](one-click-lock.json)。冻结安装包和旧 `tools-r4.tar.gz` 保留原件，新的测试由修正版工具执行。
 
-B0 为固定的 `original018-cann8.5.1`，由工具核验上游镜像摘要并恢复，或指定已按该版本制备的 SDK。B1 为 [冻结 r8](../engine/README.md)。两臂使用同一套 Qwen3.5-35B-A3B 权重和同一对 910B2。物理卡号按实机分配填写。
+B0 为固定的 `original018-cann8.5.1`，由工具核验上游镜像摘要并恢复，或指定已按该版本制备的 SDK。B1 使用[版本清单指定的引擎](../engine/README.md#版本与校验)。两臂使用同一套 Qwen3.5-35B-A3B 权重和同一对 910B2。物理卡号按实机分配填写。
 
 1. 按[引擎安装说明](../engine/README.md)安装 B1。复制根目录[配置示例](../evaluation.example.json)，填写本机权重、B1 部署目录、空的输出目录和两张物理卡号。已有 B0 SDK 时可追加 `baseline_deployment`。已有题目数据时可追加 `dataset_assets`，其下为 `hle/`、`frontier/` 及 `public-agent-traces/`，下载和核验规则由工具执行。
 2. 直接运行下面的 `run` 命令。工具自动下载并逐项核验参考证据，不需要访问原私有仓库，也不需要配置令牌。已有经校验的固定证据目录时仍可设置 `VLLM_HUST_PROJECT_EVIDENCE`；手工传入的目录同样必须符合固定清单。
