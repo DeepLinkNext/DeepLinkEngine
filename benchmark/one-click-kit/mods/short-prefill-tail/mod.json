@@ -1,0 +1,29 @@
+{
+  "schema": "vllm-hust-mod/v1",
+  "id": "short-prefill-tail",
+  "version": "0.1.0",
+  "kind": "scheduler-policy",
+  "status": "combined-context-4K-1of2;16K-2of2;reverse4K-TTFT-screen-not-met;full-task-running",
+  "default_enabled": false,
+  "implementation": "overlays/b1-r8/mods/betterscale/betterscale/models/qwen35/prefill_round_robin.py",
+  "source_sha256": "1f00bfb11e91d0601c761bdfe1691fcd59fedf69bbea3afa6a252babdf97a957",
+  "active_in_release": "full-answer-b1-20261117-r8",
+  "default_promoted": false,
+  "policy": {
+    "reserve_decode_first": true,
+    "eligible_existing_prefill_maximum_tokens": 256,
+    "new_admission_priority_unchanged": true,
+    "original_ring_rotation": true
+  },
+  "conditions": "Existing eligible prefill tails competing for a4096-token budget; measured jointly with native async and E36/R54 on2x910B2/Qwen3.5-35B-A3B.",
+  "additional_cost": "One bounded host-side partition of eligible prefill demands per planner call; no new kernel, State allocation or copy buffer.",
+  "isolated_speedup_claimed": false,
+  "evidence": [
+    "experiments/optimization-20261115/M11-C8-scheduler-grant-diagnostic-20261116-r1/analysis-v1.json",
+    "experiments/optimization-20261115/C15-first-matched-context-screen-20261117-r1/analysis-v1.json"
+  ],
+  "limitations": "First forward C8 pair is a joint combination result. Full reverse context and original200 task screens decide release promotion. Preserve all old C10 quality/truncation negatives; no isolated tail contribution inferred.",
+  "combined_context_screens_met": false,
+  "latest_evidence": "experiments/optimization-20261115/C15-complete-matched-context-20261117-r1/analysis-v1.json",
+  "release_blocker": "Reverse4K meanTTFT+11.3777% andP95+20.2348%, over original+5%; no isolated tail attribution or stable default promotion"
+}

@@ -3,7 +3,6 @@ import contextlib
 import importlib.util
 import io
 import json
-import os
 from pathlib import Path
 import sys
 import tempfile
@@ -12,6 +11,9 @@ import unittest
 from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path[:0] = [str(ROOT), str(ROOT / "benchmark/one-click-kit/scripts")]
+sys.path.insert(0, str(ROOT / "tools"))
+from test_public_run_all import reference
 spec = importlib.util.spec_from_file_location("workflow", ROOT / "run_all.py")
 workflow = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(workflow)
@@ -42,10 +44,10 @@ class WorkflowTests(unittest.TestCase):
                 optimized_deployment="/actual/b1", baseline_deployment="/actual/b0", logical_devices="0,1"))
             self.write("fixed-five/campaign.json", dict(status="completed",
                        selected_execution_complete=not self.incomplete,
-                       compute_reference={"status": "reference_cached"}))
+                       compute_reference=reference()))
             self.write("fixed-five-report/report.html", "fixture report")
         if "--context-tenant-only" in args:
-            self.assertEqual(args[1], str(self.root / "result/installation/tools/one_click.py"))
+            self.assertEqual(args[1], str(ROOT / "one_click.py"))
             self.assertNotIn("--engine-profile", args)
             self.assertEqual(args[args.index("--physical-devices") + 1], "0,7")
             self.assertEqual(args[args.index("--devices") + 1], "0,1")
@@ -58,7 +60,8 @@ class WorkflowTests(unittest.TestCase):
         return types.SimpleNamespace(returncode=0)
 
     def invoke(self, execute=None):
-        with patch.object(workflow.subprocess, "run", side_effect=execute or self.execute), \
+        with patch("child_runner.run_stage", side_effect=execute or self.execute), \
+             patch("one_click.verify_kit"), \
              contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
             result = workflow.run(self.data)
         receipt = json.loads((self.root / "result/results.json").read_text())
@@ -131,7 +134,7 @@ class WorkflowTests(unittest.TestCase):
              patch.object(workflow.platform, "system", return_value="Linux"), \
              patch.object(workflow.platform, "machine", return_value="aarch64"), \
              patch.object(workflow.metadata, "version", return_value="wrong"), \
-             patch.object(workflow.subprocess, "run") as execute:
+             patch("child_runner.run_stage") as execute:
             with self.assertRaisesRegex(ValueError, "expected 2.13.0"):
                 workflow.preflight()
             execute.assert_not_called()

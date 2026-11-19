@@ -1,0 +1,151 @@
+{
+  "schema": "vllm-hust-existing-project-evidence/v1",
+  "benchmark_commit": "53541118b3461705f1e61532710ff0a759d59af0",
+  "manifest_sha256": "5c7194b483d96e7a682183fa62c569737312d8139fc0b20b51e91a5479772ad6",
+  "verified_source_files": 121,
+  "paired_performance": {
+    "throughput_gain_pct": 90.4811043177129,
+    "mean_ttft_improvement_pct": 52.33738111027273,
+    "mean_tpot_improvement_pct": 48.775676176864536
+  },
+  "dataset_coverage": {
+    "MMLU-Pro": {
+      "existing_scope": "Original matched200; separate out256 M01",
+      "fresh_scope": "Counted separately in current run/pair"
+    },
+    "HLE-Verified": {
+      "existing_solver_cases": 1811,
+      "gold": 668,
+      "revision": 1143,
+      "scope": "Frozen substitute judge; unresolved grades retained; no new private regrading claimed"
+    },
+    "FrontierScience": {
+      "existing_solver_cases_per_arm": 160,
+      "olympiad": 100,
+      "research": 60,
+      "scope": "Designated018 and frozen optimized candidate; original substitute judge and unresolved cases retained"
+    },
+    "SWE-bench-Pro": {
+      "attempted": 26,
+      "planned": 731,
+      "unexecuted": 705,
+      "original_successes": 3,
+      "same_answer_dependency_recovery_successes": 4
+    },
+    "TerminalBench2.1": {
+      "attempted": 4,
+      "planned": 89,
+      "unattempted": 85,
+      "scope": "Includes context termination and null verifier; attempts are not successful completions"
+    }
+  },
+  "price_basis": {
+    "schema": "public-analogous-machine-price/v1",
+    "checked_date": "2026-10-29",
+    "timezone": "Asia/Shanghai",
+    "basis": "public_list_price_estimate_not_actual_invoice",
+    "provider": "天翼云",
+    "price_url": "https://www.ctyun.cn/document/10029787/10047957",
+    "billing_scope_url": "https://www.ctyun.cn/document/10029787/10030140",
+    "sku": "pak3.8xlarge.8",
+    "accelerator": "Ascend 910B",
+    "accelerator_count": 2,
+    "accelerator_memory_gb_each": 64,
+    "vcpu": 32,
+    "host_memory_gb": 256,
+    "currency": "CNY",
+    "instance_monthly_price": 36908,
+    "card_monthly_equivalent": 18454,
+    "billing_mode": "monthly_prepaid",
+    "included": [
+      "CPU",
+      "host memory",
+      "accelerator and accelerator memory"
+    ],
+    "separately_billed_not_in_this_estimate": [
+      "cloud disks",
+      "public network bandwidth"
+    ],
+    "month_days_for_analysis": 30,
+    "month_days_source": "explicit analytical convention, not provider billing-cycle claim",
+    "hardware_scope": "Analogous 910B 64GB cloud instance, not proof of identical 910B2 subtype, host or purchase terms.",
+    "policy": "Apply the same rate and accounting scope to both arms; do not infer actual allocation from TP degree. Price is not selected to meet a reduction target.",
+    "verification": "Provider HTML fetched and price table plus billing-scope text inspected on 2026-10-29; web price-page fetch failures retained in conversation, terminal HTTP fetch succeeded."
+  },
+  "formal_targets": {
+    "3.4.1": {
+      "name": "有效算力效率 ≥50%",
+      "status": "verified_existing_pass",
+      "accepted": true,
+      "accepted_scope": "Existing qualified M01 fixed200/out256, three synchronized uninstrumented repetitions per arm",
+      "measured_value": 59.7572618332167,
+      "display_value": "≥59.76%",
+      "source_url": "https://github.com/vLLM-HUST/vllm-hust-benchmark/blob/53541118b3461705f1e61532710ff0a759d59af0/reports/m01-qualified-pair-20261103/README.md",
+      "reason": "已有独立合格参考，原脚本已重新核验算量、三轮计时及关键路径。B1保守效率下界达到50%；适用于原out256工况，不套用到新out8192运行。"
+    },
+    "3.4.2": {
+      "name": "吞吐 ≥10%，TTFT/TPOT 各改善 ≥5%",
+      "status": "verified_existing_pair_numeric_pass",
+      "accepted": true,
+      "accepted_scope": "Existing original matched200/max8192 pair; single fixed subset with original quality and service protocol",
+      "measured_value": 90.4811043177129,
+      "display_value": "+90.48%",
+      "source_url": "https://github.com/vLLM-HUST/vllm-hust-benchmark/blob/53541118b3461705f1e61532710ff0a759d59af0/reports/full-answer-joint-20261030/README.md",
+      "reason": "已有固定0.18 B0/B1原200题配对，原标量复算通过：吞吐+90.48%，平均TTFT/TPOT改善52.34%/48.78%。保留143/153正确、长度终止与单次子集边界；不是全集或统计非劣证明，不事后新增SLO否决项。"
+    },
+    "3.4.3": {
+      "name": "五数据集与16K稳定性",
+      "status": "incomplete_dataset_coverage",
+      "accepted": false,
+      "accepted_scope": null,
+      "measured_value": null,
+      "display_value": "Incomplete",
+      "source_url": "https://github.com/vLLM-HUST/vllm-hust-benchmark/blob/53541118b3461705f1e61532710ff0a759d59af0/reports/vllm-hust-midterm-20261019/README.md",
+      "reason": "已有MMLU、HLE和FrontierScience记录；SWE为26/731次尝试、705未执行，Terminal为4/89、85未尝试，部分退出/判分仍未决。合成C8与单臂MMLU补跑不能填齐这些任务。"
+    },
+    "3.4.4": {
+      "name": "单位token成本降低 ≥10%及高负载利用率改善",
+      "status": "verified_existing_equal_rate_estimate",
+      "accepted": false,
+      "numeric_threshold_met": true,
+      "accepted_scope": "Conditional public analogous-machine equal-rate estimate; actual invoice is not asserted or newly required",
+      "measured_value": 47.501354342630734,
+      "display_value": "−47.50%",
+      "source_url": "https://github.com/vLLM-HUST/vllm-hust-benchmark/blob/53541118b3461705f1e61532710ff0a759d59af0/reports/full-answer-joint-20261030/README.md",
+      "reason": "已有同负载配对和公开报价费用依据，同费率估算降低47.50%；原记录AI Core均值上升29.39个百分点。保留类似机型、费用范围及冻结利用率判据的适用边界；不再写成没有费用依据，也不将估算冒充本机账单。"
+    }
+  },
+  "formal_complete": false,
+  "scope": "Recomputed existing project evidence, not new hardware runs; public scalar verification is not private answer regrading or raw telemetry re-audit",
+  "reference_eta_lower_percent": 59.7572618332167,
+  "checked_commands": [
+    "python scripts/recompute_m01_qualified_pair.py --check",
+    "python scripts/recompute_full_answer_joint.py reports/full-answer-joint-20261030/joint-summary.json"
+  ],
+  "checked_command_exit_codes": [
+    0,
+    0
+  ],
+  "supersedes": "r4.1 project-wide absence claims; original runtime scalars unchanged",
+  "raw_utilization_reaudit": {
+    "archive": "reports/full-answer-joint-20261030/original-telemetry.tar.gz",
+    "members_verified": 24,
+    "method": "Sample clock midpoint, request-interval clipping, left-hold duration weighting, both physical5/6 cards; reproduced original per-card and aggregate means",
+    "B0_percent": 33.58444038076734,
+    "B1_percent": 62.9772220323898,
+    "missing_seconds_per_arm": 0
+  },
+  "outline": {
+    "path": "reports/vllm-hust-midterm-20261019/milestone-v15/project4-v1.5.txt",
+    "git_blob_sha1": "1010b61a48c4cf882980a8242187dfa664dc2c1c",
+    "docx_sha256": "08196093d69c655bbae39f902a77ed89b2aaba71237adabe13f9122e8769a1ca",
+    "rule": "Reuse/recompute matching existing evidence. No new invoice, numerical noninferiority or utilization threshold is imposed."
+  },
+  "validation": {
+    "unit_tests": 36,
+    "ruff_check": "passed",
+    "original_m01_recompute": "passed",
+    "original_full_answer_pair_recompute": "passed",
+    "raw_dual_card_utilization_recompute": "passed; both arms, all24 archived members SHA256 verified"
+  }
+}

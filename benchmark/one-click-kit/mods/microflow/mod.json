@@ -1,0 +1,56 @@
+{
+  "schema": "vllm-hust-frozen-mod/v1",
+  "id": "microflow",
+  "name": "Microflow",
+  "kind": "runtime-module",
+  "version": "full-answer-b1-20261113-r6",
+  "status": "enabled-in-frozen-r6",
+  "supported_engine": [
+    "full-answer-b1-20261113-r6"
+  ],
+  "default_enabled": true,
+  "default_engine": "full-answer-b1-20261113-r6",
+  "optional_search_dimension": false,
+  "engine_profile": "engines/b1-r6.json",
+  "source_inventory": "mods/active-stack-r6.json",
+  "deployment_roots": [
+    "mods/microflow"
+  ],
+  "requires_mods": [
+    "betterscale",
+    "extension-manager"
+  ],
+  "deployment_entrypoint_pins": {
+    "mods/microflow/hust_prefill_microflow/activation.py": "29a2920a9771771c3633adb201d8005aabbc98abf831ef4aa601c78faefb2a97",
+    "mods/microflow/hust_prefill_microflow/school028/worker.py": "47f7a89f71ceea5e76b4093c132cfb0024392b9b26fe0bd9dd526dd40753ba76",
+    "mods/microflow/hust_prefill_microflow/school028/host-contract.json": "9abed0af9bb3cc1d00c5d893ba57ba1084de1e7e3129a0ae487a7c7e20902bf3"
+  },
+  "pin_algorithm": "sha256",
+  "pin_scope": "Selected deployed entrypoints; complete original file coverage comes from source/component manifests plus the r6 overlay and documented restore adaptations.",
+  "activation": "config/manager.json 启用 org.vllm-hust.prefill-microflow-school028-fa；school028 注册要求 HUST_MICROFLOW_SCHOOL028_FA=1、HUST_MICROFLOW_ARM=on，原内置 BETTERSCALE_PREFILL_MICROFLOW 保持关闭以免重复接入。",
+  "features": [
+    "school028-fa",
+    "arm:on"
+  ],
+  "resource_and_startup_cost": "需要独立缓存/事件目录、预热与执行流资源；host-contract 检查固定宿主版本和源码。",
+  "constraints": [
+    "Ascend 910B2; Qwen3.5-35B-A3B; BF16; TP2/PP1",
+    "运行时实际用的是 school028 FA 路径；不能仅根据包名推断所有 Microflow 算子、模式均已启用。r6 刷新 host-contract 的精确覆盖见 overlay。"
+  ],
+  "disable_or_restore": "冻结 r6 使用完整组合，不提供临时删模块开关；历史对照需单独版本化配置和验收，恢复使用校验通过的同版快照。",
+  "performance_claim": {
+    "isolated_speedup_measured": false,
+    "independent_throughput_gain_percent": null,
+    "evidence_scope": "Frozen combined-engine evidence; not a new component ablation."
+  },
+  "evidence": [
+    "engines/b1-r4.json",
+    "engines/b1-r6.json",
+    "engines/b1-r6-overlay.json",
+    "validation/r6-self-run-status-20261115.json"
+  ],
+  "recovery_source_route": {
+    "artifact": "b1-r4-recovered-components.tar.gz",
+    "prefix": "workspace/m01-qualification-20261101/runtime-b1/microflow-recovery-payload-r2/"
+  }
+}

@@ -1,0 +1,286 @@
+{
+  "schema": "vllm-hust-baseline-profile/v2",
+  "role": "B0",
+  "release": "original018-cann8.5.1",
+  "scope": "Fixed reference arm. The image, SDK, patches, serving entry and per-variant argv are pinned; this profile exposes no tunable parameter and has no r4/r5/r6/r7/r8 style revisions. Run-to-run variation comes only from the paired controller, which appends its shared pre-measurement warmup extension and selects the warmup protocol. Historical results keep their own dated identities.",
+  "image": {
+    "registry": "https://quay.io/v2/ascend/vllm-ascend/",
+    "manifest_digest": "sha256:2467d259ff068ca4edd7b50b849152910f3c05e435f314639fc06bcc7a00f9fa",
+    "fetched_prefixes": [
+      "usr/local/",
+      "etc/Ascend/",
+      "vllm-workspace/vllm/",
+      "vllm-workspace/vllm-ascend/"
+    ],
+    "requires_docker_daemon": false,
+    "modifies_host_driver": false,
+    "restore_script": "scripts/restore_b0_image.py",
+    "cache_key": "original018-sdk"
+  },
+  "sdk": {
+    "prepare_script": "scripts/restore_b0_018.py",
+    "admission_script": "scripts/baseline_admission.py",
+    "python": "rootfs/usr/local/python3.11.14/bin/python3",
+    "launched_with_no_site": true,
+    "versions": {
+      "vllm": "0.18.0+empty",
+      "vllm-ascend": "0.18.0",
+      "torch": "2.9.0+cpu",
+      "torch-npu": "2.9.0.post1+gitee7ba04",
+      "transformers": "4.57.6",
+      "triton-ascend": "3.2.0.dev20260322"
+    },
+    "source_map_sha256": "a357ad8cf1ff6f8797fb2d6476e71a0deef5ee0899a55ea32ed65f07fe7773bc",
+    "source_files_verified_observed": 151502,
+    "cann": {
+      "home": "rootfs/usr/local/Ascend/cann-8.5.1",
+      "atb": "rootfs/usr/local/Ascend/nnal/atb/latest/atb/cxx_abi_1"
+    },
+    "text_only_overlay": {
+      "root": "text-only-overlay",
+      "directory": "baseline-sources",
+      "patches": {
+        "vllm-text-only-backports.patch": "4affc33e774ee06428479c15bc67fe9b3301930f169208e7577d8df6702e4ed1",
+        "vllm-ascend-text-only-backport.patch": "2f108fb1fe36cd6263c1b1971a6bb8fc69eeecfb016a2c717fd616efbac672b8"
+      },
+      "import_order": ["text-only-overlay/vllm", "text-only-overlay/vllm-ascend"]
+    }
+  },
+  "serving": {
+    "launcher": "scripts/baseline_serve.py",
+    "launcher_behavior": "Record actual torch/torch_npu/vllm/vllm_ascend import paths and hashes, verify the frozen entry sha256, then run the entry in-process.",
+    "originals": {
+      "release": "full-answer-b1-20261030-r4",
+      "restore_script": "scripts/restore_b1_r4.py",
+      "archives": [
+        {
+          "asset": "full-answer-frozen-sources-20261030-r4.tar.gz",
+          "url": "https://github.com/vLLM-HUST/vllm-hust-engine/releases/download/full-answer-b1-20261030-r4/full-answer-frozen-sources-20261030-r4.tar.gz",
+          "asset_bytes": 4036202,
+          "asset_sha256": "3b13f565c2b94c4c1ba7dbfa1a1a3ac6af222085ef4e74fefe50906a3bd9c961",
+          "manifest_member": "source-manifest.json",
+          "manifest_sha256": "f357230c7ab23fe482de6b97e99eceefa4da23eec794731d1fa577c81c821cdb"
+        },
+        {
+          "asset": "b1-r4-recovered-components.tar.gz",
+          "url": "https://github.com/vLLM-HUST/vllm-hust-engine/releases/download/full-answer-b1-20261030-r4/b1-r4-recovered-components.tar.gz",
+          "asset_bytes": 118877244,
+          "asset_sha256": "565c3a3e73333b54af2cad969db1f15d8743f627dc9e6c28de55178767db8c33",
+          "manifest_member": "component-manifest.json",
+          "manifest_sha256": "8ae289c1a65d9b28ffed4c516d8f2f4d23edd3f061773bca8b188dc5d807319d"
+        }
+      ],
+      "hash_semantics": "asset_sha256 is the downloaded release asset and is checked against the GitHub asset digest; manifest_sha256 is the pinned manifest member inside the archive and is what the deployment records as original_manifest_sha256. They are different values and must not be swapped.",
+      "files": {
+        "runtime/entrypoints/prepare_retrieval_b0.py": {
+          "restored_sha256": "09eb09ec04e9607011b98ef6d848e8216731b01b5c32b3d9a463c70bf39c6978",
+          "role": "text variant argv source: the single `serve_args` literal, read by AST in scripts/baseline_entry.py"
+        },
+        "runtime/entrypoints/serve_b0_r2.py": {
+          "restored_sha256": "2e8d11121711910284019f3517a003ff10316b5f94c676006ac51998436e9183",
+          "role": "frozen serving entry; its sha256 is re-verified before execution and recorded in the service plan"
+        }
+      },
+      "verification": "scripts/restore_b1_r4.py re-derives every deployed file from the two SHA256-pinned manifests and re-checks all of them before NPU initialisation, so the restored hashes above are startup-verified rather than copied from a single receipt. The archive member paths inside the tarballs are not restated here; the deployment-relative paths are the stable identities."
+    },
+    "variant_selection": {
+      "rule": "HLE solver stage uses `multimodal`; every other kind (continuous, joint MMLU quality, frontier, SWE, terminal) uses `text`.",
+      "code": "scripts/baseline_entry.py determines the variant from the dataset spec and passes it to scripts/baseline_admission.py.",
+      "text_non_continuous": "For kind != continuous the text argv drops `--reasoning-parser qwen3`; the multimodal argv always keeps its original parser.",
+      "eager_refused": "Any restored argv containing --enforce-eager is rejected before model start."
+    },
+    "variants": {
+      "text": {
+        "argv": [
+          "--served-model-name", "qwen3.5-35b",
+          "--host", "127.0.0.1",
+          "--port", "18390",
+          "--dtype", "bfloat16",
+          "--tensor-parallel-size", "2",
+          "--pipeline-parallel-size", "1",
+          "--data-parallel-size", "1",
+          "--max-model-len", "65536",
+          "--max-num-seqs", "24",
+          "--max-num-batched-tokens", "4096",
+          "--kv-cache-memory-bytes", "21474836480",
+          "--enable-prefix-caching",
+          "--enable-chunked-prefill",
+          "--async-scheduling",
+          "--mamba-cache-mode", "align",
+          "--speculative-config", "{\"method\":\"mtp\",\"num_speculative_tokens\":2}",
+          "--seed", "17",
+          "--compilation-config", "{\"mode\":3,\"cudagraph_mode\":\"FULL_AND_PIECEWISE\"}",
+          "--distributed-executor-backend", "mp",
+          "--disable-custom-all-reduce",
+          "--no-enable-log-requests",
+          "--reasoning-parser", "qwen3",
+          "--generation-config", "vllm"
+        ],
+        "argv_count": 41,
+        "argv_sha256": "805a08fcf2688459c83520a7059ae8975b372cabfdd57703194085a2127365f5",
+        "argv_digest_rule": "sha256 over json.dumps(argv, separators=(\",\", \":\")) of the list before the controller appends anything.",
+        "resources": {
+          "cards": 2,
+          "kv_flag": "--kv-cache-memory-bytes",
+          "kv_bytes_per_rank": 21474836480,
+          "note": "20 GiB is set explicitly for the text variant only; no gpu-memory-utilization flag is used."
+        }
+      },
+      "multimodal": {
+        "profile_file": "baseline-sources/hle-original018-serving.json",
+        "profile_sha256": "e230b515259d752f4d180f8c3d3808bebcfdba1df31434edaf1483847e5348f1",
+        "argv_count": 53,
+        "argv_sha256": "90f3009a2dcf346497ed50a4f14a59e934525e206f8b0d1227ed5f4518acb073",
+        "argv_digest_rule": "sha256 over json.dumps(argv, separators=(\",\", \":\")) of the `argv` array in the profile file.",
+        "resources": {
+          "cards": 2,
+          "kv_flag": "--gpu-memory-utilization",
+          "gpu_memory_utilization": 0.85,
+          "explicit_kv_bytes": null,
+          "note": "No 20 GiB reservation for this variant; the original utilization fraction decides the KV budget."
+        },
+        "differences_from_text": [
+          "--enable-expert-parallel present",
+          "no speculative/MTP config",
+          "no prefix caching (--no-enable-prefix-caching)",
+          "--max-num-seqs 16 and --max-num-batched-tokens 8192",
+          "--gpu-memory-utilization 0.85 instead of --kv-cache-memory-bytes",
+          "--seed 0 instead of 17",
+          "cudagraph_mode FULL_DECODE_ONLY instead of FULL_AND_PIECEWISE",
+          "explicit --structured-outputs-config xgrammar disable_any_whitespace",
+          "no --async-scheduling and no --mamba-cache-mode"
+        ],
+        "differences_are_original": "Both variants are archived original recipes; they are not interchangeable and are selected per dataset."
+      }
+    },
+    "controller_appended": {
+      "argv": ["--worker-extension-cls", "compile_boundary.WorkerExtension"],
+      "env": {"VLLM_SERVER_DEV_MODE": "1"},
+      "condition": "Only when the paired B1 deployment enables the shared pre-measurement warmup; also adds the restored scripts directory to PYTHONPATH.",
+      "not_b0_optimization": "This is shared measurement plumbing applied to both arms, not a B0 configuration or an improvement claim."
+    }
+  },
+  "model_view": {
+    "kind": "generated text-only view per run",
+    "changes": [
+      "text_config.architectures -> Qwen3_5MoeForCausalLM",
+      "remove text_config.rope_parameters.mrope_section and mrope_interleaved so target and independently loaded MTP draft use 1-D positions"
+    ],
+    "weights_modified": false,
+    "weight_files": 14,
+    "applies_to": "text variant only; multimodal uses the model directory as-is"
+  },
+  "environment": {
+    "VLLM_PLUGINS": "ascend,ascend_model_loader,ascend_kv_connector",
+    "VLLM_WORKER_MULTIPROC_METHOD": "spawn",
+    "VLLMHUST_NO_SITE": "1",
+    "OMP_NUM_THREADS": "4",
+    "python_home": "rootfs/usr/local/python3.11.14",
+    "removed_from_inherited_environment": [
+      "PYTHONPATH", "PYTHONHOME", "LD_LIBRARY_PATH", "LD_PRELOAD",
+      "ASCEND*", "ATB*", "HCCL*", "VLLM*", "BETTERSCALE*", "HUST*", "MTP*", "KVMAT*"
+    ],
+    "also_stripped_before_launch": ["BETTERSCALE*", "HUST*", "MTP*", "KVMAT*", "VLLM_HUST*", "VLLM_KV*"],
+    "credentials_stripped": ["GH_TOKEN", "GITHUB_TOKEN", "OPENAI_API_KEY"],
+    "per_run_paths": {
+      "ASCEND_RT_VISIBLE_DEVICES": "logical devices passed by --devices; physical cards verified by npu-smi",
+      "ASCEND_CACHE_PATH": "<cache>/ascend",
+      "VLLM_CACHE_ROOT": "<cache>/vllm",
+      "TRITON_CACHE_DIR": "<cache>/triton",
+      "TORCHINDUCTOR_CACHE_DIR": "<cache>/inductor",
+      "NUMBA_CACHE_DIR": "<cache>/numba",
+      "TMPDIR": "short per-run ipc tmp directory",
+      "VLLM_RPC_BASE_PATH": "short per-run ipc directory"
+    },
+    "offline": {
+      "HF_HUB_OFFLINE": "1",
+      "TRANSFORMERS_OFFLINE": "1"
+    }
+  },
+  "resources_shared": {
+    "memory_preflight": "32 MiB pinned allocation and round trip on each card before weight load; checkpoint-only POSIX_FADV_DONTNEED hints and raw cgroup reserve checks are shared with B1",
+    "reuse_policy": "B0 is never merged with B1 state; each arm runs on a fresh output directory and fresh compiler cache"
+  },
+  "warmup": {
+    "owner": "paired controller",
+    "selection": "scripts/serving_warmup.py for continuous C8 and dataset kinds; scripts/completion_warmup.py for acceptance and context/tenant supplements. Cohorts, extra cohorts and policy names depend on the run kind and the paired B1 release, not on B0.",
+    "b0_defines_protocol": false,
+    "recorded_per_run": "The effective protocol and its observation counts are written into each run's plan and receipt.",
+    "controller_appended": "See serving.controller_appended; the same extension is appended to both arms."
+  },
+  "qualification": {
+    "text_arm": "Completed on 2026-11-15 (context/tenant supplement A01, physical cards 1 and 6, logical 0 and 1); receipt status completed, quiescent, service and client started.",
+    "quality_measured_in_that_run": false,
+    "five_datasets": "Unchanged by this profile; B0 quality, performance and cost claims keep the evidence of their own dated runs.",
+    "not_claimed": [
+      "No B0 tuning or candidate promotion is implied by this file.",
+      "The controller-appended compile-boundary extension is shared measurement plumbing, not a B0 improvement.",
+      "Historical SDK byte equivalence is limited to the pinned image plus the original backports; host OS, driver and compiler are observed separately."
+    ]
+  },
+  "evidence": {
+    "context_tenant_A01_B0_20261115_r1": {
+      "asset_url": "https://github.com/vLLM-HUST/vllm-hust-engine/releases/download/performance-exploration-20261115-r1/context-tenant-A01-B0-20261115-r1.zip",
+      "sha256": "bcf5fd09d24a4919ff069e41627a2131ca38a11da9c4b9e4ffb1ec1b8d850ff5",
+      "bytes": 27036725,
+      "source_commit": "3c08084c64f44d96a8b17a376889fd2e3308bac2",
+      "key_files": [
+        "native/B0/service/plan.json",
+        "native/B0/service/launch-command.json",
+        "native/B0/service/runtime-identity.json",
+        "native/B0/service/runtime-environment.json",
+        "native/B0/service/actual-package-imports.json",
+        "native/B0/service/model-config-normalization.json",
+        "native/B0/service/compilation-after-measurement.json",
+        "native/B0/baseline-source-admission.json",
+        "native/B0/device-mapping.json",
+        "native/B0/receipt.json"
+      ],
+      "observed_serving": {
+        "kind": "continuous",
+        "variant": "text",
+        "append_extension": true,
+        "plan_serve_args": "41 base arguments plus the 2 controller-appended arguments"
+      },
+      "observed_warmup": {
+        "policy": "observed-torch-triton-sealed-completion-warmup-v1",
+        "source": "scripts/completion_warmup.py, selected because this run carried an acceptance contract",
+        "cohorts": [
+          {"minimum_prompt_tokens": 4096, "concurrency": 1},
+          {"minimum_prompt_tokens": 4096, "concurrency": 2},
+          {"minimum_prompt_tokens": 4096, "concurrency": 4},
+          {"minimum_prompt_tokens": 4096, "concurrency": 8},
+          {"minimum_prompt_tokens": 4096, "concurrency": 16},
+          {"minimum_prompt_tokens": 4096, "concurrency": 24},
+          {"minimum_prompt_tokens": 16384, "concurrency": 16},
+          {"minimum_prompt_tokens": 32768, "concurrency": 8}
+        ],
+        "request": {"output_tokens": 32, "seed": 17, "ignore_eos": true, "no_prefix_reuse": true},
+        "dense_decode_concurrencies": [1, 2, 4, 8, 16, 24],
+        "dense_prompt_maximum_tokens": 128,
+        "request_total": {
+          "cohort_requests": 79,
+          "dense_requests": 55,
+          "total": 134,
+          "derivation": "cohorts 4K x (1+2+4+8+16+24) = 55, 16K x 16 = 16, 32K x 8 = 8; dense decode 1+2+4+8+16+24 = 55"
+        },
+        "wall_seconds": 284.17023181915283,
+        "sealed_ranks": 2,
+        "observed_compilations_per_rank": 16
+      }
+    },
+    "code": [
+      "scripts/restore_b0_image.py",
+      "scripts/restore_b0_018.py",
+      "scripts/baseline_image_sdk.py",
+      "scripts/baseline_admission.py",
+      "scripts/baseline_entry.py",
+      "scripts/baseline_serve.py",
+      "scripts/baseline_profile.py"
+    ]
+  },
+  "open_items": [
+    "This profile is loaded and cross-checked by scripts/baseline_profile.py before model start; the run records its sha256, the selected variant and the final argv.",
+    "The text argv is a fixed copy of the restored original. If a future release restores a different original, the restored file and this profile must be reconciled explicitly rather than silently drifting."
+  ]
+}

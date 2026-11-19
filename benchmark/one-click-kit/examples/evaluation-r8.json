@@ -1,0 +1,12 @@
+{
+  "engine_profile": "r8",
+  "model": "/models/Qwen3.5-35B-A3B",
+  "b1_python": "/path/to/fixed-b1-sdk/bin/python",
+  "physical_devices": [
+    0,
+    1
+  ],
+  "cache": "/data/vllm-hust-engine/cache",
+  "out": "/data/vllm-hust-engine/runs/r8-full-five-r1",
+  "test_mode": "full"
+}

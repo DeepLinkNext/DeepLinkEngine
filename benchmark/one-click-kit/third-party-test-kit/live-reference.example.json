@@ -1,0 +1,25 @@
+{
+  "workload": "m01-workload.json",
+  "resource_guard": "resource_guard.py",
+  "target_backend": "vllm_reference_backend.py",
+  "reference_backend": "vllm_reference_backend.py",
+  "target_accounting": "native_m01_accounting.py",
+  "reference_accounting": "native_m01_accounting.py",
+  "target_certifier": null,
+  "reference_certifier": null,
+  "target_python": null,
+  "reference_python": null,
+  "target_runtime_identity": null,
+  "reference_runtime_identity": null,
+  "reference_config": {
+    "llm": null,
+    "m01_in_process_engine": true,
+    "implementation_files": {}
+  },
+  "reference_id": null,
+  "review_basis": null,
+  "physical_cards": null,
+  "logical_devices": null,
+  "phase_timeout_s": null,
+  "operations": []
+}

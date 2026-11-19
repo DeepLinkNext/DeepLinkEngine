@@ -1,0 +1,57 @@
+{
+  "schema": "vllm-hust-explicit-runtime-overlay/v1",
+  "release": "full-answer-b1-20261116-r7",
+  "base_release": "full-answer-b1-20261030-r4",
+  "base_commit": "dcac3fa0ebe96cfaa443c0295458ad66822c319a",
+  "upstream_fixes": [
+    "263ee2d3844c1c212c955f3e604575c9aea98c5a",
+    "a7a43ed3fed34870ddd640a4c9f2960b0cfb7914"
+  ],
+  "preserved_existing_adaptations": 14,
+  "excluded_intervening_performance_commits": [
+    "89b1e680",
+    "8eee8136"
+  ],
+  "files": {
+    "mods/betterscale/betterscale/compilation_scope.py": {
+      "before_sha256": null,
+      "after_sha256": "5acc767915206fa25d7cfb7fc15073e65159e43156548f99e919783d158aa4f4"
+    },
+    "mods/betterscale/betterscale/worker.py": {
+      "before_sha256": "b419b48636c9f94b0e2c9e6ed71ed49ebca628700412f452ba66d425d6c0b764",
+      "after_sha256": "268242426bb491fbe065cf6588c13c31bd904b5bdcc4900ffdb0e65f9023a198"
+    },
+    "mods/betterscale/betterscale/models/qwen35/__init__.py": {
+      "before_sha256": "9c42ec68ba530defafae0eae9eae5844898a258b924b0121211e76bbe9a12bc5",
+      "after_sha256": "e66b3b7890c212580abab6e25ab1a8ecd7005226b1aeb2cf446868a978c3e0c9"
+    },
+    "mods/betterscale/betterscale/models/qwen35/serving_warmup.py": {
+      "before_sha256": null,
+      "after_sha256": "970b4ce38227a5033ae42c3149aa63365346dcbea72c8ff09229eae04927eb97"
+    },
+    "mods/microflow/hust_prefill_microflow/school028/host-contract.json": {
+      "before_sha256": "72d2574f0f3294f1c8d549686541a4cbbe10e599fb8ee248257dc54079273e5f",
+      "after_sha256": "9abed0af9bb3cc1d00c5d893ba57ba1084de1e7e3129a0ae487a7c7e20902bf3",
+      "kind": "explicit source-pin refresh; installed packaging-date label retained"
+    },
+    "mods/correction/guarded_owned_copy_policy.py": {
+      "before_sha256": null,
+      "after_sha256": "6656912daa02cc612c9fdadde0681658d41f809efaef7b2004d7a99635fe2198"
+    },
+    "mods/correction/guarded_source_lifecycle.py": {
+      "before_sha256": null,
+      "after_sha256": "fe97fc7c7f95efaeb4d70050fa4fd5a64299dcf2cece650d683fd01b0963a441"
+    },
+    "mods/correction/owned_optimistic_operand.py": {
+      "before_sha256": "1581d33ff9e5fa1a161102ec82330c48e12ef6b03480e12bdca8f69ca62e2ddf",
+      "after_sha256": "ff3de3605eaa95a873fd1d36b57de9617f5e6a7409c613eb4fb43a1757e9002c"
+    },
+    "mods/correction/corrected_serving_runtime.py": {
+      "before_sha256": "3b27b01f13b753fd766517ba233937ae5bfc12902ee4a139fd182080a81af1c1",
+      "after_sha256": "8b831502c8f8fb6115d58b5fc6b3ce8321d7d3ebcb02e470397432e5f2093944"
+    }
+  },
+  "qualification": "Integrated native startup validation pending; two K03 full-answer performance pairs already accepted.",
+  "supersedes": "full-answer-b1-20261113-r6",
+  "local_adaptation": "Absorb guarded asynchronous owned progress copy and one-time pre-warmup source rebind. Preserve late-installed State initializer and all native source/consumer fences."
+}

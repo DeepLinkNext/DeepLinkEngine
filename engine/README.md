@@ -1,7 +1,5 @@
 # 冻结 r8 引擎
 
-[上游官网](https://vllm-hust.sage.org.ai/engine.html)
-
 [下载冻结 r8 发行包](https://github.com/DeepLinkNext/DeepLinkEngine/releases/download/r8-frozen-20261117/vllm_hust_engine-2026.11.17.8.post2.tar.gz)。包与 [PyPI 2026.11.17.8.post2](https://pypi.org/project/vllm-hust-engine/2026.11.17.8.post2/) 的发行包一致。冻结引擎提交为 `c6059a6d3d1cf7ea16340d79cccf7bb1a13fa661`，随附评测工具提交为 `bd5448c9f266cc0301c3d4cef2a10b9ab98f7205`。发行包中的 `sdk-r8.tar.gz` 包含冻结 SDK、vLLM 和 vLLM-Ascend 源码、MOD 与部署配置，`tools-r4.tar.gz` 是该 r8 版本一并锁定的评测工具归档。
 
 ## 下载与校验
@@ -20,11 +18,9 @@ tar -xzf /path/to/tools-r4.tar.gz
 python vllm-hust-engine/one_click.py prepare --help
 ```
 
-解包后即可查看 `one_click.py`、`scripts/`、`protocols/` 和 `examples/`。
+解包后即可查看该冻结版本的 `one_click.py`、`scripts/`、`protocols/` 和 `examples/`。该归档保留历史身份；新的第三方测试请使用仓库根目录的 `python one_click.py run --config evaluation.json`，其[修正版工具及参考证据锁](../benchmark/one-click-lock.json)独立版本化，自动生成本轮参考认证。
 
 ## 安装
-
-安装后运行全部测试并生成报告，使用[首页的一键入口](../README.md#一键安装与测试)。下列命令用于单独安装引擎。
 
 | 项目 | 固定环境 |
 | --- | --- |

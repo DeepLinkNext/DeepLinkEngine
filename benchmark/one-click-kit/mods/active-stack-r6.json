@@ -1,0 +1,150 @@
+{
+  "schema": "vllm-hust-enabled-mod-stack/v1",
+  "scope": "frozen-r6; documentation inventory, not a runtime loader",
+  "engine_profile": "engines/b1-r6.json",
+  "release": "full-answer-b1-20261113-r6",
+  "source_binding": {
+    "release": "full-answer-b1-20261030-r4",
+    "release_url": "https://github.com/vLLM-HUST/vllm-hust-engine/releases/tag/full-answer-b1-20261030-r4",
+    "artifacts": {
+      "full-answer-frozen-sources-20261030-r4.tar.gz": "3b13f565c2b94c4c1ba7dbfa1a1a3ac6af222085ef4e74fefe50906a3bd9c961",
+      "b1-r4-recovered-components.tar.gz": "565c3a3e73333b54af2cad969db1f15d8743f627dc9e6c28de55178767db8c33",
+      "joint-b1-r4-runtime-config.zip": "2a8e0371fdf122f9d0bdc705ee5284ba03cb50779e67c5a433c748fe75688e87"
+    },
+    "manifest_sha256": {
+      "provenance/source-manifest.json": "f357230c7ab23fe482de6b97e99eceefa4da23eec794731d1fa577c81c821cdb",
+      "provenance/component-manifest.json": "8ae289c1a65d9b28ffed4c516d8f2f4d23edd3f061773bca8b188dc5d807319d"
+    },
+    "recovery_script": "scripts/restore_b1_r4.py",
+    "download_script": "scripts/fetch_b1_r4.py",
+    "original_plan_sha256": "243c495d294e9a1a03c2cc4c3fca15d13ad5ead8a555b5f081f437f18e95a96f",
+    "runtime_overlay": "engines/b1-r6-overlay.json"
+  },
+  "unchanged_combination": {
+    "E": 24,
+    "R": 36,
+    "MTP": 2,
+    "graph": "FULL",
+    "kv_recompute": "per-request",
+    "microflow": true,
+    "packed_host": "per-object/per-dtype",
+    "host_bytes_per_rank": 4294967296,
+    "kv_bytes_per_rank": 21474836480
+  },
+  "actual_worker": "corrected_serving_runtime.CorrectedWorker",
+  "worker_chain": [
+    "betterscale.qwen35_worker.Worker",
+    "hust_prefill_microflow.school028.worker.Worker",
+    "corrected_serving_runtime.CorrectedWorker"
+  ],
+  "enabled_mods": [
+    {
+      "id": "betterscale",
+      "manifest": "mods/betterscale/mod.json",
+      "deployment_roots": [
+        "mods/betterscale"
+      ]
+    },
+    {
+      "id": "microflow",
+      "manifest": "mods/microflow/mod.json",
+      "deployment_roots": [
+        "mods/microflow"
+      ]
+    },
+    {
+      "id": "kv-materialization",
+      "manifest": "mods/kv-materialization/mod.json",
+      "deployment_roots": [
+        "mods/kv-materialization"
+      ]
+    },
+    {
+      "id": "m01-correction",
+      "manifest": "mods/m01-correction/mod.json",
+      "deployment_roots": [
+        "mods/correction",
+        "mods/correction/correction-plugin-installed-r1"
+      ]
+    },
+    {
+      "id": "packed-host",
+      "manifest": "mods/packed-host/mod.json",
+      "deployment_roots": [
+        "mods/packed-host"
+      ]
+    },
+    {
+      "id": "extension-manager",
+      "manifest": "mods/extension-manager/mod.json",
+      "deployment_roots": [
+        "manager"
+      ]
+    },
+    {
+      "id": "sealed-serving-warmup",
+      "manifest": "mods/sealed-serving-warmup/mod.json",
+      "deployment_roots": [],
+      "source_overlay": "engines/b1-r6-overlay.json",
+      "kind": "cross-cutting-policy"
+    }
+  ],
+  "pythonpath_order": [
+    "mods/packed-host",
+    "mods/correction",
+    "mods/correction/correction-plugin-installed-r1",
+    "mods/microflow",
+    "manager",
+    "mods/kv-materialization",
+    "mods/betterscale",
+    "runtime/compat",
+    "runtime/ascend",
+    "runtime/engine-core",
+    "runtime/filtered-site"
+  ],
+  "base_runtime": {
+    "profile": "engines/b1-r4.json",
+    "vllm_hust_commit": "f18cf803c5f63625e2c71253ddaf8b0bad0bad1a",
+    "vllm_ascend_hust_commit": "74f0c0a272376412b51e1c1864803d5f3a0f1b5f",
+    "deployment_roots": [
+      "runtime/compat",
+      "runtime/ascend",
+      "runtime/engine-core",
+      "runtime/filtered-site"
+    ],
+    "supporting_recovery_roots": [
+      "native-libs",
+      "native-libs/context-parallel"
+    ],
+    "identity": "Recovered components plus explicit restore adaptations; profile version strings alone do not certify byte-identical dependencies."
+  },
+  "manager_configuration": {
+    "deployment_path": "config/manager.json",
+    "sha256": "ec8634dd52dad7a67573c272610c93583ca50475f7b3bcae19fb67cd1b62c164",
+    "enabled_bundles": [
+      "org.vllm-hust.kv-materialization-school028-recompute",
+      "org.vllm-hust.prefill-microflow-school028-fa"
+    ]
+  },
+  "features_not_independent_mods": [
+    "E24/R36 execution/resident capacity",
+    "MTP2",
+    "FULL graph execution"
+  ],
+  "policy": {
+    "catalogue_changes_runtime": false,
+    "baseline_mods_are_optional_search_dimensions": false,
+    "independent_gains_must_not_be_multiplied": true,
+    "newer_candidates_are_not_implicitly_enabled": true
+  },
+  "plugin_composition": {
+    "m01_entrypoint": "m01_correction_plugin:register",
+    "m01_calls": [
+      "hust_prefill_microflow.school028.register",
+      "corrected_serving_runtime.register"
+    ],
+    "exclude_duplicate_plugin": "hust_microflow_school028_fa",
+    "packed_host": "joint_packed_plugin:register",
+    "kv_materialization": "vllm_kv_materialization.plugin:register_plugin"
+  }
+}

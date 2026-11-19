@@ -1,0 +1,21 @@
+{
+  "captured_at": "2026-11-13T12:50:59.607803+00:00",
+  "physical_cards": [
+    1,
+    6
+  ],
+  "logical_cards": [
+    0,
+    1
+  ],
+  "memory_bytes": 68719476736,
+  "cpu_cores": 8,
+  "original_b1_deployment_preserved": true,
+  "prior_local_b0_lost_on_restart": true,
+  "prior_formal_r5_streams": 0,
+  "b0_recovery_pid": 17502,
+  "supervisor_pid": 17503,
+  "runtime": "/data/shared_upload/vllm-hust-third-party-self-run-20261112/runtime-recovery-20261113-r2",
+  "native_status": "preparing_fixed_B0_environment_before_one_click",
+  "frozen_execution_commit": "d0412c2ee52c0e0c5790ec55fbbee12b5bd51238"
+}

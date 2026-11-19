@@ -1,0 +1,48 @@
+{
+  "id": "sealed-serving-warmup",
+  "version": "1.0.0",
+  "status": "absorbed-default-r6;startup-and-measurement-stability",
+  "supported_engine": [
+    "full-answer-b1-20261113-r6",
+    "full-answer-b1-20261116-r7"
+  ],
+  "default_engine": "full-answer-b1-20261113-r6",
+  "optional_search_dimension": false,
+  "implementation_pins": {
+    "overlays/b1-r6/mods/betterscale/betterscale/compilation_scope.py": "5acc767915206fa25d7cfb7fc15073e65159e43156548f99e919783d158aa4f4",
+    "overlays/b1-r6/mods/betterscale/betterscale/worker.py": "268242426bb491fbe065cf6588c13c31bd904b5bdcc4900ffdb0e65f9023a198",
+    "overlays/b1-r6/mods/betterscale/betterscale/models/qwen35/__init__.py": "e66b3b7890c212580abab6e25ab1a8ecd7005226b1aeb2cf446868a978c3e0c9",
+    "overlays/b1-r6/mods/betterscale/betterscale/models/qwen35/serving_warmup.py": "970b4ce38227a5033ae42c3149aa63365346dcbea72c8ff09229eae04927eb97",
+    "scripts/compile_boundary.py": "ea252ac9ac2bc2206ac2eeb3a667bf7c868dd40368d835aaf90660dd81e2f4a7",
+    "scripts/serving_warmup.py": "eeec13dc35158dcf01330e9dd80757f03a63c6ba1dbf37216b33f3718d1dc907",
+    "scripts/engine_entry.py": "7752f21581d6cfd26315d0bf4953cc88872cbcdc61ecb86014cd809214f16211",
+    "scripts/run_b1_r4.py": "09838ef31678de590047243611a6be1548557ed6662d7ab64c8f0afcc909ab39"
+  },
+  "source_commit": "7875e646a791f22065a68a570aee45ca45f03301",
+  "activation": "Default frozen r6 entry; exact runtime plus shared unscored client warmup, both-rank compiler seal",
+  "constraints": [
+    "Fixed35B-A3B/BF16/910B2 TP2 MTP2 FULL composition",
+    "CANN compilation not covered",
+    "No eager fallback or measurement-time rewarm",
+    "Keep this already absorbed capability in every current comparison"
+  ],
+  "overhead": "Startup compile/cache plus unscored serving requests. Preserve actual wall time and fresh-cache policy.",
+  "performance_claim": {
+    "isolated_speedup_measured": false,
+    "independent_throughput_gain_percent": null
+  },
+  "evidence": [
+    {
+      "path": "experiments/optimization-20261115/B1-r7-async-promotion-20261116-r1/continuous-B1-review-v1.json",
+      "shared_warmup_requests": 71,
+      "warmup_wall_seconds": 43.34498834609985,
+      "both_ranks_sealed": true,
+      "observed_Torch_Triton_compilation_during_measurement": 0
+    }
+  ],
+  "limitations": [
+    "Integrated r7 MMLU correct138 fails original144 screen; default remainsr6",
+    "Default task126 vs experimental C10 task194 are different versioned protocols, never relabelled"
+  ],
+  "actual_release": "https://github.com/vLLM-HUST/vllm-hust-engine/releases/tag/full-answer-b1-20261116-r7"
+}

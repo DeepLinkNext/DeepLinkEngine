@@ -1,0 +1,6 @@
+{
+  "schema": "vllm-hust-capacity-tuning/v1",
+  "id": "execution-24",
+  "execution_seats": 24,
+  "diagnostic_only": true
+}

@@ -1,0 +1,35 @@
+{
+  "schema": "vllm-hust-engine-independent-validation/v1",
+  "run": "continuous-b1-r3",
+  "scope": "Latest sealed independent deployment attempt; historical results are not substituted",
+  "worker": "corrected_serving_runtime.CorrectedWorker",
+  "vllm_version": "0.28.1.post1.dev143+gf18cf803c",
+  "ascend_version": "0.25.1rc2.dev125+hust.20260903.4.g74f0c0a27",
+  "frozen_archive_sha256": "3b13f565c2b94c4c1ba7dbfa1a1a3ac6af222085ef4e74fefe50906a3bd9c961",
+  "canonical_abi_source_sha256": "ceabfc9db30c9d8bf8dc7c9bddf523c4a8d5ef04165994635dca3b94a8e929f4",
+  "physical_cards": [
+    5,
+    6
+  ],
+  "model_weights_loaded_both_ranks": true,
+  "weight_gib_reported_per_rank": 33.6861,
+  "initial_profile_completed": true,
+  "api_healthy": false,
+  "inference_client_started": false,
+  "formal_targets": "not_assessed",
+  "status": "stopped_before_inference",
+  "failure": "RuntimeError: 4GiB conservative working-set memory reserve reached",
+  "quiescent": true,
+  "cgroup_oom_kill_recorded": false,
+  "failure_sample_retention_issue": "Previous controller checked the guard before saving the observation; memory-latest is not the triggering sample. Corrected controller saves each observation before checking.",
+  "compiler_error_interpretation": "Compiler SIGTERM and error-reading messages followed controller cleanup; they are not established as the root cause.",
+  "sealed_evidence_sha256": {
+    "receipt.json": "31d2eeef99f6174b37652dee96053a6b1aa618b90983afb352ce0687ea1a5316",
+    "checksums.json": "59ba2d7a46913b4f7e1126eea282632caa098de2503b31854824b2a76349c092",
+    "service.log": "37c425bec465c7dece8502a7130201a3fcef40afc6814bf971812c591e625438",
+    "cleanup.json": "f95d3ff686431c3a03f54a5703aaeae3e9eb2c97f4d0fbf58e1027d3d47f3e41",
+    "model-weights.json": "7a7911c50908c404888d7871aa5342120303d4eb262090636e1972d2bf0bb8a9",
+    "service/runtime-identity.json": "56fca31cbb7c77bb1389248169b1993e9de8f2b980cda94e9515448ed95a9462",
+    "service/launch-command.json": "3c24afa330a2a764d9e02f516db97087f8efd7b36ab8b50fb1b46a178ab9796e"
+  }
+}

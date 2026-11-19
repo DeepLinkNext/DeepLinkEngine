@@ -1,0 +1,114 @@
+{
+  "schema": "vllm-hust-engine-profile/v1",
+  "release": "full-answer-b1-20261030-r4",
+  "measured_run": "joint-b1-r4",
+  "model": "Qwen3.5-35B-A3B",
+  "dtype": "bfloat16",
+  "hardware": "2x Ascend 910B2",
+  "runtime": {
+    "vllm_hust": {
+      "repository": "vLLM-HUST/vllm-hust",
+      "commit": "f18cf803c5f63625e2c71253ddaf8b0bad0bad1a",
+      "observed_version": "0.28.1.post1.dev143+gf18cf803c"
+    },
+    "vllm_ascend_hust": {
+      "repository": "vLLM-HUST/vllm-ascend-hust",
+      "commit": "74f0c0a272376412b51e1c1864803d5f3a0f1b5f",
+      "observed_version": "0.25.1rc2.dev125+hust.20260903.4.g74f0c0a27.d20260909"
+    },
+    "cann": "9.1.0",
+    "worker": "corrected_serving_runtime.CorrectedWorker",
+    "observed_general_plugins": [
+      "ascend",
+      "ascend_model",
+      "ascend_model_loader",
+      "ascend_kv_connector",
+      "kv_materialization",
+      "hust_m01_correction",
+      "hust_joint_packed"
+    ]
+  },
+  "serving": {
+    "tensor_parallel_size": 2,
+    "max_model_len": 65536,
+    "max_num_seqs": 24,
+    "max_num_batched_tokens": 4096,
+    "resident_seats": 36,
+    "mtp_tokens": 2,
+    "cudagraph_mode": "FULL",
+    "request_scoped_kv_recompute": true,
+    "microflow": true,
+    "packed_pinned_state": "per-object/per-dtype",
+    "host_state_bytes_per_rank": 4294967296,
+    "device_kv_bytes_per_rank": 21474836480
+  },
+  "evidence": {
+    "benchmark_commit": "0bc5f043d4707601ae15c47b77ac2649f21ad668",
+    "frozen_archive": "full-answer-frozen-sources-20261030-r4.tar.gz",
+    "frozen_archive_sha256": "3b13f565c2b94c4c1ba7dbfa1a1a3ac6af222085ef4e74fefe50906a3bd9c961",
+    "launch_command_sha256": "90c63a46d90d2d9120373e53a601f2054e170014c239e1b0555e2fe409b45620",
+    "measured_plan_sha256": "243c495d294e9a1a03c2cc4c3fca15d13ad5ead8a555b5f081f437f18e95a96f",
+    "dependency_snapshot": "myc-b1-delay-swe-1104-r18-sdk",
+    "original_base_launch_sha256": "5032a2cd083517a7399912af8c68a39fff3c99a8d975077579e656e1bf64ec32",
+    "frozen_manifest_sha256": "f357230c7ab23fe482de6b97e99eceefa4da23eec794731d1fa577c81c821cdb",
+    "recovered_component_manifest_sha256": "8ae289c1a65d9b28ffed4c516d8f2f4d23edd3f061773bca8b188dc5d807319d"
+  },
+  "deployment": {
+    "namespace": "vllm-hust-engine",
+    "restore_entrypoint": "scripts/restore_b1_r4.py",
+    "runtime_entrypoint": "scripts/engine_entry.py",
+    "credential_sources": [
+      "GH_TOKEN",
+      "GITHUB_TOKEN",
+      ".env",
+      "--env-file"
+    ],
+    "historical_paths": "Source provenance only; active runtime paths are relocated into the deployment directory.",
+    "frozen_files_verified": 255,
+    "original_plan_references_verified": 246,
+    "recovered_files_verified": 8975,
+    "microflow_host_source_pins_verified": 177,
+    "dependency_byte_equivalence_to_20261030": false,
+    "model_service_startup": "passed_current_container",
+    "independent_inference": "passed_current_original_c8_4k_16k_617_success_zero_failure",
+    "formal_targets": "partial_existing_project_evidence_verified; current_single_arm_scope_separate; full_five_dataset_coverage_incomplete",
+    "component_import_note": "Manager child diagnostic loaded CorrectedWorker and packed-host composition; it initialized an NPU context. Resource admission is now required before this preflight.",
+    "reproduction_entrypoint": "scripts/run_b1_r4.py",
+    "joint_admission": "Requires a newly sealed original 4K/16K C8 run; re-audits raw SSE, all requests, zero prefix reuse, both Microflow ranks and packed-host activation. Historical qualification is never reused.",
+    "abi_source": {
+      "path": "abi-sources/vllm_ascend/worker/model_runner_v1.py.source",
+      "sha256": "ceabfc9db30c9d8bf8dc7c9bddf523c4a8d5ef04165994635dca3b94a8e929f4",
+      "commit": "74f0c0a272376412b51e1c1864803d5f3a0f1b5f",
+      "purpose": "Canonical ABI parsing only; does not replace the separate frozen recovered runtime override."
+    },
+    "model_weights_loaded_both_ranks": true,
+    "latest_sealed_validation": "validation/independent-joint200-20261111.json",
+    "current_blocker": "Existing qualified M01 reference and original matched200 B0/B1 evidence are available and recomputed; r4.1 report incorrectly omitted them. Actual remaining coverage includes SWE26/731 and Terminal4/89. Current single-arm8192 run is not the original out256 M01 reference workload.",
+    "memory_counter_validation": "Preserve raw values; reject impossible counters; at most three observations; persistent anomalies stop. Original guard and budgets unchanged.",
+    "source_admission": "Before NPU imports, re-derive all 9231 installed file bindings from the pinned original manifests; only the disclosed date-label and ABI path adaptations are allowed. Validate original plan and Engine Python search paths.",
+    "completion_socket_preflight": "Real preserved BetterScale CompletionInbox bind, message and cleanup before model imports, with both vLLM RPC and generic TMPDIR paths bounded.",
+    "cache_admission": "Read-only checkpoint cache hints before service and after both ranks load; require12GiB raw headroom and4GiB runtime raw reserve, with original4GiB/rank State budget unchanged.",
+    "report_entrypoint": "scripts/report_execution.py",
+    "automatic_report": "CLI renders sealed success or failure after owned processes exit and resource leases release; all four formal targets retain individual reasons and N/A where evidence is incomplete.",
+    "dependency_admission": "At every start, selected isolated SDK Python -I -S reads exact metadata against the source-verified host contract before NPU leases, native imports or model weights. Date-only source contract adaptation remains explicitly disclosed.",
+    "independent_joint_inference": "passed_current_original200_all_success_score153_of200_23_length_stops",
+    "project_evidence_correction": "validation/project-evidence-reconciliation-20261112.json"
+  },
+  "third_party_execution": {
+    "entrypoint": "scripts/third_party.py",
+    "scope": [
+      "MMLU-Pro fixed200",
+      "HLE-Verified Gold668/Revision1143 all modalities",
+      "FrontierScience Olympiad100/Research60"
+    ],
+    "explicitly_deferred": [
+      "SWE-bench-Pro",
+      "TerminalBench2.1"
+    ],
+    "baseline_original_image_digest": "sha256:2467d259ff068ca4edd7b50b849152910f3c05e435f314639fc06bcc7a00f9fa",
+    "baseline_cann": "8.5.1",
+    "baseline_sdk_source_map_sha256": "a357ad8cf1ff6f8797fb2d6476e71a0deef5ee0899a55ea32ed65f07fe7773bc",
+    "readiness": "Original pinned SDK recovery, full task preparation and46CPU regressions verified. Actual dual32MiB pinned H2D/D2H passed in original018/CANN8.5.1; model startup in progress. HLE/Frontier native execution pending.",
+    "formal_complete": false
+  }
+}

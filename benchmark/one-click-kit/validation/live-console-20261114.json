@@ -1,0 +1,16 @@
+{
+  "recorded_at": "2026-11-14T10:07:27.617357+00:00",
+  "checks": {
+    "command": "python -m pytest -q tests/test_one_click.py tests/test_live_console.py tests/test_child_runner.py tests/test_monitor_stage.py tests/test_source_admission.py",
+    "passed": 18,
+    "ruff": "check and format passed"
+  },
+  "default_follow": true,
+  "progress_interval_seconds": 30,
+  "log_directory": "<run>-logs",
+  "evidence_directory_modified_by_follower": false,
+  "cancellation_waits_for_controller_cleanup": true,
+  "standalone_cpu_subprocess_tests_only": true,
+  "new_native_inference_claimed": false,
+  "in_flight_execution_commit_unchanged": "9c4699be28425d3d05112cc31214e801e59cbf33"
+}

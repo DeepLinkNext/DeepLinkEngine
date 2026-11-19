@@ -1,0 +1,57 @@
+{
+  "m01_metadata_signature.py": {
+    "source": "/workspace/vllm-hust-optimization-20261115/M03-full200-native-work-20261116-r1/prototype/m01_metadata_signature.py",
+    "sha256": "3e6e3778feeaeaa3eed196ba9b5e36e9b98988ea4ff4d1a6653d12f84f58dc2b",
+    "current_sha256": "3e6e3778feeaeaa3eed196ba9b5e36e9b98988ea4ff4d1a6653d12f84f58dc2b"
+  },
+  "m01_observer_worker.py": {
+    "source": "/workspace/vllm-hust-optimization-20261115/M03-full200-native-work-20261116-r1/prototype/m01_observer_worker.py",
+    "sha256": "c5a3d046628eb83e29b86be3b3dfe54e10149171662dd66d6fb7731296b8161b",
+    "current_sha256": "4210b182c586ed45c344b8f28099041974b2906766a4ff4d48186ade5e2b6dff",
+    "adaptation": "Current metadata ABI, loaded inventory and query-order capture; bounded graph-visible expert routes; merged MTP positions, IDs and length planes. Every observer runs in an explicitly instrumented service and cannot supply clean timing."
+  },
+  "m01_observer_scheduler.py": {
+    "source": "/workspace/vllm-hust-optimization-20261115/M03-full200-native-work-20261116-r1/prototype/m01_observer_scheduler.py",
+    "sha256": "5e4f774d84c4131b64d823c00d745dec3dac14e84ebdbab310c5daf1c720dadf",
+    "current_sha256": "1cb40f3ed56bfad9f91af228a1490db774bd1640f78bd5a38f46e164cc0416a4",
+    "adaptation": "Retain CPU token IDs actually returned by native trimming alongside the original offered/kept/stale counters, for producer-to-retained-output joins."
+  },
+  "m01_observer_work.py": {
+    "source": "/workspace/vllm-hust-optimization-20261115/M03-full200-native-work-20261116-r1/prototype/m01_observer_work.py",
+    "sha256": "fcd30cc6bcc3fa4a0da167d92e2a033ca1e32eb5cfce19819a5a8cddc7c8578b",
+    "current_sha256": "9e20701e9044720b6c57d4bf313e0c04aad234d5a370fc9a574f114bf389bd94",
+    "adaptation": "Join both actual TP GDN host metadata streams, validate every request/layer and derive segmented prefill arithmetic using the independent shipped catalog; raw capture still does not claim a full-model score. Support actual HTTP SSE-ID/usage count joins without synthetic token arrays. Join actual per-request draft producers/retained IDs and derive strict backward KV-prefix/full/vocabulary geometry; missing state and ambiguous device length lifetimes are errors, no scalar/time/full-model certificate is implied."
+  },
+  "m01_proc_capture.py": {
+    "source": "/workspace/vllm-hust-optimization-20261115/M03-full200-native-work-20261116-r1/prototype/m01_proc_capture.py",
+    "sha256": "298ec3b2041505c0737583cbb458e973c618c92999c022276d3af07b3599bc1e",
+    "current_sha256": "be94beb8fa79bf60622ecae971292d0c07a0305c9fed74c9b1dd8b7645db9a41"
+  },
+  "m01_proc_io.py": {
+    "source": "/workspace/vllm-hust-optimization-20261115/M03-full200-native-work-20261116-r1/prototype/m01_proc_io.py",
+    "sha256": "626ffa4944c8431f2924961f049289fdd4acb4f3baf4c92f26c0a925ba5fb97b",
+    "current_sha256": "626ffa4944c8431f2924961f049289fdd4acb4f3baf4c92f26c0a925ba5fb97b"
+  },
+  "m01_proc_plugin.py": {
+    "source": "/workspace/vllm-hust-optimization-20261115/M03-full200-native-work-20261116-r1/prototype/m01_proc_plugin.py",
+    "sha256": "fc9057840f6a56913130b37242af938faeeafb4c5f0e7abb5a897bf24f262e08",
+    "current_sha256": "876ed2431f78306d4ca092e6c936913075320eb1fce05fc1e308aed90ac1f8df",
+    "adaptation": "Explicit local HTTP observation controls and raw-service-only pre-load route recorder installation. All frozen production files remain unchanged."
+  },
+  "m01_proc_worker.py": {
+    "source": "/workspace/vllm-hust-optimization-20261115/M03-full200-native-work-20261116-r1/prototype/m01_proc_worker.py",
+    "sha256": "5a220bce50d5f6ed74ce8e9ce43ad48b7020562d5ac9a6d98250a08a9618fae1",
+    "current_sha256": "b26c010f912025f6974813c09eb325013d6c113e1d89faf77e9f29b363a29a52",
+    "adaptation": "Return the worker-acknowledged exact merged draft call count after restoring its observer, in addition to the original target wave count."
+  },
+  "upstream-observer-sources-v1.json": {
+    "source": "/workspace/vllm-hust-optimization-20261115/M03-full200-native-work-20261116-r1/prototype/upstream-observer-sources-v1.json",
+    "sha256": "f27a9548142229f44c9fa870e13e76266510e4e67bd5dee0216ba98e2879cc02",
+    "current_sha256": "c4a1db42cb6f02afb8456ceed9b309a1a2a1246dbe469b555fb0b270afadafbb"
+  },
+  "persistent_npu_profiler.py": {
+    "source": "/workspace/vllm-hust-optimization-20261115/M03-full200-native-work-20261116-r1/persistent_npu_profiler.py",
+    "sha256": "1ad24ce3bd50d604d5c4c7e797359f42362a978b5fa3c0fe172de514c557856b",
+    "current_sha256": "1ad24ce3bd50d604d5c4c7e797359f42362a978b5fa3c0fe172de514c557856b"
+  }
+}

@@ -1,0 +1,62 @@
+{
+  "schema": "vllm-hust-frozen-mod/v1",
+  "id": "m01-correction",
+  "name": "M01 correction",
+  "kind": "correctness-module",
+  "version": "full-answer-b1-20261113-r6",
+  "status": "enabled-in-frozen-r6",
+  "supported_engine": [
+    "full-answer-b1-20261113-r6"
+  ],
+  "default_enabled": true,
+  "default_engine": "full-answer-b1-20261113-r6",
+  "optional_search_dimension": false,
+  "engine_profile": "engines/b1-r6.json",
+  "source_inventory": "mods/active-stack-r6.json",
+  "deployment_roots": [
+    "mods/correction",
+    "mods/correction/correction-plugin-installed-r1"
+  ],
+  "requires_mods": [
+    "betterscale",
+    "microflow"
+  ],
+  "deployment_entrypoint_pins": {
+    "mods/correction/corrected_serving_runtime.py": "3b27b01f13b753fd766517ba233937ae5bfc12902ee4a139fd182080a81af1c1",
+    "mods/correction/m01_progress_source_snapshot.py": "56f7cd9c37ec88d1dc22ef5055a5c80332586b8a425921892f5fe21c705c3d3d",
+    "mods/correction/owned_optimistic_operand.py": "1581d33ff9e5fa1a161102ec82330c48e12ef6b03480e12bdca8f69ca62e2ddf",
+    "mods/correction/causal_draft_lengths.py": "b47a21fcdf732a28359d72dd8e050c667398b47ed6ee874a43caef05b65aa2e1"
+  },
+  "pin_algorithm": "sha256",
+  "pin_scope": "Selected deployed entrypoints; complete original file coverage comes from source/component manifests plus the r6 overlay and documented restore adaptations.",
+  "activation": "general plugin hust_m01_correction 通过 corrected_serving_runtime.register 安装 CorrectedWorker；必须显式 HUST_M01_CORRECTED_SERVING=1 与 HUST_M01_HOST_PREFILL_AGGREGATE=1。",
+  "features": [
+    "progress-source-snapshot",
+    "owned-optimistic-operand",
+    "causal-draft-lengths",
+    "host-prefill-counting"
+  ],
+  "resource_and_startup_cost": "状态快照、拥有权和因果检查及主机计数开销计入正式请求；冻结路径不启用诊断 journals 或 route recording。",
+  "constraints": [
+    "Ascend 910B2; Qwen3.5-35B-A3B; BF16; TP2/PP1",
+    "CorrectedWorker 要求 TP2/PP1，并校验先由 Manager 启用 Microflow Worker。目录 ID 为 m01-correction，部署路径沿用 mods/correction，避免改变 PYTHONPATH。ABI 签名路径重定位由 restore 脚本单独校验。"
+  ],
+  "disable_or_restore": "冻结 r6 使用完整组合，不提供临时删模块开关；历史对照需单独版本化配置和验收，恢复使用校验通过的同版快照。",
+  "performance_claim": {
+    "isolated_speedup_measured": false,
+    "independent_throughput_gain_percent": null,
+    "evidence_scope": "Frozen combined-engine evidence; not a new component ablation."
+  },
+  "evidence": [
+    "engines/b1-r4.json",
+    "engines/b1-r6.json",
+    "engines/b1-r6-overlay.json",
+    "validation/r6-self-run-status-20261115.json"
+  ],
+  "recovery_source_route": {
+    "artifact": "full-answer-frozen-sources-20261030-r4.tar.gz",
+    "prefix": "/root/m01-storage-timing-runtime-20261024/",
+    "plugin_artifact": "b1-r4-recovered-components.tar.gz",
+    "plugin_prefix": "workspace/m01-qualification-20261101/b1/correction-plugin-installed-r1/"
+  }
+}

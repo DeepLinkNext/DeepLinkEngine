@@ -1,0 +1,14 @@
+{
+  "completed": true,
+  "physical_cards": [
+    1,
+    6
+  ],
+  "logical_cards": [
+    0,
+    1
+  ],
+  "native_host_transfer_validated": true,
+  "full_model_qualified": false,
+  "ended": 1794574584.9822083
+}

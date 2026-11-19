@@ -1,0 +1,84 @@
+{
+  "schema": "vllm-hust-r5-preflight/v1",
+  "status": "cpu_checks_passed_native_pending",
+  "runtime_overlay": "engines/b1-r5-overlay.json",
+  "engine_tests": 102,
+  "subtests": 2,
+  "upstream_warmup_tests": 14,
+  "actual_sdk_torch_probes": {
+    "B0": {
+      "torch": "2.9.0+cpu",
+      "warmup_compile_observed": true,
+      "cached_execution_after_seal": true,
+      "new_shape_blocked": true,
+      "no_eager_fallback": true,
+      "events": [
+        {
+          "at": 1794564089.7867563,
+          "monotonic": 4520622.256221336,
+          "pid": 4036783,
+          "compiler": "boundary-installed",
+          "sealed": false
+        },
+        {
+          "at": 1794564090.0427465,
+          "monotonic": 4520622.512208025,
+          "pid": 4036783,
+          "compiler": "torch-dynamo",
+          "sealed": false,
+          "detail": "(CallbackArgs(callback_trigger=<CallbackTrigger.DYNAMO: 1>, compile_id='0/0'),)"
+        },
+        {
+          "at": 1794564090.2501488,
+          "monotonic": 4520622.719610418,
+          "pid": 4036783,
+          "compiler": "torch-dynamo",
+          "sealed": true,
+          "detail": "(CallbackArgs(callback_trigger=<CallbackTrigger.DYNAMO: 1>, compile_id='0/1'),)"
+        }
+      ]
+    },
+    "B1": {
+      "torch": "2.13.0+cpu",
+      "warmup_compile_observed": true,
+      "cached_execution_after_seal": true,
+      "new_shape_blocked": true,
+      "no_eager_fallback": true,
+      "events": [
+        {
+          "at": 1794564214.659177,
+          "monotonic": 4520747.128645878,
+          "pid": 4043504,
+          "compiler": "boundary-installed",
+          "sealed": false
+        },
+        {
+          "at": 1794564214.718099,
+          "monotonic": 4520747.187560199,
+          "pid": 4043504,
+          "compiler": "torch-dynamo",
+          "sealed": false,
+          "detail": "(CallbackArgs(callback_trigger=<CallbackTrigger.DYNAMO: 1>, compile_id='0/0'),)"
+        },
+        {
+          "at": 1794564216.21279,
+          "monotonic": 4520748.682251897,
+          "pid": 4043504,
+          "compiler": "torch-dynamo",
+          "sealed": true,
+          "detail": "(CallbackArgs(callback_trigger=<CallbackTrigger.DYNAMO: 1>, compile_id='0/1'),)"
+        }
+      ]
+    }
+  },
+  "native_qualified": false,
+  "old_r4_results_preserved": true,
+  "old_b0_reuse_for_new_warmup_policy": false,
+  "CANN_compilation_guard": false,
+  "bounded_v2_development_regrade": {
+    "solver": "B0 original HLE200 answers",
+    "valid_judges": 198,
+    "unresolved_judges": 2,
+    "classification": "development validation, not new solver or matched runtime results"
+  }
+}

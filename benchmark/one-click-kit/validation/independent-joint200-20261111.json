@@ -1,0 +1,104 @@
+{
+  "schema": "vllm-hust-engine-execution-report/v1",
+  "source_seal_sha256": "d2b96ea07b34dce7f1bdfd71492a968ed6444a49527c9cb9d6add005d03e114c",
+  "sealed_files": 442,
+  "recorded_requests": 200,
+  "successful_requests": 200,
+  "failed_requests": 0,
+  "quality": {
+    "planned_denominator": 200,
+    "recorded": 200,
+    "correct": 153,
+    "accuracy_pct_of_planned200": 76.5,
+    "truncated_recorded": 23,
+    "unparsed_recorded": 0,
+    "unreturned": 0,
+    "scorer_sha256": "c2237c69f848e2358abe71c68f54143b5c090a81bd4f7915088b19b8ae157801",
+    "scope": "Descriptive MMLU200 only; not the five-dataset acceptance suite"
+  },
+  "groups": {
+    "joint200": {
+      "recorded": 200,
+      "successful": 200,
+      "failed": 0,
+      "successful_output_tokens": 701457,
+      "mean_ttft_ms": 314448.1037278054,
+      "mean_tpot_ms": 22.283147248510275,
+      "cohort_wall_seconds": 754.2977789426222,
+      "output_tokens_per_second": 929.9470574914131
+    }
+  },
+  "joint_activation": {
+    "request_scoped_recompute_admissions": 200,
+    "reused_tokens": 0,
+    "microflow": {
+      "0": {
+        "split_events": 130,
+        "target_mtp_graph_replays": 12505
+      },
+      "1": {
+        "split_events": 130,
+        "target_mtp_graph_replays": 12505
+      }
+    },
+    "corrected_worker": "corrected_serving_runtime.CorrectedWorker",
+    "scope": "Actual activation and request admission, not general state-isolation proof",
+    "host_budget_per_rank_bytes": 4294967296,
+    "packed_host_sha256": "aa96163c12c0671a3d898586bc8abfbf9ca03cad3aba72cff2526261546ad42c"
+  },
+  "formal_targets": {
+    "3.4.1": {
+      "name": "有效算力效率 ≥50%",
+      "reason": "缺少适用的整链 F/T 参考；设备利用率不能替代有效 FLOPs。",
+      "status": "unassessable",
+      "accepted": false,
+      "measured_value": null
+    },
+    "3.4.2": {
+      "name": "吞吐 ≥10%，TTFT/TPOT 各改善 ≥5%",
+      "reason": "本报告没有完整 B0/B1 正式配对及独立质量/SLO 门槛；C8 闭环请求不是正式配对负载。",
+      "status": "unassessable",
+      "accepted": false,
+      "measured_value": null
+    },
+    "3.4.3": {
+      "name": "五数据集与 16K 稳定性",
+      "reason": "本报告不包含完整五数据集验收。连续测试资格已复核；正式任务与阈值仍须单独验证。",
+      "status": "unassessable",
+      "accepted": false,
+      "measured_value": null
+    },
+    "3.4.4": {
+      "name": "单位 token 成本降低 ≥10%及高负载利用率改善",
+      "reason": "缺少完整同负载配对和适用费用证据；冻结公有价格仅为估算，不能冒充本机账单。",
+      "status": "unassessable",
+      "accepted": false,
+      "measured_value": null
+    }
+  },
+  "formal_complete": false,
+  "report_sources": {
+    "original_audit.py": "3b0f85d98bf36e13fb3abad83e7ce12c4fa7ea3a53eb5b8f565511ddaffcd44f",
+    "qualification.py": "0e74f7dcb7870a4634ce7fa17bf041ba3943a73e838a5a543615e8cb2ddcf48c",
+    "restore_b1_r4.py": "c165c6f29533ba5d36058165e221e9ba5dbaab0a16eba6673b7fb6e684245f20",
+    "engine_entry.py": "c965ca28d77e6cee0d4d2662a8fa91176ea32e97984eb754b46b515428b219c0",
+    "checkpoint_cache.py": "c33bb2e9ad88e985205c6d9775d986933712de24660ac6a61e310b35ad02099d",
+    "fetch_b1_r4.py": "d172af65311c16e0f3ad2fb8102f6f0b1661692915070066f262d03b442a7b5f",
+    "run_b1_r4.py": "8fa56d85ad81421d2620c8b9bc127095c8e8fe82c79d3a0b815362188fb70806",
+    "report_execution.py": "9c64245005adca413da4fc4ca3f175de970fb80b312e39e335e04644d45d826b",
+    "dependency_admission.py": "ef04dccfee4dd68ff5fd1be480e86f63efae0d91b1ddac31a5b74cd733514d54",
+    "continuous_inputs.py": "f9787d060f4740b21d570a077652c0e7eaac7bd08b3d8882f5214e118fc6f186",
+    "report_environment.py": "1bd6a28d5d79dbd4bb79e7c2ff00b3025f402d2b4a3d7ca7652d2fb507407d17",
+    "reproduce_b1_r4.py": "81b97778dc85c388398b4561557d41b7d9371b472ef6d061dfe1f2a756aeed55",
+    "resource_guard.py": "facc6e4fa5ff77c62bc365025849c8635468b95d222c731f85a55c6f8dfafb7b",
+    "owned_processes.py": "53f48156576aec520ba60a91c7a6a18e27a914e4a9793853c88bd9635390d681"
+  },
+  "scope": "Independent fresh original B1 joint200 replay only; complete raw SSE, frozen task/scorer, token bindings and activation reaudited. Not the full five-dataset acceptance or paired improvement.",
+  "continuous_qualification": {
+    "requests": 617,
+    "seal_sha256": "25c0c9a06b95939f4c45edca4a8d6b1f07f41de9a208f08c2d4f02f68ed5de95"
+  },
+  "completed": true,
+  "quiescent": true,
+  "historical_dependency_byte_equivalence": false
+}

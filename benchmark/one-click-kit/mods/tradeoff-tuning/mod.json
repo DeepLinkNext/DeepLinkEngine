@@ -1,0 +1,21 @@
+{
+  "schema": "vllm-hust-development-mod/v1",
+  "id": "tradeoff-tuning",
+  "version": "0.1.1",
+  "kind": "offline-controller-evidence-mod",
+  "status": "experimental",
+  "default_enabled": false,
+  "entrypoint": "tradeoff_tuning.py",
+  "runtime_patching": false,
+  "automatic_launch": false,
+  "automatic_deployment": false,
+  "capacity_execution_mod": "../capacity-tuning/capacity_tuning.py",
+  "evidence_catalog": "catalog-v2.json",
+  "model": "Qwen3.5-35B-A3B BF16",
+  "hardware": "2 x Ascend 910B2",
+  "dataset": "fixed MMLU200, burst200, max8192, EOS, temperature0, seed0",
+  "runtime_identity": "Verified r6 local SDK compositions pinned by individual native experiment manifests; r6 is not asserted to be a downloadable GitHub Release tag",
+  "quality_qualified": false,
+  "stability_qualified": false,
+  "candidate_promoted": false
+}

@@ -10,7 +10,7 @@
 python run_all.py --config evaluation.json
 ```
 
-入口依次完成引擎安装与校验、固定五项 B0/B1 测试、长上下文和四租户测试，输出原始记录、校验值、JSON 结果及 HTML 报告。第三方见证运行，核对版本、配置、当次原始记录和报告后出具结论。4.1 按[现场采集说明](indicator-retest.md)单独执行进程内双卡计时、全模型有效算量与独立参考标定；仓库内的历史配对复算不用于正式判定。
+入口依次完成引擎安装与校验、固定五项 B0/B1 测试、长上下文和四租户测试，输出原始记录、校验值、JSON 结果及 HTML 报告。第三方见证运行，核对版本、配置、当次原始记录和报告后出具结论。4.1 随一键流程自动生成本轮原生双卡计时、必要算量与原完整参考分母复用认证，报告保留其方法身份。若现场方案要求重新独立标定完整参考，按[现场采集说明](indicator-retest.md)执行；自动复用报告不冒充现场新标定结果。历史预检不替代第三方正式判定。
 
 ## 公开结果复核
 
@@ -35,17 +35,19 @@ python benchmark/reports/r8-context-tenant-20261119/reproduce_publication.py \
 
 ## 昇腾实机配对测试
 
-五项实机评测脚本随 [r8 评测工具归档](https://github.com/DeepLinkNext/DeepLinkEngine/releases/download/r8-frozen-20261117/tools-r4.tar.gz) 提供。入口是 `one_click.py`，数据核验由 `scripts/dataset_contract.py` 和 `scripts/agent_trace.py` 执行，配对流程由 `scripts/third_party.py` 调度，报告由 `scripts/report_execution.py` 生成。
+使用仓库根目录 `one_click.py`。该入口校验仓库内 [one-click-kit](one-click-kit/one_click.py) 的全部工具源码，自动获取本仓库公开 Release 的固定参考证据。工具和证据的字节数、SHA-256 及来源版本见 [one-click-lock.json](one-click-lock.json)。冻结安装包和旧 `tools-r4.tar.gz` 保留原件，新的测试由修正版工具执行。
 
 B0 为固定的 `original018-cann8.5.1`，由工具核验上游镜像摘要并恢复，或指定已按该版本制备的 SDK。B1 为 [冻结 r8](../engine/README.md)。两臂使用同一套 Qwen3.5-35B-A3B 权重和同一对 910B2。物理卡号按实机分配填写。
 
-1. 按[引擎安装说明](../engine/README.md)安装 B1。复制[配置示例](evaluation-r8.example.json)，填写本机权重、B1 部署目录、空的输出目录和两张物理卡号。已有 B0 SDK 时可追加 `baseline_deployment`。已有题目数据时可追加 `dataset_assets`，其下为 `hle/`、`frontier/` 及 `public-agent-traces/`，下载和核验规则由归档工具执行。
-2. 正式工具还会核验一份固定的项目证据包。把经授权取得并解包的 `benchmark-evidence` 目录设为环境变量 `VLLM_HUST_PROJECT_EVIDENCE`。已有源发布访问权时，归档工具也可从源 Release 恢复。此输入与本仓库公开的 4.1 附件、4.2 汇总分别有各自的版本校验。
-3. 用相同配置先准备运行计划，再执行两臂。检查输出目录的执行回执及 HTML 报告。`prepare` 做环境和文件核验并冻结计划，完整配置的 `run` 才会启动推理。
+1. 按[引擎安装说明](../engine/README.md)安装 B1。复制根目录[配置示例](../evaluation.example.json)，填写本机权重、B1 部署目录、空的输出目录和两张物理卡号。已有 B0 SDK 时可追加 `baseline_deployment`。已有题目数据时可追加 `dataset_assets`，其下为 `hle/`、`frontier/` 及 `public-agent-traces/`，下载和核验规则由工具执行。
+2. 直接运行下面的 `run` 命令。工具自动下载并逐项核验参考证据，不需要访问原私有仓库，也不需要配置令牌。已有经校验的固定证据目录时仍可设置 `VLLM_HUST_PROJECT_EVIDENCE`；手工传入的目录同样必须符合固定清单。
+3. 检查 `<out>-report/report.html`、`<out>/compute-reference/automatic-result.json`、`matched-reference-pair.json`、曲线和校验清单。可先用 `prepare` 检查环境并冻结计划；它不执行正式推理，写入 `<out>-prepare`。正式 `run` 使用配置中的 `<out>`。
 
 ```sh
-vllm-hust-engine evaluate --installation /path/to/r8-installation -- prepare --config /path/to/evaluation.json
-vllm-hust-engine evaluate --installation /path/to/r8-installation -- run --config /path/to/evaluation.json
+python one_click.py verify
+python one_click.py run --config /path/to/evaluation.json
 ```
 
-`test_mode: "full"` 运行固定五项，`"quick"` 仅运行 MMLU-Pro 200 题。4.1 单独使用 MMLU-Pro 输出上限 256 的同步墙钟和参考路径证据。历史 4.3 和 4.4 的四租户结果来自预检专项，[专项协议和原始汇总](reports/r8-context-tenant-20261119/summary-public-v1.json)保存输入档位、到达窗口、排空、队列及采样口径。专项摘要生成器可在有原封存 ZIP 时重建报告。
+`test_mode: "full"` 运行固定五项，`"quick"` 仅运行 MMLU-Pro 200 题，两种模式都自动执行参考认证。默认 `reference_profile: "submission-v2"` 为固定 MMLU200/out256，每臂三轮；不能将该参考分母套到 out8192 完整回答。达成率使用本轮必要算量和全部三轮同步墙钟，除以重新核验的原完整参考每卡上界；保留两边各自的算量和参考时间，不直接复用历史达成率。工况或证据不匹配时返回非零，缺项单列。该认证明确标记为原完整参考分母的同工况复用，详见[参考认证说明](one-click-kit/third-party-test-kit/参考算力标定与复算.md)。
+
+报告保留全部五项结果，评分使用同权重模型辅助裁判，未决保留在分母并单列。短输出参考样本的事后得分不能代替完整回答质量。4.3 和 4.4 的四租户结果来自另一次专项运行，[专项协议和原始汇总](reports/r8-context-tenant-20261119/summary-public-v1.json)保存输入档位、到达窗口、排空、队列及采样口径；这些专项不在默认五项流程里冒充已执行。专项摘要生成器可在有原封存 ZIP 时重建报告。

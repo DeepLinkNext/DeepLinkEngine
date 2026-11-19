@@ -1,0 +1,855 @@
+{
+  "analysis_sha256": "d23408b91ea40d769ce9641b50760bfd735bad271738b61cc2ad7b9b18a2971e",
+  "variants": {
+    "packed32": {
+      "numeric_accepted": true,
+      "performance_pairs": 48,
+      "required_performance_pairs": 48,
+      "performance_screen_met": true,
+      "gate": "Both cards, all6geometry×2seed cases, both directions: wall and device median each>=5% reduction",
+      "all_original_pairs": [
+        {
+          "direction": "forward",
+          "reduction_percent": {
+            "wall_ns_per_op": 39.26838066749737,
+            "device_median_ms": 42.130418231512955
+          },
+          "screen_met": true
+        },
+        {
+          "direction": "reverse",
+          "reduction_percent": {
+            "wall_ns_per_op": 37.30461395465077,
+            "device_median_ms": 42.55996962122891
+          },
+          "screen_met": true
+        },
+        {
+          "direction": "forward",
+          "reduction_percent": {
+            "wall_ns_per_op": 36.20242918764329,
+            "device_median_ms": 40.24151632558258
+          },
+          "screen_met": true
+        },
+        {
+          "direction": "reverse",
+          "reduction_percent": {
+            "wall_ns_per_op": 36.35268109195107,
+            "device_median_ms": 42.46763291679615
+          },
+          "screen_met": true
+        },
+        {
+          "direction": "forward",
+          "reduction_percent": {
+            "wall_ns_per_op": 38.630861983607225,
+            "device_median_ms": 41.456436848555626
+          },
+          "screen_met": true
+        },
+        {
+          "direction": "reverse",
+          "reduction_percent": {
+            "wall_ns_per_op": 36.536055850145544,
+            "device_median_ms": 42.01271518368501
+          },
+          "screen_met": true
+        },
+        {
+          "direction": "forward",
+          "reduction_percent": {
+            "wall_ns_per_op": 38.34668842463831,
+            "device_median_ms": 41.779552457844545
+          },
+          "screen_met": true
+        },
+        {
+          "direction": "reverse",
+          "reduction_percent": {
+            "wall_ns_per_op": 37.395838606905095,
+            "device_median_ms": 42.32005570143921
+          },
+          "screen_met": true
+        },
+        {
+          "direction": "forward",
+          "reduction_percent": {
+            "wall_ns_per_op": 45.48635507812647,
+            "device_median_ms": 46.60861453119682
+          },
+          "screen_met": true
+        },
+        {
+          "direction": "reverse",
+          "reduction_percent": {
+            "wall_ns_per_op": 45.67942020067098,
+            "device_median_ms": 46.0591071483803
+          },
+          "screen_met": true
+        },
+        {
+          "direction": "forward",
+          "reduction_percent": {
+            "wall_ns_per_op": 44.52691085451176,
+            "device_median_ms": 44.65644172890122
+          },
+          "screen_met": true
+        },
+        {
+          "direction": "reverse",
+          "reduction_percent": {
+            "wall_ns_per_op": 44.3908324033144,
+            "device_median_ms": 45.01084828798667
+          },
+          "screen_met": true
+        },
+        {
+          "direction": "forward",
+          "reduction_percent": {
+            "wall_ns_per_op": 65.77155021958572,
+            "device_median_ms": 66.27105423090894
+          },
+          "screen_met": true
+        },
+        {
+          "direction": "reverse",
+          "reduction_percent": {
+            "wall_ns_per_op": 65.48999380202852,
+            "device_median_ms": 66.0390438172058
+          },
+          "screen_met": true
+        },
+        {
+          "direction": "forward",
+          "reduction_percent": {
+            "wall_ns_per_op": 67.90599734786036,
+            "device_median_ms": 67.65106285943811
+          },
+          "screen_met": true
+        },
+        {
+          "direction": "reverse",
+          "reduction_percent": {
+            "wall_ns_per_op": 67.08896592804722,
+            "device_median_ms": 67.34532548317515
+          },
+          "screen_met": true
+        },
+        {
+          "direction": "forward",
+          "reduction_percent": {
+            "wall_ns_per_op": 44.818449887279655,
+            "device_median_ms": 45.26485938341652
+          },
+          "screen_met": true
+        },
+        {
+          "direction": "reverse",
+          "reduction_percent": {
+            "wall_ns_per_op": 43.90149220016446,
+            "device_median_ms": 45.148727687197734
+          },
+          "screen_met": true
+        },
+        {
+          "direction": "forward",
+          "reduction_percent": {
+            "wall_ns_per_op": 45.28220296545528,
+            "device_median_ms": 46.070860307893824
+          },
+          "screen_met": true
+        },
+        {
+          "direction": "reverse",
+          "reduction_percent": {
+            "wall_ns_per_op": 45.61477716666027,
+            "device_median_ms": 46.947497759210066
+          },
+          "screen_met": true
+        },
+        {
+          "direction": "forward",
+          "reduction_percent": {
+            "wall_ns_per_op": 62.637703240883994,
+            "device_median_ms": 62.99600264232945
+          },
+          "screen_met": true
+        },
+        {
+          "direction": "reverse",
+          "reduction_percent": {
+            "wall_ns_per_op": 62.44194306504078,
+            "device_median_ms": 63.07720845643517
+          },
+          "screen_met": true
+        },
+        {
+          "direction": "forward",
+          "reduction_percent": {
+            "wall_ns_per_op": 60.763320767873644,
+            "device_median_ms": 60.98390330899883
+          },
+          "screen_met": true
+        },
+        {
+          "direction": "reverse",
+          "reduction_percent": {
+            "wall_ns_per_op": 60.59647277475737,
+            "device_median_ms": 61.051238753023426
+          },
+          "screen_met": true
+        },
+        {
+          "direction": "forward",
+          "reduction_percent": {
+            "wall_ns_per_op": 38.761603306695804,
+            "device_median_ms": 42.794400910120224
+          },
+          "screen_met": true
+        },
+        {
+          "direction": "reverse",
+          "reduction_percent": {
+            "wall_ns_per_op": 37.326274211866576,
+            "device_median_ms": 43.648728194797336
+          },
+          "screen_met": true
+        },
+        {
+          "direction": "forward",
+          "reduction_percent": {
+            "wall_ns_per_op": 36.381622667823684,
+            "device_median_ms": 42.56974050889995
+          },
+          "screen_met": true
+        },
+        {
+          "direction": "reverse",
+          "reduction_percent": {
+            "wall_ns_per_op": 35.51807374050255,
+            "device_median_ms": 42.69492708136187
+          },
+          "screen_met": true
+        },
+        {
+          "direction": "forward",
+          "reduction_percent": {
+            "wall_ns_per_op": 37.13863053314507,
+            "device_median_ms": 41.57519955938049
+          },
+          "screen_met": true
+        },
+        {
+          "direction": "reverse",
+          "reduction_percent": {
+            "wall_ns_per_op": 40.861447724638644,
+            "device_median_ms": 42.488909656652666
+          },
+          "screen_met": true
+        },
+        {
+          "direction": "forward",
+          "reduction_percent": {
+            "wall_ns_per_op": 37.40374622165542,
+            "device_median_ms": 41.776704609771656
+          },
+          "screen_met": true
+        },
+        {
+          "direction": "reverse",
+          "reduction_percent": {
+            "wall_ns_per_op": 36.19259977883562,
+            "device_median_ms": 42.09461327810276
+          },
+          "screen_met": true
+        },
+        {
+          "direction": "forward",
+          "reduction_percent": {
+            "wall_ns_per_op": 36.94434654767611,
+            "device_median_ms": 38.12518012692594
+          },
+          "screen_met": true
+        },
+        {
+          "direction": "reverse",
+          "reduction_percent": {
+            "wall_ns_per_op": 36.68542441631342,
+            "device_median_ms": 37.73502716216035
+          },
+          "screen_met": true
+        },
+        {
+          "direction": "forward",
+          "reduction_percent": {
+            "wall_ns_per_op": 40.79095549447428,
+            "device_median_ms": 40.568796654418016
+          },
+          "screen_met": true
+        },
+        {
+          "direction": "reverse",
+          "reduction_percent": {
+            "wall_ns_per_op": 40.8393005237748,
+            "device_median_ms": 41.7990321200101
+          },
+          "screen_met": true
+        },
+        {
+          "direction": "forward",
+          "reduction_percent": {
+            "wall_ns_per_op": 67.60665266720402,
+            "device_median_ms": 68.03242006375156
+          },
+          "screen_met": true
+        },
+        {
+          "direction": "reverse",
+          "reduction_percent": {
+            "wall_ns_per_op": 67.7683167975255,
+            "device_median_ms": 68.18772339091345
+          },
+          "screen_met": true
+        },
+        {
+          "direction": "forward",
+          "reduction_percent": {
+            "wall_ns_per_op": 65.84885514166146,
+            "device_median_ms": 66.32496918553299
+          },
+          "screen_met": true
+        },
+        {
+          "direction": "reverse",
+          "reduction_percent": {
+            "wall_ns_per_op": 65.98494333424063,
+            "device_median_ms": 66.40356690402105
+          },
+          "screen_met": true
+        },
+        {
+          "direction": "forward",
+          "reduction_percent": {
+            "wall_ns_per_op": 39.97937610367153,
+            "device_median_ms": 40.592251373791065
+          },
+          "screen_met": true
+        },
+        {
+          "direction": "reverse",
+          "reduction_percent": {
+            "wall_ns_per_op": 38.59655573510041,
+            "device_median_ms": 40.094375273270046
+          },
+          "screen_met": true
+        },
+        {
+          "direction": "forward",
+          "reduction_percent": {
+            "wall_ns_per_op": 37.46562185776535,
+            "device_median_ms": 37.565105910027604
+          },
+          "screen_met": true
+        },
+        {
+          "direction": "reverse",
+          "reduction_percent": {
+            "wall_ns_per_op": 36.37295250981353,
+            "device_median_ms": 37.14130118221516
+          },
+          "screen_met": true
+        },
+        {
+          "direction": "forward",
+          "reduction_percent": {
+            "wall_ns_per_op": 61.39047879532512,
+            "device_median_ms": 62.15256660989839
+          },
+          "screen_met": true
+        },
+        {
+          "direction": "reverse",
+          "reduction_percent": {
+            "wall_ns_per_op": 61.48241094894728,
+            "device_median_ms": 61.98489410878864
+          },
+          "screen_met": true
+        },
+        {
+          "direction": "forward",
+          "reduction_percent": {
+            "wall_ns_per_op": 62.385540166865205,
+            "device_median_ms": 62.87616038865998
+          },
+          "screen_met": true
+        },
+        {
+          "direction": "reverse",
+          "reduction_percent": {
+            "wall_ns_per_op": 62.6612149046605,
+            "device_median_ms": 63.21180228155349
+          },
+          "screen_met": true
+        }
+      ],
+      "reduction_range_percent": {
+        "wall_ns_per_op": [
+          35.51807374050255,
+          67.90599734786036
+        ],
+        "device_median_ms": [
+          37.14130118221516,
+          68.18772339091345
+        ]
+      },
+      "different_BF16_cells": 120
+    },
+    "packed64": {
+      "numeric_accepted": true,
+      "performance_pairs": 48,
+      "required_performance_pairs": 48,
+      "performance_screen_met": true,
+      "gate": "Both cards, all6geometry×2seed cases, both directions: wall and device median each>=5% reduction",
+      "all_original_pairs": [
+        {
+          "direction": "forward",
+          "reduction_percent": {
+            "wall_ns_per_op": 37.117846553609155,
+            "device_median_ms": 42.804995441694984
+          },
+          "screen_met": true
+        },
+        {
+          "direction": "reverse",
+          "reduction_percent": {
+            "wall_ns_per_op": 37.50043593361128,
+            "device_median_ms": 42.69042687987359
+          },
+          "screen_met": true
+        },
+        {
+          "direction": "forward",
+          "reduction_percent": {
+            "wall_ns_per_op": 36.32494762568381,
+            "device_median_ms": 42.039506791832004
+          },
+          "screen_met": true
+        },
+        {
+          "direction": "reverse",
+          "reduction_percent": {
+            "wall_ns_per_op": 38.44850564297963,
+            "device_median_ms": 44.06635042305881
+          },
+          "screen_met": true
+        },
+        {
+          "direction": "forward",
+          "reduction_percent": {
+            "wall_ns_per_op": 39.59969279702402,
+            "device_median_ms": 41.69455419067324
+          },
+          "screen_met": true
+        },
+        {
+          "direction": "reverse",
+          "reduction_percent": {
+            "wall_ns_per_op": 37.444447660696056,
+            "device_median_ms": 42.11696108853739
+          },
+          "screen_met": true
+        },
+        {
+          "direction": "forward",
+          "reduction_percent": {
+            "wall_ns_per_op": 37.26597824676213,
+            "device_median_ms": 41.43781975772705
+          },
+          "screen_met": true
+        },
+        {
+          "direction": "reverse",
+          "reduction_percent": {
+            "wall_ns_per_op": 43.29072646325971,
+            "device_median_ms": 46.27479582248015
+          },
+          "screen_met": true
+        },
+        {
+          "direction": "forward",
+          "reduction_percent": {
+            "wall_ns_per_op": 43.35694222653794,
+            "device_median_ms": 45.26275864136896
+          },
+          "screen_met": true
+        },
+        {
+          "direction": "reverse",
+          "reduction_percent": {
+            "wall_ns_per_op": 46.14501396599429,
+            "device_median_ms": 46.88531694029875
+          },
+          "screen_met": true
+        },
+        {
+          "direction": "forward",
+          "reduction_percent": {
+            "wall_ns_per_op": 43.52443000433581,
+            "device_median_ms": 44.66139255965863
+          },
+          "screen_met": true
+        },
+        {
+          "direction": "reverse",
+          "reduction_percent": {
+            "wall_ns_per_op": 18.39367809792456,
+            "device_median_ms": 42.896761438250465
+          },
+          "screen_met": true
+        },
+        {
+          "direction": "forward",
+          "reduction_percent": {
+            "wall_ns_per_op": 65.52045783715418,
+            "device_median_ms": 66.62850603393771
+          },
+          "screen_met": true
+        },
+        {
+          "direction": "reverse",
+          "reduction_percent": {
+            "wall_ns_per_op": 65.99767958341893,
+            "device_median_ms": 66.51664124397674
+          },
+          "screen_met": true
+        },
+        {
+          "direction": "forward",
+          "reduction_percent": {
+            "wall_ns_per_op": 67.44634994312707,
+            "device_median_ms": 67.66903013846996
+          },
+          "screen_met": true
+        },
+        {
+          "direction": "reverse",
+          "reduction_percent": {
+            "wall_ns_per_op": 67.50293570302325,
+            "device_median_ms": 67.67535035519327
+          },
+          "screen_met": true
+        },
+        {
+          "direction": "forward",
+          "reduction_percent": {
+            "wall_ns_per_op": 44.05057076026857,
+            "device_median_ms": 45.15974388160725
+          },
+          "screen_met": true
+        },
+        {
+          "direction": "reverse",
+          "reduction_percent": {
+            "wall_ns_per_op": 44.19772830631455,
+            "device_median_ms": 45.117861746180225
+          },
+          "screen_met": true
+        },
+        {
+          "direction": "forward",
+          "reduction_percent": {
+            "wall_ns_per_op": 41.53471137066743,
+            "device_median_ms": 43.075902849690586
+          },
+          "screen_met": true
+        },
+        {
+          "direction": "reverse",
+          "reduction_percent": {
+            "wall_ns_per_op": 41.35596868593531,
+            "device_median_ms": 42.39268606258951
+          },
+          "screen_met": true
+        },
+        {
+          "direction": "forward",
+          "reduction_percent": {
+            "wall_ns_per_op": 62.05785214853332,
+            "device_median_ms": 62.22241917933935
+          },
+          "screen_met": true
+        },
+        {
+          "direction": "reverse",
+          "reduction_percent": {
+            "wall_ns_per_op": 61.6726331050084,
+            "device_median_ms": 62.137273865622376
+          },
+          "screen_met": true
+        },
+        {
+          "direction": "forward",
+          "reduction_percent": {
+            "wall_ns_per_op": 60.1826155012219,
+            "device_median_ms": 60.66962328825545
+          },
+          "screen_met": true
+        },
+        {
+          "direction": "reverse",
+          "reduction_percent": {
+            "wall_ns_per_op": 59.92072479157245,
+            "device_median_ms": 60.29145216723014
+          },
+          "screen_met": true
+        },
+        {
+          "direction": "forward",
+          "reduction_percent": {
+            "wall_ns_per_op": 44.59301246555165,
+            "device_median_ms": 41.02376335540553
+          },
+          "screen_met": true
+        },
+        {
+          "direction": "reverse",
+          "reduction_percent": {
+            "wall_ns_per_op": 36.956944582442,
+            "device_median_ms": 42.56663681122471
+          },
+          "screen_met": true
+        },
+        {
+          "direction": "forward",
+          "reduction_percent": {
+            "wall_ns_per_op": 30.30185748945351,
+            "device_median_ms": 40.94549784410566
+          },
+          "screen_met": true
+        },
+        {
+          "direction": "reverse",
+          "reduction_percent": {
+            "wall_ns_per_op": 42.00285792899406,
+            "device_median_ms": 47.86751917256385
+          },
+          "screen_met": true
+        },
+        {
+          "direction": "forward",
+          "reduction_percent": {
+            "wall_ns_per_op": 36.16326823932222,
+            "device_median_ms": 41.17515968538341
+          },
+          "screen_met": true
+        },
+        {
+          "direction": "reverse",
+          "reduction_percent": {
+            "wall_ns_per_op": 36.252961561743135,
+            "device_median_ms": 42.579649119584715
+          },
+          "screen_met": true
+        },
+        {
+          "direction": "forward",
+          "reduction_percent": {
+            "wall_ns_per_op": 42.734361883412994,
+            "device_median_ms": 41.609319998926
+          },
+          "screen_met": true
+        },
+        {
+          "direction": "reverse",
+          "reduction_percent": {
+            "wall_ns_per_op": 36.26870753270697,
+            "device_median_ms": 42.101795808499745
+          },
+          "screen_met": true
+        },
+        {
+          "direction": "forward",
+          "reduction_percent": {
+            "wall_ns_per_op": 34.97937872625347,
+            "device_median_ms": 37.05040988443693
+          },
+          "screen_met": true
+        },
+        {
+          "direction": "reverse",
+          "reduction_percent": {
+            "wall_ns_per_op": 36.567333751052914,
+            "device_median_ms": 36.52445634171364
+          },
+          "screen_met": true
+        },
+        {
+          "direction": "forward",
+          "reduction_percent": {
+            "wall_ns_per_op": 39.870918437236405,
+            "device_median_ms": 40.71496610661689
+          },
+          "screen_met": true
+        },
+        {
+          "direction": "reverse",
+          "reduction_percent": {
+            "wall_ns_per_op": 39.88298953946462,
+            "device_median_ms": 40.82003121793048
+          },
+          "screen_met": true
+        },
+        {
+          "direction": "forward",
+          "reduction_percent": {
+            "wall_ns_per_op": 68.05836631011802,
+            "device_median_ms": 68.41770918276511
+          },
+          "screen_met": true
+        },
+        {
+          "direction": "reverse",
+          "reduction_percent": {
+            "wall_ns_per_op": 68.07381012722111,
+            "device_median_ms": 68.43017118432218
+          },
+          "screen_met": true
+        },
+        {
+          "direction": "forward",
+          "reduction_percent": {
+            "wall_ns_per_op": 66.46749554377733,
+            "device_median_ms": 66.77502403717912
+          },
+          "screen_met": true
+        },
+        {
+          "direction": "reverse",
+          "reduction_percent": {
+            "wall_ns_per_op": 66.61752623941123,
+            "device_median_ms": 67.04359749526893
+          },
+          "screen_met": true
+        },
+        {
+          "direction": "forward",
+          "reduction_percent": {
+            "wall_ns_per_op": 37.607727253948134,
+            "device_median_ms": 38.939392913143166
+          },
+          "screen_met": true
+        },
+        {
+          "direction": "reverse",
+          "reduction_percent": {
+            "wall_ns_per_op": 37.26713163614125,
+            "device_median_ms": 38.786274673256415
+          },
+          "screen_met": true
+        },
+        {
+          "direction": "forward",
+          "reduction_percent": {
+            "wall_ns_per_op": 37.14709842136716,
+            "device_median_ms": 37.915267288658285
+          },
+          "screen_met": true
+        },
+        {
+          "direction": "reverse",
+          "reduction_percent": {
+            "wall_ns_per_op": 35.82917175224768,
+            "device_median_ms": 37.21327771937699
+          },
+          "screen_met": true
+        },
+        {
+          "direction": "forward",
+          "reduction_percent": {
+            "wall_ns_per_op": 61.27812494556437,
+            "device_median_ms": 61.69126999882778
+          },
+          "screen_met": true
+        },
+        {
+          "direction": "reverse",
+          "reduction_percent": {
+            "wall_ns_per_op": 61.325506702508626,
+            "device_median_ms": 61.56491905928077
+          },
+          "screen_met": true
+        },
+        {
+          "direction": "forward",
+          "reduction_percent": {
+            "wall_ns_per_op": 63.09366296506881,
+            "device_median_ms": 63.703687990038674
+          },
+          "screen_met": true
+        },
+        {
+          "direction": "reverse",
+          "reduction_percent": {
+            "wall_ns_per_op": 63.195669231263764,
+            "device_median_ms": 63.57625767558186
+          },
+          "screen_met": true
+        }
+      ],
+      "reduction_range_percent": {
+        "wall_ns_per_op": [
+          18.39367809792456,
+          68.07381012722111
+        ],
+        "device_median_ms": [
+          36.52445634171364,
+          68.43017118432218
+        ]
+      },
+      "different_BF16_cells": 120
+    }
+  },
+  "raw": {
+    "asset": {
+      "url": "https://github.com/vLLM-HUST/vllm-hust-engine/releases/download/performance-exploration-20261115-r1/C12-packed-restore-RMS-r1-complete-review-v1.zip",
+      "sha256": "40fd3442a7f7195fca5cc3d71243d25fa3ec8cb5e501f714aee079156f9f9b14",
+      "bytes": 219672,
+      "asset_id": 757028553,
+      "redownload_verified": true
+    },
+    "raw_assets": {
+      "0": {
+        "url": "https://github.com/vLLM-HUST/vllm-hust-engine/releases/download/performance-exploration-20261115-r1/C12-packed-restore-RMS-r1-device0-raw-v1.zip",
+        "sha256": "0ec8e93260c58a59501dda7c89e76f4886b5522bc45edddfac0bc593548923a8",
+        "bytes": 454800534,
+        "asset_id": 757017268,
+        "redownload_verified": true
+      },
+      "1": {
+        "url": "https://github.com/vLLM-HUST/vllm-hust-engine/releases/download/performance-exploration-20261115-r1/C12-packed-restore-RMS-r1-device1-raw-v1.zip",
+        "sha256": "c186300d8dc2df72a8441d48b31c294a5c01094528985f3385de42f87fb18e13",
+        "bytes": 454801283,
+        "asset_id": 757024334,
+        "redownload_verified": true
+      }
+    },
+    "completed": true,
+    "default_promoted": false,
+    "readback_verified": true
+  },
+  "source": {
+    "commit": "c7e569468ac002670f50f55e5be299321baf7279",
+    "files": {
+      "C12-packed-restore-RMS-component-20261117-r1/publication-v1.json": "0fb314789b20a7022cbf043d65463796e47a3e417076c075a898c47482a56b96",
+      "C12-packed-restore-RMS-component-20261117-r1/execution-v1.json": "56a00704aeaecd190a045b78868a5053d16f488091f6b245999e0fd36f9ddf3f",
+      "C12-packed-restore-RMS-component-20261117-r1/review-v1.json": "c1d46d0e35f015368ec4f9232f2ee92209492ddb786f1d530da6933170b8da39",
+      "C12-packed-restore-RMS-component-20261117-r1/component-pairs-v1.png": "1e8022d4c3c6c569ec564ac05202694b82d5bcb0eb205720a4ee55829f44c8d7",
+      "C12-packed-restore-RMS-component-20261117-r1/component-pairs-v1.svg": "6ccfe329626d82f4c59fa0079ebb57a57da9b82c050e1608a6da670b76872534",
+      "C12-packed-restore-RMS-component-20261117-r1/analysis-v1.json": "d23408b91ea40d769ce9641b50760bfd735bad271738b61cc2ad7b9b18a2971e"
+    },
+    "SHA_only_tree_batches": 1,
+    "new_distinct_blobs": 6,
+    "readback_verified": true
+  }
+}

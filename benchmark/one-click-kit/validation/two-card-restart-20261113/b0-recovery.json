@@ -1,0 +1,14 @@
+{
+  "completed": true,
+  "deployment": "/opt/vllm-hust-r5-runtime-20261113-r2/b0-image-018",
+  "source_map_sha256": "a357ad8cf1ff6f8797fb2d6476e71a0deef5ee0899a55ea32ed65f07fe7773bc",
+  "file_count": 151502,
+  "ended": 1794574879.2350235,
+  "restore_seconds": 619.410240650177,
+  "native_qualified": false,
+  "persistent_archive": {
+    "path": "/data/shared_upload/vllm-hust-third-party-self-run-20261112/runtime-recovery-20261113-r2/b0-fixed018-verified-sdk.tar",
+    "bytes": 13731153920,
+    "sha256": "999bfb96a08805a793214febb31bd4cc75a7a6fb3dfde0dedf62aad66b9dd3e3"
+  }
+}

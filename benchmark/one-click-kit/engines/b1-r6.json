@@ -1,0 +1,49 @@
+{
+  "schema": "vllm-hust-engine-profile/v2",
+  "release": "full-answer-b1-20261113-r6",
+  "base_profile": "engines/b1-r4.json",
+  "runtime_overlay": "engines/b1-r6-overlay.json",
+  "unchanged_combination": {
+    "E": 24,
+    "R": 36,
+    "MTP": 2,
+    "graph": "FULL",
+    "kv_recompute": "per-request",
+    "microflow": true,
+    "packed_host": "per-object/per-dtype",
+    "host_bytes_per_rank": 4294967296,
+    "kv_bytes_per_rank": 21474836480
+  },
+  "baseline": "original018/CANN8.5.1 fixed image; shared new pre-measurement warmup only",
+  "judge_policy": "xgrammar-bounded-whitespace-confidence-v2",
+  "measurement_policy": "observed-torch-triton-sealed-warmup-v2",
+  "datasets": {
+    "mmlu": "fixed200",
+    "hle": "proportional four-strata fixed200",
+    "frontier": "full160",
+    "swe": "published trace32 tasks/64 requests",
+    "terminal": "published trace32 tasks/48 requests"
+  },
+  "qualification": "Independent source-verified C8 and complete originalMMLU200 inference executed; see dated evidence. This replaces the stale freeze-time pending label.",
+  "historical_r4_metrics_reused": false,
+  "release_promotion": "Current r6 default has actual independent inference evidence; historical freeze notes and raw reports retain their dated identities.",
+  "supersedes": "engines/b1-r5.json",
+  "local_adaptation": "Compile-only positions warmup uses private runner; M01 live snapshot protection unchanged.",
+  "qualification_as_of_utc": "2026-11-17T04:48:22.442675+00:00",
+  "qualification_evidence": {
+    "C8": "experiments/optimization-20261115/C15-r7-tail-combination-model-20261117-r1/C15-04-C8-r6-review-v1.json",
+    "original200": "experiments/optimization-20261115/C15-r7-tail-combination-model-20261117-r1/C15-05-MMLU-r6-review-v1.json",
+    "complete_original200_archive": {
+      "url": "https://github.com/vLLM-HUST/vllm-hust-engine/releases/download/performance-exploration-20261115-r1/C15-05-MMLU-r6-raw-v1.zip",
+      "sha256": "a09b63d8561a373820e6b547a40b0f2bb94385fc1ce55de5c6985be167d21cb0",
+      "bytes": 13867942,
+      "asset_id": 757635995,
+      "redownload_verified": true
+    },
+    "observed_correct": 145,
+    "observed_truncated": 21,
+    "successful": 200,
+    "failed": 0,
+    "new_M01_efficiency_claimed": false
+  }
+}

@@ -1,0 +1,694 @@
+{
+  "schema": "source-semantic-formula-origins/v1",
+  "repository": "vLLM-HUST/vllm-hust-benchmark",
+  "commit": "18257625f75799577b81d8e2e71e1eae7904985b",
+  "directory": "reports/vllm-hust-midterm-20261019/m01-recovery",
+  "adaptation": "Pure formulas parameterized by current dimensions and backward-closed draft populations; current loaded inventory captures actual shape/scalar/dispatch metadata. No old timing, efficiency, aggregate work or tensor values reused.",
+  "sources": {
+    "normalization": {
+      "original_member": "source/audit_norm_accounting.py",
+      "source_sha256": "b77c7e05daccd468c279a3f83daa9913d1eea7c876d802b37459245fb4c86e56",
+      "source_archives": [
+        {
+          "path": "norm-accounting-r9/norm-accounting-evidence.tar.gz.part000",
+          "git_blob": "7566ef1196291d045e880cebd4376cbd40cf11a9",
+          "sha256": "66247053ac08d8123eb1584d391d625ab85d48124baca2aa42ca4b344172deeb",
+          "bytes": 48247
+        }
+      ]
+    },
+    "convolution": {
+      "original_member": "source/audit_conv_accounting.py",
+      "source_sha256": "5f21010dc3aac2d7a4a453f8fd5bf771232ea93cb65d827ce2c6f1a87c72c74b",
+      "source_archives": [
+        {
+          "path": "conv-accounting-r9/conv-accounting-evidence.tar.gz.part000",
+          "git_blob": "24547950b896cecb0339005b4dbad6eb9a9dad5a",
+          "sha256": "50e5c20d475ba1bd9a18560b68ead76c0f4e930308a4363ee6c7d9732b52edf4",
+          "bytes": 35245
+        }
+      ]
+    },
+    "gdn_preprocess": {
+      "original_member": "root/gennova-evidence/20261019-midterm-aligned/audit_gdn_preprocess_semantics.py",
+      "source_sha256": "fcd4a19760c57df73d5c73f228df3defc2dc3752a2a9e9bb52b6ab47a9557f56",
+      "source_archives": [
+        {
+          "path": "r19-preprocess-supplement/supplement.tar.gz",
+          "git_blob": "4ab8da42794d0278b205318d780993bc669c07b4",
+          "sha256": "5be273c724e967bc9de662c19101e7e416516449e13ee250005a884254c9451b",
+          "bytes": 27732
+        }
+      ]
+    },
+    "rotary": {
+      "original_member": "source/audit_rope_reference.py",
+      "source_sha256": "9124e0d48c2830d567325c804492c2722cd06f09a86f7ebd836a390d9fe76cc2",
+      "source_archives": [
+        {
+          "path": "rope-reference-r2/rope-reference-evidence.tar.gz.part000",
+          "git_blob": "75b8418ab31b01831b869cd754cc523b80ad206a",
+          "sha256": "16d24763d78b45dca3784df43ab57defafe43f8f8456bab91a0db671c1fa337b",
+          "bytes": 482918
+        }
+      ]
+    },
+    "router": {
+      "original_member": "source/audit_router_gate_reference.py",
+      "source_sha256": "9be78c14a36228a557cd01ee8bc613a9cc4a1e841bad70ba3d97c5a29d3f4767",
+      "source_archives": [
+        {
+          "path": "router-gate-reference-r1/router-gate-reference-evidence.tar.gz.part000",
+          "git_blob": "3a8d02036f6f9caee579d8e40989008bdda2794b",
+          "sha256": "edae5f0fb8bc167a239440e08f8d542029319f57cc8d089d2d664e8dab657fdc",
+          "bytes": 252550
+        }
+      ]
+    },
+    "moe": {
+      "original_member": "root/gennova-evidence/20261019-midterm-aligned/audit_moe_scalar_sources.py",
+      "source_sha256": "edf9047db491a9d7356ce59c009a9adcca859cbd0472fe95324da24758a1ac00",
+      "source_archives": [
+        {
+          "path": "r18-loaded-configuration/archive.json",
+          "git_blob": "e83583c2381cb54d7fa83b832adf9ab92b96cf81",
+          "sha256": "6bf01826eddde63bc1e76980d1f798248b11f59556e6365057ec8e9ba126e876",
+          "bytes": 70555
+        },
+        {
+          "path": "r18-loaded-configuration/evidence.tar.gz.part000",
+          "git_blob": "e54bbd61894678349769ed0dcb0c34ecf8ca19a7",
+          "sha256": "5de376fb37e9136868b914a127d5329cf4d2693944536777b0a71b3e2040a548",
+          "bytes": 900000
+        },
+        {
+          "path": "r18-loaded-configuration/evidence.tar.gz.part001",
+          "git_blob": "0ddb74c1966a0815ad75a29892182d53da1c61e4",
+          "sha256": "bad2e67a5e3c8ce89835fbe4e183e6d20341f7ea8424332cac37e74002f84e64",
+          "bytes": 900000
+        },
+        {
+          "path": "r18-loaded-configuration/evidence.tar.gz.part002",
+          "git_blob": "b8b036b043c9c8be987b7c32c562abf18decd3de",
+          "sha256": "99682e51edcead70f236db3ecde9fee8cf30335687165405eca200064a1c7a9c",
+          "bytes": 900000
+        },
+        {
+          "path": "r18-loaded-configuration/evidence.tar.gz.part003",
+          "git_blob": "1d5b9fcd49885bb8b16440e07068d8c29a81f5df",
+          "sha256": "d2e88496562797ba00b9ab1875d9e314081250d6218dc53377ab93adefeba385",
+          "bytes": 900000
+        },
+        {
+          "path": "r18-loaded-configuration/evidence.tar.gz.part004",
+          "git_blob": "1f88148e377a9f6a63ed32734ff0332a89bad6d9",
+          "sha256": "f0d5ffbfc5ac67dba6f853db76a8add3d5938aab824d9525d14146e79fe7051a",
+          "bytes": 900000
+        },
+        {
+          "path": "r18-loaded-configuration/evidence.tar.gz.part005",
+          "git_blob": "5f77c64d7cab9c6beebc49cfdd3ebbc8c3322cd9",
+          "sha256": "2d97048ca38b295293bc7860b6add75e45c2593fd06b9451f0c462870c2492ff",
+          "bytes": 900000
+        },
+        {
+          "path": "r18-loaded-configuration/evidence.tar.gz.part006",
+          "git_blob": "e07f6c213f14e27664926376f533b69188486534",
+          "sha256": "c621da00206ac376bc1f321c68a93176bfa5fce9559c94005ff421de16871602",
+          "bytes": 900000
+        },
+        {
+          "path": "r18-loaded-configuration/evidence.tar.gz.part007",
+          "git_blob": "425337e2184f3612159095227abfb3e37d51a439",
+          "sha256": "51a3383980f6277dd77dbb5953d8db2dc32849a1fe90ea7e504ac58f1e5ce69f",
+          "bytes": 900000
+        },
+        {
+          "path": "r18-loaded-configuration/evidence.tar.gz.part008",
+          "git_blob": "6d71a3ece6b7ca29b09a9e660243802ac7283f25",
+          "sha256": "1fc1635402dd7a83a8cf8c1eb2189e002e4337d3dc653332e69fa0f6e7fa8d42",
+          "bytes": 900000
+        },
+        {
+          "path": "r18-loaded-configuration/evidence.tar.gz.part009",
+          "git_blob": "5b19fb4b6f52fe382eb8ed5f23230bd40f4cede0",
+          "sha256": "ff43614da7db8251ce2c2ad1ed877bd47f99313c5d57a01149b62f78665e75f2",
+          "bytes": 900000
+        },
+        {
+          "path": "r18-loaded-configuration/evidence.tar.gz.part010",
+          "git_blob": "3981b8fcd8a14cbb6779c6fd155b2a378576b311",
+          "sha256": "451e9dcd1afa69b45aa36d377a1b4616bce349096e06c1b5356d34c346a378c4",
+          "bytes": 900000
+        },
+        {
+          "path": "r18-loaded-configuration/evidence.tar.gz.part011",
+          "git_blob": "b5b166404a936fbd9e9d1cc341b9cd3bf16d5122",
+          "sha256": "b26913ec4a7ef34de54138835d83972d4d406500f527c836aebfe2b36220c991",
+          "bytes": 900000
+        },
+        {
+          "path": "r18-loaded-configuration/evidence.tar.gz.part012",
+          "git_blob": "d5125f2a069c88c5e0b2af91a308e357de19cc56",
+          "sha256": "f7149c614efca8fa8e2d66e7e02734383475115ddfeadd5f446498561c482b68",
+          "bytes": 900000
+        },
+        {
+          "path": "r18-loaded-configuration/evidence.tar.gz.part013",
+          "git_blob": "a3169e0e7738020a2c4996a704d016cb558b8416",
+          "sha256": "7791f59ec2742fa8190e35538706dada4545baf504b58761e9335a86ebf62647",
+          "bytes": 900000
+        },
+        {
+          "path": "r18-loaded-configuration/evidence.tar.gz.part014",
+          "git_blob": "f685bfa92984af247f6aa1124aebf4d20807427f",
+          "sha256": "f2ca9e7983606d991a304d827ea7552fdc2efb2514e7373c8586112a6627db92",
+          "bytes": 900000
+        },
+        {
+          "path": "r18-loaded-configuration/evidence.tar.gz.part015",
+          "git_blob": "f7eefab4bbe5043624bd5c28dc7fa21afd0f92eb",
+          "sha256": "b3e60689953267476c1f13ae50efbc96b8e7de6a46e135b4a6edc2dfc5bdaba0",
+          "bytes": 900000
+        },
+        {
+          "path": "r18-loaded-configuration/evidence.tar.gz.part016",
+          "git_blob": "ca7556dcabf1077c34294b36356c323fa1f4834a",
+          "sha256": "74df7a2437b3801ee18e40bf5cf04dbbb094e12fc4cd79a4d7c6681c96a661d1",
+          "bytes": 900000
+        },
+        {
+          "path": "r18-loaded-configuration/evidence.tar.gz.part017",
+          "git_blob": "7c5c1a297f1987915982c4930c14f7ed668da995",
+          "sha256": "2605bbae930a975627516c4adc781ff4d9c94525f4c61938b1b8bdd6557c3b28",
+          "bytes": 900000
+        },
+        {
+          "path": "r18-loaded-configuration/evidence.tar.gz.part018",
+          "git_blob": "4c279d5f4063c59472c346b9f7cb64800ff54988",
+          "sha256": "cee1564b4f0402453b38459703386d5832f099b66d4d4c6393ad3b055666326e",
+          "bytes": 900000
+        },
+        {
+          "path": "r18-loaded-configuration/evidence.tar.gz.part019",
+          "git_blob": "9002756f046b8bf5fa98ff3044562a0c8c494b59",
+          "sha256": "7504021f9c1a507f9e16c506760f751442d7754170689856266df6629a8df945",
+          "bytes": 900000
+        },
+        {
+          "path": "r18-loaded-configuration/evidence.tar.gz.part020",
+          "git_blob": "feded91a89b22bea1ecf8e5cdea867e809822994",
+          "sha256": "9bc1e70127531a46f492b7bb99fcf96521744085bf28312c775265425fc98651",
+          "bytes": 900000
+        },
+        {
+          "path": "r18-loaded-configuration/evidence.tar.gz.part021",
+          "git_blob": "d33ef34ece2315007628dc4278d6b0d07a500ce5",
+          "sha256": "b29ae0af2a5af45c723f08eceaa1cf3a6c83a7ca5bb7e35a439f1e0e84bfbfed",
+          "bytes": 900000
+        },
+        {
+          "path": "r18-loaded-configuration/evidence.tar.gz.part022",
+          "git_blob": "8187143a0eaa5e0331172763b99861fe86f4ddbe",
+          "sha256": "d941db540c7d96dff2a9bc830248a464b69678bb3d8b4b9e76014f4152553680",
+          "bytes": 900000
+        },
+        {
+          "path": "r18-loaded-configuration/evidence.tar.gz.part023",
+          "git_blob": "1985403b2561263921beeca3fb1cbbb1bd6e484e",
+          "sha256": "8028211cc3adc61a5623c3806e9086da6d57812a387981c7b1dcfdb1012e4b03",
+          "bytes": 900000
+        },
+        {
+          "path": "r18-loaded-configuration/evidence.tar.gz.part024",
+          "git_blob": "b8e075eb25d299c84decf0bf788b7b359d44f75e",
+          "sha256": "cfe7739dc582aa876e942311b56ac7fa469aa64fa9aa79189d530bafc9347ff1",
+          "bytes": 900000
+        },
+        {
+          "path": "r18-loaded-configuration/evidence.tar.gz.part025",
+          "git_blob": "f13ec4e301f2a29f3c123ded98d1c06416629621",
+          "sha256": "26414beba650b7f30fdd7ca63570fe6bf82946f72ac56763d1265695f449ebc4",
+          "bytes": 900000
+        },
+        {
+          "path": "r18-loaded-configuration/evidence.tar.gz.part026",
+          "git_blob": "4d675323594a555544a988be01cb5b0765faf480",
+          "sha256": "7b4891182fbc86d013eeae1244cceb5c8ea5dc3f68d522dfe3417de27d68b39f",
+          "bytes": 900000
+        },
+        {
+          "path": "r18-loaded-configuration/evidence.tar.gz.part027",
+          "git_blob": "628a45e590baed3f202f49d662b17242fa26a34d",
+          "sha256": "6251298d1f9be0e9eb47bfb20cc31640615783678f1d402b1ba7cf11aaa27f8e",
+          "bytes": 900000
+        },
+        {
+          "path": "r18-loaded-configuration/evidence.tar.gz.part028",
+          "git_blob": "d76c279eb6cbaae888a34ca72686d65beeffe3fd",
+          "sha256": "e69612e44473185794667c17c6d79d23dc298bd954861f523f27cfd2b94a03ee",
+          "bytes": 900000
+        },
+        {
+          "path": "r18-loaded-configuration/evidence.tar.gz.part029",
+          "git_blob": "8d6eb1b1b30a96b67b91dd37642de1497a076fbb",
+          "sha256": "655aef899a0f6e8883f8b25f3c62378a92ad125bc3fb15ff21ef3992c36778a6",
+          "bytes": 900000
+        },
+        {
+          "path": "r18-loaded-configuration/evidence.tar.gz.part030",
+          "git_blob": "0c324f4ec130aa532dfe222e527671adb78ef927",
+          "sha256": "74c5ceeaa9c46a62c96c33bb968c52f20b0bcb8c22f31472b2f64d2e62c67766",
+          "bytes": 900000
+        },
+        {
+          "path": "r18-loaded-configuration/evidence.tar.gz.part031",
+          "git_blob": "f3db18517436113bf432ef8a7f308c7f9ed7b6b7",
+          "sha256": "9de48059295f047bc0597e3386097b9d87a75230a5f863d285a8c33f9d4eccf0",
+          "bytes": 529266
+        }
+      ]
+    },
+    "softmax": {
+      "original_member": "extra/r17-norm-softmax/derive_r12_softmax_semantics.py.txt",
+      "source_sha256": "b264d2c4c836a16ac5c715a6dfc44e6ab9543872b6f277877ca7ffd29b2899a8",
+      "source_archives": [
+        {
+          "path": "r17-norm-softmax/derive_r12_softmax_semantics.py.txt",
+          "git_blob": "9bcca0d7daddee56a5a457adbbfb924bbd492247",
+          "sha256": "b264d2c4c836a16ac5c715a6dfc44e6ab9543872b6f277877ca7ffd29b2899a8",
+          "bytes": 4260
+        }
+      ]
+    },
+    "loaded_inventory": {
+      "original_member": "root/gennova-evidence/20261019-midterm-aligned/model_shape_inventory_v2.py",
+      "source_sha256": "f790bb9d22a4495b8e9efcc6fe0f558f8ea8fd33fef50e7f4ef3b09d062bc0db",
+      "source_archives": [
+        {
+          "path": "r18-loaded-configuration/archive.json",
+          "git_blob": "e83583c2381cb54d7fa83b832adf9ab92b96cf81",
+          "sha256": "6bf01826eddde63bc1e76980d1f798248b11f59556e6365057ec8e9ba126e876",
+          "bytes": 70555
+        },
+        {
+          "path": "r18-loaded-configuration/evidence.tar.gz.part000",
+          "git_blob": "e54bbd61894678349769ed0dcb0c34ecf8ca19a7",
+          "sha256": "5de376fb37e9136868b914a127d5329cf4d2693944536777b0a71b3e2040a548",
+          "bytes": 900000
+        },
+        {
+          "path": "r18-loaded-configuration/evidence.tar.gz.part001",
+          "git_blob": "0ddb74c1966a0815ad75a29892182d53da1c61e4",
+          "sha256": "bad2e67a5e3c8ce89835fbe4e183e6d20341f7ea8424332cac37e74002f84e64",
+          "bytes": 900000
+        },
+        {
+          "path": "r18-loaded-configuration/evidence.tar.gz.part002",
+          "git_blob": "b8b036b043c9c8be987b7c32c562abf18decd3de",
+          "sha256": "99682e51edcead70f236db3ecde9fee8cf30335687165405eca200064a1c7a9c",
+          "bytes": 900000
+        },
+        {
+          "path": "r18-loaded-configuration/evidence.tar.gz.part003",
+          "git_blob": "1d5b9fcd49885bb8b16440e07068d8c29a81f5df",
+          "sha256": "d2e88496562797ba00b9ab1875d9e314081250d6218dc53377ab93adefeba385",
+          "bytes": 900000
+        },
+        {
+          "path": "r18-loaded-configuration/evidence.tar.gz.part004",
+          "git_blob": "1f88148e377a9f6a63ed32734ff0332a89bad6d9",
+          "sha256": "f0d5ffbfc5ac67dba6f853db76a8add3d5938aab824d9525d14146e79fe7051a",
+          "bytes": 900000
+        },
+        {
+          "path": "r18-loaded-configuration/evidence.tar.gz.part005",
+          "git_blob": "5f77c64d7cab9c6beebc49cfdd3ebbc8c3322cd9",
+          "sha256": "2d97048ca38b295293bc7860b6add75e45c2593fd06b9451f0c462870c2492ff",
+          "bytes": 900000
+        },
+        {
+          "path": "r18-loaded-configuration/evidence.tar.gz.part006",
+          "git_blob": "e07f6c213f14e27664926376f533b69188486534",
+          "sha256": "c621da00206ac376bc1f321c68a93176bfa5fce9559c94005ff421de16871602",
+          "bytes": 900000
+        },
+        {
+          "path": "r18-loaded-configuration/evidence.tar.gz.part007",
+          "git_blob": "425337e2184f3612159095227abfb3e37d51a439",
+          "sha256": "51a3383980f6277dd77dbb5953d8db2dc32849a1fe90ea7e504ac58f1e5ce69f",
+          "bytes": 900000
+        },
+        {
+          "path": "r18-loaded-configuration/evidence.tar.gz.part008",
+          "git_blob": "6d71a3ece6b7ca29b09a9e660243802ac7283f25",
+          "sha256": "1fc1635402dd7a83a8cf8c1eb2189e002e4337d3dc653332e69fa0f6e7fa8d42",
+          "bytes": 900000
+        },
+        {
+          "path": "r18-loaded-configuration/evidence.tar.gz.part009",
+          "git_blob": "5b19fb4b6f52fe382eb8ed5f23230bd40f4cede0",
+          "sha256": "ff43614da7db8251ce2c2ad1ed877bd47f99313c5d57a01149b62f78665e75f2",
+          "bytes": 900000
+        },
+        {
+          "path": "r18-loaded-configuration/evidence.tar.gz.part010",
+          "git_blob": "3981b8fcd8a14cbb6779c6fd155b2a378576b311",
+          "sha256": "451e9dcd1afa69b45aa36d377a1b4616bce349096e06c1b5356d34c346a378c4",
+          "bytes": 900000
+        },
+        {
+          "path": "r18-loaded-configuration/evidence.tar.gz.part011",
+          "git_blob": "b5b166404a936fbd9e9d1cc341b9cd3bf16d5122",
+          "sha256": "b26913ec4a7ef34de54138835d83972d4d406500f527c836aebfe2b36220c991",
+          "bytes": 900000
+        },
+        {
+          "path": "r18-loaded-configuration/evidence.tar.gz.part012",
+          "git_blob": "d5125f2a069c88c5e0b2af91a308e357de19cc56",
+          "sha256": "f7149c614efca8fa8e2d66e7e02734383475115ddfeadd5f446498561c482b68",
+          "bytes": 900000
+        },
+        {
+          "path": "r18-loaded-configuration/evidence.tar.gz.part013",
+          "git_blob": "a3169e0e7738020a2c4996a704d016cb558b8416",
+          "sha256": "7791f59ec2742fa8190e35538706dada4545baf504b58761e9335a86ebf62647",
+          "bytes": 900000
+        },
+        {
+          "path": "r18-loaded-configuration/evidence.tar.gz.part014",
+          "git_blob": "f685bfa92984af247f6aa1124aebf4d20807427f",
+          "sha256": "f2ca9e7983606d991a304d827ea7552fdc2efb2514e7373c8586112a6627db92",
+          "bytes": 900000
+        },
+        {
+          "path": "r18-loaded-configuration/evidence.tar.gz.part015",
+          "git_blob": "f7eefab4bbe5043624bd5c28dc7fa21afd0f92eb",
+          "sha256": "b3e60689953267476c1f13ae50efbc96b8e7de6a46e135b4a6edc2dfc5bdaba0",
+          "bytes": 900000
+        },
+        {
+          "path": "r18-loaded-configuration/evidence.tar.gz.part016",
+          "git_blob": "ca7556dcabf1077c34294b36356c323fa1f4834a",
+          "sha256": "74df7a2437b3801ee18e40bf5cf04dbbb094e12fc4cd79a4d7c6681c96a661d1",
+          "bytes": 900000
+        },
+        {
+          "path": "r18-loaded-configuration/evidence.tar.gz.part017",
+          "git_blob": "7c5c1a297f1987915982c4930c14f7ed668da995",
+          "sha256": "2605bbae930a975627516c4adc781ff4d9c94525f4c61938b1b8bdd6557c3b28",
+          "bytes": 900000
+        },
+        {
+          "path": "r18-loaded-configuration/evidence.tar.gz.part018",
+          "git_blob": "4c279d5f4063c59472c346b9f7cb64800ff54988",
+          "sha256": "cee1564b4f0402453b38459703386d5832f099b66d4d4c6393ad3b055666326e",
+          "bytes": 900000
+        },
+        {
+          "path": "r18-loaded-configuration/evidence.tar.gz.part019",
+          "git_blob": "9002756f046b8bf5fa98ff3044562a0c8c494b59",
+          "sha256": "7504021f9c1a507f9e16c506760f751442d7754170689856266df6629a8df945",
+          "bytes": 900000
+        },
+        {
+          "path": "r18-loaded-configuration/evidence.tar.gz.part020",
+          "git_blob": "feded91a89b22bea1ecf8e5cdea867e809822994",
+          "sha256": "9bc1e70127531a46f492b7bb99fcf96521744085bf28312c775265425fc98651",
+          "bytes": 900000
+        },
+        {
+          "path": "r18-loaded-configuration/evidence.tar.gz.part021",
+          "git_blob": "d33ef34ece2315007628dc4278d6b0d07a500ce5",
+          "sha256": "b29ae0af2a5af45c723f08eceaa1cf3a6c83a7ca5bb7e35a439f1e0e84bfbfed",
+          "bytes": 900000
+        },
+        {
+          "path": "r18-loaded-configuration/evidence.tar.gz.part022",
+          "git_blob": "8187143a0eaa5e0331172763b99861fe86f4ddbe",
+          "sha256": "d941db540c7d96dff2a9bc830248a464b69678bb3d8b4b9e76014f4152553680",
+          "bytes": 900000
+        },
+        {
+          "path": "r18-loaded-configuration/evidence.tar.gz.part023",
+          "git_blob": "1985403b2561263921beeca3fb1cbbb1bd6e484e",
+          "sha256": "8028211cc3adc61a5623c3806e9086da6d57812a387981c7b1dcfdb1012e4b03",
+          "bytes": 900000
+        },
+        {
+          "path": "r18-loaded-configuration/evidence.tar.gz.part024",
+          "git_blob": "b8e075eb25d299c84decf0bf788b7b359d44f75e",
+          "sha256": "cfe7739dc582aa876e942311b56ac7fa469aa64fa9aa79189d530bafc9347ff1",
+          "bytes": 900000
+        },
+        {
+          "path": "r18-loaded-configuration/evidence.tar.gz.part025",
+          "git_blob": "f13ec4e301f2a29f3c123ded98d1c06416629621",
+          "sha256": "26414beba650b7f30fdd7ca63570fe6bf82946f72ac56763d1265695f449ebc4",
+          "bytes": 900000
+        },
+        {
+          "path": "r18-loaded-configuration/evidence.tar.gz.part026",
+          "git_blob": "4d675323594a555544a988be01cb5b0765faf480",
+          "sha256": "7b4891182fbc86d013eeae1244cceb5c8ea5dc3f68d522dfe3417de27d68b39f",
+          "bytes": 900000
+        },
+        {
+          "path": "r18-loaded-configuration/evidence.tar.gz.part027",
+          "git_blob": "628a45e590baed3f202f49d662b17242fa26a34d",
+          "sha256": "6251298d1f9be0e9eb47bfb20cc31640615783678f1d402b1ba7cf11aaa27f8e",
+          "bytes": 900000
+        },
+        {
+          "path": "r18-loaded-configuration/evidence.tar.gz.part028",
+          "git_blob": "d76c279eb6cbaae888a34ca72686d65beeffe3fd",
+          "sha256": "e69612e44473185794667c17c6d79d23dc298bd954861f523f27cfd2b94a03ee",
+          "bytes": 900000
+        },
+        {
+          "path": "r18-loaded-configuration/evidence.tar.gz.part029",
+          "git_blob": "8d6eb1b1b30a96b67b91dd37642de1497a076fbb",
+          "sha256": "655aef899a0f6e8883f8b25f3c62378a92ad125bc3fb15ff21ef3992c36778a6",
+          "bytes": 900000
+        },
+        {
+          "path": "r18-loaded-configuration/evidence.tar.gz.part030",
+          "git_blob": "0c324f4ec130aa532dfe222e527671adb78ef927",
+          "sha256": "74c5ceeaa9c46a62c96c33bb968c52f20b0bcb8c22f31472b2f64d2e62c67766",
+          "bytes": 900000
+        },
+        {
+          "path": "r18-loaded-configuration/evidence.tar.gz.part031",
+          "git_blob": "f3db18517436113bf432ef8a7f308c7f9ed7b6b7",
+          "sha256": "9de48059295f047bc0597e3386097b9d87a75230a5f863d285a8c33f9d4eccf0",
+          "bytes": 529266
+        }
+      ]
+    },
+    "route_device_recorder": {
+      "original_member": "root/gennova-evidence/20261019-midterm-aligned/token-observer-v16/hust_token_observer/moe_deferred_capture.py",
+      "source_sha256": "5cfc7cbaac256321b75bb7a1adef683cea53ec76ea232b3ee1fd78cec3aedff6",
+      "source_archives": [
+        {
+          "path": "r18-loaded-configuration/archive.json",
+          "git_blob": "e83583c2381cb54d7fa83b832adf9ab92b96cf81",
+          "sha256": "6bf01826eddde63bc1e76980d1f798248b11f59556e6365057ec8e9ba126e876",
+          "bytes": 70555
+        },
+        {
+          "path": "r18-loaded-configuration/evidence.tar.gz.part000",
+          "git_blob": "e54bbd61894678349769ed0dcb0c34ecf8ca19a7",
+          "sha256": "5de376fb37e9136868b914a127d5329cf4d2693944536777b0a71b3e2040a548",
+          "bytes": 900000
+        },
+        {
+          "path": "r18-loaded-configuration/evidence.tar.gz.part001",
+          "git_blob": "0ddb74c1966a0815ad75a29892182d53da1c61e4",
+          "sha256": "bad2e67a5e3c8ce89835fbe4e183e6d20341f7ea8424332cac37e74002f84e64",
+          "bytes": 900000
+        },
+        {
+          "path": "r18-loaded-configuration/evidence.tar.gz.part002",
+          "git_blob": "b8b036b043c9c8be987b7c32c562abf18decd3de",
+          "sha256": "99682e51edcead70f236db3ecde9fee8cf30335687165405eca200064a1c7a9c",
+          "bytes": 900000
+        },
+        {
+          "path": "r18-loaded-configuration/evidence.tar.gz.part003",
+          "git_blob": "1d5b9fcd49885bb8b16440e07068d8c29a81f5df",
+          "sha256": "d2e88496562797ba00b9ab1875d9e314081250d6218dc53377ab93adefeba385",
+          "bytes": 900000
+        },
+        {
+          "path": "r18-loaded-configuration/evidence.tar.gz.part004",
+          "git_blob": "1f88148e377a9f6a63ed32734ff0332a89bad6d9",
+          "sha256": "f0d5ffbfc5ac67dba6f853db76a8add3d5938aab824d9525d14146e79fe7051a",
+          "bytes": 900000
+        },
+        {
+          "path": "r18-loaded-configuration/evidence.tar.gz.part005",
+          "git_blob": "5f77c64d7cab9c6beebc49cfdd3ebbc8c3322cd9",
+          "sha256": "2d97048ca38b295293bc7860b6add75e45c2593fd06b9451f0c462870c2492ff",
+          "bytes": 900000
+        },
+        {
+          "path": "r18-loaded-configuration/evidence.tar.gz.part006",
+          "git_blob": "e07f6c213f14e27664926376f533b69188486534",
+          "sha256": "c621da00206ac376bc1f321c68a93176bfa5fce9559c94005ff421de16871602",
+          "bytes": 900000
+        },
+        {
+          "path": "r18-loaded-configuration/evidence.tar.gz.part007",
+          "git_blob": "425337e2184f3612159095227abfb3e37d51a439",
+          "sha256": "51a3383980f6277dd77dbb5953d8db2dc32849a1fe90ea7e504ac58f1e5ce69f",
+          "bytes": 900000
+        },
+        {
+          "path": "r18-loaded-configuration/evidence.tar.gz.part008",
+          "git_blob": "6d71a3ece6b7ca29b09a9e660243802ac7283f25",
+          "sha256": "1fc1635402dd7a83a8cf8c1eb2189e002e4337d3dc653332e69fa0f6e7fa8d42",
+          "bytes": 900000
+        },
+        {
+          "path": "r18-loaded-configuration/evidence.tar.gz.part009",
+          "git_blob": "5b19fb4b6f52fe382eb8ed5f23230bd40f4cede0",
+          "sha256": "ff43614da7db8251ce2c2ad1ed877bd47f99313c5d57a01149b62f78665e75f2",
+          "bytes": 900000
+        },
+        {
+          "path": "r18-loaded-configuration/evidence.tar.gz.part010",
+          "git_blob": "3981b8fcd8a14cbb6779c6fd155b2a378576b311",
+          "sha256": "451e9dcd1afa69b45aa36d377a1b4616bce349096e06c1b5356d34c346a378c4",
+          "bytes": 900000
+        },
+        {
+          "path": "r18-loaded-configuration/evidence.tar.gz.part011",
+          "git_blob": "b5b166404a936fbd9e9d1cc341b9cd3bf16d5122",
+          "sha256": "b26913ec4a7ef34de54138835d83972d4d406500f527c836aebfe2b36220c991",
+          "bytes": 900000
+        },
+        {
+          "path": "r18-loaded-configuration/evidence.tar.gz.part012",
+          "git_blob": "d5125f2a069c88c5e0b2af91a308e357de19cc56",
+          "sha256": "f7149c614efca8fa8e2d66e7e02734383475115ddfeadd5f446498561c482b68",
+          "bytes": 900000
+        },
+        {
+          "path": "r18-loaded-configuration/evidence.tar.gz.part013",
+          "git_blob": "a3169e0e7738020a2c4996a704d016cb558b8416",
+          "sha256": "7791f59ec2742fa8190e35538706dada4545baf504b58761e9335a86ebf62647",
+          "bytes": 900000
+        },
+        {
+          "path": "r18-loaded-configuration/evidence.tar.gz.part014",
+          "git_blob": "f685bfa92984af247f6aa1124aebf4d20807427f",
+          "sha256": "f2ca9e7983606d991a304d827ea7552fdc2efb2514e7373c8586112a6627db92",
+          "bytes": 900000
+        },
+        {
+          "path": "r18-loaded-configuration/evidence.tar.gz.part015",
+          "git_blob": "f7eefab4bbe5043624bd5c28dc7fa21afd0f92eb",
+          "sha256": "b3e60689953267476c1f13ae50efbc96b8e7de6a46e135b4a6edc2dfc5bdaba0",
+          "bytes": 900000
+        },
+        {
+          "path": "r18-loaded-configuration/evidence.tar.gz.part016",
+          "git_blob": "ca7556dcabf1077c34294b36356c323fa1f4834a",
+          "sha256": "74df7a2437b3801ee18e40bf5cf04dbbb094e12fc4cd79a4d7c6681c96a661d1",
+          "bytes": 900000
+        },
+        {
+          "path": "r18-loaded-configuration/evidence.tar.gz.part017",
+          "git_blob": "7c5c1a297f1987915982c4930c14f7ed668da995",
+          "sha256": "2605bbae930a975627516c4adc781ff4d9c94525f4c61938b1b8bdd6557c3b28",
+          "bytes": 900000
+        },
+        {
+          "path": "r18-loaded-configuration/evidence.tar.gz.part018",
+          "git_blob": "4c279d5f4063c59472c346b9f7cb64800ff54988",
+          "sha256": "cee1564b4f0402453b38459703386d5832f099b66d4d4c6393ad3b055666326e",
+          "bytes": 900000
+        },
+        {
+          "path": "r18-loaded-configuration/evidence.tar.gz.part019",
+          "git_blob": "9002756f046b8bf5fa98ff3044562a0c8c494b59",
+          "sha256": "7504021f9c1a507f9e16c506760f751442d7754170689856266df6629a8df945",
+          "bytes": 900000
+        },
+        {
+          "path": "r18-loaded-configuration/evidence.tar.gz.part020",
+          "git_blob": "feded91a89b22bea1ecf8e5cdea867e809822994",
+          "sha256": "9bc1e70127531a46f492b7bb99fcf96521744085bf28312c775265425fc98651",
+          "bytes": 900000
+        },
+        {
+          "path": "r18-loaded-configuration/evidence.tar.gz.part021",
+          "git_blob": "d33ef34ece2315007628dc4278d6b0d07a500ce5",
+          "sha256": "b29ae0af2a5af45c723f08eceaa1cf3a6c83a7ca5bb7e35a439f1e0e84bfbfed",
+          "bytes": 900000
+        },
+        {
+          "path": "r18-loaded-configuration/evidence.tar.gz.part022",
+          "git_blob": "8187143a0eaa5e0331172763b99861fe86f4ddbe",
+          "sha256": "d941db540c7d96dff2a9bc830248a464b69678bb3d8b4b9e76014f4152553680",
+          "bytes": 900000
+        },
+        {
+          "path": "r18-loaded-configuration/evidence.tar.gz.part023",
+          "git_blob": "1985403b2561263921beeca3fb1cbbb1bd6e484e",
+          "sha256": "8028211cc3adc61a5623c3806e9086da6d57812a387981c7b1dcfdb1012e4b03",
+          "bytes": 900000
+        },
+        {
+          "path": "r18-loaded-configuration/evidence.tar.gz.part024",
+          "git_blob": "b8e075eb25d299c84decf0bf788b7b359d44f75e",
+          "sha256": "cfe7739dc582aa876e942311b56ac7fa469aa64fa9aa79189d530bafc9347ff1",
+          "bytes": 900000
+        },
+        {
+          "path": "r18-loaded-configuration/evidence.tar.gz.part025",
+          "git_blob": "f13ec4e301f2a29f3c123ded98d1c06416629621",
+          "sha256": "26414beba650b7f30fdd7ca63570fe6bf82946f72ac56763d1265695f449ebc4",
+          "bytes": 900000
+        },
+        {
+          "path": "r18-loaded-configuration/evidence.tar.gz.part026",
+          "git_blob": "4d675323594a555544a988be01cb5b0765faf480",
+          "sha256": "7b4891182fbc86d013eeae1244cceb5c8ea5dc3f68d522dfe3417de27d68b39f",
+          "bytes": 900000
+        },
+        {
+          "path": "r18-loaded-configuration/evidence.tar.gz.part027",
+          "git_blob": "628a45e590baed3f202f49d662b17242fa26a34d",
+          "sha256": "6251298d1f9be0e9eb47bfb20cc31640615783678f1d402b1ba7cf11aaa27f8e",
+          "bytes": 900000
+        },
+        {
+          "path": "r18-loaded-configuration/evidence.tar.gz.part028",
+          "git_blob": "d76c279eb6cbaae888a34ca72686d65beeffe3fd",
+          "sha256": "e69612e44473185794667c17c6d79d23dc298bd954861f523f27cfd2b94a03ee",
+          "bytes": 900000
+        },
+        {
+          "path": "r18-loaded-configuration/evidence.tar.gz.part029",
+          "git_blob": "8d6eb1b1b30a96b67b91dd37642de1497a076fbb",
+          "sha256": "655aef899a0f6e8883f8b25f3c62378a92ad125bc3fb15ff21ef3992c36778a6",
+          "bytes": 900000
+        },
+        {
+          "path": "r18-loaded-configuration/evidence.tar.gz.part030",
+          "git_blob": "0c324f4ec130aa532dfe222e527671adb78ef927",
+          "sha256": "74c5ceeaa9c46a62c96c33bb968c52f20b0bcb8c22f31472b2f64d2e62c67766",
+          "bytes": 900000
+        },
+        {
+          "path": "r18-loaded-configuration/evidence.tar.gz.part031",
+          "git_blob": "f3db18517436113bf432ef8a7f308c7f9ed7b6b7",
+          "sha256": "9de48059295f047bc0597e3386097b9d87a75230a5f863d285a8c33f9d4eccf0",
+          "bytes": 529266
+        }
+      ],
+      "adaptation": "Same replay-visible enabled/counter/bounded record mechanism; persist exact per-token top8 IDs instead of aggregate expert group counts. Dedicated graph-replay qualification precedes model startup."
+    }
+  }
+}

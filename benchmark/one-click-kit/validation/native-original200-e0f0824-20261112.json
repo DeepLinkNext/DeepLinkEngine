@@ -1,0 +1,118 @@
+{
+  "schema": "vllm-hust-native-original200-result/v1",
+  "observed_utc": "2026-11-12",
+  "status": "completed_pair_only",
+  "actual_entrypoint": "self-run-kit/one_click.py",
+  "inference_tools_commit": "e0f08249c7d587458e707a0bc16af7db9387aacd",
+  "latest_tools_commit": "7f32b0cc3a7eb24fd6c3e8ed6a231bf80a5dfb52",
+  "latest_tools_change": "Only early output-volume admission added; active source was not changed",
+  "pair_seal_sha256": "7fb9dd6f2fa4c763abfcfbea46859272586f3accff638a6501169c9b9546ba0f",
+  "frozen_plan_sha256": "8e60d98302a4264a11f828c91aba990aef63e666ba88240329ae4f75ff72b5f7",
+  "arms": {
+    "B0": {
+      "planned": 200,
+      "successful": 200,
+      "correct": 150,
+      "length": 25,
+      "unparsed": 0,
+      "metrics": {
+        "recorded": 200,
+        "successful": 200,
+        "failed": 0,
+        "successful_output_tokens": 703345,
+        "mean_ttft_ms": 646003.3777688071,
+        "mean_tpot_ms": 44.16557903465291,
+        "cohort_wall_seconds": 1510.049247412011,
+        "output_tokens_per_second": 465.7761998195911
+      }
+    },
+    "B1": {
+      "planned": 200,
+      "successful": 200,
+      "correct": 149,
+      "length": 18,
+      "unparsed": 0,
+      "metrics": {
+        "recorded": 200,
+        "successful": 200,
+        "failed": 0,
+        "successful_output_tokens": 701247,
+        "mean_ttft_ms": 311833.6988884071,
+        "mean_tpot_ms": 22.010449119856958,
+        "cohort_wall_seconds": 749.2032230962068,
+        "output_tokens_per_second": 935.9903673424952
+      }
+    }
+  },
+  "gains": {
+    "throughput_gain_pct": 100.95281117949608,
+    "mean_ttft_improvement_pct": 51.728781981693174,
+    "mean_tpot_improvement_pct": 50.163793612697205,
+    "equal_rate_unit_cost_reduction_pct": 50.23707336411556,
+    "ai_core_utilization_gain_pp": 32.22303709870602
+  },
+  "formal_targets": {
+    "3.4.1": {
+      "name": "有效算力效率 ≥50%",
+      "status": "verified_existing_pass",
+      "accepted": true,
+      "accepted_scope": "Existing qualified M01 fixed200/out256, three synchronized uninstrumented repetitions per arm",
+      "measured_value": 59.7572618332167,
+      "display_value": "≥59.76%",
+      "source_url": "https://github.com/vLLM-HUST/vllm-hust-benchmark/blob/53541118b3461705f1e61532710ff0a759d59af0/reports/m01-qualified-pair-20261103/README.md",
+      "reason": "已有独立合格参考，原脚本已重新核验算量、三轮计时及关键路径。B1保守效率下界达到50%；适用于原out256工况，不套用到新out8192运行。"
+    },
+    "3.4.2": {
+      "name": "吞吐 ≥10%，TTFT/TPOT 各改善 ≥5%",
+      "status": "fresh_pair_numeric_pass",
+      "accepted": true,
+      "accepted_scope": "This new prospectively frozen original200 pair; observed quality reported with original scorer",
+      "measured_value": 100.95281117949608,
+      "display_value": "+100.95%",
+      "source_url": "summary.json",
+      "reason": "本次新配对吞吐变化100.95%，平均TTFT/TPOT改善51.73%/50.16%；两侧各200完整请求、零失败，正确数差-1/200。保留单次固定子集、长度终止与原服务协议，不推断统计质量等价。"
+    },
+    "3.4.3": {
+      "name": "Five datasets and16K stability",
+      "accepted": false,
+      "display_value": "Incomplete",
+      "reason": "Current native campaign Frontier160 still running,HLE1811 planned;SWE731/Terminal89 not executed. CPU workspace must be created through a model-side platform control entry and its connection returned to NPU; that capability is not exposed in this session. Agent API401 establishes missing user creation authority, not a Coder platform prohibition. Task freezing is not execution."
+    },
+    "3.4.4": {
+      "name": "单位token成本降低 ≥10%及高负载利用率改善",
+      "status": "fresh_pair_equal_rate_estimate",
+      "accepted": true,
+      "numeric_threshold_met": true,
+      "accepted_scope": "This new pair, same reserved two cards and same fixed published price basis",
+      "measured_value": 50.23707336411556,
+      "display_value": "-50.24%",
+      "source_url": "summary.json",
+      "reason": "本次两侧同费率估算单位输出token成本变化-50.24%；实际采样AI Core均值差+32.22个百分点。保留原费用范围、报价日期与利用率统计规则，不冒充实际账单。"
+    }
+  },
+  "report_asset": {
+    "id": 738838267,
+    "name": "native-original200-e0f0824-20261112-r2-report.zip",
+    "bytes": 190181,
+    "sha256": "696089bde2b480d283673c756c52cf0f4dc3a98654617cf5f1d7f2aeaf87f546",
+    "download_url": "https://github.com/vLLM-HUST/vllm-hust-engine/releases/download/full-answer-b1-20261030-r4.3.3/native-original200-e0f0824-20261112-r2-report.zip",
+    "download_readback_verified": true
+  },
+  "raw_preservation": {
+    "private_persistent_path": "/data/shared_upload/vllm-hust-third-party-self-run-20261112/milestones/mmlu-pair-e0f0824-native-r2",
+    "files": 2812,
+    "bytes": 283494290,
+    "all_destination_sha256_readback_verified": true,
+    "offline_relocation_replay_qualified": false
+  },
+  "earlier_runs": "Original140-correct B0, failed B1 startup and full output-volume failure retained separately; not selected as this pair",
+  "remaining": {
+    "FrontierScience": "full160 solverB0running;B1andcommonjudgespending",
+    "HLE-Verified": "full1811including211imagesplanned",
+    "SWE-bench-Pro": "canonical731rowsfrozen;CPUworkspacenotcreated;model-side platform creation capability not exposed",
+    "TerminalBench2.1": "89sourcecaseIDs/subtreesfrozen;CPUworkspacenotcreated;model-side platform creation capability not exposed"
+  },
+  "formal_complete": false,
+  "quality_scope": "One fixed200 pair; correct150vs149, length25vs18; no statistical quality equivalence claim",
+  "cost_scope": "Same fixed published price basis and two reserved cards; estimate, not a machine invoice"
+}

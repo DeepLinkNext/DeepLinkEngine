@@ -1,0 +1,283 @@
+{
+  "schema": "MOD-catalog-integrity/v3",
+  "source_commit": "6b1e2bb1170caf45acaf164da56739ea7a384910",
+  "checked_at_utc": "2026-11-17 00:51:28 UTC",
+  "scope": "Complete enabled-r6 component catalogue; existing experimental entries preserved. New-file identities below describe this catalogue addition over source_commit.",
+  "enabled_stack": "active-stack-r6.json",
+  "registry_entries": 16,
+  "entries": [
+    {
+      "id": "sealed-serving-warmup",
+      "targets": {
+        "manifest": {
+          "path": "mods/sealed-serving-warmup/mod.json",
+          "git_blob": "35e745f8b97286bc3d130196b0b25b3831cf3385",
+          "origin": "source_commit"
+        },
+        "documentation": {
+          "path": "mods/sealed-serving-warmup/README.md",
+          "git_blob": "10c892f44267d4dc5e9680ebcd973526367fd91a",
+          "origin": "source_commit"
+        }
+      }
+    },
+    {
+      "id": "guarded-progress-async",
+      "targets": {
+        "manifest": {
+          "path": "mods/guarded-progress-async/mod.json",
+          "git_blob": "8496d01481cd2e77c0e69bb820fb9caa5f4f9ba7",
+          "origin": "source_commit"
+        },
+        "documentation": {
+          "path": "mods/guarded-progress-async/README.md",
+          "git_blob": "0cdd9ac3cc4a0687474190998233b935517c7da4",
+          "origin": "source_commit"
+        }
+      }
+    },
+    {
+      "id": "capacity-tuning",
+      "targets": {
+        "manifest": {
+          "path": "mods/capacity-tuning/mod.json",
+          "git_blob": "ee9b578fb83f54fe87f57fb24c17a90677aa5f83",
+          "origin": "source_commit"
+        },
+        "documentation": {
+          "path": "mods/capacity-tuning/README.md",
+          "git_blob": "1118cd185332f5f1e4bcd26560d265720dfbfa74",
+          "origin": "source_commit"
+        }
+      }
+    },
+    {
+      "id": "tradeoff-tuning",
+      "targets": {
+        "manifest": {
+          "path": "mods/tradeoff-tuning/mod.json",
+          "git_blob": "47bb37a0d887940604369761d4670443fb83fa1d",
+          "origin": "source_commit"
+        },
+        "documentation": {
+          "path": "mods/tradeoff-tuning/README.md",
+          "git_blob": "790c6e064c2862320eb6c64ca45ab31c5452934e",
+          "origin": "source_commit"
+        }
+      }
+    },
+    {
+      "id": "nz-scalar-compat",
+      "targets": {
+        "manifest": {
+          "path": "experiments/optimization-20261115/mods/nz-scalar-compat/mod.json",
+          "git_blob": "b952d3e5ab800a5275f44a7136fea9618705e693",
+          "origin": "source_commit"
+        },
+        "documentation": {
+          "path": "experiments/optimization-20261115/mods/nz-scalar-compat/README.md",
+          "git_blob": "60a679e90402753aabb689bbe2c2aea702464390",
+          "origin": "source_commit"
+        }
+      }
+    },
+    {
+      "id": "nz-linear-compat",
+      "targets": {
+        "manifest": {
+          "path": "experiments/optimization-20261115/mods/nz-linear-compat/mod.json",
+          "git_blob": "62edb5bfac8f99d41d094b5fd69ec5d1e4297cc2",
+          "origin": "source_commit"
+        },
+        "documentation": {
+          "path": "experiments/optimization-20261115/mods/nz-linear-compat/README.md",
+          "git_blob": "73d16b424daeff4338120200b300a73e65879951",
+          "origin": "source_commit"
+        }
+      }
+    },
+    {
+      "id": "router-precast",
+      "targets": {
+        "manifest": {
+          "path": "experiments/optimization-20261115/mods/router-precast/mod.json",
+          "git_blob": "c74d7f02de15d4be986576dd5fbe3cc7aa18132c",
+          "origin": "source_commit"
+        },
+        "documentation": {
+          "path": "experiments/optimization-20261115/mods/router-precast/README.md",
+          "git_blob": "64c15159feea43bdf28a12fa48184c555d56b0e8",
+          "origin": "source_commit"
+        }
+      }
+    },
+    {
+      "id": "nz-gates-nd",
+      "targets": {
+        "manifest": {
+          "path": "experiments/optimization-20261115/mods/nz-gates-nd/mod.json",
+          "git_blob": "0a72716eb77bf83c1322f756d5dcde2885659151",
+          "origin": "source_commit"
+        },
+        "documentation": {
+          "path": "experiments/optimization-20261115/mods/nz-gates-nd/README.md",
+          "git_blob": "f237b3a7cb197889daab7afef5204c3792a2835e",
+          "origin": "source_commit"
+        }
+      }
+    },
+    {
+      "id": "expert-nz-linear-nd",
+      "targets": {
+        "manifest": {
+          "path": "experiments/optimization-20261115/mods/expert-nz-linear-nd/mod.json",
+          "git_blob": "6f4cb308dc747a79838fa0bff9276532809932bb",
+          "origin": "source_commit"
+        },
+        "documentation": {
+          "path": "experiments/optimization-20261115/mods/expert-nz-linear-nd/README.md",
+          "git_blob": "3fa5ba76679f25e515ceb741b4b9eb723184e425",
+          "origin": "source_commit"
+        }
+      }
+    },
+    {
+      "id": "restore-gated-rms-fusion",
+      "targets": {
+        "manifest": {
+          "path": "mods/restore-gated-rms-fusion/mod.json",
+          "git_blob": "3dc47d50122f04d39a9a21e989c798281d9a6861",
+          "origin": "source_commit"
+        },
+        "documentation": {
+          "path": "mods/restore-gated-rms-fusion/README.md",
+          "git_blob": "95af6d043a45693d792cde6c25def8fee4503785",
+          "origin": "source_commit"
+        }
+      }
+    },
+    {
+      "id": "betterscale",
+      "targets": {
+        "manifest": {
+          "path": "mods/betterscale/mod.json",
+          "git_blob": "f9afc8140d74b3bbdb2c24586466cd63ed3c4e99",
+          "sha256": "7b04c628aacc8fcdf98495d891f7541ba7504a0af289e088d75251d538952513",
+          "origin": "catalogue-addition"
+        },
+        "documentation": {
+          "path": "mods/betterscale/README.md",
+          "git_blob": "30789892bda0816fb8c629253d8921263a8a959a",
+          "sha256": "4b860961600fae998fa1344e38c294a08474584b6ac7f9c60e27a0ba2bca58c6",
+          "origin": "catalogue-addition"
+        }
+      }
+    },
+    {
+      "id": "microflow",
+      "targets": {
+        "manifest": {
+          "path": "mods/microflow/mod.json",
+          "git_blob": "07a0edbe31d2d773b6ee3e9637e8d4b6f48a1b03",
+          "sha256": "29cb634e63962829d1079492421893399f18911731a3b54577f3289d929e3e8e",
+          "origin": "catalogue-addition"
+        },
+        "documentation": {
+          "path": "mods/microflow/README.md",
+          "git_blob": "1b7c988cf1c5dac1d0f9c6566819289631c77c29",
+          "sha256": "81f0e4d85fdaafb2680c595e409f16d4ae8dc5fdc5261b8d5eafe2ffa37f3119",
+          "origin": "catalogue-addition"
+        }
+      }
+    },
+    {
+      "id": "kv-materialization",
+      "targets": {
+        "manifest": {
+          "path": "mods/kv-materialization/mod.json",
+          "git_blob": "4e4baf46149d55f57734f923a38d56fda194cddb",
+          "sha256": "bd090374cc16ef4b180554ee8c91827462fd66c8a354fdd3e1f3344493217b20",
+          "origin": "catalogue-addition"
+        },
+        "documentation": {
+          "path": "mods/kv-materialization/README.md",
+          "git_blob": "9d1d38fe612ea492209ac1693670b84b9ef08182",
+          "sha256": "7862f99f0bec7190e67925308b95e3dd9f40e3e8d4bfaaa8029c0b66051f4d7d",
+          "origin": "catalogue-addition"
+        }
+      }
+    },
+    {
+      "id": "m01-correction",
+      "targets": {
+        "manifest": {
+          "path": "mods/m01-correction/mod.json",
+          "git_blob": "355dcda615981dff30e13ea2ae0edf2d88c8d585",
+          "sha256": "73ba00cc368127337ba03bb691eddf3877ec17bf2c188455065db87338a6d40d",
+          "origin": "catalogue-addition"
+        },
+        "documentation": {
+          "path": "mods/m01-correction/README.md",
+          "git_blob": "f1ebdc40e94d85b53914251bbc464d04c9dfd313",
+          "sha256": "4011f91796bda33ab1cc740a74b1aa003a9b8420ede9f779ae7f97d7281672c9",
+          "origin": "catalogue-addition"
+        }
+      }
+    },
+    {
+      "id": "packed-host",
+      "targets": {
+        "manifest": {
+          "path": "mods/packed-host/mod.json",
+          "git_blob": "e78a21f8f0da064c7747ab446b31c2ba79fac54f",
+          "sha256": "de3067eec6592999089ab77d4ad95c9d249b4fa04c8a5ba13593f7e576e28786",
+          "origin": "catalogue-addition"
+        },
+        "documentation": {
+          "path": "mods/packed-host/README.md",
+          "git_blob": "93a7100ebf51aa399edf6797f0f4aac1d15c9123",
+          "sha256": "a09831d2a3d9acd0db035874217d0ffc5c9b564b34837ee4974ab60bdb712305",
+          "origin": "catalogue-addition"
+        }
+      }
+    },
+    {
+      "id": "extension-manager",
+      "targets": {
+        "manifest": {
+          "path": "mods/extension-manager/mod.json",
+          "git_blob": "9e5654e9bfe5262080214a0026a328b6375dc46f",
+          "sha256": "b7f73be0b191ab2e247d18b54039ef3a641f2b2adba36c7b54a247ab022b05bb",
+          "origin": "catalogue-addition"
+        },
+        "documentation": {
+          "path": "mods/extension-manager/README.md",
+          "git_blob": "82f81e84d497d64bc23b9c8c60c0f47c33a78c62",
+          "sha256": "9c4127bcca00d4e0935cb676a66292cb5fa3942eb926f19e9b37761c848f1c46",
+          "origin": "catalogue-addition"
+        }
+      }
+    }
+  ],
+  "validation": {
+    "registry_entries": 16,
+    "enabled_mods": 7,
+    "registry_targets": 32,
+    "new_module_documentation_links": 60,
+    "all_pythonpath_roots_covered": true
+  },
+  "deployed_source_validation": {
+    "release": "full-answer-b1-20261113-r6",
+    "entrypoint_sha256_checks": 20,
+    "original_manifest_sha256_checks": 2,
+    "entrypoint_hashes_match": true,
+    "original_manifest_hashes_match": true,
+    "pythonpath_order_matches": true,
+    "method": "Read deployed files and deployment/provenance JSON only; no module import, inference, restart, or runtime modification."
+  },
+  "all_documentation_and_manifest_paths_resolve": true,
+  "default_profile_changed": false,
+  "runtime_sources_changed": false,
+  "experimental_results_changed": false,
+  "historical_integrity": "catalog-integrity-20261117-v2.json"
+}

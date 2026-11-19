@@ -1,0 +1,377 @@
+{
+  "schema": "vllm-hust-engine-profile/v2",
+  "release": "full-answer-b1-20261117-r8",
+  "base_profile": "engines/b1-r4.json",
+  "runtime_overlay": "engines/b1-r8-overlay.json",
+  "baseline": "original018/CANN8.5.1 fixed image; shared new pre-measurement warmup only",
+  "judge_policy": "xgrammar-bounded-whitespace-confidence-v2",
+  "measurement_policy": "observed-torch-triton-sealed-warmup-v2",
+  "datasets": {
+    "mmlu": "fixed200",
+    "hle": "proportional four-strata fixed200",
+    "frontier": "full160",
+    "swe": "published trace32 tasks/64 requests",
+    "terminal": "published trace32 tasks/48 requests"
+  },
+  "historical_r4_metrics_reused": false,
+  "release_promotion": "Frozen r8 is published for reproduction and further optimization. The historical C15 5%/2% internal screens and their failed outcomes remain unchanged; they are not project acceptance requirements or a standalone veto on publication. Evaluate r8 against B0 under the project outline and disclose the r6 tradeoffs. Default remains r6 pending the new comparison decision.",
+  "supersedes": "engines/b1-r7.json",
+  "local_adaptation": "C10 native async E36/R54 plus existing eligible prefill tails1..256 priority. No arithmetic/kernel/State offer or admission changes.",
+  "owned_progress_copy": "async; current-stream H2D, native double-buffer source fences retained",
+  "combination": {
+    "E": 36,
+    "R": 54,
+    "MTP": 2,
+    "graph": "FULL",
+    "kv_recompute": "per-request",
+    "microflow": true,
+    "packed_host": "per-object/per-dtype",
+    "host_bytes_per_rank": 4294967296,
+    "kv_bytes_per_rank": 21474836480,
+    "owned_progress_copy": "guarded native asynchronous H2D",
+    "scheduling": "reserve decodes first; existing eligible prefill tails1..256 before original ring"
+  },
+  "runtime_configuration": {
+    "schema": "vllm-hust-runtime-geometry/v1",
+    "id": "r8-E36-R54",
+    "execution_seats": 36,
+    "resident_seats": 54,
+    "speculative_tokens": 2,
+    "prefill_tokens": 4096,
+    "host_bytes_per_rank": 4294967296
+  },
+  "qualification": {
+    "status": "complete-original8-services-screen-not-met:reverse4K-mean-and-P95-TTFT;reverseMMLU200-mean-TPOT",
+    "default_promoted": false,
+    "study": "experiments/optimization-20261115/C15-r7-tail-combination-model-20261117-r1",
+    "required": "Retain all original C15 screens and outcomes as development evidence. Frozen r8 is published for reproduction and optimization; project acceptance uses the outline and the new B0/r8 comparison.",
+    "context_screens_met": false,
+    "context_review_asset": {
+      "url": "https://github.com/vLLM-HUST/vllm-hust-engine/releases/download/full-answer-b1-20261117-r8/C15-complete-context-pairs-and-CPU-replay-v1.zip",
+      "sha256": "82abba1122b550ebdd38e6f809df48c0e90d4abd512570d4e0ce57bcc6d817cf",
+      "bytes": 2520469,
+      "asset_id": 757573869,
+      "redownload_verified": true
+    },
+    "context_comparisons": [
+      {
+        "pair": "forward",
+        "control": "C15-01-C8-r6",
+        "candidate": "C15-02-C8-combined-tail",
+        "phase": "4096-formal",
+        "relative_change_percent": {
+          "output_tokens_per_second": 12.107988514963974,
+          "mean_ttft_ms": -0.04081490481621097,
+          "mean_tpot_ms": -12.473235370877534,
+          "ttft_p95_ms": -18.388725258983317,
+          "ttft_p99_ms": -33.529916693303605,
+          "tpot_p95_ms": -11.805482805085344,
+          "tpot_p99_ms": -7.1610325808971975
+        },
+        "checks": {
+          "output_tokens_per_second": true,
+          "mean_ttft_ms": true,
+          "mean_tpot_ms": true,
+          "ttft_p95_ms": true,
+          "ttft_p99_ms": true,
+          "tpot_p95_ms": true,
+          "tpot_p99_ms": true
+        },
+        "screen_met": true,
+        "failed_metrics": []
+      },
+      {
+        "pair": "forward",
+        "control": "C15-01-C8-r6",
+        "candidate": "C15-02-C8-combined-tail",
+        "phase": "16384-formal",
+        "relative_change_percent": {
+          "output_tokens_per_second": 4.895501791779622,
+          "mean_ttft_ms": -21.542483400035227,
+          "mean_tpot_ms": 1.1066233230067501,
+          "ttft_p95_ms": -26.535684149432903,
+          "ttft_p99_ms": -6.010327185814823,
+          "tpot_p95_ms": -4.326906657321694,
+          "tpot_p99_ms": -4.807737523121891
+        },
+        "checks": {
+          "output_tokens_per_second": true,
+          "mean_ttft_ms": true,
+          "mean_tpot_ms": true,
+          "ttft_p95_ms": true,
+          "ttft_p99_ms": true,
+          "tpot_p95_ms": true,
+          "tpot_p99_ms": true
+        },
+        "screen_met": true,
+        "failed_metrics": []
+      },
+      {
+        "pair": "reverse",
+        "control": "C15-04-C8-r6",
+        "candidate": "C15-03-C8-combined-tail",
+        "phase": "4096-formal",
+        "relative_change_percent": {
+          "output_tokens_per_second": 11.478902133287349,
+          "mean_ttft_ms": 11.377710133641905,
+          "mean_tpot_ms": -13.207819766268658,
+          "ttft_p95_ms": 20.23477855258613,
+          "ttft_p99_ms": -29.433166092283848,
+          "tpot_p95_ms": -11.189230576463327,
+          "tpot_p99_ms": -10.775637188099374
+        },
+        "checks": {
+          "output_tokens_per_second": true,
+          "mean_ttft_ms": false,
+          "mean_tpot_ms": true,
+          "ttft_p95_ms": false,
+          "ttft_p99_ms": true,
+          "tpot_p95_ms": true,
+          "tpot_p99_ms": true
+        },
+        "screen_met": false,
+        "failed_metrics": [
+          "mean_ttft_ms",
+          "ttft_p95_ms"
+        ]
+      },
+      {
+        "pair": "reverse",
+        "control": "C15-04-C8-r6",
+        "candidate": "C15-03-C8-combined-tail",
+        "phase": "16384-formal",
+        "relative_change_percent": {
+          "output_tokens_per_second": 4.18666175936977,
+          "mean_ttft_ms": -11.501654834912001,
+          "mean_tpot_ms": -1.5815262889838588,
+          "ttft_p95_ms": -25.960882167817246,
+          "ttft_p99_ms": -3.833751155728693,
+          "tpot_p95_ms": -3.9504295497682307,
+          "tpot_p99_ms": -4.3199954807158765
+        },
+        "checks": {
+          "output_tokens_per_second": true,
+          "mean_ttft_ms": true,
+          "mean_tpot_ms": true,
+          "ttft_p95_ms": true,
+          "ttft_p99_ms": true,
+          "tpot_p95_ms": true,
+          "tpot_p99_ms": true
+        },
+        "screen_met": true,
+        "failed_metrics": []
+      }
+    ],
+    "execution_complete": true,
+    "task_screens_met": false,
+    "original_operational_screen_met": false,
+    "task_comparisons": [
+      {
+        "control": "C15-05-MMLU-r6",
+        "candidate": "C15-06-MMLU-combined-tail",
+        "relative_change_pct": {
+          "output_tokens_per_second": 37.93712472134554,
+          "mean_ttft_ms": -36.39906275267,
+          "mean_tpot_ms": 1.8013102014050597,
+          "ttft_p95_ms": -34.187066355322116,
+          "ttft_p99_ms": -34.422306691624,
+          "tpot_p95_ms": 2.5905444979106296,
+          "tpot_p99_ms": 3.1432137469370014
+        },
+        "checks": {
+          "throughput": true,
+          "mean_TPOT": true,
+          "mean_TTFT": true,
+          "tails": true,
+          "correctness": true,
+          "truncation": true,
+          "complete": true
+        },
+        "screen_met": true,
+        "before_correct": 145,
+        "after_correct": 147,
+        "lost_correct": [
+          12,
+          21,
+          29,
+          33,
+          59,
+          70,
+          73,
+          77,
+          88,
+          89,
+          90,
+          108,
+          110,
+          115,
+          117,
+          118,
+          133,
+          136,
+          140,
+          163,
+          175,
+          181,
+          192,
+          194
+        ],
+        "gained_correct": [
+          1,
+          17,
+          19,
+          36,
+          38,
+          41,
+          56,
+          64,
+          75,
+          96,
+          98,
+          102,
+          104,
+          106,
+          112,
+          120,
+          123,
+          138,
+          141,
+          144,
+          147,
+          157,
+          158,
+          169,
+          170,
+          190
+        ],
+        "independent_questions": 200,
+        "statistical_quality_equivalence_claimed": false
+      },
+      {
+        "control": "C15-08-MMLU-r6",
+        "candidate": "C15-07-MMLU-combined-tail",
+        "relative_change_pct": {
+          "output_tokens_per_second": 38.124922408001225,
+          "mean_ttft_ms": -39.199388889407786,
+          "mean_tpot_ms": 2.2843324060928705,
+          "ttft_p95_ms": -37.21693528611929,
+          "ttft_p99_ms": -37.32348353082815,
+          "tpot_p95_ms": 2.9582709201614765,
+          "tpot_p99_ms": 3.4574435500390965
+        },
+        "checks": {
+          "throughput": true,
+          "mean_TPOT": false,
+          "mean_TTFT": true,
+          "tails": true,
+          "correctness": true,
+          "truncation": true,
+          "complete": true
+        },
+        "screen_met": false,
+        "before_correct": 148,
+        "after_correct": 146,
+        "lost_correct": [
+          2,
+          6,
+          16,
+          22,
+          32,
+          40,
+          46,
+          56,
+          63,
+          66,
+          69,
+          77,
+          83,
+          87,
+          93,
+          94,
+          104,
+          110,
+          112,
+          136,
+          150,
+          175,
+          178
+        ],
+        "gained_correct": [
+          1,
+          21,
+          29,
+          34,
+          38,
+          41,
+          58,
+          60,
+          68,
+          70,
+          84,
+          88,
+          106,
+          107,
+          118,
+          124,
+          138,
+          169,
+          180,
+          193,
+          196
+        ],
+        "independent_questions": 200,
+        "statistical_quality_equivalence_claimed": false
+      }
+    ],
+    "complete_review_asset": {
+      "url": "https://github.com/vLLM-HUST/vllm-hust-engine/releases/download/performance-exploration-20261115-r1/C15-combined-tail-complete-or-partial-review-v1.zip",
+      "sha256": "d7da58c01a600b08f23daea89f96974b7bec977fa5c74e65fa895963830a255b",
+      "bytes": 150786,
+      "asset_id": 757964496,
+      "redownload_verified": true
+    },
+    "complete_review_source_commit": "c9fdc0ee00810f9f814855048973df12257b7bc0",
+    "independent_questions": 200,
+    "all_original_archives_verified": true,
+    "failed_release_checks": [
+      {
+        "phase": "reverse4K",
+        "mean_TTFT_change_percent": 11.377710133641905,
+        "P95_TTFT_change_percent": 20.23477855258613,
+        "limit_percent": 5
+      },
+      {
+        "phase": "reverseMMLU200",
+        "mean_TPOT_change_percent": 2.2843324060928705,
+        "limit_percent": 2
+      }
+    ],
+    "checked_at": "2026-11-17T07:08:13.525158+00:00",
+    "study_scope": "Historical C15 r6-vs-r8 development comparison; not the new B0/r8 five-profile campaign."
+  },
+  "runtime_source_equivalence": "All10 overlaid runtime files are byte-identical to C15; r8 changes only release/launch metadata.",
+  "excluded_exploration": [
+    "restore/RMS fusion C16/C17; no full-model qualification yet"
+  ],
+  "measured_development_evidence": "experiments/optimization-20261115/C15-r7-tail-combination-model-20261117-r1/complete-review-v1.json",
+  "publication_policy": {
+    "schema": "r8-publication-and-project-acceptance/v1",
+    "date": "2026-11-17",
+    "frozen_r8_published_for_optimization": true,
+    "historical_C15_thresholds_unchanged": true,
+    "internal_screens_are_project_targets": false,
+    "full_campaign": "mmlu,hle,frontier,swe,terminal",
+    "runtime_or_warmup_changed": false,
+    "default_promoted": false
+  },
+  "current_publication_manifest": {
+    "url": "https://github.com/vLLM-HUST/vllm-hust-engine/releases/download/full-answer-b1-20261117-r8/r8-release-manifest-v3.json",
+    "sha256": "9ea119e6051e60ce786cc8e29017860146a823e41d66058c077426dc9d4cb79d",
+    "bytes": 12717,
+    "asset_id": 759783540,
+    "redownload_verified": true,
+    "schema": "vllm-hust-r8-release-manifest/v3",
+    "runtime_changed": false,
+    "downloads_and_MODs_current": true
+  }
+}

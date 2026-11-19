@@ -1,0 +1,11 @@
+{
+  "current-reference-bounds.svg": "6a65f60288cb6e6e46d84c23d1ff771b9bce78bb44408f77189e27635ff0e89e",
+  "current-reference-bounds.png": "67f90130078958035fa38c18cb0a4ab685ed8e3696092967681c8a4415d04fa0",
+  "report.html": "4af52c7a22fdad63bb8e8d3f176ac2a0dc5455bae7e2a74af226ef7c57f2078e",
+  "summary.json": "11cfcadce524b2e8a505e8d882dc780754b67603308d4e07683059cbee93028f",
+  "source-binding.json": "c800ec7f5eea34e13e1a9d4d2aaf6574ef722898aeba85ed3f938cbe899a107c",
+  "compute-reference/matched-reference-pair.json": "fef1f015501b1b6b78ee344e3222c793ebc70338e0bc9e4c25b27d9d7c8b6bcb",
+  "compute-reference/necessary-work-audit.json": "cb959a7c6e3a360782dc57415177991be6e84d71f8c83210ba6c1d1fb1acf4ee",
+  "compute-reference/reference-graph-audits.json": "52998fa44bcd5e401162228a3b00343f8512e14add0fd4b271cf7d12ffd09e4e",
+  "compute-reference/qualified-full-reference-statistics.json": "6611fee282b552092f8a807ad02ec517cbadaccde08423376acd7d6e8b439870"
+}

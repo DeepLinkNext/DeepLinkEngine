@@ -1,0 +1,12 @@
+{
+  "source": "/tmp/vllm-hust-engine-three-datasets-native-20261112-r1/runs/three-datasets-full-r1/mmlu-pair/B1/memory-samples.jsonl",
+  "raw_counter": 18446744073709494272,
+  "raw_current": 72195964928,
+  "limit": 137438953472,
+  "working_estimate_used": 72195964928,
+  "original_reserve_bytes": 4294967296,
+  "new_oom_events": false,
+  "original_guard_check": "pass",
+  "first_failed_B1_client_started": false,
+  "previous_completed_B0_not_a_complete_pair": true
+}

@@ -1,0 +1,27 @@
+{
+  "schema": "hle-structural-whitespace-grammar-probe/v1",
+  "kind": "CPU grammar acceptance only; not model generation or a quality score",
+  "contract_sha256": "5180b7a25764de206525fb9a9bba3ea9c55c7cf3aeebad898d2004ad5636f60c",
+  "judge_schema_sha256": "290ca7de47d4b56d8361aae7556c91c37a34293a6ad58dcec6a7f542bb2413db",
+  "xgrammar_version": "0.2.8",
+  "tokenizer": "Synthetic byte vocabulary for grammar acceptance, no model logits",
+  "results": {
+    "valid_string_spaces": {
+      "unrestricted": true,
+      "bounded-v1": true
+    },
+    "repeated_tabs_after_strict": {
+      "unrestricted": true,
+      "bounded-v1": false
+    },
+    "repeated_spaces_after_strict": {
+      "unrestricted": true,
+      "bounded-v1": false
+    },
+    "repeated_newlines_after_strict": {
+      "unrestricted": true,
+      "bounded-v1": false
+    }
+  },
+  "new_native_inference": false
+}

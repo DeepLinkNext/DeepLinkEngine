@@ -1,0 +1,106 @@
+{
+  "schema": "reviewed-current-necessary-arithmetic-source-domain/v1",
+  "model_config_sha256": "5e4d7f74fec2f360eb9cfbfcd6ec0c4c76e684d3a11caaed259d9fd9bfbc7944",
+  "sources": {
+    "B1": {
+      "runtime/engine-core/vllm/model_executor/models/qwen3_next.py": "4a27cf7b065c2097688421e6ea849704cef946f347978fb426abbc72b77f00b2",
+      "runtime/engine-core/vllm/model_executor/models/qwen3_5.py": "3abeac36180df7bd1bd96b1a7c698a8f212d92c063026420cbdd16d1980e90e6",
+      "runtime/engine-core/vllm/model_executor/layers/mamba/gdn/qwen_gdn_linear_attn.py": "b80f8e6f3fff442fb880aebb3209c52f814f66490009f4ac4003de603576d10a",
+      "runtime/engine-core/vllm/model_executor/layers/linear.py": "48fc44bbe81fe6673ccb028c2f1da7e8c3f2395bfb574e363c7d879a2ee1ef61",
+      "runtime/engine-core/vllm/config/parallel.py": "cf056e566c73637165c92ab4506d40f31a315716a064f9ffebf883f86dac37b2",
+      "runtime/ascend/vllm_ascend/ops/linear.py": "f3254a989347eabd03dad3f4a1e8abe541004c30929b803687f2d50cc495e820",
+      "runtime/ascend/vllm_ascend/ops/gdn.py": "765eb27018f762e970301978af80a91d86ce4d7110ed7f2c48a3986b2eb78e85",
+      "mods/microflow/hust_prefill_microflow/runtime/school028_attention.py": "62ae3e125ad8393652347a52cc25d255d115b64b357587f5923edc85f82b71d8",
+      "mods/microflow/hust_prefill_microflow/runtime/microflow.py": "78e7d291de4e431e478991ecec273ab0a11d6e2206d1f02a1ed6ab0a1ecd1d26",
+      "runtime/ascend/vllm_ascend/worker/model_runner_v1.py": "83da7d9c6c53f718322328bb43d80651a7cd62992a8d0e8d723d62769bd0b346",
+      "runtime/ascend/vllm_ascend/spec_decode/llm_base_proposer.py": "d106cb3cc2e048734fa2986394c43c2177d04190715dc390d8a62d50830cb6e2",
+      "runtime/engine-core/vllm/v1/spec_decode/llm_base_proposer.py": "86fdf5cc84b35ff568ba8d0ab067ce827c1b32f3c5f5e49b9bcdd8f89accfb81",
+      "runtime/engine-core/vllm/config/speculative.py": "819972563967f5321367cd692d8785e5bd1b2408305ada4c2c9700c376d24090",
+      "runtime/engine-core/vllm/model_executor/models/qwen3_5_mtp.py": "89b0bde1d11fe5768a634e4365c78274e20694b26f4c6bb68e934328d8d0b190",
+      "runtime/ascend/vllm_ascend/patch/worker/patch_qwen3_5.py": "0ea5111173d5a02e4f8ab89130a1a1bd7d44ad86885a4c64bb3cb4649afbb48c",
+      "runtime/ascend/vllm_ascend/ops/layernorm.py": "50dedf714c6e485d47fea1cc4f0c8fc8058b43f1ad6e33b0df36dfaca0782991",
+      "runtime/ascend/vllm_ascend/ops/rotary_embedding.py": "a26631959411a38121a38bc60fe6157f8d258c1d9cdbb0a9f9dafbf44fd0a645",
+      "runtime/ascend/vllm_ascend/ops/fused_moe/router/fused_topk_router.py": "ab6147b770c11a22c9cfdf46aee2995fb9ce19ce25174995f1541ab2f54f97a6",
+      "runtime/ascend/vllm_ascend/ops/fused_moe/routed_experts.py": "b17e5a105d59fc280f244bdc4036b4cb41efd1d5a2ff1accca4b56620cc91ab7",
+      "mods/betterscale/betterscale/models/qwen35/host_metadata.py": "0b804a5359b4816ab6770ba4608c8f970a8409d9743efcd798bf4f53dc126558",
+      "mods/betterscale/betterscale/models/qwen35/service_metadata.py": "c5a84859236fa7623e888ce5aa214f82e36ce478143e671d4f93e298d911d34d",
+      "mods/betterscale/betterscale/models/qwen35/count_policy.py": "195ba3d23ad16a01db08f0bbd312e54851f378a07d55864ef67b86c0194592f8",
+      "mods/betterscale/betterscale/models/qwen35/chunk_layout.py": "99c098a82f3c8b08327bb2236a76c7ca66f5b777917f1ebd5e8e557c31c775f4",
+      "mods/betterscale/betterscale/models/qwen35/preprocess.py": "45d217d8404a8c223f933b507f9d1bb70933e16f093193040f545b71a5ec4dd2",
+      "mods/betterscale/betterscale/models/qwen35/decode_kv.py": "135bac7406d18b2e58fde579d18c053abb3aba6d2c1a5f4b91c7a8a6931b9109",
+      "mods/betterscale/betterscale/models/qwen35/mixed_core.py": "9755886fada242e6fc77bdd2ffc363f5d5a74cf08e5302a1d9943ef25c0dd657",
+      "runtime/engine-core/vllm/model_executor/layers/rotary_embedding/__init__.py": "f703d3f7ca6be6b41837d4a07a27b94d1442149554bb4f4837cd3722671a5bbd"
+    },
+    "B0": {
+      "text-only-overlay/vllm/vllm/model_executor/models/qwen3_next.py": "a5bf57f4c3ce15c07e3cf2b3019678bbe71d2378d80f1d922bfd18203c2b0f77",
+      "text-only-overlay/vllm/vllm/model_executor/models/qwen3_5.py": "92708c28c21c17695154c33725731e053cb0b5d1a21169cf3fd0d93cc583eb78",
+      "text-only-overlay/vllm/vllm/model_executor/layers/linear.py": "b8be54d8f4849818da7b1ca97315854f5e60fcb3b5c6837cd13501589e47f6c1",
+      "text-only-overlay/vllm/vllm/config/parallel.py": "a51a21c1ce410cb3e92a05be13ff09355f9f1539c595d171b8161f98d779af1e",
+      "text-only-overlay/vllm-ascend/vllm_ascend/ops/linear.py": "fcf2520f8818cb02e6b27a7b9a926745c5c36f1af08a01d9be0627ce2c87316e",
+      "text-only-overlay/vllm-ascend/vllm_ascend/patch/worker/patch_gdn_attn.py": "51697d71ef092ef0e150b00cede972155fc2077dc5f29c8962d848d8664a4e35",
+      "text-only-overlay/vllm/vllm/v1/attention/backends/gdn_attn.py": "bf72f7ff5772bb04ce0172f52e8f87e33cffbc1f894d75cd4d6ded84b03edefe",
+      "text-only-overlay/vllm/vllm/v1/spec_decode/eagle.py": "ab9592c2a5815ecbd160148e58dfb751bbd1773e30f8ef09071528f34cd70f3b",
+      "text-only-overlay/vllm/vllm/config/speculative.py": "8e349ab1fefefeea9dad529bfcf91189616e996622eedfd58cf3fec90d83fcfa",
+      "text-only-overlay/vllm/vllm/model_executor/models/qwen3_5_mtp.py": "cf97664e82371425df14e412c9d351405d05ae8db3622fc817813ddda6858622",
+      "text-only-overlay/vllm-ascend/vllm_ascend/spec_decode/eagle_proposer.py": "6cd5e2c7058a35a1018a1196eca298f2eeed7400f5ee33d9bf80f9cba9f0c394",
+      "text-only-overlay/vllm-ascend/vllm_ascend/worker/model_runner_v1.py": "8d35f26a9db8f63038158c139a43f92e3e970117bb4a2b43c82fd828e349b981",
+      "text-only-overlay/vllm-ascend/vllm_ascend/ops/layernorm.py": "af53359759567ad86caf985fba6d95cd4b12dd688e7a47bb593fc7fcf0a9c256",
+      "text-only-overlay/vllm-ascend/vllm_ascend/ops/fused_moe/fused_moe.py": "bc170911dea7ff5c154ac966c9a046771f3afa79f0edd5e5d871525e911f25c0"
+    }
+  },
+  "formula_sha256": {
+    "public_work_ledger.py": "f071105a2f01f195c5f1e9836b4ccddbe0288ff439e0f76985ee503ad8c263b2",
+    "public_request_work.py": "4bf6fdde5e20615eff22a8906f97379a04c54d899401b209139f575145f51802",
+    "draft_state_closure.py": "8733b69efcd6f9bcb341cd90846758005d1b8a1bbb17301792144fd05f88d13d",
+    "target_state_closure.py": "a4f3da1d62d0e1dc160e4499a87fe19df7c7f165ac2280221e816463b359ad66",
+    "semantic_work.py": "b2439cbf3e8ef5a43fda3deb3c3868af9dddc9f094369f6191eee4cfff701636",
+    "gdn_partition_bounds.py": "aecb47b64181cd57eb47c370741e552052678eb686ec0eb7bf49a887543c29c9",
+    "gdn_reference.py": "06912e45198f49c7bd5dde0c32d487e48fd849aff050df1cf0465a432f9a0575",
+    "gdn_prefill_reference.py": "c8a1ff1d803d964233328fa2c48af20e438de6d0eb0d476345c0a9b56b8b757c",
+    "audit_loaded_work_inventory.py": "de279b5831f79bbaf05bdc58f3c0c1bca7b66da85ebdadbb729f84a3088131a6",
+    "audit_public_work_correspondence.py": "ec9fc9d93a325aaf0022e4acf8a63c84aff44d9744b994ec4721e0b9254d0fd8",
+    "draft_producer_geometry.py": "52454011a27ff874ef415f37c51d379bcaecd73bdfb486f7b8dcbe618741ca98"
+  },
+  "claims": [
+    {
+      "id": "all_arithmetic_families",
+      "proof": "The canonical work convention counts matrix FMA as two, dot reductions in scalar recurrence as multiply plus n-1 adds, and each typed basic scalar operation once. Projection/full attention/vocabulary/scalar/causal convolution/GDN prefill/GDN decode/draft dependency families are disjoint. Special functions and comparisons are disclosed separately, not silently called FLOPs."
+    },
+    {
+      "id": "target_rows_and_final_layer",
+      "proof": "Fresh request prefixes and no preemption imply necessary target positions0..P+O-2 exactly once. First39 layers produce the entire last-layer KV prefix. The final full-attention layer needs full Q/output/MoE/final norm only at retained target logits or same-position first-pass MTP hidden roots. K/V and its normalized input remain necessary for all prefix rows; final Q/full populations are the union, not all rows unconditionally."
+    },
+    {
+      "id": "fixed_mtp_and_terminal_interval",
+      "proof": "Pinned sequential MTP2 has no parallel drafting, extra first-pass slots, CP remapping or auxiliary target hidden concatenation. With complete native outputs and no formal preemption/reset/abort, nonterminal c equals accepted+1. Terminal trimming retains accepted drafts between c-1 and min(2,c); both branches are closed independently. An empty terminal publication is rejected as outside the domain."
+    },
+    {
+      "id": "same_position_producers",
+      "proof": "Both admitted source families select target token/position/hidden rows with the same indices, shift input token IDs only, and copy target hidden states into first-pass buffers without position reindexing. Target returns its final normalized hidden state. MTP applies two pre-FC norms, concat-FC, one full-attention/MoE decoder, then final norm. Later draft steps recycle the selected prior full hidden state and sampled token."
+    },
+    {
+      "id": "backward_versions",
+      "proof": "Draft writes are causal ordered prefixes. A later first pass overwrites its own suffix; last-writer versions preserve earlier prefix owners. Backward closure starts only at retained/possibly-retained terminal draft vocabulary roots, adds full hidden and KV-prefix ancestors, and follows previous-step hidden/token dependencies. KV-only first-pass rows require input norms/FC/K/V, not their dead Q/attention/MoE/vocabulary. Earlier prompt partitions cover the same step0 logical prefix; unused boundary predictions and overwritten suffixes are not roots."
+    },
+    {
+      "id": "gdn_prompt_families",
+      "proof": "r8 role metadata separates non-speculative prompt rows from MTP verification regardless of length. Prompt WY segments partition each fresh prompt into real1..64 zero-first/stateful-later chunks; all ordered compositions form a conservative superset. original018 can additionally classify a one-token non-speculative prompt remainder as recurrence. Its envelope includes that option, with cold structural-zero arithmetic removed explicitly. Decode after the prompt uses the fixed recurrent verification family. No old chunk histogram is imported."
+    },
+    {
+      "id": "scalar_configuration",
+      "proof": "Frozen Qwen3.5 BF16 unquantized TP2 has attention gating, Gemma RMS norms epsilon1e-6, partial RoPE64, SiLU, causal convolution width4, top8 of256 experts, normalized softmax routing and one shared expert; no attention bias, layer-scale, sequence-parallel or expert-redundancy branch. Global semantic arithmetic is counted once rather than charging TP-replicated scalar execution twice."
+    },
+    {
+      "id": "independent_companion_crosscheck",
+      "proof": "A completed separately instrumented r8 companion observation must validate loaded target/draft shapes and scalar dispatch on both ranks, and show every actual request-owned producer closure lies within its own public-reconstructed terminal interval. Companion token counts/times do not replace native counts/times. This supplements source qualification; it does not demand native and HTTP generated tokens match."
+    },
+    {
+      "id": "shared_rotary_inventory",
+      "proof": "The source-pinned get_rope caches identical immutable rotary configurations. named_modules removes duplicate objects, so the inventory validates the first shared rotary object and all distinct parameter-owning modules; later omitted rotary aliases are covered by the constructor/cache source binding."
+    }
+  ],
+  "required_companion_for_current": true,
+  "original018_recurrent_prompt_envelope": true,
+  "necessary_work_interval_allowed": true,
+  "full_reference_timing_separate": true
+}

@@ -1,0 +1,17 @@
+{
+  "reason": "User confirmed container restart and port change; volatile /tmp SDK/deployments and process lost",
+  "observed_at": 1794571247.8086562,
+  "formal_streams_present": 0,
+  "no_valid_completed_stage_reused": true,
+  "new_environment_visible_cards": [
+    0,
+    1,
+    6,
+    7
+  ],
+  "resume_pair_physical_cards": [
+    6,
+    7
+  ],
+  "recovery_storage": "/data/shared_upload/vllm-hust-third-party-self-run-20261112/runtime-recovery-20261113-r1"
+}

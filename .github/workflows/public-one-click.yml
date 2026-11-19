@@ -1,0 +1,40 @@
+name: Public one-click contract
+
+on:
+  pull_request:
+  push:
+    branches: [main, 'codex/public-one-click-*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  public-contract:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -B tools/verify_snapshot.py
+      - run: python -B datasets/verify.py
+      - run: python -B one_click.py verify
+      - run: python -B one_click.py run --help
+      - run: python -B tools/test_public_one_click.py
+      - run: python -B tools/test_public_run_all.py
+      - run: python -B tests/test_run_all.py
+      - name: Fetch fixed reference evidence anonymously into an empty cache
+        run: |
+          unset GH_TOKEN GITHUB_TOKEN VLLM_HUST_PROJECT_EVIDENCE
+          export XDG_CACHE_HOME="${RUNNER_TEMP}/deeplink-public-evidence"
+          python -B one_click.py fetch-reference
+      - name: Recompute the published current certificate from work and clock originals
+        env:
+          XDG_CACHE_HOME: ${{ runner.temp }}/deeplink-public-evidence
+        run: python -B benchmark/reports/r8-compute-reference-20261119-v1/recompute.py

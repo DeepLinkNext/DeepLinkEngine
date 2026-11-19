@@ -1,0 +1,20 @@
+{
+  "engine_commit": "9c4699be28425d3d05112cc31214e801e59cbf33",
+  "publication_commit": "1907ee8fb89386521e57c5d87525efc677cef7dc",
+  "source_sha256": {
+    "scripts/export_five_dataset_results.py": "cda3d01ce43bbeff3b568e3725c5f7b37971e098ea6c26172f2dd0f5fc755e61",
+    "scripts/publication_campaign.py": "ec8f466195ff9063ced8e47e120f37f84aecc10acaa2b0b689866529fa85749e",
+    "scripts/project_goal_assessment.py": "4760ddd769ae35eab0e39659274d2d77b5f61a7ad834ef49173744e253a2f7c3",
+    "scripts/stability_assessment.py": "0738182faa5fba65f0f2fbde4bf0bc571a290d7265a739d98a299834248365a7",
+    "scripts/plot_five_dataset_results.py": "e75052c6cdcb18b5b12af73e89c2dadee8f414d9266f04461ac21d0c95d84c0d",
+    "scripts/plot_project_final_goals.py": "281ddf56c81e3f6879928965ff888bdaca48b4e033e10aeb9bc43b104ab19671",
+    "reports/m01-qualified-pair-20261103/summary.json": "95c6bd465c4beb558cd25284e221a166e33634ea2f9b6d44364d2b1114863bd0",
+    "reports/project-final-goals-20261113/final-goals-v1.json": "5f3ac4c7e844bc12f6a85db5155129807d02341dc822de4b6e140e46f1eb2d4c"
+  },
+  "website_commit": "0710aa8e59aea67f294c90c5f5776a051dfcc8ee",
+  "benchmark_pull_request": "https://github.com/vLLM-HUST/vllm-hust-benchmark/pull/670",
+  "website_pull_request": "https://github.com/vLLM-HUST/vllm-hust-website/pull/652",
+  "state": "native_MMLU_B0_completed_200_200_B1_formal_running",
+  "native_full_campaign_complete": false,
+  "native_inference_source_changed": false
+}

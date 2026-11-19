@@ -1,0 +1,2 @@
+[vllm.general_plugins]
+hust_m01_proc_capture = m01_proc_plugin:install

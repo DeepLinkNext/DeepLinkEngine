@@ -1,0 +1,37 @@
+{
+  "schema": "vllm-hust-judge-grammar-policy/v2",
+  "id": "xgrammar-bounded-whitespace-confidence-v2",
+  "default_option": "bounded-v2",
+  "scope": [
+    "hle-judge-B0",
+    "hle-judge-B1"
+  ],
+  "service_role": "B1",
+  "structured_outputs_config": {
+    "backend": "xgrammar",
+    "disable_any_whitespace": true
+  },
+  "effective_schema_delta": {
+    "json_schema.schema.properties.confidence.minimum": 0,
+    "json_schema.schema.properties.confidence.maximum": 100
+  },
+  "confidence_authority": "The unchanged frozen HLE parse_grade already rejects confidence outside integer0..100. Generation now matches that existing accepted-grade domain.",
+  "preserved": [
+    "frozen contract file bytes",
+    "task IDs and order",
+    "solver answer records",
+    "judge prompt and string fields",
+    "temperature0 and seed17",
+    "max_completion_tokens8192 and concurrency16",
+    "strict parser and accepted-grade domain",
+    "frozen B1 r4 implementation/runtime"
+  ],
+  "historical_options": [
+    "--hle-judge-whitespace bounded-v1",
+    "--hle-judge-whitespace unrestricted"
+  ],
+  "development_evidence": "bounded-v1 full B0 judge200:190 valid,10 unresolved (7 confidence integer-zero loops,3 LaTeX repetitions inside reasoning strings), all8192 length stops. Structural whitespace was bounded; failed/controlled-stopped parent and raw records retained.",
+  "reuse": "Any grading-policy change reruns both judge arms on the same sealed solver answers; compatible performance stages are reused.",
+  "judging_revision": "A prospectively frozen new generation-grammar revision; no answer normalization or historical score replacement.",
+  "documentation_correction": "Initial9bfcb source description attributed all10 failures to confidence before complete per-case inspection. The corrected7+3 categorization changes no generation rule; the original execution-source snapshot is preserved."
+}

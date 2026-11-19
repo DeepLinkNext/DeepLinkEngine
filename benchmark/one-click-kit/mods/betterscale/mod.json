@@ -1,0 +1,65 @@
+{
+  "schema": "vllm-hust-frozen-mod/v1",
+  "id": "betterscale",
+  "name": "BetterScale",
+  "kind": "runtime-module",
+  "version": "full-answer-b1-20261113-r6",
+  "status": "enabled-in-frozen-r6",
+  "supported_engine": [
+    "full-answer-b1-20261113-r6"
+  ],
+  "default_enabled": true,
+  "default_engine": "full-answer-b1-20261113-r6",
+  "optional_search_dimension": false,
+  "engine_profile": "engines/b1-r6.json",
+  "source_inventory": "mods/active-stack-r6.json",
+  "deployment_roots": [
+    "mods/betterscale"
+  ],
+  "requires_mods": [],
+  "deployment_entrypoint_pins": {
+    "mods/betterscale/betterscale/qwen35_worker.py": "39d12a366f5a770735be5e33ef4d7fe717d148a2a74eef155bc32f259ec7647f",
+    "mods/betterscale/betterscale/models/qwen35/seat_scheduler.py": "37c6308e6ec569aa81dbd3f1affa3b64692b48fada7504b51e6e1ecbbcb41400"
+  },
+  "pin_algorithm": "sha256",
+  "pin_scope": "Selected deployed entrypoints; complete original file coverage comes from source/component manifests plus the r6 overlay and documented restore adaptations.",
+  "activation": "冻结启动命令使用 betterscale.qwen35_worker.Worker 与 betterscale.models.qwen35.seat_scheduler.LiveStateScheduler；Manager/M01 注册后实际 Worker 为 corrected_serving_runtime.CorrectedWorker。",
+  "features": [
+    "E24/R36",
+    "MTP2",
+    "FULL",
+    "incremental/streaming state cache"
+  ],
+  "resource_and_startup_cost": "执行图与多档形状预热占用启动时间和设备缓存；状态常驻与主机分层预算由固定组合统一限制。",
+  "constraints": [
+    "Ascend 910B2; Qwen3.5-35B-A3B; BF16; TP2/PP1",
+    "这里登记的是 r4 恢复快照叠加 r6 精确覆盖文件。不能用 BetterScale 上游最新版本或单一提交代替整套冻结来源。"
+  ],
+  "disable_or_restore": "冻结 r6 使用完整组合，不提供临时删模块开关；历史对照需单独版本化配置和验收，恢复使用校验通过的同版快照。",
+  "performance_claim": {
+    "isolated_speedup_measured": false,
+    "independent_throughput_gain_percent": null,
+    "evidence_scope": "Frozen combined-engine evidence; not a new component ablation."
+  },
+  "evidence": [
+    "engines/b1-r4.json",
+    "engines/b1-r6.json",
+    "engines/b1-r6-overlay.json",
+    "validation/r6-self-run-status-20261115.json"
+  ],
+  "upstream_baseline_commit": "dcac3fa0ebe96cfaa443c0295458ad66822c319a",
+  "selected_upstream_fixes": [
+    "263ee2d3844c1c212c955f3e604575c9aea98c5a",
+    "a7a43ed3fed34870ddd640a4c9f2960b0cfb7914"
+  ],
+  "overlay_entrypoint_pins": {
+    "mods/betterscale/betterscale/compilation_scope.py": "5acc767915206fa25d7cfb7fc15073e65159e43156548f99e919783d158aa4f4",
+    "mods/betterscale/betterscale/worker.py": "268242426bb491fbe065cf6588c13c31bd904b5bdcc4900ffdb0e65f9023a198",
+    "mods/betterscale/betterscale/models/qwen35/__init__.py": "e66b3b7890c212580abab6e25ab1a8ecd7005226b1aeb2cf446868a978c3e0c9",
+    "mods/betterscale/betterscale/models/qwen35/serving_warmup.py": "970b4ce38227a5033ae42c3149aa63365346dcbea72c8ff09229eae04927eb97"
+  },
+  "recovery_source_route": {
+    "artifact": "b1-r4-recovered-components.tar.gz",
+    "prefix": "workspace/m01-qualification-20261101/runtime-b1/recovery-model-payload-r1/"
+  }
+}

@@ -1,0 +1,189 @@
+{
+  "schema": "gdn-independent-reference-qualification/v1",
+  "engine_release": "full-answer-b1-20261117-r8",
+  "source_target_sha256": "135bac7406d18b2e58fde579d18c053abb3aba6d2c1a5f4b91c7a8a6931b9109",
+  "independent_reference_sha256": "06912e45198f49c7bd5dde0c32d487e48fd849aff050df1cf0465a432f9a0575",
+  "probe_script_sha256": "07120a10d9fa22633b8a15c070a59cf79c99775b6eeae9f018e13eb08dbbd310",
+  "plan_sha256": "ac5ed3aab454a85c74849340dc1c8400bb86bb007ad006d8e5045532e127534e",
+  "raw_receipt_sha256": "af8f7431d197dff64d6511e5c0231c5bbefc8f1a95e14a607a2b3bb2df36b18e",
+  "physical_cards": [
+    1,
+    6
+  ],
+  "cpu_checks": 18,
+  "numerical_cases_per_card": 6,
+  "numerical_passed": true,
+  "output_tolerance": {
+    "atol": 0.0002,
+    "rtol": 0.01
+  },
+  "state_tolerance": {
+    "atol": 3e-06,
+    "rtol": 0.0003
+  },
+  "max_output_absolute_error": 3.814697265625e-06,
+  "max_state_absolute_error": 1.4901161193847656e-08,
+  "cases": [
+    {
+      "case": {
+        "batch": 1,
+        "width": 1,
+        "ragged": false
+      },
+      "physical_card": 1,
+      "tokens": 1,
+      "output_max_abs": 0.0,
+      "state_max_abs": 7.450580596923828e-09,
+      "numerical_passed": true
+    },
+    {
+      "case": {
+        "batch": 8,
+        "width": 1,
+        "ragged": false
+      },
+      "physical_card": 1,
+      "tokens": 8,
+      "output_max_abs": 2.384185791015625e-07,
+      "state_max_abs": 7.450580596923828e-09,
+      "numerical_passed": true
+    },
+    {
+      "case": {
+        "batch": 36,
+        "width": 1,
+        "ragged": false
+      },
+      "physical_card": 1,
+      "tokens": 36,
+      "output_max_abs": 3.814697265625e-06,
+      "state_max_abs": 1.4901161193847656e-08,
+      "numerical_passed": true
+    },
+    {
+      "case": {
+        "batch": 1,
+        "width": 3,
+        "ragged": false
+      },
+      "physical_card": 1,
+      "tokens": 3,
+      "output_max_abs": 0.0,
+      "state_max_abs": 7.450580596923828e-09,
+      "numerical_passed": true
+    },
+    {
+      "case": {
+        "batch": 8,
+        "width": 3,
+        "ragged": false
+      },
+      "physical_card": 1,
+      "tokens": 24,
+      "output_max_abs": 3.814697265625e-06,
+      "state_max_abs": 1.1175870895385742e-08,
+      "numerical_passed": true
+    },
+    {
+      "case": {
+        "batch": 36,
+        "width": 3,
+        "ragged": true
+      },
+      "physical_card": 1,
+      "tokens": 72,
+      "output_max_abs": 3.814697265625e-06,
+      "state_max_abs": 1.4901161193847656e-08,
+      "numerical_passed": true
+    },
+    {
+      "case": {
+        "batch": 1,
+        "width": 1,
+        "ragged": false
+      },
+      "physical_card": 6,
+      "tokens": 1,
+      "output_max_abs": 0.0,
+      "state_max_abs": 7.450580596923828e-09,
+      "numerical_passed": true
+    },
+    {
+      "case": {
+        "batch": 8,
+        "width": 1,
+        "ragged": false
+      },
+      "physical_card": 6,
+      "tokens": 8,
+      "output_max_abs": 2.384185791015625e-07,
+      "state_max_abs": 7.450580596923828e-09,
+      "numerical_passed": true
+    },
+    {
+      "case": {
+        "batch": 36,
+        "width": 1,
+        "ragged": false
+      },
+      "physical_card": 6,
+      "tokens": 36,
+      "output_max_abs": 3.814697265625e-06,
+      "state_max_abs": 1.4901161193847656e-08,
+      "numerical_passed": true
+    },
+    {
+      "case": {
+        "batch": 1,
+        "width": 3,
+        "ragged": false
+      },
+      "physical_card": 6,
+      "tokens": 3,
+      "output_max_abs": 0.0,
+      "state_max_abs": 7.450580596923828e-09,
+      "numerical_passed": true
+    },
+    {
+      "case": {
+        "batch": 8,
+        "width": 3,
+        "ragged": false
+      },
+      "physical_card": 6,
+      "tokens": 24,
+      "output_max_abs": 3.814697265625e-06,
+      "state_max_abs": 1.1175870895385742e-08,
+      "numerical_passed": true
+    },
+    {
+      "case": {
+        "batch": 36,
+        "width": 3,
+        "ragged": true
+      },
+      "physical_card": 6,
+      "tokens": 72,
+      "output_max_abs": 3.814697265625e-06,
+      "state_max_abs": 1.4901161193847656e-08,
+      "numerical_passed": true
+    }
+  ],
+  "calibration_scope": "Single transition, batch1,8 grouped key heads/16 value heads,K=V=128. Independent unfused FP32 tensor algebra; BF16 inputs and FP32 states. Host monotonic interval with an NPU fence on the measured card; separate from target numerical checks. Not a synchronized TP2 whole-chain reference.",
+  "samples_per_card": {
+    "calibration": 42,
+    "held_out_validation": 18
+  },
+  "basic_arithmetic_per_value_head": 114816,
+  "basic_formula": "7*K*V+K; EXP is a separately typed SFU call, not an invented FLOP equivalent",
+  "complete_effective_flops": null,
+  "reference_tflops_per_card": null,
+  "efficiency_percent": null,
+  "full_model_certificate": false,
+  "remaining": [
+    "Certify full scalar and segmented GDN prefill arithmetic against actual r8 paths",
+    "Retained draft producer closure and complete current MMLU work ledger",
+    "Shape-matched independent operations and cross-stream/cross-rank reference DAG",
+    "Independent whole-chain validation and same-domain synchronized current numerator"
+  ]
+}

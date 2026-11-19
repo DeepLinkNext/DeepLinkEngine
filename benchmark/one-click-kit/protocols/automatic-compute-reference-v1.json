@@ -1,0 +1,85 @@
+{
+  "schema": "automatic-compute-reference-workflow/v1",
+  "entry": "one_click.py",
+  "default": true,
+  "manual_plan_required": false,
+  "run_after_owned_performance_services_exit": true,
+  "selected_workload": "mmlu-fixed200-v1",
+  "current_binding_required": [
+    "engine_release",
+    "model",
+    "physical_cards",
+    "quality_plan_sha256",
+    "max_completion_tokens"
+  ],
+  "historical_percentage_substitution": false,
+  "partial_operator_is_full_reference": false,
+  "stages": [
+    {
+      "id": "gdn-decode-independent-reference",
+      "implementation": "third-party-test-kit/qualify_gdn_reference.py",
+      "scope": "BF16 grouped-head recurrence outputs/FP32 owned pool; single-card batch1 operator calibration per card, not whole-model timing"
+    },
+    {
+      "id": "gdn-prefill-independent-reference",
+      "implementation": "third-party-test-kit/qualify_gdn_prefill_reference.py",
+      "scope": "Independent segmented WY/inverse/H-O algebra with declared BF16 intermediate storage, separate FP32/scalar oracle, real zero/stateful boundaries, empty capacity suffix, per-card operator calibration; not whole-model timing"
+    },
+    {
+      "id": "raw-route-recorder-qualification",
+      "implementation": "third-party-test-kit/qualify_route_capture.py",
+      "scope": "Exact integer route copies through enabled/disabled graph replay, bounded overflow and unchanged inputs on both physical cards. Observer qualification only, not a reference performance sample."
+    },
+    {
+      "id": "current-native-synchronized-timing",
+      "implementation": "scripts/run_native_reference.py",
+      "scope": "Fresh r8 native public token-prompt/DELTA-output client, fixed200/max8192/EOS, one predeclared full repetition, same194 synthetic warmup prompts and capacity coverage, two-rank fences, no profiler or per-step internals. Pure observer AST removals and inactive host aggregate are audited before/after; formal numerator eligibility still requires necessary-work/source correspondence."
+    },
+    {
+      "id": "baseline-native-synchronized-timing",
+      "implementation": "scripts/run_native_reference.py",
+      "scope": "Fresh original018/CANN8.5.1 native paired arm; source/profile admitted with original E24, MTP2 and FULL_AND_PIECEWISE configuration. Same fixed200/max8192/EOS,194 synthetic warmup, public client, two-rank fences and compile boundary as B1. Complete necessary-work and reference correspondence remain required."
+    },
+    {
+      "id": "current-http-work-observation",
+      "implementation": "scripts/reference_observation.py",
+      "scope": "New HTTP fixed200/max8192/EOS observation with rank/scheduler/SSE ID joins and genuine GDN segment geometry. This stage is instrumented and cannot supply the clean performance numerator."
+    },
+    {
+      "id": "complete-current-necessary-work",
+      "implementation": "scripts/reference_final_stages.py",
+      "scope": "Independently re-audit the sealed HTTP companion, loaded dimensions and both-rank producer closure; bind each native arm to reviewed cache/capacity/producer/scalar sources and derive its own complete necessary-F interval. Original018 one-token prompt recurrence remains an explicit envelope branch."
+    },
+    {
+      "id": "shape-matched-independent-reference-dag",
+      "implementation": "scripts/reference_final_stages.py",
+      "scope": "默认submission-v2核验并复算已封存的完整M01独立参考：原始F、完整关键路径参考时间、每卡参考上界及全部来源。不用dense子图替换，不用目标T或效率拟合。full-answer-v1的dense标定仍仅为独立诊断，不借用out256参考。"
+    },
+    {
+      "id": "independent-reference-dag-audit",
+      "implementation": "scripts/reference_final_stages.py",
+      "scope": "默认submission-v2重验原完整参考关键路径及原件，核对本轮200条完整token清单、14分片权重、BF16/TP2/910B2、原生计时、输出预算与三轮人口；分别保留原参考F/T和本轮F/T。"
+    },
+    {
+      "id": "matched-current-numerator-and-recomputation",
+      "implementation": "scripts/reference_final_stages.py",
+      "scope": "本轮必要F下界除以本轮全部三次同步T得到每卡分子，再除以原完整参考F上界和参考时间下界复算的每卡分母。不同F不相消；不沿用历史效率；适用性或原件缺失保持非零与空效率。"
+    }
+  ],
+  "completion": "默认submission-v2仅在原完整参考原件复算、同工况适用域核验、本轮完整必要F与六个同步时钟全部通过后生成认证。部分dense图只保留诊断身份。full-answer-v1不得使用out256分母。",
+  "reference_policy": {
+    "authority_repository": "vLLM-HUST/vllm-hust-benchmark",
+    "authority_path": "docs/B0_REFERENCE_COMPUTE.md",
+    "authority_snapshot": "protocols/m01-confirmed-reference-method.md",
+    "authority_snapshot_sha256": "615e1dd9cdab681a83775736d2d5ae2eff4bb3aacde445370f23826df8a21db4",
+    "method": "independently_calibrated_canonical_operator_dependency_graph",
+    "certified_lower_bound_allowed": true,
+    "necessary_work_interval_allowed": true,
+    "separate_executable_whole_chain_required": false,
+    "unknown_duration_replacement_by_zero_allowed": false,
+    "timing": "uninstrumented native interval, both-chip synchronization before submission and after all completion; HTTP/tokenization outside the interval",
+    "existing_calibration_reuse": "Reuse only qualified identical source/shape/dtype/distribution/timing domains; supplement missing shapes under the original numerical/sample/statistical protocol",
+    "authority_scope": "Method and evidence rules only; historical counts, budgets and percentages are not substituted for this current-engine run."
+  },
+  "execution_order_reason": "Fresh B1 and B0 native clocks run before the instrumented HTTP observation; component calibration remains after all model processes are quiescent. Stage order is frozen prospectively, never chosen by measured efficiency."
+}

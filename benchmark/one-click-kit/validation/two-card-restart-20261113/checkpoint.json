@@ -1,0 +1,40 @@
+{
+  "schema": "vllm-hust-two-card-restart-checkpoint/v1",
+  "captured_at": "2026-11-13T13:13:28.646245+00:00",
+  "execution_commit": "d0412c2ee52c0e0c5790ec55fbbee12b5bd51238",
+  "current_campaign": "five-datasets-r5-matched-20261113-r5",
+  "phase_at_capture": "native_startup_preparation",
+  "native_qualified": false,
+  "formal_performance_claim": false,
+  "physical_cards": [
+    1,
+    6
+  ],
+  "logical_cards": [
+    0,
+    1
+  ],
+  "cpu_cores": 8,
+  "memory_gib": 64,
+  "measurement_protocol_changed": false,
+  "sample_ids_or_budgets_changed": false,
+  "old_completed_inference_reused": 0,
+  "new_planned_stages": 15,
+  "reason": "After user restarted with2NPUs, restore the byte-identical original B0 and B1 SDK/deployment to local fast disk; keep exact source packages, verified archives and all raw test outputs on NFS. The preceding attempt was controlled-stopped before formal submission because SDK imports over NFS were slow.",
+  "host_transfer_scope": "Both visible NPUs passed the original32MiB pinned H2D/D2H checks using the source-verified B1 SDK; this is not full-model or performance qualification.",
+  "files": {
+    "b0-recovery.json": "828c490320a4be17d74c3bb20572b41450b74704aaf2dc3a841180fde9af780a",
+    "b1-local-sdk-deployment.json": "f0b6c744be13b0f990c02b2a9e1956e3240f7274efb43d0a85418acdfcb22596",
+    "host-pin-pinned-memory-preflight.json": "91e47091af908c6d57ee700616aa0b26b57f12d936aef38f58f835fe337ed1a1",
+    "host-pin-receipt.json": "770d559db36c747594e046f1ba8a0994e597e27fcb4ea73e84301f94990dad0f",
+    "native_admission.py": "2f47a6c9c8f05aa24644f6eb6e72ca1c1516afa12c2051b98f07d493040a5fe3",
+    "prior-preformal-cancellation.json": "ae8b8e0582d6bb2986c62707b19898c8fdecd28bb4a8e636610eea6f780e57f2",
+    "recover_b0.py": "6bedcf78cb14f7e857d20ef64bcc8d3e7f9887f0ce20fec541c4a89b9381b17b",
+    "recover_b1_local.py": "f739cc9398cdd3202c6c0374d0a0534a5d65b90b264f06653c3f661b9ffd06e4",
+    "recover_sdk_local.py": "3bc4d59583af8634c4f768678d16e34f68cc5d29b947446b454aa0df76001df4",
+    "restart-checkpoint.json": "a80e9432cff86dabb611bfbfe998cf43773af3cabd8631752e6d6d5f5f62c706",
+    "resume_local_sdk_campaign.py": "b8e000086c748a6154f93912e7f0071e22418d7ccfa6ccde6bfb59a678883d1e",
+    "resumed-local-sdk-campaign.json": "1f744d721bfa24b6bc6c894e2d79b5961da686b7ac1e0af556adfd42c7684575",
+    "sdk-local-recovery.json": "31e2ae6a777d37f932c7468b54a6211bb013089953eec1c6f38e99b0b80c4706"
+  }
+}

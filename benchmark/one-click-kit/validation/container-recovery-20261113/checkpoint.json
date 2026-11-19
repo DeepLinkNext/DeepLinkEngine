@@ -1,0 +1,81 @@
+{
+  "schema": "vllm-hust-container-recovery-checkpoint/v1",
+  "captured_at": "2026-11-13T12:20:10.427286+00:00",
+  "execution_commit": "d0412c2ee52c0e0c5790ec55fbbee12b5bd51238",
+  "measurement_policy": "observed-torch-triton-sealed-warmup-v2",
+  "native_qualified": false,
+  "phase": "restoring_exact_archived_sdks_to_persistent_shared_storage",
+  "cpu_tests": {
+    "passed": 104,
+    "log": "recovered-engine-cpu-tests.log"
+  },
+  "interrupted_campaign": {
+    "name": "five-datasets-r5-matched-20261113-r2",
+    "formal_streams": 0,
+    "completed_stages": 0,
+    "final_campaign_seal": false
+  },
+  "planned_campaign": {
+    "name": "five-datasets-r5-matched-20261113-r3",
+    "new_stages": 15,
+    "reused_stages": 0,
+    "physical_devices": [
+      6,
+      7
+    ],
+    "datasets": [
+      "mmlu",
+      "hle",
+      "frontier",
+      "swe",
+      "terminal"
+    ]
+  },
+  "frozen_scope": {
+    "mmlu": {
+      "questions": 200
+    },
+    "hle": {
+      "questions": 200,
+      "gold_text": 64,
+      "gold_image": 10,
+      "revision_text": 113,
+      "revision_image": 13
+    },
+    "frontier": {
+      "questions": 160
+    },
+    "swe": {
+      "trace_tasks": 32,
+      "requests": 64
+    },
+    "terminal": {
+      "trace_tasks": 32,
+      "requests": 48
+    }
+  },
+  "sdk_archive": {
+    "bytes": 833333955,
+    "sha256": "c03e96929d7b061e5cd66aba22d02ba1cb2df270ddb7654f562f8c6202f2e805"
+  },
+  "b0_source_map_sha256": "a357ad8cf1ff6f8797fb2d6476e71a0deef5ee0899a55ea32ed65f07fe7773bc",
+  "r4_original_archive_sha256": "3b13f565c2b94c4c1ba7dbfa1a1a3ac6af222085ef4e74fefe50906a3bd9c961",
+  "recovery_scripts_scope": "Exact incident snapshots, including local filesystem paths. Inspect and adapt paths on a different host; these are not an additional product entrypoint. Use one_click.py for inference.",
+  "log_scope": "Partial restore logs captured before recovery finished; they do not prove successful restore or inference.",
+  "files": {
+    "b0-recovery-snapshot.log": "c149c35e2410c03da796676c589a4feb29992739ed6c92a21ec9591f4c48cb7e",
+    "interruption-receipt.json": "a88ee922f99d453d7ebd535be1a774dfe355efaa49e8f19c77a5d32554713722",
+    "recover_b0.py": "4db362208192ddbe25c02f01ce68cabccceb40576c9fa8f8add5e61da753af81",
+    "recover_sdk.py": "ecfe78327228a09fcf922668afb84d7e2eb763ad4f48ba7e23c077188b90f0f0",
+    "recovered-engine-cpu-tests.log": "c3eb3cd46523df4551722a19b84053a194b54cf70d2f420f794f194490fa8de2",
+    "resume_after_recovery.py": "9653908e00a0a4115bbfa054e6d4139bcf48aafe80be2c4a29f1867a0c9fc45e",
+    "sdk-recovery-snapshot.log": "6374237ea342ceeb35b9dac38c51d4ca4f6613ffb534ad555a981ecdb1b6e435"
+  },
+  "remaining": [
+    "complete exact SDK restoration",
+    "qualify native startup and both compilation boundaries",
+    "run and seal all 15 new matched stages",
+    "replay raw evidence and generate reports/plots",
+    "publish qualified Engine release and synchronize benchmark and comparison website"
+  ]
+}

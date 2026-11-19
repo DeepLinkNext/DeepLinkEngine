@@ -1,0 +1,21 @@
+{
+  "devices": [
+    {
+      "device": 0,
+      "bytes": 33554432,
+      "pinned": true,
+      "h2d_d2h_equal": true
+    },
+    {
+      "device": 1,
+      "bytes": 33554432,
+      "pinned": true,
+      "h2d_d2h_equal": true
+    }
+  ],
+  "memlock": [
+    65536,
+    65536
+  ],
+  "model_loaded": false
+}

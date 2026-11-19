@@ -1,0 +1,25 @@
+{
+  "source": "Existing dataset-validation20261015 clients; published original scoring sources; no new judge prompt or parser",
+  "hle_protocol": "Original HLE prompts/schema, strict_json, Qwen substitute; all Gold668/Revision1143 including211image rows",
+  "frontier_protocol": "hust-qwen-judge-v3; original AppendixB prompts, mmlu_extract_first; Olympiad100/Research60",
+  "files": {
+    "evaluation-clients/hle/hust_eval_hle_verified/__init__.py": "6218f67a3ff08f807ed354df0d53d6808fc25d9d506b9c1a71959f4c94a52d90",
+    "evaluation-clients/hle/hust_eval_hle_verified/bench.py": "10fc3ea8ef511dfb52995d0ea771612e8d516bab8513edf78541a1895572e8cb",
+    "evaluation-clients/hle/hust_eval_hle_verified/bench_inputs.py": "a1ae3a61cd226d6b8bfa518c3ede51e464675bf93d6958ed1acbde1753b22148",
+    "evaluation-clients/hle/hust_eval_hle_verified/hashing.py": "8aea14c8193b267cadd65f384781b1819495b503abe82e4d86606d7c2449186a",
+    "evaluation-clients/hle/hust_eval_hle_verified/official_prompts.py": "983de1a08d9c0d584a50f8146ce9bf4d18a028b2334220c5e91cfc7f5a2a93cc",
+    "evaluation-clients/hle/hust_eval_hle_verified/pipeline.py": "51deda3e41d8ac54a55c770acc9250b775189261f36186304878c89eb81f63a7",
+    "evaluation-clients/hle/hust_eval_hle_verified/seal.py": "cb2d32350b5f5a408b660448b93b597bc8ebb665db6c89efa615051fcade7dc5",
+    "evaluation-clients/frontier/hust_eval_frontierscience/__init__.py": "56b5e91c3bb77ab933c25fd65eba883419bdc5691cc94cb9dc840e8f4e3674eb",
+    "evaluation-clients/frontier/hust_eval_frontierscience/__main__.py": "cf7390a2508a0fcad4777a4a629fc5212ab655cb45845975995f835676a834e3",
+    "evaluation-clients/frontier/hust_eval_frontierscience/bench.py": "60217bc42294332c5f3849fa3945111be71ac770bc96b3697d08623b6f1760bc",
+    "evaluation-clients/frontier/hust_eval_frontierscience/cli.py": "7aa839b641854744cf127794e54f5364f5f5599758edc8c6636b2bdebc40a38b",
+    "evaluation-clients/frontier/hust_eval_frontierscience/config_check.py": "313909b5b466fb0afcc7921bde836eaca270597048c0f4cb939e3a00c36f9d08",
+    "evaluation-clients/frontier/hust_eval_frontierscience/hashing.py": "8aea14c8193b267cadd65f384781b1819495b503abe82e4d86606d7c2449186a",
+    "evaluation-clients/frontier/hust_eval_frontierscience/official_prompts.py": "5d0a1ebd27e1180f0a390aaa469eda90db5da2cbc6da2e3a1def91e539a4c17d",
+    "evaluation-clients/frontier/hust_eval_frontierscience/pipeline.py": "3267a5314ead5e1de0b98b178ea7f6732afa9c1df0de545050e690e696bab663",
+    "evaluation-clients/frontier/hust_eval_frontierscience/receipt.py": "39a9fe54e9d990cd39775382fb084768d419edc493f61473f0b517ef975a4214",
+    "evaluation-clients/frontier/hust_eval_frontierscience/runtime_contract.py": "1413ecfb346affb397585fbcd8f7597b46a5a2477b87546f5644c454daf5e9f9",
+    "evaluation-clients/frontier/hust_eval_frontierscience/seal.py": "cb2d32350b5f5a408b660448b93b597bc8ebb665db6c89efa615051fcade7dc5"
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "schema": "vllm-hust-engine-independent-validation/v1",
+  "run": "continuous-b1-r5",
+  "status": "stopped_before_inference",
+  "quiescent": true,
+  "inference_client_started": false,
+  "formal_targets": "not_assessed",
+  "model_weights_loaded_both_ranks": true,
+  "triton_kernel_warmup_both_ranks": true,
+  "full_graph_capture": "34/34, 293 seconds reported",
+  "api_healthy": false,
+  "failure": "BetterScale CompletionInbox binds an AF_UNIX datagram beneath TMPDIR; the old entry kept TMPDIR beneath a long compiler-cache path despite shortening vLLM RPC sockets",
+  "correction": "Use the same private short IPC parent for TMPDIR and VLLM_RPC_BASE_PATH after every environment composition; exercise the exact frozen CompletionInbox bind, message and close in a stdlib-only subprocess before model imports",
+  "counter_validation": "Invalid samples were retained and resampled; original valid-sample guard and budgets remained unchanged",
+  "sealed_evidence_sha256": {
+    "receipt.json": "cb83cf5717a4d0abb890af43520a95cc4cb68880d745f4484cf545e393d7ca8e",
+    "checksums.json": "e14a882c8fdff332b76cd06f42a385a6c250573dc6062079a1b72d5336efa377",
+    "service.log": "4b0b9bacf8be5df47e96c973d6d5b028b33a5a5f78916191a876286b1f173b6d",
+    "cleanup.json": "004cf4f9f717586781aa9d34bfa1909ca69b5992954fa13884471824082f8ac9",
+    "memory-samples.jsonl": "b351c735cbc21128fbe6a18857a5484bbe883afe374c9c1043d6abd3486fe0f7",
+    "model-weights.json": "7a7911c50908c404888d7871aa5342120303d4eb262090636e1972d2bf0bb8a9",
+    "controller-source.json": "7102b2678724dbf81e242a48aa312127830747e00fe41d71d6bed70fa60154a5",
+    "service/runtime-environment.json": "08f16e6298d6a3ef36dd4e289d492ca2fc7535a17800b3452f0db05526ccdae9"
+  }
+}

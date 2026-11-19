@@ -1,0 +1,46 @@
+{
+  "schema": "automatic-reference-integration-validation/v1",
+  "entry": "one_click.py",
+  "run_kind": "packaged-tools-local-source-snapshot",
+  "user_reference_plan_required": false,
+  "source_context": "44fefd07b014c85a14bf425092c5fe103ba471a5",
+  "runtime_changed": false,
+  "performance_inference_rerun": false,
+  "engine_release": "full-answer-b1-20261117-r8",
+  "physical_cards": [
+    1,
+    6
+  ],
+  "operator_cases": 12,
+  "operator_numerical_passed": true,
+  "operator_output_max_abs": 3.814697265625e-06,
+  "operator_state_max_abs": 1.4901161193847656e-08,
+  "calibration_samples": 84,
+  "held_out_samples": 36,
+  "timing_scope": "Single-card batch1 GDN transition; not a whole-model or TP2 reference",
+  "status": "incomplete",
+  "exit_code": 2,
+  "efficiency_percent": null,
+  "full_model_certificate": false,
+  "blockers": [
+    "当前工况的完整必要算量尚缺分段GDN prefill、其余标量及保留draft生产者闭包认证。",
+    "尚缺当前算子形状绑定及跨流/跨rank依赖认证的独立参考DAG；单算子标定不能替代。",
+    "尚缺同工况独立整链验证及其与参考DAG的适用性复核。",
+    "尚缺与认证参考域一致的当前完整算量及同步计时；out256/native旧分母不得直接用于out8192/HTTP。"
+  ],
+  "report_generated": true,
+  "sealed_files_verified": 51,
+  "raw_evidence": "../experiments/compute-reference-20261119-r1/packaged-one-click-v2",
+  "report_sha256": "0893d4ec6daeb3d12444ba2fbd27b2e961fe75f3f729068634c2d359a9af05fa",
+  "plan_sha256": "f07e1829d3d31ff36300ac87234a4c06037510379ef5571b4fd30d3c0909f641",
+  "raw_archive": {
+    "url": "https://github.com/vLLM-HUST/vllm-hust-engine/releases/download/performance-exploration-20261115-r1/r8-effective-reference-partial-20261119-r1-raw.zip",
+    "sha256": "ce6c09f77b40ee255d7162afdabc7b83b13e0098b04d7626e4169c1e51803917",
+    "bytes": 1503560,
+    "asset_id": 764180428,
+    "redownload_verified": true,
+    "schema": "partial-operator-reference-evidence-archive/v1",
+    "full_model_certificate": false,
+    "files": 140
+  }
+}

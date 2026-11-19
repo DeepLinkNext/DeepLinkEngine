@@ -1,0 +1,22 @@
+{
+  "schema": "vllm-hust-fatal-service-startup/v1",
+  "log": "/data/shared_upload/vllm-hust-third-party-self-run-20261112/runs/five-datasets-r5-matched-20261113-r5/continuous-B1/service.log",
+  "line": 657,
+  "owner": "Worker_TP0",
+  "pid": 179362,
+  "fatal": "(Worker_TP0 pid=179362) ERROR 11-13 14:06:48 [multiproc_executor.py:1055] WorkerProc hit an exception.",
+  "root_error": "ValueError: Active protected host progress snapshot required",
+  "scope": "Owned model service before first formal request; raw log retained",
+  "campaign": "/data/shared_upload/vllm-hust-third-party-self-run-20261112/runs/five-datasets-r5-matched-20261113-r5",
+  "completed_stages": 1,
+  "planned_stages": 15,
+  "b0_formal_requests": 225,
+  "b1_formal_requests": 0,
+  "root_exception_utc": "2026-11-13T14:06:48Z",
+  "outer_timeout_utc": "2026-11-13T14:39:00Z",
+  "failure_class": "B1 compile-only warmup / preserved M01 snapshot policy integration",
+  "oom": false,
+  "performance_conclusion": null,
+  "fix_release": "full-answer-b1-20261113-r6",
+  "source_execution_commit": "d0412c2ee52c0e0c5790ec55fbbee12b5bd51238"
+}

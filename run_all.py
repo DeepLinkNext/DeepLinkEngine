@@ -6,7 +6,6 @@ from importlib import metadata
 import os
 from pathlib import Path
 import platform
-import subprocess
 import sys
 import sysconfig
 
@@ -84,6 +83,18 @@ def completed_evidence(out):
     return campaign, reports, hashes
 
 
+def qualified_reference(campaign):
+    sys.path.insert(0, str(ROOT / "benchmark/one-click-kit/scripts"))
+    from compute_reference import target
+    reference = campaign.get("compute_reference", {})
+    if reference.get("certificate_kind") != "qualified_full_reference_denominator_reuse/v1":
+        raise ValueError("Current-workload effective-compute reference remains incomplete")
+    result = target(reference)
+    if result["status"] != "current_workload_measured":
+        raise ValueError("Current-workload effective-compute reference remains incomplete")
+    return result
+
+
 def run(data):
     out = Path(data["out"])
     out.mkdir(parents=True, exist_ok=False)
@@ -100,7 +111,7 @@ def run(data):
         save()
         print(name, flush=True)
         try:
-            result = subprocess.run(args, cwd=ROOT, check=False)
+            result = run_owned_stage(args)
         except BaseException as error:
             record.update(status="interrupted" if isinstance(error, KeyboardInterrupt) else "launch_failed",
                           error=type(error).__name__ + ": " + str(error))
@@ -113,24 +124,32 @@ def run(data):
             raise RuntimeError(name + " failed; original results retained, no automatic retry")
 
     try:
+        from one_click import verify_kit
+        verify_kit()
+        sys.path.insert(0, str(ROOT / "benchmark/one-click-kit/scripts"))
+        from child_runner import run_stage as run_owned_stage
         stage("install-package", [sys.executable, "-m", "pip", "install", "--no-deps",
               "-r", str(ROOT / "engine/r8-pip-requirements-deeplinkengine.txt")])
         stage("verify-engine", [cli, "verify"])
         stage("install-engine", [cli, "install", "--out", str(installation)])
-        evaluation = dict(data, engine_profile="r8", test_mode="full",
+        evaluation = dict(data, engine_profile="r8", test_mode="full", reference_profile="submission-v2",
                           deployment=str(installation / "sdk"), out=str(out / "fixed-five"))
         config = out / "evaluation.json"
         config.write_text(json.dumps(evaluation, indent=2) + "\n")
-        evaluate = [cli, "evaluate", "--installation", str(installation), "--"]
+        evaluate = [sys.executable, str(ROOT / "one_click.py")]
         stage("prepare-fixed-five", [*evaluate, "prepare", "--config", str(config)])
         stage("run-fixed-five", [*evaluate, "run", "--config", str(config)])
+        current = json.loads((out / "fixed-five/campaign.json").read_text())
+        reference_target = qualified_reference(current)
+        receipt.update(compute_reference=current["compute_reference"], compute_reference_target=reference_target)
+        save()
         plan = json.loads((out / "fixed-five/frozen-execution-plan.json").read_text())
         # The frozen package evaluate() injects --engine-profile, which this
         # separate frozen controller does not accept. Verify its source first.
         stage("verify-installed-tools", [sys.executable, "-c",
               "from pathlib import Path; from vllm_hust_engine.cli import verify_tools; "
               "import sys; verify_tools(Path(sys.argv[1]))", str(installation / "tools")])
-        supplement = [sys.executable, str(installation / "tools/one_click.py"), "--context-tenant-only", "--deployment", plan["optimized_deployment"],
+        supplement = [*evaluate, "--context-tenant-only", "--deployment", plan["optimized_deployment"],
                       "--baseline-deployment", plan["baseline_deployment"],
                       "--b1-python", sys.executable, "--model", data["model"],
                       "--cache", data["cache"], "--out", str(out / "context-tenant"),
@@ -138,9 +157,10 @@ def run(data):
                       "--devices", plan["logical_devices"]]
         stage("run-context-tenant", supplement)
         campaign, reports, hashes = completed_evidence(out)
+        reference_target = qualified_reference(campaign)
         receipt.update(status="completed", reports=reports, evidence_sha256=hashes,
                        fixed_five_execution=campaign["selected_execution_complete"],
-                       compute_reference=campaign.get("compute_reference"))
+                       compute_reference=campaign["compute_reference"], compute_reference_target=reference_target)
         return 0
     except (Exception, KeyboardInterrupt) as error:
         receipt.update(status="failed", error=str(error) or type(error).__name__)

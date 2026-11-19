@@ -1,0 +1,152 @@
+{
+  "schema": "MOD-catalog-path-integrity/v1",
+  "checked_at": "2026-11-16T21:42:15.964682+00:00",
+  "examined_commit": "11a6d37e170c9e9bdaa7b26496df47309fb7613b",
+  "entries": 9,
+  "resolved_documents": 9,
+  "resolved_manifests": 9,
+  "corrected_historical_document_paths": [
+    {
+      "id": "nz-scalar-compat",
+      "old": "nz-scalar-compat/README.md",
+      "documentation": "../experiments/optimization-20261115/mods/nz-scalar-compat/README.md",
+      "manifest": "../experiments/optimization-20261115/mods/nz-scalar-compat/mod.json"
+    },
+    {
+      "id": "nz-linear-compat",
+      "old": "nz-linear-compat/README.md",
+      "documentation": "../experiments/optimization-20261115/mods/nz-linear-compat/README.md",
+      "manifest": "../experiments/optimization-20261115/mods/nz-linear-compat/mod.json"
+    },
+    {
+      "id": "router-precast",
+      "old": "router-precast/README.md",
+      "documentation": "../experiments/optimization-20261115/mods/router-precast/README.md",
+      "manifest": "../experiments/optimization-20261115/mods/router-precast/mod.json"
+    },
+    {
+      "id": "nz-gates-nd",
+      "old": "nz-gates-nd/README.md",
+      "documentation": "../experiments/optimization-20261115/mods/nz-gates-nd/README.md",
+      "manifest": "../experiments/optimization-20261115/mods/nz-gates-nd/mod.json"
+    },
+    {
+      "id": "expert-nz-linear-nd",
+      "old": "expert-nz-linear-nd/README.md",
+      "documentation": "../experiments/optimization-20261115/mods/expert-nz-linear-nd/README.md",
+      "manifest": "../experiments/optimization-20261115/mods/expert-nz-linear-nd/mod.json"
+    }
+  ],
+  "resolved": [
+    {
+      "id": "sealed-serving-warmup",
+      "status": "absorbed-default-r6;startup-and-measurement-stability",
+      "documentation": {
+        "path": "mods/sealed-serving-warmup/README.md",
+        "git_blob": "10c892f44267d4dc5e9680ebcd973526367fd91a"
+      },
+      "manifest": {
+        "path": "mods/sealed-serving-warmup/mod.json",
+        "git_blob": "35e745f8b97286bc3d130196b0b25b3831cf3385"
+      }
+    },
+    {
+      "id": "guarded-progress-async",
+      "status": "paired-performance-met;native-and-C8-passed;integrated-quality-screen-not-met",
+      "documentation": {
+        "path": "mods/guarded-progress-async/README.md",
+        "git_blob": "0cdd9ac3cc4a0687474190998233b935517c7da4"
+      },
+      "manifest": {
+        "path": "mods/guarded-progress-async/mod.json",
+        "git_blob": "8496d01481cd2e77c0e69bb820fb9caa5f4f9ba7"
+      }
+    },
+    {
+      "id": "capacity-tuning",
+      "status": "repeated-throughput-gain-with-latency-and-quality-tradeoffs",
+      "documentation": {
+        "path": "mods/capacity-tuning/README.md",
+        "git_blob": "3dcefa0f4bcc1cf426f8c91e230d34b4f939cf00"
+      },
+      "manifest": {
+        "path": "mods/capacity-tuning/mod.json",
+        "git_blob": "decd3065466602a5d45fbc65c8e1ff2e29422648"
+      }
+    },
+    {
+      "id": "tradeoff-tuning",
+      "status": "offline-evidence-and-constraint-selection-tool",
+      "documentation": {
+        "path": "mods/tradeoff-tuning/README.md",
+        "git_blob": "790c6e064c2862320eb6c64ca45ab31c5452934e"
+      },
+      "manifest": {
+        "path": "mods/tradeoff-tuning/mod.json",
+        "git_blob": "47bb37a0d887940604369761d4670443fb83fa1d"
+      }
+    },
+    {
+      "id": "nz-scalar-compat",
+      "status": "layout-compatibility-repair; not a standalone speedup",
+      "documentation": {
+        "path": "experiments/optimization-20261115/mods/nz-scalar-compat/README.md",
+        "git_blob": "60a679e90402753aabb689bbe2c2aea702464390"
+      },
+      "manifest": {
+        "path": "experiments/optimization-20261115/mods/nz-scalar-compat/mod.json",
+        "git_blob": "b952d3e5ab800a5275f44a7136fea9618705e693"
+      }
+    },
+    {
+      "id": "nz-linear-compat",
+      "status": "full-model-throughput-screen-not-met",
+      "documentation": {
+        "path": "experiments/optimization-20261115/mods/nz-linear-compat/README.md",
+        "git_blob": "73d16b424daeff4338120200b300a73e65879951"
+      },
+      "manifest": {
+        "path": "experiments/optimization-20261115/mods/nz-linear-compat/mod.json",
+        "git_blob": "62edb5bfac8f99d41d094b5fd69ec5d1e4297cc2"
+      }
+    },
+    {
+      "id": "router-precast",
+      "status": "full-model-throughput-screen-not-met",
+      "documentation": {
+        "path": "experiments/optimization-20261115/mods/router-precast/README.md",
+        "git_blob": "64c15159feea43bdf28a12fa48184c555d56b0e8"
+      },
+      "manifest": {
+        "path": "experiments/optimization-20261115/mods/router-precast/mod.json",
+        "git_blob": "c74d7f02de15d4be986576dd5fbe3cc7aa18132c"
+      }
+    },
+    {
+      "id": "nz-gates-nd",
+      "status": "full-model-negative-throughput",
+      "documentation": {
+        "path": "experiments/optimization-20261115/mods/nz-gates-nd/README.md",
+        "git_blob": "f237b3a7cb197889daab7afef5204c3792a2835e"
+      },
+      "manifest": {
+        "path": "experiments/optimization-20261115/mods/nz-gates-nd/mod.json",
+        "git_blob": "0a72716eb77bf83c1322f756d5dcde2885659151"
+      }
+    },
+    {
+      "id": "expert-nz-linear-nd",
+      "status": "full-model-throughput-screen-not-met",
+      "documentation": {
+        "path": "experiments/optimization-20261115/mods/expert-nz-linear-nd/README.md",
+        "git_blob": "3fa5ba76679f25e515ceb741b4b9eb723184e425"
+      },
+      "manifest": {
+        "path": "experiments/optimization-20261115/mods/expert-nz-linear-nd/mod.json",
+        "git_blob": "6f4cb308dc747a79838fa0bff9276532809932bb"
+      }
+    }
+  ],
+  "historical_implementations_or_results_modified": false,
+  "note": "Central catalog links resolve to original historical experiment modules; negative layouts remain negative and compatibility remains distinct from standalone speedup."
+}

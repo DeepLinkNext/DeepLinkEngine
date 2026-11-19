@@ -1,0 +1,53 @@
+{
+  "source_intake": {
+    "block_epilogue_gdn_fwdh_update.hpp": {
+      "destination": "h/epilogue/block/block_epilogue_gdn_fwdh_update.hpp",
+      "commit": "4e21bb18063e92966a79218f507a93eb961e6f0a",
+      "donor_path": "prototypes/qwen38-serving/ascendc_gdn/h/epilogue/block/block_epilogue_gdn_fwdh_update.hpp",
+      "donor_git_blob": "0fb901d7d9a6f8e92f41c6baebd255fe93c79dc4",
+      "changes": "unchanged",
+      "sha256": "8d59d19537be6c998d2fdc7957ffbebd9a35091f2c92ab5a495018ced4c9bcef"
+    },
+    "block_epilogue_gdn_fwdh_vnew.hpp": {
+      "destination": "h/epilogue/block/block_epilogue_gdn_fwdh_vnew.hpp",
+      "commit": "4e21bb18063e92966a79218f507a93eb961e6f0a",
+      "donor_path": "prototypes/qwen38-serving/ascendc_gdn/h/epilogue/block/block_epilogue_gdn_fwdh_vnew.hpp",
+      "donor_git_blob": "9f9349225d073a06771bde33b4830a72e2f99354",
+      "changes": "unchanged",
+      "sha256": "267d7815021d812421fec3851897ee06dd6680cce4a13f27279ed72ac8b3f63b"
+    },
+    "gdn_fwd_h_kernel.hpp": {
+      "destination": "h/gemm/kernel/gdn_fwd_h_kernel.hpp",
+      "commit": "4e21bb18063e92966a79218f507a93eb961e6f0a",
+      "donor_path": "prototypes/qwen38-serving/ascendc_gdn/h/gemm/kernel/gdn_fwd_h_kernel.hpp",
+      "donor_git_blob": "fae86cdf56121017c0d62eaea8b43c6dda5276e8",
+      "changes": "unchanged",
+      "sha256": "2eeb1cf7daa51e128553326f26d76d944cb6708961bdaf488960432275d56efd"
+    },
+    "block_epilogue_gdn_fwdo_output.hpp": {
+      "destination": "o/epilogue/block/block_epilogue_gdn_fwdo_output.hpp",
+      "commit": "4e21bb18063e92966a79218f507a93eb961e6f0a",
+      "donor_path": "prototypes/qwen38-serving/ascendc_gdn/o/epilogue/block/block_epilogue_gdn_fwdo_output.hpp",
+      "donor_git_blob": "e74a4c44a82a95bab88e68b9eb3869df36bc8a8d",
+      "changes": "unchanged",
+      "sha256": "4a95403b2d9fa27194f86cdfb52b0b0d7e28ee565367cfbd7dc1b842c17c9271"
+    },
+    "block_epilogue_gdn_fwdo_qkmask.hpp": {
+      "destination": "o/epilogue/block/block_epilogue_gdn_fwdo_qkmask.hpp",
+      "commit": "4e21bb18063e92966a79218f507a93eb961e6f0a",
+      "donor_path": "prototypes/qwen38-serving/ascendc_gdn/o/epilogue/block/block_epilogue_gdn_fwdo_qkmask.hpp",
+      "donor_git_blob": "de1a6ede16a716dcb33031fcc1b1c31ddb52a3d8",
+      "changes": "unchanged",
+      "sha256": "38690232c66bfcd87d39adb0bf74e4be8d5f5e83c3f9eeecd1c6e974088e0124"
+    }
+  },
+  "kernel_library_sha256": "1c522f04a701d3423798b4b7f157737ef41956be25cf46842b6ba33c7ec41bea",
+  "reference_implementation_calls_these_sources": false,
+  "semantics": {
+    "inverse": "BF16 stored after independent FP32 solution",
+    "wy": "BF16 W/U stored",
+    "state_input": "FP32 pool copied into BF16 H workspace",
+    "state_update": "FP32 KV accumulation plus decayed BF16 H workspace; BF16 internal chunks, FP32 final pool store",
+    "output": "BF16 scores and residual values, FP32 accumulation; BF16 final output"
+  }
+}

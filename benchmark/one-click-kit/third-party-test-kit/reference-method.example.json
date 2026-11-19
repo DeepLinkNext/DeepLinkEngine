@@ -1,0 +1,9 @@
+{
+  "estimator": null,
+  "reference_id": null,
+  "workload_sha256": null,
+  "min_calibration_samples": null,
+  "max_calibration_spread_ratio": null,
+  "min_validation_samples": null,
+  "max_validation_error_ratio": null
+}
