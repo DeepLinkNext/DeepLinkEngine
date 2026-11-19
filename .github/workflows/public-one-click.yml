@@ -40,6 +40,10 @@ jobs:
       - run: python -B tests/test_environment_setup.py
       - run: python -B tests/test_standalone.py
       - run: python -B tests/test_runtime_storage.py
+      - name: Verify full acceptance decisions and real CPU report rendering
+        run: |
+          python -m pip install --disable-pip-version-check -r benchmark/one-click-kit/scripts/requirements-report.txt
+          python -B tests/test_full_report.py
       - run: python -B tests/test_dataset_bundle.py
       - run: python -B tests/test_package_metadata.py
       - run: python -B tests/test_engine_install.py

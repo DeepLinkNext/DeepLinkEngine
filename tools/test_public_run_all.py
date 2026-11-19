@@ -62,6 +62,10 @@ class FullSuiteEntryTests(unittest.TestCase):
                 report = out / "context-tenant/paired-report/report.html"
                 report.parent.mkdir(parents=True)
                 report.write_text("fixture only")
+            if len(args)>2 and "report_python" in args[2]:
+                folder=out/"full-report";folder.mkdir()
+                (folder/"summary.json").write_text(json.dumps(dict(schema="deeplinkengine-full-acceptance-report/v1",execution_complete=True,targets={k:dict(milestone=dict(met=True,status="达成目标"),final=dict(met=False,status="未达成目标")) for k in ("4.1","4.2","4.3","4.4")})))
+                for name in ("report.html","fixed-five.svg","fixed-five.png"):(folder/name).write_text("fixture only")
             return SimpleNamespace(returncode=0)
 
         with patch("one_click.verify_kit"), patch("child_runner.run_stage", side_effect=command):
@@ -73,7 +77,7 @@ class FullSuiteEntryTests(unittest.TestCase):
             status, receipt, commands, out = self.execute(temp)
             self.assertEqual(status, 0)
             self.assertEqual(receipt["status"], "completed")
-            self.assertEqual(len(commands), 8)
+            self.assertEqual(len(commands), 9)
             self.assertTrue(all("evaluate" not in args for args in commands))
             entry_calls = [args for args in commands if str(ROOT / "one_click.py") in args]
             self.assertEqual(len(entry_calls), 3)
@@ -81,7 +85,7 @@ class FullSuiteEntryTests(unittest.TestCase):
             config = json.loads((out / "evaluation.json").read_text())
             self.assertEqual(config["reference_profile"], "submission-v2")
             self.assertTrue(receipt["compute_reference_target"]["accepted"])
-            self.assertEqual(receipt["third_party_verification"], "pending")
+            self.assertEqual(receipt["automated_acceptance_complete"], True)
 
     def test_zero_exit_with_retired_partial_reference_still_fails_before_supplement(self):
         with tempfile.TemporaryDirectory() as temp:

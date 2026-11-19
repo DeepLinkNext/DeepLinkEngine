@@ -206,6 +206,17 @@ def qualified_reference(campaign):
     return result
 
 
+def full_report_command(out, destination=None):
+    command="""import subprocess,sys
+from pathlib import Path
+root=Path(sys.argv[1]);sys.path.insert(0,str(root/'benchmark/one-click-kit/scripts'))
+from report_environment import report_python
+python,env=report_python()
+raise SystemExit(subprocess.run([str(python),'-B',str(root/'full_report.py'),'--run',sys.argv[2],'--out',sys.argv[3]],env=env).returncode)
+"""
+    return [sys.executable,'-c',command,str(ROOT),str(out),str(destination or out/'full-report')]
+
+
 def run(data, *, resume_bootstrap=False, resume_before_model=False):
     out = Path(data["out"])
     prior = before_model_resume(data) if resume_before_model else bootstrap_resume(data) if resume_bootstrap else None
@@ -213,7 +224,7 @@ def run(data, *, resume_bootstrap=False, resume_before_model=False):
     out.mkdir(parents=True, exist_ok=reuse_installation)
     installation = out / "installation"
     cli = str(Path(sysconfig.get_path("scripts")) / "vllm-hust-engine")
-    receipt = {"status": "running", "stages": [], "configuration": data, "third_party_verification": "pending"}
+    receipt = {"status": "running", "stages": [], "configuration": data, "automated_acceptance_complete": False}
     if prior is not None:
         history = out / "attempts"
         history.mkdir(exist_ok=True)
@@ -318,7 +329,21 @@ def run(data, *, resume_bootstrap=False, resume_before_model=False):
         stage("run-context-tenant", supplement)
         campaign, reports, hashes = completed_evidence(out)
         reference_target = qualified_reference(campaign)
-        receipt.update(status="completed", reports=reports, evidence_sha256=hashes,
+        stage("render-full-report", full_report_command(out))
+        summary_path = out / "full-report/summary.json"
+        overview = json.loads(summary_path.read_text())
+        if (overview.get("schema") != "deeplinkengine-full-acceptance-report/v1"
+            or overview.get("execution_complete") is not True
+            or set(overview.get("targets", {})) != {"4.1", "4.2", "4.3", "4.4"}
+            or any(type(goal.get(level, {}).get("met")) is not bool
+                   or goal[level].get("status") != ("达成目标" if goal[level]["met"] else "未达成目标")
+                   for goal in overview.get("targets", {}).values() for level in ("milestone", "final"))):
+            raise ValueError("The full report does not contain four completed acceptance decisions")
+        reports["overview"] = "full-report/report.html"
+        for name in ("full-report/summary.json", "full-report/report.html", "full-report/fixed-five.svg", "full-report/fixed-five.png"):
+            with (out/name).open("rb") as stream:
+                hashes[name] = hashlib.file_digest(stream,"sha256").hexdigest()
+        receipt.update(status="completed", automated_acceptance_complete=True, targets=overview["targets"], reports=reports, evidence_sha256=hashes,
                        fixed_five_execution=campaign["selected_execution_complete"],
                        compute_reference=campaign["compute_reference"], compute_reference_target=reference_target)
         return 0
@@ -337,9 +362,16 @@ def main():
     parser.add_argument("--prepare-environment", action="store_true", help="Repair and verify the environment without starting model tests")
     parser.add_argument("--resume-bootstrap", action="store_true", help="Recover a failed preflight using its verified installation; refuses existing inference campaigns")
     parser.add_argument("--resume-before-model", action="store_true", help="Recover a sealed first-stage failure only when no service or inference ever started")
+    parser.add_argument("--report-only", action="store_true", help="Re-audit completed originals and regenerate all four decisions without repeating inference")
     args = parser.parse_args()
     try:
-        data = configuration(args.config, allow_existing=args.resume_bootstrap or args.resume_before_model)
+        data = configuration(args.config, allow_existing=args.resume_bootstrap or args.resume_before_model or args.report_only)
+        if args.report_only:
+            if args.resume_bootstrap or args.resume_before_model or args.prepare_environment:
+                raise ValueError("Report-only cannot be combined with execution or recovery modes")
+            out = Path(data["out"])
+            destination = out / ("full-report-" + uuid.uuid4().hex)
+            return subprocess.run(full_report_command(out,destination)).returncode
         if args.resume_bootstrap and args.resume_before_model:
             raise ValueError("Choose only one recovery mode")
         if args.resume_before_model:
