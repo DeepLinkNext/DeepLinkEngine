@@ -97,6 +97,26 @@ def read_statistics(folder):
     return result
 
 
+def qualify_mapping(mapping, accelerator):
+    physical, logical = mapping["physical_cards"], mapping["logical_cards"]
+    if (len(physical) != 2 or len(logical) != 2
+            or len(set(physical)) != 2 or len(set(logical)) != 2
+            or any(type(value) is not int or value < 0 for value in physical + logical)):
+        raise ValueError("Original full-reference two-card 910B2 mapping differs")
+    selected = []
+    for line in mapping["npu_smi_mapping"].splitlines():
+        words = line.split()
+        if (len(words) >= 4 and words[0].isdigit() and words[1] == "0"
+                and int(words[0]) in physical):
+            observed = "".join(words[3:]).removeprefix("Ascend")
+            expected = accelerator.replace(" ", "").removeprefix("Ascend")
+            if not words[2].isdigit() or observed != expected:
+                raise ValueError("Original full-reference selected accelerator mapping differs")
+            selected.append((int(words[0]), int(words[2])))
+    if len(selected) != 2 or set(selected) != set(zip(physical, logical)):
+        raise ValueError("Original full-reference two-card 910B2 mapping differs")
+
+
 def qualify_native(native, role, capture):
     """Exact prompt, weight, hardware, precision, output and native scope gates."""
     from qualify_necessary_work import sealed_read
@@ -137,14 +157,7 @@ def qualify_native(native, role, capture):
     if any(type(arguments.get(key)) is not type(value) or arguments.get(key) != value
             for key, value in argument_domain.items()):
         raise ValueError("Original full-reference precision, capacity or execution domain differs")
-    lines = [line for line in mapping["npu_smi_mapping"].splitlines()
-             if expected["accelerator"] in line]
-    if (len(mapping["physical_cards"]) != 2 or len(set(mapping["physical_cards"])) != 2
-            or any(type(value) is not int for value in mapping["physical_cards"] + mapping["logical_cards"])
-            or mapping["logical_cards"] != [0, 1] or len(lines) != 2
-            or {tuple(map(int, line.split()[:3])) for line in lines}
-                != {(card, 0, logical) for logical, card in enumerate(mapping["physical_cards"])}):
-        raise ValueError("Original full-reference two-card 910B2 mapping differs")
+    qualify_mapping(mapping, expected["accelerator"])
     return dict(role=role, scope="same-fixed200-out256-native-BF16-TP2-910B2",
         prompt_tokens_sha256=prompt_sha, checkpoint_shards=14,
         original_reference_F_retained=True, current_F_is_independently_recomputed=True,

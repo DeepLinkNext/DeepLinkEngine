@@ -19,11 +19,20 @@ spec = importlib.util.spec_from_file_location("public_entry", ROOT / "one_click.
 entry = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(entry)
 sys.path.insert(0, str(entry.KIT / "scripts"))
-from full_reference_reuse import arm_statistics
+from full_reference_reuse import arm_statistics, qualify_mapping
 from compute_reference import target
 
 
 class PublicEntryTests(unittest.TestCase):
+    def test_reference_accepts_selected_pair_on_eight_card_host(self):
+        qualify_mapping(dict(physical_cards=[2, 7], logical_cards=[2, 7],
+            npu_smi_mapping="\n".join(f"{card} 0 {card} Ascend 910B2" for card in range(8))), "910B2")
+
+    def test_reference_rejects_misidentified_selected_card(self):
+        with self.assertRaisesRegex(ValueError, "mapping differs"):
+            qualify_mapping(dict(physical_cards=[2, 7], logical_cards=[2, 7],
+                npu_smi_mapping="2 0 2 Ascend 910B2\n7 0 7 Ascend 910B3"), "910B2")
+
     def test_real_public_supplement_route_reaches_frozen_parser_without_profile_injection(self):
         observed = []
         def execute(executable, command, environment):
