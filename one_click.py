@@ -136,6 +136,28 @@ def reference_evidence(lock):
     return root
 
 
+def prepare_data(arguments):
+    from dataset_bundle import prepare
+    cache = option(arguments, "--cache") or str(Path.home() / ".cache/vllm-hust-engine/third-party")
+    context = "--context-tenant-only" in arguments
+    selected = [] if context else (option(arguments, "--datasets") or "mmlu,hle,frontier,swe,terminal").split(",")
+    if "--compute-reference-only" in arguments:
+        selected = ["mmlu"]
+    root = prepare(cache, selected, assets=option(arguments, "--dataset-assets"),
+                   context=context, deployment=option(arguments, "--deployment"))
+    if not context:
+        existing = option(arguments, "--dataset-assets")
+        if existing is None:
+            arguments += ["--dataset-assets", str(root)]
+        else:
+            for index, value in enumerate(arguments):
+                if value == "--dataset-assets":
+                    arguments[index + 1] = str(root)
+                elif value.startswith("--dataset-assets="):
+                    arguments[index] = "--dataset-assets=" + str(root)
+    return arguments
+
+
 def main(arguments=None):
     arguments = list(sys.argv[1:] if arguments is None else arguments)
     lock = verify_kit()
@@ -167,6 +189,7 @@ def main(arguments=None):
                 raise ValueError("This public entry requires engine_profile r8")
         if option(effective, "--deployment") is None:
             raise ValueError("Provide deployment: /path/to/r8-installation/sdk from the public r8 installation; see engine/README.md")
+        effective = prepare_data(effective)
         os.environ["VLLM_HUST_PROJECT_EVIDENCE"] = str(reference_evidence(lock))
         arguments = effective
     sys.dont_write_bytecode = True

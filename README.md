@@ -8,6 +8,8 @@ DeepLinkEngine 提供推理引擎的一键安装、自动环境准备、配对�
 
 ## 一键安装与测试
 
+五项题目、答案、图像及原始轨迹已统一封存到[本仓库数据Release](https://github.com/DeepLinkNext/DeepLinkEngine/releases/tag/fixed-five-data-20261120-v1)。入口在安装前自动恢复并校验；测试期间无需再从Hugging Face或其他原数据站点下载正文。[数据包、离线使用及校验说明](data/README.md)。
+
 准备双卡昇腾 910B2、模型权重和已安装的 CANN 9.1.0。脚本自动探测 Python、加载 CANN 环境，并在缓存中的独立环境补齐不匹配的依赖。复制[配置示例](benchmark/run-all.example.json)，填写模型路径、物理卡号、缓存和新的结果目录：
 
 ```sh
@@ -86,7 +88,7 @@ python benchmark/scripts/recompute_m01_qualified_pair.py --check
 | SWE-bench Pro | [32 个任务的离线回放清单](datasets/individual/swe-bench-pro-fixed32.json) | 64 | 吞吐、TTFT、TPOT |
 | Terminal-Bench 2.1 | [32 个任务的离线回放清单](datasets/individual/terminal-bench-2.1-fixed32.json) | 48 | 吞吐、TTFT、TPOT |
 
-两项回放使用清单中的模型请求，保留历史轮次和工具描述并关闭工具执行。公开清单记录原始来源、版本、顺序及校验值。原题、答案及回放正文按各来源的获取条件取得。完整口径见[固定评测协议](datasets/standard.json)和[抽样及计分说明](datasets/README.md)。
+两项回放使用清单中的模型请求，保留历史轮次和工具描述并关闭工具执行。公开清单记录原始来源、版本、顺序及校验值。原题、答案、图像及回放正文由[本仓库固定数据包](data/README.md)恢复，保留各来源使用条件。完整口径见[固定评测协议](datasets/standard.json)和[抽样及计分说明](datasets/README.md)。
 
 ## 现场测试与历史预检
 

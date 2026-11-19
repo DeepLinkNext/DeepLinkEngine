@@ -72,7 +72,7 @@ class FullSuiteEntryTests(unittest.TestCase):
             status, receipt, commands, out = self.execute(temp)
             self.assertEqual(status, 0)
             self.assertEqual(receipt["status"], "completed")
-            self.assertEqual(len(commands), 7)
+            self.assertEqual(len(commands), 8)
             self.assertTrue(all("evaluate" not in args for args in commands))
             entry_calls = [args for args in commands if str(ROOT / "one_click.py") in args]
             self.assertEqual(len(entry_calls), 3)
@@ -95,7 +95,7 @@ class FullSuiteEntryTests(unittest.TestCase):
             status, receipt, commands, _ = self.execute(temp, failure=True)
             self.assertEqual(status, 1)
             self.assertEqual(receipt["stages"][-1]["returncode"], 2)
-            self.assertEqual(len(commands), 5)
+            self.assertEqual(len(commands), 6)
 
     def test_cancelled_child_is_recorded_as_failed_stage(self):
         with tempfile.TemporaryDirectory() as temp:
