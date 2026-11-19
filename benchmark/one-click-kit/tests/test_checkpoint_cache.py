@@ -91,14 +91,27 @@ class BoundedPreServiceReclaimTests(unittest.TestCase):
         gib = 2**30
         return dict(limit=64*gib, current=current*gib, working_estimate=23*gib,
             stat=dict(file=(current-8)*gib, inactive_file=(current-23)*gib,
-                      shmem=0, file_dirty=0, file_writeback=0), events=dict(oom=0, oom_kill=0))
+                      shmem=0, file_dirty=0, file_writeback=0, file_mapped=0, unevictable=0), events=dict(oom=0, oom_kill=0))
 
     def test_plan_preserves_original_working_reserve_and_caps_temporary_memory(self):
         value = self.state()
         plan = reclaim_plan(value, 12*2**30)
         self.assertTrue(plan["eligible"])
         self.assertLessEqual(plan["temporary_bytes"], 16*2**30)
-        self.assertLess(plan["working_estimate"] + plan["temporary_bytes"], value["limit"] - 4*2**30)
+        self.assertLess(plan["non_file_estimate"] + plan["temporary_bytes"], value["limit"] - 4*2**30)
+
+    def test_repeated_hashing_active_cache_is_reclaimed_before_model_creation(self):
+        value=self.state();value["stat"]["inactive_file"]=6*2**30
+        value["working_estimate"]=value["current"]-6*2**30
+        plan=reclaim_plan(value,12*2**30)
+        self.assertTrue(plan["eligible"])
+        self.assertEqual(plan["temporary_bytes"],16*2**30)
+        self.assertEqual(plan["inactive_file_observed_bytes"],6*2**30)
+
+    def test_mapped_and_locked_file_pages_are_never_credited(self):
+        for name in ("file_mapped","unevictable"):
+            value=self.state();value["stat"][name]=48*2**30
+            self.assertFalse(reclaim_plan(value,12*2**30)["eligible"])
 
     def test_anon_dirty_and_missing_cache_are_not_credited_as_reclaimable(self):
         for mutate in (lambda s: s["stat"].pop("inactive_file"),

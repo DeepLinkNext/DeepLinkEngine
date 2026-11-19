@@ -181,7 +181,7 @@
     "scripts/baseline_profile.py": "956a14275bb472af46a43b1b4f84653db82df214cdbb9c3b4c35dbd9cad2f71a",
     "scripts/baseline_serve.py": "0e3961c06704066fb335f367eaf50bf085ccbced9253dc26a34278ac2d807942",
     "scripts/capacity_snapshot.py": "bbfd941fc3fce6b21121aed1c55b0f971086150ae41ff705c91a23cc12786c03",
-    "scripts/checkpoint_cache.py": "e07c6b95278c284fc596a4954e645efa204e06265697ebc7f33988b6f4ed91ed",
+    "scripts/checkpoint_cache.py": "aa39c4951d84829fa5b8a8214a035767a8b57eedef814fbe330697ebdaa18e58",
     "scripts/child_runner.py": "cf295a7446843cecc53f3ebf189b38f16c49635e3c09c75bc4c93afb739160e7",
     "scripts/compile_boundary.py": "be079beb88b23a452bd4f4b4d1c6d6c3cd2463d331eb8e95372d1d3fe48bf754",
     "scripts/completion_warmup.py": "c3b292de6297a448d9af89b21de22d7b8c57b516ee341d1ed751549545b3afa0",
@@ -272,7 +272,7 @@
     "tests/test_canonical_protocol.py": "ca8bd737aee0c78fc635ef304890b5265a1d55b8d85f309b2e2ebb43cc7e7f49",
     "tests/test_canonical_results.py": "683e0dd1860bcba0dab72f323d7cb83796fbf21c0baf1cb166574cc619eadced",
     "tests/test_canonical_workgroups.py": "c9307e04932e78965e44dbf3ecf63a9bf581b78c02591d8a068e954c0687ea73",
-    "tests/test_checkpoint_cache.py": "3f95ae16691a7efb9103cd1b0acc0e7dc61088d7e11192e1662a07c0856f2ce1",
+    "tests/test_checkpoint_cache.py": "31077d8d2cb66932ff05052f94deec1d3233988bb788628144dfdec233532c8e",
     "tests/test_child_runner.py": "0be7b76e7b7ea929ec2ff5139d85cd019bd5b8b0f01967f67f2cbc6d19c65e67",
     "tests/test_compute_reference_integration.py": "6c67df157dc776be3ea9b74ac0aafe5c41878365c748c2f4d5e6fade37f3a53d",
     "tests/test_compute_reference_plot.py": "e3f1e4be4b30387e0c47f125d6cfe45bd1b74eb8052c0b2b64af2a415bdc76d3",
@@ -516,7 +516,7 @@
     "base_manifest_sha256": "b2dd50d83c6f081269bda8e94e4128741ac80f08b0cf71fdf5db983ca3a98762",
     "files": {
       "scripts/checkpoint_cache.py": {
-        "after_sha256": "e07c6b95278c284fc596a4954e645efa204e06265697ebc7f33988b6f4ed91ed",
+        "after_sha256": "aa39c4951d84829fa5b8a8214a035767a8b57eedef814fbe330697ebdaa18e58",
         "before_sha256": "c33bb2e9ad88e985205c6d9775d986933712de24660ac6a61e310b35ad02099d"
       },
       "scripts/run_b1_r4.py": {
@@ -524,12 +524,12 @@
         "before_sha256": "d5ebd1329b7f493423bd71a7832bb9a573ef03b7903c2cecc3c6f0b9ea1c531b"
       },
       "tests/test_checkpoint_cache.py": {
-        "after_sha256": "3f95ae16691a7efb9103cd1b0acc0e7dc61088d7e11192e1662a07c0856f2ce1",
+        "after_sha256": "31077d8d2cb66932ff05052f94deec1d3233988bb788628144dfdec233532c8e",
         "before_sha256": "1ff11a66582ea8067c39207db592ad7c294662f2f943b1cc3deb08d11211a364"
       }
     },
-    "id": "deeplink-pre-service-cache-20261120-v5",
-    "scope": "Bounded recovery before any model process; model memory gates, engines, data, warmup, scoring and measured timing unchanged"
+    "id": "deeplink-pre-service-cache-20261120-v6",
+    "scope": "Pre-service clean unmapped active/inactive cache recovery; model memory gates, engines, data, warmup, scoring and measured timing unchanged"
   },
   "repository": "vLLM-HUST/vllm-hust-engine"
 }
