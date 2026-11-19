@@ -68,17 +68,22 @@ def bootstrap_resume(data):
     prior = json.loads((out / "results.json").read_text())
     stages = prior.get("stages", [])
     expected = ["prepare-datasets", "install-package", "verify-engine", "install-engine", "prepare-fixed-five"]
-    if (prior.get("status") != "failed" or [r.get("name") for r in stages] != expected
-            or any(r.get("status") != "completed" for r in stages[:4])
+    if (prior.get("status") != "failed" or len(stages) not in (4,5)
+            or [r.get("name") for r in stages] != expected[:len(stages)]
+            or any(r.get("status") != "completed" for r in stages[:-1])
             or stages[-1].get("status") not in ("failed", "launch_failed", "interrupted")):
-        raise ValueError("Bootstrap recovery requires four completed installation stages and a failed fixed-five preflight")
+        raise ValueError("Bootstrap recovery requires failed installation verification or a failed fixed-five preflight before inference")
     if any(os.path.lexists(out / name) for name in ("fixed-five", "context-tenant")):
         raise ValueError("An inference campaign already exists; bootstrap recovery will not repeat it")
-    stored = json.loads((out / "evaluation.json").read_text())
-    if stored != evaluation_configuration(data, out / "installation"):
+    if (out / "evaluation.json").is_file():
+        stored = json.loads((out / "evaluation.json").read_text())
+        unchanged = stored == evaluation_configuration(data, out / "installation")
+    else:
+        unchanged = prior.get("configuration") == data
+    if not unchanged:
         raise ValueError("Recovery configuration differs from the original full-test configuration")
-    if not (out / "installation/installation.json").is_file():
-        raise ValueError("The prior runtime installation is incomplete")
+    if not (out / "installation/installation.json").is_file() and not (out / "environment.json").is_file():
+        raise ValueError("The prior runtime installation or recorded private environment is incomplete")
     return prior
 
 
@@ -113,8 +118,13 @@ def before_model_resume(data):
 def recovery_environment(data):
     """Reuse the installation's private interpreter after fresh version/file probes."""
     from environment_setup import cann_environment, probe, differences, compatible_python, vendor_integrity, runtime_imports
-    info = json.loads((Path(data["out"]) / "installation/installation.json").read_text())
-    python = Path(info["python"]).absolute()
+    out = Path(data["out"])
+    if (out / "installation/installation.json").is_file():
+        info = json.loads((out / "installation/installation.json").read_text())
+        python = Path(info["python"]).absolute()
+    else:
+        info = json.loads((out / "environment.json").read_text())
+        python = Path(info["after"]["python"]).absolute()
     if (not (python.parent.parent / "pyvenv.cfg").is_file()
             or not python.parent.parent.resolve().is_relative_to((Path(data["cache"]) / "environments").resolve())):
         raise ValueError("Recovery requires the installation's private interpreter")
@@ -203,7 +213,7 @@ def run(data, *, resume_bootstrap=False, resume_before_model=False):
     out.mkdir(parents=True, exist_ok=reuse_installation)
     installation = out / "installation"
     cli = str(Path(sysconfig.get_path("scripts")) / "vllm-hust-engine")
-    receipt = {"status": "running", "stages": [], "third_party_verification": "pending"}
+    receipt = {"status": "running", "stages": [], "configuration": data, "third_party_verification": "pending"}
     if prior is not None:
         history = out / "attempts"
         history.mkdir(exist_ok=True)
@@ -272,21 +282,10 @@ def run(data, *, resume_bootstrap=False, resume_before_model=False):
                 sha256=hashlib.sha256((out / "runtime-dependencies.json").read_bytes()).hexdigest())
             save()
         stage("verify-engine", [cli, "verify"])
+        runtime_command = [sys.executable, str(ROOT / "runtime_storage.py"), "--out", str(installation)]
         if reuse_installation:
-            verify_install = """import json,sys
-from pathlib import Path
-from vllm_hust_engine.cli import verify,audit_install,verify_tools
-root=Path(sys.argv[1]);receipt=json.loads((root/'installation.json').read_text())
-locked=verify();assert receipt['release']==locked['release'] and receipt['package_version']==locked['version']
-profile=json.loads((root/'sdk/deployment.json').read_text());assert profile['python']==sys.executable
-assert Path(receipt['deployment']).resolve()==(root/'sdk').resolve()
-verify_tools(root/'tools');result=audit_install(root/'sdk',root/'tools')
-assert result['verified_runtime_files']==locked['runtime_files']
-print('EXISTING_INSTALLATION_VERIFIED',result['verified_runtime_files'])
-"""
-            stage("install-engine", [sys.executable, "-c", verify_install, str(installation)], mode="verify_existing")
-        else:
-            stage("install-engine", [cli, "install", "--out", str(installation)])
+            runtime_command.append("--reuse")
+        stage("install-engine", runtime_command, mode="verify_existing" if reuse_installation else "execute")
         evaluation = evaluation_configuration(data, installation)
         config = out / "evaluation.json"
         config.write_text(json.dumps(evaluation, indent=2) + "\n")
@@ -348,7 +347,7 @@ def main():
         if args.resume_bootstrap:
             bootstrap_resume(data)
         from environment_setup import ensure_environment
-        prepared = recovery_environment(data) if args.resume_before_model else ensure_environment(data)
+        prepared = recovery_environment(data) if (args.resume_before_model or args.resume_bootstrap) else ensure_environment(data)
         if prepared is not None:
             os.execve(prepared["python"], [prepared["python"], str(Path(__file__).resolve()), *sys.argv[1:]], prepared["env"])
             raise ValueError("Could not hand off to the prepared Python environment")

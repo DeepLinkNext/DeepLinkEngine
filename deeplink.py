@@ -11,6 +11,8 @@ ROOT = Path(__file__).resolve().parent
 
 
 def installation(path):
+    from runtime_storage import restore_missing
+    restore_missing(Path(path).expanduser())
     path = Path(path).expanduser().resolve()
     receipt = json.loads((path / "installation.json").read_bytes())
     lock = json.loads((ROOT / "engine/r8-lock.json").read_bytes())
@@ -57,7 +59,7 @@ def install(args):
     if args.wheelhouse:
         package_command += ["--wheelhouse", args.wheelhouse]
     cli = str(Path(sysconfig.get_path("scripts")) / "vllm-hust-engine")
-    commands = [package_command, [cli, "verify"], [cli, "install", "--out", str(target)]]
+    commands = [package_command, [cli, "verify"], [sys.executable, str(ROOT / "runtime_storage.py"), "--out", str(target)]]
     for name, command in zip(("install-package", "verify-package", "install-runtime"), commands):
         print("INSTALL", name, flush=True)
         result = run_repair_stage(command, dict(os.environ), None)

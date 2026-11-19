@@ -39,6 +39,7 @@ jobs:
       - run: python -B tests/test_run_all.py
       - run: python -B tests/test_environment_setup.py
       - run: python -B tests/test_standalone.py
+      - run: python -B tests/test_runtime_storage.py
       - run: python -B tests/test_dataset_bundle.py
       - run: python -B tests/test_package_metadata.py
       - run: python -B tests/test_engine_install.py
