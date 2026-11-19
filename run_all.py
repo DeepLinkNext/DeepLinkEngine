@@ -149,8 +149,10 @@ def run(data):
         if data.get("dataset_assets"):
             data_command += ["--assets", data["dataset_assets"]]
         stage("prepare-datasets", data_command)
-        stage("install-package", [sys.executable, "-m", "pip", "install", "--no-deps",
-              "-r", str(ROOT / "engine/r8-pip-requirements-deeplinkengine.txt")])
+        install_command = [sys.executable, str(ROOT / "engine_install.py"), "--cache", data["cache"]]
+        if data.get("environment", {}).get("wheelhouse"):
+            install_command += ["--wheelhouse", data["environment"]["wheelhouse"]]
+        stage("install-package", install_command)
         stage("verify-engine", [cli, "verify"])
         stage("install-engine", [cli, "install", "--out", str(installation)])
         evaluation = dict({k: v for k, v in data.items() if k != "environment"}, engine_profile="r8", test_mode="full", reference_profile="submission-v2",

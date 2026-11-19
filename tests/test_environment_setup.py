@@ -5,6 +5,8 @@ import importlib.util
 import io
 import json
 import os
+import base64
+from importlib import metadata
 from pathlib import Path
 import sys
 import tempfile
@@ -144,8 +146,22 @@ class EnvironmentTests(unittest.TestCase):
         self.assertNotIn("Authorization", network.call_args.args[0].headers)
 
     def test_wrong_download_hash_is_rejected(self):
-        with patch.object(setup.urllib.request, "urlopen", return_value=io.BytesIO(b"wrong")):
+        with patch.object(setup.urllib.request, "urlopen", return_value=io.BytesIO(b"x" * len(self.payload))):
             with self.assertRaisesRegex(ValueError, "SHA-256"):
+                setup.cached_wheel(self.source, [], self.root / "wheels")
+        self.assertFalse((self.root / "wheels/fixture.whl").exists())
+
+    def test_early_eof_is_retried_and_only_complete_verified_bytes_are_installed(self):
+        with patch.object(setup.urllib.request, "urlopen", side_effect=[
+                io.BytesIO(self.payload[:5]), io.BytesIO(self.payload)]) as network:
+            result = setup.cached_wheel(self.source, [], self.root / "wheels")
+        self.assertEqual(network.call_count, 2)
+        self.assertEqual(result.read_bytes(), self.payload)
+        self.assertFalse(list((self.root / "wheels").glob("wheel-*")))
+
+    def test_persistent_truncation_retains_failure_and_never_creates_valid_cache_entry(self):
+        with patch.object(setup.urllib.request, "urlopen", side_effect=lambda *a, **k: io.BytesIO(b"short")):
+            with self.assertRaisesRegex(OSError, "received 5, expected"):
                 setup.cached_wheel(self.source, [], self.root / "wheels")
         self.assertFalse((self.root / "wheels/fixture.whl").exists())
 
@@ -188,6 +204,55 @@ class EnvironmentTests(unittest.TestCase):
         verify.assert_called_once()
         owned.assert_called_once()
         self.assertEqual(report["steps"][0]["status"], "completed")
+
+    def test_environment_console_follows_new_log_bytes_and_retains_original_file(self):
+        path = self.root / "fixture.log"
+        path.write_bytes(b"previous invocation\n")
+        output = io.StringIO()
+        def execute(args, env, log):
+            log.write("安装进度\n".encode())
+            return type("Result", (), {"returncode": 0})()
+        with patch.object(setup, "run_repair_stage", side_effect=execute), \
+             contextlib.redirect_stdout(output):
+            setup.command(["fixture"], {}, self.root, "fixture", {"steps": []}, self.root / "report.json")
+        self.assertIn("安装进度", output.getvalue())
+        self.assertNotIn("previous invocation", output.getvalue())
+        self.assertEqual(path.read_text(), "previous invocation\n安装进度\n")
+
+    def test_dependency_metadata_does_not_hide_overwritten_vendor_module(self):
+        package = self.root / "site/triton"
+        package.mkdir(parents=True)
+        module = package / "__init__.py"
+        original = b"# Ascend implementation\n"
+        module.write_bytes(original)
+        distinfo = package.parent / "triton_ascend-3.6.0.dist-info"
+        distinfo.mkdir()
+        (distinfo / "METADATA").write_text("Name: triton-ascend\nVersion: 3.6.0\n")
+        checksum = base64.urlsafe_b64encode(hashlib.sha256(original).digest()).rstrip(b"=").decode()
+        (distinfo / "RECORD").write_text(f"triton/__init__.py,sha256={checksum},{len(original)}\n")
+        dist = metadata.PathDistribution(distinfo)
+        with patch.object(metadata, "distribution", return_value=dist):
+            self.assertTrue(setup.distribution_integrity("triton-ascend")["verified"])
+            module.write_bytes(b"# Base Triton overwrote the same import path\n")
+            self.assertEqual(dist.version, "3.6.0")
+            result = setup.distribution_integrity("triton-ascend")
+        self.assertFalse(result["verified"])
+        self.assertEqual(result["mismatches"], ["triton/__init__.py"])
+
+    def test_vendor_overlay_is_restored_after_dependency_resolution(self):
+        (self.root / "engine/r8-lock.json").write_text(json.dumps({
+            "required_python_packages": {"vendor": "2", "triton-ascend": "3.6.0"},
+            "environment_sources": {"triton-ascend": self.source}}))
+        observation = info()
+        observation["packages"]["triton-ascend"] = "3.6.0"
+        with patch.object(setup, "cached_wheel", return_value=self.root / "fixture.whl"), \
+             patch.object(setup, "vendor_integrity", side_effect=[
+                 {"verified": False, "packages": {"triton-ascend": {"mismatches": ["triton/__init__.py"]}}},
+                 {"verified": True, "packages": {}}]):
+            result, execute = self.prepare(before=observation, probes=[observation, observation])
+        names = [call.args[3] for call in execute.call_args_list]
+        self.assertLess(names.index("resolve-python-dependencies"), names.index("restore-ascend-triton-overlay"))
+        self.assertTrue(json.loads(Path(result["report"]).read_text())["vendor_integrity"]["verified"])
 
     def test_child_uses_managed_python_even_when_config_names_the_original_python(self):
         self.data["environment"] = {"python": "/original/python"}

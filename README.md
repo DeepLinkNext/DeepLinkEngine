@@ -14,7 +14,7 @@ python deeplink.py serve --installation /workspace/deeplink-install \
   --model /models/Qwen3.5-35B-A3B --physical-devices 0,7
 ```
 
-安装会自动准备独立 Python 环境、下载并校验依赖。卡号填写实际分配的两张物理卡，逻辑卡号自动探测。服务默认监听 `127.0.0.1:8000`，提供 OpenAI 兼容接口：
+安装会自动准备独立 Python 环境，按锁定索引下载并校验本仓库 Release 附件，再从本地文件安装。除版本号外，还校验 Ascend Triton 的 565 个已登记文件，依赖解析覆盖厂商文件时自动恢复。卡号填写实际分配的两张物理卡，逻辑卡号自动探测。服务默认监听 `127.0.0.1:8000`，提供 OpenAI 兼容接口：
 
 ```sh
 python examples/chat.py "你好，请介绍一下自己"

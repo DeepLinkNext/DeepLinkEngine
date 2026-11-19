@@ -22,7 +22,7 @@ def installation(path):
 
 
 def install(args):
-    from environment_setup import ensure_environment, cann_environment, probe, differences, compatible_python
+    from environment_setup import ensure_environment, cann_environment, probe, differences, compatible_python, vendor_integrity
     target = Path(os.path.abspath(Path(args.out).expanduser()))
     cache = Path(args.cache).expanduser().resolve()
     if os.path.lexists(target):
@@ -40,6 +40,9 @@ def install(args):
         observed = probe(python, lock["required_python_packages"], env)
         if not compatible_python(observed) or differences(observed, lock["required_python_packages"]):
             raise ValueError("The selected private environment does not meet the runtime dependency versions")
+        if not vendor_integrity(python, lock["required_python_packages"], env)["verified"]:
+            raise ValueError("The selected private environment has overwritten Ascend Triton files; "
+                             "omit --use-environment to prepare a clean private runtime")
         if Path(sys.executable).absolute() != python:
             os.execve(str(python), [str(python), str(Path(__file__).resolve()), *sys.argv[1:]], env)
             raise RuntimeError("Environment handoff returned unexpectedly")
@@ -49,18 +52,12 @@ def install(args):
         if prepared is not None:
             os.execve(prepared["python"], [prepared["python"], str(Path(__file__).resolve()), *sys.argv[1:]], prepared["env"])
             raise RuntimeError("Environment handoff returned unexpectedly")
-    from environment_setup import run_repair_stage, cached_wheel
-    lock = json.loads((ROOT / "engine/r8-lock.json").read_bytes())
-    links = [args.wheelhouse] if args.wheelhouse else []
-    packages = []
-    for asset in lock["assets"]:
-        if not asset["name"].endswith((".whl", ".tar.gz")):
-            continue
-        source = dict(asset, filename=asset["name"], url=asset["deepengine_url"])
-        packages.append(str(cached_wheel(source, links, cache / "wheels")))
+    from environment_setup import run_repair_stage
+    package_command = [sys.executable, str(ROOT / "engine_install.py"), "--cache", str(cache)]
+    if args.wheelhouse:
+        package_command += ["--wheelhouse", args.wheelhouse]
     cli = str(Path(sysconfig.get_path("scripts")) / "vllm-hust-engine")
-    commands = [[sys.executable, "-m", "pip", "install", "--disable-pip-version-check", "--no-deps", "--no-compile", *packages],
-                [cli, "verify"], [cli, "install", "--out", str(target)]]
+    commands = [package_command, [cli, "verify"], [cli, "install", "--out", str(target)]]
     for name, command in zip(("install-package", "verify-package", "install-runtime"), commands):
         print("INSTALL", name, flush=True)
         result = run_repair_stage(command, dict(os.environ), None)

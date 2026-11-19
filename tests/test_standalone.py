@@ -74,11 +74,30 @@ class Standalone(unittest.TestCase):
                 return cache / source["filename"]
             with patch.object(setup, "ensure_environment", return_value=None), patch.object(setup, "cached_wheel", side_effect=artifact), patch.object(setup, "run_repair_stage", side_effect=stage):
                 self.assertEqual(deeplink.install(args), 0)
-            self.assertEqual(len(downloads), 4)
-            self.assertTrue(all("sha256" in item and "api_url" in item for item in downloads))
+            self.assertEqual(downloads, [])
+            self.assertEqual(calls[0][:2], [sys.executable, str(ROOT / "engine_install.py")])
+            self.assertEqual(calls[0][calls[0].index("--cache") + 1], str(cache))
             self.assertEqual([x[1] for x in calls[1:]], ["verify", "install"])
-            self.assertIn("--no-deps", calls[0])
             self.assertFalse(any("reference" in str(x) or "evaluate" in str(x) for x in calls))
+
+    def test_explicit_environment_with_matching_versions_but_changed_vendor_files_is_rejected(self):
+        import environment_setup as setup
+        lock = json.loads((ROOT / "engine/r8-lock.json").read_bytes())
+        with tempfile.TemporaryDirectory() as folder, patch.dict(os.environ):
+            envroot = Path(folder) / "venv"
+            envroot.mkdir()
+            (envroot / "pyvenv.cfg").touch()
+            args = argparse.Namespace(out=str(Path(folder)/"install"), cache=str(Path(folder)/"cache"),
+                python=None, wheelhouse=None, cann_home=None, use_environment=str(envroot/"bin/python"))
+            observed = dict(packages=lock["required_python_packages"])
+            with patch.object(setup, "cann_environment", return_value=(dict(os.environ), {})), \
+                 patch.object(setup, "probe", return_value=observed), \
+                 patch.object(setup, "compatible_python", return_value=True), \
+                 patch.object(setup, "vendor_integrity", return_value={"verified": False}), \
+                 patch.object(os, "execve") as execute:
+                with self.assertRaisesRegex(ValueError, "overwritten Ascend Triton"):
+                    deeplink.install(args)
+            execute.assert_not_called()
 
     def test_install_stops_on_failure(self):
         import environment_setup as setup
