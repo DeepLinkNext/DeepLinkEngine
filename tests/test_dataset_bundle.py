@@ -108,12 +108,12 @@ class DataBundleTests(unittest.TestCase):
         import one_click
         for mode, expected in [('mmlu',['mmlu']),('hle,frontier,swe,terminal',['hle','frontier','swe','terminal'])]:
             with patch.object(bundle,'prepare',return_value=self.root/'assets') as prepare, \
-                 patch('baseline_bundle.ensure_deployment', return_value=Path('/baseline')), patch.object(one_click, 'validate_deployment'):
+                 patch('baseline_bundle.ensure_deployment', return_value=Path('/baseline')), patch.object(one_click, 'validate_deployment'), patch('artifact_cache.release'):
                 args=one_click.prepare_data(['--cache',str(self.cache),'--deployment','/sdk','--datasets',mode])
             self.assertEqual(prepare.call_args.args[1],expected)
             self.assertEqual(args[-2:],['--dataset-assets',str(self.root/'assets')])
         with patch.object(bundle,'prepare',return_value=self.root/'assets') as prepare, \
-             patch('baseline_bundle.ensure_deployment', return_value=Path('/baseline')), patch.object(one_click, 'validate_deployment'):
+             patch('baseline_bundle.ensure_deployment', return_value=Path('/baseline')), patch.object(one_click, 'validate_deployment'), patch('artifact_cache.release'):
             args=one_click.prepare_data(['--context-tenant-only','--cache',str(self.cache),'--deployment','/sdk'])
         self.assertTrue(prepare.call_args.kwargs['context'])
         self.assertNotIn('--dataset-assets',args)

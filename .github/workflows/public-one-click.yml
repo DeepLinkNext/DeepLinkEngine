@@ -39,6 +39,7 @@ jobs:
       - run: python -B tests/test_package_metadata.py
       - run: python -B tests/test_engine_install.py
       - run: python -B tests/test_baseline_bundle.py
+      - run: python -B tests/test_artifact_cache.py
       - name: Verify public B0 archive hashes and the original OCI inventory
         env:
           GH_TOKEN: ${{ github.token }}

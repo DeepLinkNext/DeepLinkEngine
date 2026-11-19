@@ -224,7 +224,27 @@ def ensure_deployment(cache):
             temporary.replace(dest)
         restore(blobs, target)
         prepare_sdk(target)
-    return cached_runtime(local, "original018-sdk", None, build)
+    deployment = cached_runtime(local, "original018-sdk", None, build)
+    # The restored SDK no longer uses the compressed local staging copies.
+    # Retain verified originals in the configured persistent cache, and remove
+    # only these reproducible duplicates after successful restoration. On some
+    # overlay filesystems DONTNEED does not release their charged write cache.
+    removed = []
+    for record in inventory()["blobs"]:
+        path = local / "oci" / record["digest"].replace(":", "-")
+        if path.is_symlink():
+            raise ValueError("Local OCI staging file must not be a symlink")
+        if path.exists():
+            if not path.is_file() or path.stat().st_size != record["bytes"]:
+                raise ValueError("Local OCI staging identity differs: " + str(path))
+            path.unlink(missing_ok=True)
+            removed.append(dict(name=path.name, bytes=record["bytes"],
+                                retained_original=str(raw / path.name)))
+    (local / "staging-cleanup.json").write_text(json.dumps(dict(
+        deployment=str(deployment), removed=removed,
+        persistent_originals_retained=True), indent=2) + "\n")
+    print("B0_STAGING_CLEANUP", len(removed), sum(r["bytes"] for r in removed), flush=True)
+    return deployment
 
 
 if __name__ == "__main__":
