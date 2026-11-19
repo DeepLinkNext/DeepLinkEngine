@@ -9,13 +9,14 @@ import platform
 import sys
 import sysconfig
 import subprocess
+import uuid
 
 ROOT = Path(__file__).resolve().parent
 PATH_FIELDS = {"model", "cache", "out", "baseline_deployment", "dataset_assets", "env_file"}
 FIELDS = PATH_FIELDS | {"physical_devices", "devices", "environment"}
 
 
-def configuration(path):
+def configuration(path, *, allow_existing=False):
     path = Path(path).resolve()
     data = json.loads(path.read_text())
     if not isinstance(data, dict) or set(data) - FIELDS:
@@ -48,9 +49,37 @@ def configuration(path):
                 options[name] = str((path.parent / Path(value).expanduser()).resolve())
     if not Path(data["model"]).is_dir():
         raise ValueError("Model directory does not exist: " + data["model"])
-    if os.path.lexists(data["out"]):
+    if os.path.lexists(data["out"]) and not allow_existing:
         raise ValueError("Choose a new output directory: " + data["out"])
     return data
+
+
+def evaluation_configuration(data, installation):
+    return dict({k: v for k, v in data.items() if k != "environment"}, engine_profile="r8", test_mode="full",
+                reference_profile="submission-v2", deployment=str(installation / "sdk"),
+                out=str(Path(data["out"]) / "fixed-five"))
+
+
+def bootstrap_resume(data):
+    """Only recover a failed preflight before any inference campaign exists."""
+    out = Path(data["out"])
+    if out.is_symlink() or not out.is_dir():
+        raise ValueError("Bootstrap recovery requires an existing result directory")
+    prior = json.loads((out / "results.json").read_text())
+    stages = prior.get("stages", [])
+    expected = ["prepare-datasets", "install-package", "verify-engine", "install-engine", "prepare-fixed-five"]
+    if (prior.get("status") != "failed" or [r.get("name") for r in stages] != expected
+            or any(r.get("status") != "completed" for r in stages[:4])
+            or stages[-1].get("status") not in ("failed", "launch_failed", "interrupted")):
+        raise ValueError("Bootstrap recovery requires four completed installation stages and a failed fixed-five preflight")
+    if any(os.path.lexists(out / name) for name in ("fixed-five", "context-tenant")):
+        raise ValueError("An inference campaign already exists; bootstrap recovery will not repeat it")
+    stored = json.loads((out / "evaluation.json").read_text())
+    if stored != evaluation_configuration(data, out / "installation"):
+        raise ValueError("Recovery configuration differs from the original full-test configuration")
+    if not (out / "installation/installation.json").is_file():
+        raise ValueError("The prior runtime installation is incomplete")
+    return prior
 
 
 def preflight():
@@ -106,12 +135,21 @@ def qualified_reference(campaign):
     return result
 
 
-def run(data):
+def run(data, *, resume_bootstrap=False):
     out = Path(data["out"])
-    out.mkdir(parents=True, exist_ok=False)
+    prior = bootstrap_resume(data) if resume_bootstrap else None
+    out.mkdir(parents=True, exist_ok=resume_bootstrap)
     installation = out / "installation"
     cli = str(Path(sysconfig.get_path("scripts")) / "vllm-hust-engine")
     receipt = {"status": "running", "stages": [], "third_party_verification": "pending"}
+    if prior is not None:
+        history = out / "attempts"
+        history.mkdir(exist_ok=True)
+        archived = history / ("bootstrap-failure-" + uuid.uuid4().hex + ".json")
+        raw = (out / "results.json").read_bytes()
+        archived.write_bytes(raw)
+        receipt["previous_attempts"] = [*prior.get("previous_attempts", []),
+            {"path": str(archived.relative_to(out)), "sha256": hashlib.sha256(raw).hexdigest()}]
 
     environment_report = os.environ.get("DEEPLINKENGINE_ENVIRONMENT_REPORT")
     if environment_report:
@@ -122,8 +160,8 @@ def run(data):
     def save():
         (out / "results.json").write_text(json.dumps(receipt, ensure_ascii=False, indent=2) + "\n")
 
-    def stage(name, args):
-        record = {"name": name, "status": "running"}
+    def stage(name, args, *, mode="execute"):
+        record = {"name": name, "status": "running", "command": args, "mode": mode}
         receipt["stages"].append(record)
         save()
         print(name, flush=True)
@@ -152,15 +190,37 @@ def run(data):
         install_command = [sys.executable, str(ROOT / "engine_install.py"), "--cache", data["cache"]]
         if data.get("environment", {}).get("wheelhouse"):
             install_command += ["--wheelhouse", data["environment"]["wheelhouse"]]
-        stage("install-package", install_command)
+        if resume_bootstrap:
+            stage("install-package", [sys.executable, "-c",
+                  "import importlib.metadata as m,sys; assert m.version('vllm-hust-engine') == sys.argv[1]",
+                  json.loads((ROOT / "engine/r8-lock.json").read_text())["public_distribution"].split("==")[1]],
+                  mode="verify_existing")
+        else:
+            stage("install-package", install_command)
         stage("verify-engine", [cli, "verify"])
-        stage("install-engine", [cli, "install", "--out", str(installation)])
-        evaluation = dict({k: v for k, v in data.items() if k != "environment"}, engine_profile="r8", test_mode="full", reference_profile="submission-v2",
-                          deployment=str(installation / "sdk"), out=str(out / "fixed-five"))
+        if resume_bootstrap:
+            verify_install = """import json,sys
+from pathlib import Path
+from vllm_hust_engine.cli import verify,audit_install,verify_tools
+root=Path(sys.argv[1]);receipt=json.loads((root/'installation.json').read_text())
+locked=verify();assert receipt['release']==locked['release'] and receipt['package_version']==locked['version']
+profile=json.loads((root/'sdk/deployment.json').read_text());assert profile['python']==sys.executable
+assert Path(receipt['deployment']).resolve()==(root/'sdk').resolve()
+verify_tools(root/'tools');result=audit_install(root/'sdk',root/'tools')
+assert result['verified_runtime_files']==locked['runtime_files']
+print('EXISTING_INSTALLATION_VERIFIED',result['verified_runtime_files'])
+"""
+            stage("install-engine", [sys.executable, "-c", verify_install, str(installation)], mode="verify_existing")
+        else:
+            stage("install-engine", [cli, "install", "--out", str(installation)])
+        evaluation = evaluation_configuration(data, installation)
         config = out / "evaluation.json"
         config.write_text(json.dumps(evaluation, indent=2) + "\n")
         evaluate = [sys.executable, str(ROOT / "one_click.py")]
-        stage("prepare-fixed-five", [*evaluate, "prepare", "--config", str(config)])
+        prepare_command = [*evaluate, "prepare", "--config", str(config)]
+        if resume_bootstrap:
+            prepare_command += ["--out", str(out / ("preflight-" + uuid.uuid4().hex))]
+        stage("prepare-fixed-five", prepare_command)
         stage("run-fixed-five", [*evaluate, "run", "--config", str(config)])
         current = json.loads((out / "fixed-five/campaign.json").read_text())
         reference_target = qualified_reference(current)
@@ -198,9 +258,12 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--config", required=True, type=Path)
     parser.add_argument("--prepare-environment", action="store_true", help="Repair and verify the environment without starting model tests")
+    parser.add_argument("--resume-bootstrap", action="store_true", help="Recover a failed preflight using its verified installation; refuses existing inference campaigns")
     args = parser.parse_args()
     try:
-        data = configuration(args.config)
+        data = configuration(args.config, allow_existing=args.resume_bootstrap)
+        if args.resume_bootstrap:
+            bootstrap_resume(data)
         from environment_setup import ensure_environment
         prepared = ensure_environment(data)
         if prepared is not None:
@@ -212,7 +275,7 @@ def main():
     if args.prepare_environment:
         print("ENVIRONMENT verified; no model tests started", flush=True)
         return 0
-    return run(data)
+    return run(data, resume_bootstrap=args.resume_bootstrap)
 
 
 if __name__ == "__main__":

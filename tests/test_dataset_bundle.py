@@ -107,11 +107,13 @@ class DataBundleTests(unittest.TestCase):
     def test_public_full_and_quick_dispatch_use_local_data(self):
         import one_click
         for mode, expected in [('mmlu',['mmlu']),('hle,frontier,swe,terminal',['hle','frontier','swe','terminal'])]:
-            with patch.object(bundle,'prepare',return_value=self.root/'assets') as prepare:
+            with patch.object(bundle,'prepare',return_value=self.root/'assets') as prepare, \
+                 patch('baseline_bundle.prepare'):
                 args=one_click.prepare_data(['--cache',str(self.cache),'--deployment','/sdk','--datasets',mode])
             self.assertEqual(prepare.call_args.args[1],expected)
             self.assertEqual(args[-2:],['--dataset-assets',str(self.root/'assets')])
-        with patch.object(bundle,'prepare',return_value=self.root/'assets') as prepare:
+        with patch.object(bundle,'prepare',return_value=self.root/'assets') as prepare, \
+             patch('baseline_bundle.prepare'):
             args=one_click.prepare_data(['--context-tenant-only','--cache',str(self.cache),'--deployment','/sdk'])
         self.assertTrue(prepare.call_args.kwargs['context'])
         self.assertNotIn('--dataset-assets',args)

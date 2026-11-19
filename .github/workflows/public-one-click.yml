@@ -35,6 +35,9 @@ jobs:
       - run: python -B tests/test_standalone.py
       - run: python -B tests/test_dataset_bundle.py
       - run: python -B tests/test_engine_install.py
+      - run: python -B tests/test_baseline_bundle.py
+      - name: Verify public B0 archive hashes and the original OCI inventory
+        run: python -B baseline_bundle.py --verify-release --cache "${RUNNER_TEMP}/deeplink-b0"
       - name: Cache frozen engine installation assets
         uses: actions/cache@v4
         with:

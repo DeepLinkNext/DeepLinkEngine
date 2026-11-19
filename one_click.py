@@ -139,6 +139,9 @@ def reference_evidence(lock):
 def prepare_data(arguments):
     from dataset_bundle import prepare
     cache = option(arguments, "--cache") or str(Path.home() / ".cache/vllm-hust-engine/third-party")
+    if option(arguments, "--baseline-deployment") is None:
+        from baseline_bundle import prepare as prepare_baseline
+        prepare_baseline(cache)
     context = "--context-tenant-only" in arguments
     selected = [] if context else (option(arguments, "--datasets") or "mmlu,hle,frontier,swe,terminal").split(",")
     if "--compute-reference-only" in arguments:

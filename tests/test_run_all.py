@@ -1,5 +1,6 @@
 """Regression checks for the installed entry points, completion records and failures."""
 import contextlib
+import hashlib
 import importlib.util
 import io
 import json
@@ -139,6 +140,50 @@ class WorkflowTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "expected 2.13.0"):
                 workflow.preflight()
             execute.assert_not_called()
+
+    def failed_preflight(self):
+        def execute(args, **kwargs):
+            if "prepare" in args:
+                self.calls.append(args)
+                return types.SimpleNamespace(returncode=9)
+            return self.execute(args, **kwargs)
+        result, _ = self.invoke(execute)
+        self.assertEqual(result, 1)
+
+    def test_bootstrap_recovery_verifies_existing_installation_and_retains_original_failure(self):
+        self.failed_preflight()
+        before = (self.root / "result/results.json").read_bytes()
+        self.calls.clear()
+        with patch("one_click.verify_kit"), patch("child_runner.run_stage", side_effect=self.execute), \
+             contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+            result = workflow.run(self.data, resume_bootstrap=True)
+        self.assertEqual(result, 0)
+        self.assertFalse(any("install" in args for args in self.calls))
+        receipt = json.loads((self.root / "result/results.json").read_text())
+        self.assertEqual(receipt["stages"][1]["mode"], "verify_existing")
+        self.assertEqual(receipt["stages"][3]["mode"], "verify_existing")
+        old = receipt["previous_attempts"][0]
+        self.assertEqual(old["sha256"], hashlib.sha256(before).hexdigest())
+        self.assertEqual((self.root / "result" / old["path"]).read_bytes(), before)
+        prepare = next(args for args in self.calls if "prepare" in args)
+        self.assertIn("--out", prepare)
+        self.assertNotEqual(prepare[prepare.index("--out") + 1], str(self.root / "result/fixed-five-prepare"))
+
+    def test_bootstrap_recovery_rejects_changed_physical_devices_before_work(self):
+        self.failed_preflight()
+        with self.assertRaisesRegex(ValueError, "configuration differs"):
+            workflow.bootstrap_resume(dict(self.data, physical_devices=[2, 3]))
+
+    def test_bootstrap_recovery_refuses_an_existing_inference_campaign(self):
+        self.failed_preflight()
+        (self.root / "result/fixed-five").mkdir()
+        with self.assertRaisesRegex(ValueError, "inference campaign already exists"):
+            workflow.bootstrap_resume(self.data)
+
+    def test_bootstrap_recovery_never_repeats_a_completed_workflow(self):
+        self.invoke()
+        with self.assertRaisesRegex(ValueError, "failed fixed-five preflight"):
+            workflow.bootstrap_resume(self.data)
 
 
 if __name__ == "__main__":
