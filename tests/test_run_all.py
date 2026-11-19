@@ -59,6 +59,10 @@ class WorkflowTests(unittest.TestCase):
                        comparison=[{"phase": phase} for phase in
                        ["4096-formal", "16384-formal", "32768-formal", "multi-tenant-formal"]]))
             self.write("context-tenant/paired-report/report.html", "fixture report")
+        if len(args)>2 and "report_python" in args[2]:
+            self.write("full-report/summary.json",dict(schema="deeplinkengine-full-acceptance-report/v1",execution_complete=True,targets={k:dict(milestone=dict(met=True,status="达成目标"),final=dict(met=False,status="未达成目标")) for k in ("4.1","4.2","4.3","4.4")}))
+            for name in ("report.html","fixed-five.svg","fixed-five.png"):
+                self.write("full-report/"+name,"fixture only")
         return types.SimpleNamespace(returncode=0)
 
     def invoke(self, execute=None):
@@ -73,10 +77,23 @@ class WorkflowTests(unittest.TestCase):
         result, receipt = self.invoke()
         self.assertEqual(result, 0)
         self.assertEqual(receipt["status"], "completed")
-        self.assertEqual(receipt["third_party_verification"], "pending")
-        self.assertEqual(len(receipt["evidence_sha256"]), 7)
+        self.assertEqual(receipt["automated_acceptance_complete"], True)
+        self.assertEqual(len(receipt["evidence_sha256"]), 11)
         names = [row["name"] for row in receipt["stages"]]
         self.assertLess(names.index("verify-installed-tools"), names.index("run-context-tenant"))
+
+    def test_zero_exit_without_all_four_binary_decisions_cannot_complete(self):
+        def execute(args, **kwargs):
+            result=self.execute(args, **kwargs)
+            if len(args)>2 and "report_python" in args[2]:
+                path=self.root/"result/full-report/summary.json"
+                data=json.loads(path.read_text());data['targets']['4.3']['final']['status']='复核中'
+                path.write_text(json.dumps(data))
+            return result
+        result,receipt=self.invoke(execute)
+        self.assertEqual(result,1)
+        self.assertFalse(receipt['automated_acceptance_complete'])
+        self.assertIn('four completed acceptance decisions',receipt['error'])
 
     def test_reports_and_zero_exit_do_not_hide_incomplete_execution(self):
         self.incomplete = True
