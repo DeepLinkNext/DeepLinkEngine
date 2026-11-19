@@ -134,12 +134,11 @@
     },
     {
       "kind": "tools",
-      "name": "engine-tools.tar.gz",
-      "bytes": 1156695,
-      "sha256": "a04a63d4f015b8d49409be1b5ba056fd1bb45dfc98e83dbed1a5ac37e808a51b",
-      "url": "https://github.com/DeepLinkNext/DeepLinkEngine/releases/download/r8-runtime-dependencies-20261119-v1/engine-tools.tar.gz",
-      "api_url": "https://api.github.com/repos/DeepLinkNext/DeepLinkEngine/releases/assets/768201047",
-      "upstream_url": "https://github.com/DeepLinkNext/DeepLinkEngine/releases/download/r8-evaluation-reference-20261119-v3/engine-tools.tar.gz"
+      "name": "engine-tools-startup-cache-20261120-v5.tar.gz",
+      "bytes": 1160045,
+      "sha256": "8ac7063e7cc6dfce7886450a3a67443febc9f2cd27b67fdf09853501bef93ebe",
+      "url": "https://github.com/DeepLinkNext/DeepLinkEngine/releases/download/r8-runtime-dependencies-20261119-v1/engine-tools-startup-cache-20261120-v5.tar.gz",
+      "api_url": "https://api.github.com/repos/DeepLinkNext/DeepLinkEngine/releases/assets/769089991"
     }
   ]
 }

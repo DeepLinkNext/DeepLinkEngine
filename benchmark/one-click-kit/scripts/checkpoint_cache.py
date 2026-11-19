@@ -1,4 +1,4 @@
-"""Release clean cache of this checkpoint only; never write or globally flush."""
+"""Release checkpoint cache and bounded pre-service file cache; never globally flush."""
 
 import json
 import os
@@ -6,7 +6,99 @@ from pathlib import Path
 import stat
 
 
-def release_loaded_checkpoint_cache(model, weights, out, sample):
+GIB = 2**30
+
+
+def reclaim_plan(value, required):
+    """Bound temporary anonymous memory by conservatively reclaimable cache."""
+    current, limit = value.get("current"), value.get("limit")
+    fields = value.get("stat", {})
+    names = ("file", "inactive_file", "shmem", "file_dirty", "file_writeback")
+    if (type(current) is not int or type(limit) is not int or not 0 <= current <= limit
+            or any(type(fields.get(n)) is not int for n in names)
+            or fields.get("file", 0) > current
+            or any(not 0 <= fields[n] <= fields["file"] for n in names)):
+        return dict(eligible=False, reason="Complete valid finite cache counters required")
+    clean = max(0, fields["inactive_file"] - fields["shmem"] - fields["file_dirty"] - fields["file_writeback"])
+    working = current - min(current, clean)
+    budget = min(16 * GIB, clean - 4 * GIB, limit - working - 4 * GIB - 64 * 2**20)
+    budget = max(0, budget // (64 * 2**20) * (64 * 2**20))
+    return dict(eligible=limit - current < required and budget >= required + GIB,
+                reason="Pre-service allocation capped by initial clean cache and the original reserve; original model gates rechecked after all temporary pages are released",
+                clean_inactive_bytes=clean, working_estimate=working, temporary_bytes=budget)
+
+
+def allocate_private_chunk(size):
+    import mmap
+    chunk = mmap.mmap(-1, size, flags=mmap.MAP_PRIVATE | mmap.MAP_ANONYMOUS)
+    try:
+        view = memoryview(chunk)
+        try:
+            view[::4096] = b"\1" * ((size + 4095) // 4096)
+        finally:
+            view.release()
+    except BaseException:
+        chunk.close()
+        raise
+    return chunk
+
+
+def allocation_status():
+    # Full memory.stat reads can flush per-CPU counters and are expensive on
+    # large hosts. During ordinary temporary allocation only observe raw usage
+    # and OOM events; full counter snapshots bracket the complete operation.
+    root = Path("/sys/fs/cgroup")
+    return dict(current=int((root / "memory.current").read_text()),
+                events={k: int(v) for k, v in (line.split() for line in (root / "memory.events").read_text().splitlines())})
+
+
+def reclaim_before_service(sample, required, *, monitor=None):
+    monitor = monitor or sample
+    before = sample()
+    plan = reclaim_plan(before, required)
+    attempts = [before]
+    # The kernel may briefly expose a writeback-counter underflow. Never credit
+    # that sample as clean cache; use the same bounded observation retries as
+    # the original memory guard, and decline if counters remain invalid.
+    for _ in range(2):
+        if plan.get("reason") != "Complete valid finite cache counters required":
+            break
+        import time
+        time.sleep(0.02)
+        before = sample()
+        attempts.append(before)
+        plan = reclaim_plan(before, required)
+    result = dict(sampling_attempts=attempts, status="declined", before=before, plan=plan,
+                  global_drop_caches=False, memory_limit_changed=False,
+                  model_service_started=False, temporary_memory_released=True)
+    if not plan["eligible"]:
+        result["after"] = before
+        return result
+    buffers = []
+    try:
+        for _ in range(plan["temporary_bytes"] // (64 * 2**20)):
+            buffers.append(allocate_private_chunk(64 * 2**20))
+            value = monitor()
+            result["last_allocation_sample"] = value
+            if value["current"] > result.get("peak", {"current": -1})["current"]:
+                result["peak"] = value
+            if any(value.get("events", {}).get(n, 0) > before.get("events", {}).get(n, 0)
+                   for n in ("oom", "oom_kill", "oom_group_kill")):
+                raise RuntimeError("New cgroup OOM event during pre-service cache recovery")
+        result.update(status="completed")
+    except Exception as error:
+        result.update(status="failed", error=type(error).__name__ + ": " + str(error))
+    finally:
+        for chunk in buffers:
+            chunk.close()
+    result["after"] = sample()
+    if any(result["after"].get("events", {}).get(n, 0) > before.get("events", {}).get(n, 0)
+           for n in ("oom", "oom_kill", "oom_group_kill")):
+        result.update(status="failed", error="New cgroup OOM event during pre-service cache recovery")
+    return result
+
+
+def release_loaded_checkpoint_cache(model, weights, out, sample, *, before_service=False):
     model = model.resolve()
     before = sample()
     files = []
@@ -59,9 +151,19 @@ def release_loaded_checkpoint_cache(model, weights, out, sample):
         "required_raw_headroom_bytes": 12 * 2**30,
         "reason": "8GiB total host State budget plus 4GiB raw cgroup allocation reserve; cached bytes are not guaranteed reclaimable by the driver",
     }
+    if before_service and after["limit"] - after["current"] < record["required_raw_headroom_bytes"]:
+        # SDK hashing can refill cache even after installation archives were
+        # released. Overlay filesystems may ignore DONTNEED. Use ordinary bounded
+        # private anonymous pages to let this cgroup reclaim its clean file cache,
+        # then release every page before a model process can exist. Never run this
+        # fallback at the after-load call sites or during native/request timing.
+        record["bounded_pre_service_reclaim"] = reclaim_before_service(sample, record["required_raw_headroom_bytes"], monitor=allocation_status)
+        after = record["after"] = record["bounded_pre_service_reclaim"]["after"]
     out.write_text(json.dumps(record, indent=2) + "\n")
+    if record.get("bounded_pre_service_reclaim", {}).get("status") == "failed":
+        raise RuntimeError("Pre-service cache recovery failed; original memory/OOM gates remain unchanged")
     if after["limit"] - after["current"] < record["required_raw_headroom_bytes"]:
         raise RuntimeError(
-            "Insufficient raw cgroup headroom after checkpoint-only cache hint; budgets remain unchanged"
+            "Insufficient raw cgroup headroom after startup cache admission; budgets remain unchanged"
         )
     return record
