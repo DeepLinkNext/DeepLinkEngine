@@ -1,8 +1,6 @@
 # DeepLinkEngine
 
-[返回 vllm-hust-engine 官网](https://vllm-hust.sage.org.ai/engine.html)
-
-DeepLinkEngine 是 **vllm-hust-engine 的 fork，由浦江统管**。上游引擎介绍、使用文档与技术资料见 [vllm-hust-engine 官网](https://vllm-hust.sage.org.ai/engine.html)。
+DeepLinkEngine fork 自 [vllm-hust-engine](https://vllm-hust.sage.org.ai/engine.html)，由浦江统管。
 
 DeepLinkEngine 归档课题四的 **冻结 r8 推理引擎、五项评测清单和复核脚本**。公开材料可直接下载，可在普通电脑上校验和复算。
 
