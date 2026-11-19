@@ -59,4 +59,4 @@ python benchmark/scripts/recompute_m01_qualified_pair.py --check
 | 4.3 长上下文 | [4K–8K、16K–24K、32K–48K 的连续负载结果](benchmark/reports/r8-context-tenant-20261119/summary-public-v1.json) |
 | 4.4 成本与利用率 | [第三方测试记录及复算](benchmark/indicator-4.4.md) · [MMLU-Pro 同窗记录](evidence/mmlu-r8-window.json) · [四租户结果](benchmark/reports/r8-context-tenant-20261119/summary-public-v1.json) |
 
-4.1 的参考分母与其同步墙钟工况绑定。4.4 在测试记录中注明每卡月度综合费率及取值依据，两臂适用同一费率时可直接用每输出 token 的占卡时长计算成本降幅。
+4.1 的参考分母与其同步墙钟工况绑定。4.4 采用估算费率 **1,875 元/卡月**，按 30 天折算。MMLU-Pro 的每百万输出 token 估算成本为 **2.858 → 1.001 元**，降幅 **64.99%**。报价来源、四租户结果及复算公式见[成本测算说明](benchmark/indicator-4.4.md)。

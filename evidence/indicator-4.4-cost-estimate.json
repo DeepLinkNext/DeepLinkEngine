@@ -1,0 +1,58 @@
+{
+  "schema": "deepengine-indicator-4.4-cost-estimate/v1",
+  "basis": "market server rental allocation",
+  "currency": "CNY",
+  "quote": {
+    "published_date": "2026-11-17",
+    "model": "Ascend 910B2",
+    "server_monthly_price": 15000,
+    "cards_per_server": 8,
+    "source_url": "https://news.smm.cn/news/TCNOQJBAJVZYJ73BMVU7G5GJZXQ462A4U6NN4CY"
+  },
+  "per_card_monthly_estimate": 1875,
+  "days_per_month": 30,
+  "estimates": [
+    {
+      "scenario": "MMLU-Pro fixed 200",
+      "source": "evidence/mmlu-r8-window.json",
+      "arms": {
+        "B0": {
+          "occupied_cards": 2,
+          "formal_window_seconds": 1426.005969121994,
+          "output_tokens": 721900,
+          "estimated_window_cost_cny": 2.063087339586218,
+          "estimated_cost_per_million_output_tokens_cny": 2.857857514318075
+        },
+        "B1": {
+          "occupied_cards": 2,
+          "formal_window_seconds": 477.5332458920311,
+          "output_tokens": 690468,
+          "estimated_window_cost_cny": 0.6908756450984247,
+          "estimated_cost_per_million_output_tokens_cny": 1.000590389559581
+        }
+      },
+      "cost_reduction_percent": 64.98809389388553
+    },
+    {
+      "scenario": "Four-tenant C24",
+      "source": "benchmark/reports/r8-context-tenant-20261119/summary-public-v1.json",
+      "arms": {
+        "B0": {
+          "occupied_cards": 2,
+          "formal_window_seconds": 311.53741639497457,
+          "output_tokens": 40192,
+          "estimated_window_cost_cny": 0.4507196417751368,
+          "estimated_cost_per_million_output_tokens_cny": 11.214163061682346
+        },
+        "B1": {
+          "occupied_cards": 2,
+          "formal_window_seconds": 308.36817486799555,
+          "output_tokens": 110592,
+          "estimated_window_cost_cny": 0.446134512251151,
+          "estimated_cost_per_million_output_tokens_cny": 4.034057727965414
+        }
+      },
+      "cost_reduction_percent": 64.02711726433354
+    }
+  ]
+}

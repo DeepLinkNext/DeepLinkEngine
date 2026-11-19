@@ -4,7 +4,7 @@
 | --- | --- | --- |
 | 公开材料快速复核 | `python tools/review_results.py` | 仓库汇总和固定清单。输出五项吞吐、TTFT、TPOT、答题正确数和四组专项成本、利用率对照。 |
 | 4.1 从已公开的标定记录复算 | `python benchmark/scripts/recompute_m01_qualified_pair.py --check` | [公开算量、计时和参考路径附件](reports/m01-qualified-pair-20261103/evidence)。逐项核验并复算每芯片 TFLOPS 和参考达成率。 |
-| 4.4 第三方成本与利用率测试 | [送检记录项及复算](indicator-4.4.md) | 记录适用费率及其依据、两臂占卡时长、成功输出量及同窗采样。按统一费率范围计算降幅。 |
+| 4.4 第三方成本与利用率测试 | [送检记录项及复算](indicator-4.4.md) | 按公开八卡整机月租估算 1,875 元/卡月，以两臂封存的占卡时长、输出量和同窗采样复算。 |
 | 从原始运行封存重新生成 4.2 汇总 | [固定五项摘要生成器](reports/r8-fixed-five-20261118/reproduce_publication.py) | 需要原始 `summary.json` 及它引用的封存目录，输出新生成的公开 JSON。 |
 | 从原始运行封存重新生成 4.3 和四租户汇总 | [上下文与四租户摘要生成器](reports/r8-context-tenant-20261119/reproduce_publication.py) | 需要原始专项 ZIP，输出 JSON 与配对曲线。 |
 
