@@ -1,6 +1,8 @@
 """Install frozen r8, run fixed-five and context/tenant tests, and retain reports."""
 import argparse
 import json
+import hashlib
+from importlib import metadata
 import os
 from pathlib import Path
 import platform
@@ -25,7 +27,8 @@ def configuration(path):
         if not isinstance(data[name], str) or not data[name].strip():
             raise ValueError("Expected a path: " + name)
         value = Path(data[name]).expanduser()
-        data[name] = str((path.parent / value).resolve())
+        data[name] = (os.path.abspath(path.parent / value) if name == "out"
+                      else str((path.parent / value).resolve()))
     for name in ("physical_devices", "devices"):
         if name not in data:
             continue
@@ -38,6 +41,47 @@ def configuration(path):
     if os.path.lexists(data["out"]):
         raise ValueError("Choose a new output directory: " + data["out"])
     return data
+
+
+def preflight():
+    if (sys.version_info[:2] != (3, 12) or platform.python_implementation() != "CPython"
+        or platform.system() != "Linux" or platform.machine() != "aarch64"):
+        raise ValueError("Requires CPython 3.12, Linux aarch64 and the documented Ascend runtime")
+    lock = json.loads((ROOT / "engine/r8-lock.json").read_text())
+    differences = []
+    for name, expected in lock["required_python_packages"].items():
+        try:
+            observed = metadata.version(name)
+        except metadata.PackageNotFoundError:
+            observed = "missing"
+        if observed != expected:
+            differences.append(f"{name}: expected {expected}, found {observed}")
+    if differences:
+        raise ValueError("Prepare the required environment before installation: " + "; ".join(differences))
+
+
+def completed_evidence(out):
+    campaign = json.loads((out / "fixed-five/campaign.json").read_text())
+    execution = json.loads((out / "context-tenant/execution.json").read_text())
+    pair = json.loads((out / "context-tenant/paired-summary.json").read_text())
+    phases = [row["phase"] for row in pair["comparison"]]
+    if (campaign["status"] != "completed" or campaign["selected_execution_complete"] is not True
+        or execution["status"] != "completed" or pair["execution_complete"] is not True
+        or phases != ["4096-formal", "16384-formal", "32768-formal", "multi-tenant-formal"]):
+        raise ValueError("Campaign evidence does not show all planned tests completed")
+    reports = {"fixed_five": "fixed-five-report/report.html",
+               "context_tenant": "context-tenant/paired-report/report.html"}
+    for path in reports.values():
+        if not (out / path).is_file():
+            raise ValueError("Missing generated report: " + path)
+    records = ["installation/installation.json", "fixed-five/campaign.json",
+               "fixed-five/frozen-execution-plan.json", "context-tenant/execution.json",
+               "context-tenant/paired-summary.json", *reports.values()]
+    hashes = {}
+    for name in records:
+        with (out / name).open("rb") as stream:
+            hashes[name] = hashlib.file_digest(stream, "sha256").hexdigest()
+    return campaign, reports, hashes
 
 
 def run(data):
@@ -55,7 +99,13 @@ def run(data):
         receipt["stages"].append(record)
         save()
         print(name, flush=True)
-        result = subprocess.run(args, cwd=ROOT, check=False)
+        try:
+            result = subprocess.run(args, cwd=ROOT, check=False)
+        except BaseException as error:
+            record.update(status="interrupted" if isinstance(error, KeyboardInterrupt) else "launch_failed",
+                          error=type(error).__name__ + ": " + str(error))
+            save()
+            raise
         record.update(returncode=result.returncode,
                       status="completed" if result.returncode == 0 else "failed")
         save()
@@ -75,21 +125,21 @@ def run(data):
         stage("prepare-fixed-five", [*evaluate, "prepare", "--config", str(config)])
         stage("run-fixed-five", [*evaluate, "run", "--config", str(config)])
         plan = json.loads((out / "fixed-five/frozen-execution-plan.json").read_text())
-        supplement = [*evaluate, "--context-tenant-only", "--deployment", plan["optimized_deployment"],
+        # The frozen package evaluate() injects --engine-profile, which this
+        # separate frozen controller does not accept. Verify its source first.
+        stage("verify-installed-tools", [sys.executable, "-c",
+              "from pathlib import Path; from vllm_hust_engine.cli import verify_tools; "
+              "import sys; verify_tools(Path(sys.argv[1]))", str(installation / "tools")])
+        supplement = [sys.executable, str(installation / "tools/one_click.py"), "--context-tenant-only", "--deployment", plan["optimized_deployment"],
                       "--baseline-deployment", plan["baseline_deployment"],
                       "--b1-python", sys.executable, "--model", data["model"],
                       "--cache", data["cache"], "--out", str(out / "context-tenant"),
                       "--physical-devices", ",".join(map(str, data["physical_devices"])),
                       "--devices", plan["logical_devices"]]
         stage("run-context-tenant", supplement)
-        reports = {"fixed_five": "fixed-five-report/report.html",
-                   "context_tenant": "context-tenant/paired-report/report.html"}
-        for path in reports.values():
-            if not (out / path).is_file():
-                raise RuntimeError("Missing generated report: " + path)
-        campaign = json.loads((out / "fixed-five/campaign.json").read_text())
-        receipt.update(status="completed", reports=reports,
-                       fixed_five_execution=campaign.get("selected_execution_complete"),
+        campaign, reports, hashes = completed_evidence(out)
+        receipt.update(status="completed", reports=reports, evidence_sha256=hashes,
+                       fixed_five_execution=campaign["selected_execution_complete"],
                        compute_reference=campaign.get("compute_reference"))
         return 0
     except (Exception, KeyboardInterrupt) as error:
@@ -107,8 +157,7 @@ def main():
     args = parser.parse_args()
     try:
         data = configuration(args.config)
-        if sys.version_info[:2] != (3, 12) or platform.system() != "Linux" or platform.machine() != "aarch64":
-            raise ValueError("Requires CPython 3.12, Linux aarch64 and the documented Ascend runtime")
+        preflight()
     except (ValueError, OSError) as error:
         parser.error(str(error))
     return run(data)

@@ -47,5 +47,12 @@
     "bytes": 850304,
     "sha256": "060461e6deb35733d13e5024f3e06e5938f6f9cf7c37192a100f8cabb850cf28",
     "manifest_sha256": "c7342ded7fe35914e89c6a956c2f2396c1f9506f67000aa814ce892be2700f74"
+  },
+  "required_python_packages": {
+    "torch": "2.13.0+cpu",
+    "torch-npu": "2.13.0rc1",
+    "triton-ascend": "3.6.0",
+    "transformers": "5.14.1",
+    "tokenizers": "0.22.2"
   }
 }
