@@ -1,6 +1,6 @@
 # 测试与复核
 
-[课题四 4.1–4.3 送检复核](submission-review.md)对应 V5 的三项技术指标和当前证据。
+[课题四 4.1–4.3 现场测试与历史预检](submission-review.md)对应 V5 的三项技术指标。正式判定使用第三方见证下现场运行的当次记录。
 
 ## 完整测试与第三方验证
 
@@ -10,7 +10,7 @@
 python run_all.py --config evaluation.json
 ```
 
-入口依次完成引擎安装与校验、固定五项 B0/B1 测试、长上下文和四租户测试，输出原始记录、校验值、JSON 结果及 HTML 报告。第三方可独立执行或现场见证，核对版本、配置、原始记录和报告后出具结论。有效算力保留参考分母的适用工况及采集状态，按测试方案判定。
+入口依次完成引擎安装与校验、固定五项 B0/B1 测试、长上下文和四租户测试，输出原始记录、校验值、JSON 结果及 HTML 报告。第三方见证运行，核对版本、配置、当次原始记录和报告后出具结论。4.1 按[现场采集说明](indicator-retest.md)单独执行进程内双卡计时、全模型有效算量与独立参考标定；仓库内的历史配对复算不用于正式判定。
 
 ## 公开结果复核
 
@@ -18,7 +18,7 @@ python run_all.py --config evaluation.json
 | --- | --- | --- |
 | 公开材料快速复核 | `python tools/review_results.py` | 仓库汇总和固定清单。输出五项吞吐、TTFT、TPOT、答题正确数和四组专项成本、利用率对照。 |
 | 4.1 从已公开的标定记录复算 | `python benchmark/scripts/recompute_m01_qualified_pair.py --check` | [公开算量、计时和参考路径附件](reports/m01-qualified-pair-20261103/evidence)。逐项核验并复算每芯片 TFLOPS 和参考达成率。 |
-| 4.4 第三方成本与利用率测试 | [送检记录项及复算](indicator-4.4.md) | 按公开八卡整机月租估算 1,875 元/卡月，以两臂封存的占卡时长、输出量和同窗采样复算。 |
+| 4.4 历史成本与利用率测算 | [费率、现场采集及历史复算](indicator-4.4.md) | 按公开八卡整机月租估算 1,875 元/卡月，以两臂封存的占卡时长、输出量和同窗采样复算。 |
 | 从原始运行封存重新生成 4.2 汇总 | [固定五项摘要生成器](reports/r8-fixed-five-20261118/reproduce_publication.py) | 需要原始 `summary.json` 及它引用的封存目录，输出新生成的公开 JSON。 |
 | 从原始运行封存重新生成 4.3 和四租户汇总 | [上下文与四租户摘要生成器](reports/r8-context-tenant-20261119/reproduce_publication.py) | 需要原始专项 ZIP，输出 JSON 与配对曲线。 |
 
@@ -48,4 +48,4 @@ vllm-hust-engine evaluate --installation /path/to/r8-installation -- prepare --c
 vllm-hust-engine evaluate --installation /path/to/r8-installation -- run --config /path/to/evaluation.json
 ```
 
-`test_mode: "full"` 运行固定五项，`"quick"` 仅运行 MMLU-Pro 200 题。4.1 单独使用 MMLU-Pro 输出上限 256 的同步墙钟和参考路径证据。4.3 和 4.4 的四租户结果来自另一次专项运行，[专项协议和原始汇总](reports/r8-context-tenant-20261119/summary-public-v1.json)保存输入档位、到达窗口、排空、队列及采样口径。专项摘要生成器可在有原封存 ZIP 时重建报告。
+`test_mode: "full"` 运行固定五项，`"quick"` 仅运行 MMLU-Pro 200 题。4.1 单独使用 MMLU-Pro 输出上限 256 的同步墙钟和参考路径证据。历史 4.3 和 4.4 的四租户结果来自预检专项，[专项协议和原始汇总](reports/r8-context-tenant-20261119/summary-public-v1.json)保存输入档位、到达窗口、排空、队列及采样口径。专项摘要生成器可在有原封存 ZIP 时重建报告。

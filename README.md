@@ -2,7 +2,7 @@
 
 DeepLinkEngine fork 自 [vllm-hust-engine](https://vllm-hust.sage.org.ai/engine.html)。
 
-提供冻结 r8 引擎的一键安装、完整测试和报告生成，供第三方独立验证或现场见证。
+提供冻结 r8 引擎的一键安装、配对测试和报告生成。课题四正式验收在第三方见证下现场运行，按当次采集的数据判定。
 
 ## 一键安装与测试
 
@@ -15,7 +15,7 @@ python run_all.py --config evaluation.json
 
 依次安装并校验引擎，执行 B0/B1 固定五项、长上下文和四租户测试，生成结果与报告。所需数据及项目证据的获取方式见[测试说明](benchmark/README.md#昇腾实机配对测试)。
 
-结果目录包含 `results.json`、`fixed-five-report/report.html` 和 `context-tenant/paired-report/report.html`，同时保留原始记录与校验值。第三方可独立复测或现场见证，并据此出具验证结论。
+结果目录包含 `results.json`、`fixed-five-report/report.html` 和 `context-tenant/paired-report/report.html`，同时保留原始记录与校验值。第三方见证现场运行并复核当次原始记录。4.1 的进程内计时、有效算量和独立参考标定按[现场采集说明](benchmark/indicator-retest.md)单独执行。
 
 | 我想查看 | 从这里开始 |
 | --- | --- |
@@ -65,15 +65,15 @@ python benchmark/scripts/recompute_m01_qualified_pair.py --check
 
 两项回放使用清单中的模型请求，保留历史轮次和工具描述并关闭工具执行。公开清单记录原始来源、版本、顺序及校验值。原题、答案及回放正文按各来源的获取条件取得。完整口径见[冻结评测协议](datasets/standard.json)和[抽样及计分说明](datasets/README.md)。
 
-## 测试结果
+## 现场测试与历史预检
 
-[课题四 4.1–4.3 送检复核](benchmark/submission-review.md)汇总正式工况、判据和公开证据。
+[课题四 4.1–4.3 现场测试与历史预检](benchmark/submission-review.md)汇总正式工况、判据和历史数据。下表的公开记录用于预检对照。
 
 | 指标 | 公开记录 |
 | --- | --- |
 | 4.1 有效算力 | [MMLU-Pro 固定 200 题、输出上限 256 的算量和参考时间](benchmark/reports/m01-qualified-pair-20261103/README.md) |
 | 4.2 吞吐、时延与质量 | [固定五项 B0/B1 配对结果](benchmark/reports/r8-fixed-five-20261118/summary-public-v2.json) |
 | 4.3 长上下文 | [4K–8K、16K–24K、32K–48K 的连续负载结果](benchmark/reports/r8-context-tenant-20261119/summary-public-v1.json) |
-| 4.4 成本与利用率 | [第三方测试记录及复算](benchmark/indicator-4.4.md) · [MMLU-Pro 同窗记录](evidence/mmlu-r8-window.json) · [四租户结果](benchmark/reports/r8-context-tenant-20261119/summary-public-v1.json) |
+| 4.4 成本与利用率 | [现场采集、费率及历史测算](benchmark/indicator-4.4.md) · [MMLU-Pro 同窗记录](evidence/mmlu-r8-window.json) · [四租户结果](benchmark/reports/r8-context-tenant-20261119/summary-public-v1.json) |
 
-4.1 的参考分母与其同步墙钟工况绑定。4.4 采用估算费率 **1,875 元/卡月**，按 30 天折算。MMLU-Pro 的每百万输出 token 估算成本为 **2.858 → 1.001 元**，降幅 **64.99%**。报价来源、四租户结果及复算公式见[成本测算说明](benchmark/indicator-4.4.md)。
+4.1 的参考分母与其同步墙钟工况绑定。4.4 采用估算费率 **1,875 元/卡月**，按 30 天折算。历史预检中，MMLU-Pro 的每百万输出 token 估算成本为 **2.858 → 1.001 元**，降幅 **64.99%**。报价来源、四租户结果及复算公式见[成本测算说明](benchmark/indicator-4.4.md)。
