@@ -23,6 +23,8 @@ jobs:
         with:
           python-version: '3.11'
       - run: python -B tools/verify_snapshot.py
+      - run: python -B tools/verify_dependency_index.py
+      - run: python -B tests/test_dependency_index.py
       - run: python -B datasets/verify.py
       - run: python -B one_click.py verify
       - run: python -B one_click.py run --help

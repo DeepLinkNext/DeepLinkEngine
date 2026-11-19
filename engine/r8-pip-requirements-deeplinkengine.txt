@@ -1,7 +1,7 @@
 # Frozen r8: CPython3.12 / Linux aarch64 / CANN9.1.0.
 # Run pip install --no-deps -r THIS_FILE in the qualified environment.
 # All four replacements are explicit; vendor dependencies are external.
---find-links https://github.com/DeepLinkNext/DeepLinkEngine/releases/expanded_assets/r8-frozen-20261117
+--find-links https://github.com/DeepLinkNext/DeepLinkEngine/releases/expanded_assets/r8-runtime-dependencies-20261119-v1
 --require-hashes
 vllm-hust-engine==2026.11.17.8.post2 --hash=sha256:2ccb1e14cc58840bee730832d29ac519e6ca98de5d48ecc8701a9df265c0c935
 vllm==0.28.1.post1.dev143+gf18cf803c.empty --hash=sha256:4854cce2e713499e9f1b9bd514f0a1136008758b2b367ba943100ed9f97d01dc

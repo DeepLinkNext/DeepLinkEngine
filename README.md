@@ -23,7 +23,7 @@ python run_all.py --config evaluation.json
 
 | 我想查看 | 从这里开始 |
 | --- | --- |
-| 下载 r8、查看版本和运行环境 | [冻结 r8 Release](https://github.com/DeepLinkNext/DeepLinkEngine/releases/tag/r8-frozen-20261117) · [引擎安装与校验](engine/README.md) |
+| 下载 r8、查看版本和运行环境 | [依赖下载中心](https://github.com/DeepLinkNext/DeepLinkEngine/releases/tag/r8-runtime-dependencies-20261119-v1) · [引擎安装与校验](engine/README.md) |
 | 查看五项固定题单或回放清单 | [评测范围与数据入口](#五项评测) |
 | 复算公开结果或查看实机测试命令 | [测试与复核指南](benchmark/README.md) |
 

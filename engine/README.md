@@ -1,8 +1,10 @@
 # 冻结 r8 引擎
 
-[下载冻结 r8 发行包](https://github.com/DeepLinkNext/DeepLinkEngine/releases/download/r8-frozen-20261117/vllm_hust_engine-2026.11.17.8.post2.tar.gz)。包与 [PyPI 2026.11.17.8.post2](https://pypi.org/project/vllm-hust-engine/2026.11.17.8.post2/) 的发行包一致。冻结引擎提交为 `c6059a6d3d1cf7ea16340d79cccf7bb1a13fa661`，随附评测工具提交为 `bd5448c9f266cc0301c3d4cef2a10b9ab98f7205`。发行包中的 `sdk-r8.tar.gz` 包含冻结 SDK、vLLM 和 vLLM-Ascend 源码、MOD 与部署配置，`tools-r4.tar.gz` 是该 r8 版本一并锁定的评测工具归档。
+[下载冻结 r8 发行包](https://github.com/DeepLinkNext/DeepLinkEngine/releases/download/r8-runtime-dependencies-20261119-v1/vllm_hust_engine-2026.11.17.8.post2.tar.gz)。包与 [PyPI 2026.11.17.8.post2](https://pypi.org/project/vllm-hust-engine/2026.11.17.8.post2/) 的发行包一致。冻结引擎提交为 `c6059a6d3d1cf7ea16340d79cccf7bb1a13fa661`，随附评测工具提交为 `bd5448c9f266cc0301c3d4cef2a10b9ab98f7205`。发行包中的 `sdk-r8.tar.gz` 包含冻结 SDK、vLLM 和 vLLM-Ascend 源码、MOD 与部署配置，`tools-r4.tar.gz` 是该 r8 版本一并锁定的评测工具归档。
 
 ## 下载与校验
+
+固定依赖、引擎包、评测工具和参考材料统一存放在[依赖下载中心](https://github.com/DeepLinkNext/DeepLinkEngine/releases/tag/r8-runtime-dependencies-20261119-v1)；[完整索引](dependencies.json)记录版本、文件大小、SHA-256 和原来源。后续查找与下载均从此入口开始。
 
 在仓库根目录运行，路径填入实际下载位置：
 
@@ -10,7 +12,7 @@
 python tools/verify_snapshot.py --engine /path/to/vllm_hust_engine-2026.11.17.8.post2.tar.gz
 ```
 
-脚本核验发行包 SHA-256、内部 SDK 和工具包身份，并将包内评测协议与仓库清单逐一对照。[Release](https://github.com/DeepLinkNext/DeepLinkEngine/releases/tag/r8-frozen-20261117) 同时提供三个配套轮包及独立的评测工具包。发行包和轮包的来源、文件大小和 SHA-256 见 [r8-lock.json](r8-lock.json)。
+脚本核验发行包 SHA-256、内部 SDK 和工具包身份，并将包内评测协议与仓库清单逐一对照。[依赖下载中心](https://github.com/DeepLinkNext/DeepLinkEngine/releases/tag/r8-runtime-dependencies-20261119-v1) 同时提供三个配套轮包及独立的评测工具包。发行包和轮包的来源、文件大小和 SHA-256 见 [r8-lock.json](r8-lock.json)。
 
 ```sh
 python tools/verify_snapshot.py --tools /path/to/tools-r4.tar.gz

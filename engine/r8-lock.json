@@ -1,4 +1,9 @@
 {
+  "dependency_release": {
+    "tag": "r8-runtime-dependencies-20261119-v1",
+    "url": "https://github.com/DeepLinkNext/DeepLinkEngine/releases/tag/r8-runtime-dependencies-20261119-v1",
+    "find_links_url": "https://github.com/DeepLinkNext/DeepLinkEngine/releases/expanded_assets/r8-runtime-dependencies-20261119-v1"
+  },
   "upstream_release": "full-answer-b1-20261117-r8",
   "upstream_commit": "c6059a6d3d1cf7ea16340d79cccf7bb1a13fa661",
   "public_distribution": "vllm-hust-engine==2026.11.17.8.post2",
@@ -9,7 +14,8 @@
       "url": "https://files.pythonhosted.org/packages/6b/55/9e123415bb59ad3343ed7502a6faa985729fa28546df70fe93ceb1ef9929/vllm_hust_engine-2026.11.17.8.post2.tar.gz",
       "sha256": "2ccb1e14cc58840bee730832d29ac519e6ca98de5d48ecc8701a9df265c0c935",
       "bytes": 124758930,
-      "deepengine_url": "https://github.com/DeepLinkNext/DeepLinkEngine/releases/download/r8-frozen-20261117/vllm_hust_engine-2026.11.17.8.post2.tar.gz"
+      "deepengine_url": "https://github.com/DeepLinkNext/DeepLinkEngine/releases/download/r8-runtime-dependencies-20261119-v1/vllm_hust_engine-2026.11.17.8.post2.tar.gz",
+      "api_url": "https://api.github.com/repos/DeepLinkNext/DeepLinkEngine/releases/assets/768195738"
     },
     {
       "name": "r8-pip-requirements-post2.txt",
@@ -22,31 +28,36 @@
       "url": "https://github.com/vLLM-HUST/vllm-hust-website/releases/download/engine-wheels-r8-v1/vllm-0.28.1.post1.dev143%2Bgf18cf803c.empty-cp312-cp312-linux_aarch64.whl",
       "sha256": "4854cce2e713499e9f1b9bd514f0a1136008758b2b367ba943100ed9f97d01dc",
       "bytes": 32374960,
-      "deepengine_url": "https://github.com/DeepLinkNext/DeepLinkEngine/releases/download/r8-frozen-20261117/vllm-0.28.1.post1.dev143%2Bgf18cf803c.empty-cp312-cp312-linux_aarch64.whl"
+      "deepengine_url": "https://github.com/DeepLinkNext/DeepLinkEngine/releases/download/r8-runtime-dependencies-20261119-v1/vllm-0.28.1.post1.dev143%2Bgf18cf803c.empty-cp312-cp312-linux_aarch64.whl",
+      "api_url": "https://api.github.com/repos/DeepLinkNext/DeepLinkEngine/releases/assets/768196682"
     },
     {
       "name": "vllm_ascend-0.25.1rc2.dev125+hust.20260903.4.g74f0c0a27-cp312-cp312-linux_aarch64.whl",
       "url": "https://github.com/vLLM-HUST/vllm-hust-website/releases/download/engine-wheels-r8-v1/vllm_ascend-0.25.1rc2.dev125%2Bhust.20260903.4.g74f0c0a27-cp312-cp312-linux_aarch64.whl",
       "sha256": "a04f758a6973c1afe42a4fe2f123c7de295e32a3fe2583e7445dd7047c9186a9",
       "bytes": 23698984,
-      "deepengine_url": "https://github.com/DeepLinkNext/DeepLinkEngine/releases/download/r8-frozen-20261117/vllm_ascend-0.25.1rc2.dev125%2Bhust.20260903.4.g74f0c0a27-cp312-cp312-linux_aarch64.whl"
+      "deepengine_url": "https://github.com/DeepLinkNext/DeepLinkEngine/releases/download/r8-runtime-dependencies-20261119-v1/vllm_ascend-0.25.1rc2.dev125%2Bhust.20260903.4.g74f0c0a27-cp312-cp312-linux_aarch64.whl",
+      "api_url": "https://api.github.com/repos/DeepLinkNext/DeepLinkEngine/releases/assets/768197022"
     },
     {
       "name": "vllm_hust_runtime-2026.11.17.8+r8.3f7eacc1-cp312-cp312-linux_aarch64.whl",
       "url": "https://github.com/vLLM-HUST/vllm-hust-website/releases/download/engine-wheels-r8-v1/vllm_hust_runtime-2026.11.17.8%2Br8.3f7eacc1-cp312-cp312-linux_aarch64.whl",
       "sha256": "1dea132a69efb3a6ce05e893e52d65777b5907b17b2b5c227cb8ecf9cacc0ce5",
       "bytes": 123765275,
-      "deepengine_url": "https://github.com/DeepLinkNext/DeepLinkEngine/releases/download/r8-frozen-20261117/vllm_hust_runtime-2026.11.17.8%2Br8.3f7eacc1-cp312-cp312-linux_aarch64.whl"
+      "deepengine_url": "https://github.com/DeepLinkNext/DeepLinkEngine/releases/download/r8-runtime-dependencies-20261119-v1/vllm_hust_runtime-2026.11.17.8%2Br8.3f7eacc1-cp312-cp312-linux_aarch64.whl",
+      "api_url": "https://api.github.com/repos/DeepLinkNext/DeepLinkEngine/releases/assets/768197442"
     }
   ],
   "tested_environment": "CPython 3.12, Linux aarch64, CANN 9.1.0",
   "evaluator": {
     "name": "tools-r4.tar.gz",
     "source_commit": "bd5448c9f266cc0301c3d4cef2a10b9ab98f7205",
-    "deepengine_url": "https://github.com/DeepLinkNext/DeepLinkEngine/releases/download/r8-frozen-20261117/tools-r4.tar.gz",
+    "deepengine_url": "https://github.com/DeepLinkNext/DeepLinkEngine/releases/download/r8-runtime-dependencies-20261119-v1/tools-r4.tar.gz",
     "bytes": 850304,
     "sha256": "060461e6deb35733d13e5024f3e06e5938f6f9cf7c37192a100f8cabb850cf28",
-    "manifest_sha256": "c7342ded7fe35914e89c6a956c2f2396c1f9506f67000aa814ce892be2700f74"
+    "manifest_sha256": "c7342ded7fe35914e89c6a956c2f2396c1f9506f67000aa814ce892be2700f74",
+    "upstream_url": "https://github.com/DeepLinkNext/DeepLinkEngine/releases/download/r8-frozen-20261117/tools-r4.tar.gz",
+    "api_url": "https://api.github.com/repos/DeepLinkNext/DeepLinkEngine/releases/assets/768198596"
   },
   "required_python_packages": {
     "torch": "2.13.0+cpu",
@@ -58,8 +69,11 @@
   "environment_sources": {
     "torch": {
       "filename": "torch-2.13.0+cpu-cp312-cp312-manylinux_2_28_aarch64.whl",
-      "url": "https://download-r2.pytorch.org/whl/cpu/torch-2.13.0%2Bcpu-cp312-cp312-manylinux_2_28_aarch64.whl",
-      "sha256": "6f307c2c32d764ffc6ff6893b801fad6d4752f3e67966cb8abf1843427c02604"
+      "url": "https://github.com/DeepLinkNext/DeepLinkEngine/releases/download/r8-runtime-dependencies-20261119-v1/torch-2.13.0%2Bcpu-cp312-cp312-manylinux_2_28_aarch64.whl",
+      "sha256": "6f307c2c32d764ffc6ff6893b801fad6d4752f3e67966cb8abf1843427c02604",
+      "upstream_url": "https://download-r2.pytorch.org/whl/cpu/torch-2.13.0%2Bcpu-cp312-cp312-manylinux_2_28_aarch64.whl",
+      "api_url": "https://api.github.com/repos/DeepLinkNext/DeepLinkEngine/releases/assets/768198702",
+      "bytes": 155005253
     },
     "triton-ascend": {
       "filename": "triton_ascend-3.6.0-cp312-cp312-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl",
@@ -69,7 +83,32 @@
       "bytes": 362717762,
       "provenance_url": "https://github.com/DeepLinkNext/DeepLinkEngine/releases/download/r8-runtime-dependencies-20261119-v1/recovery.json",
       "recovered_from_installed_record": true,
-      "original_wheel_sha256": "f10e5b1eedbafe94d058dda15794c94b38af71890f8bfa3cb1223f0437c81043"
+      "original_wheel_sha256": "f10e5b1eedbafe94d058dda15794c94b38af71890f8bfa3cb1223f0437c81043",
+      "upstream_url": "https://github.com/DeepLinkNext/DeepLinkEngine/releases/download/r8-runtime-dependencies-20261119-v1/triton_ascend-3.6.0-cp312-cp312-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl"
+    },
+    "torch-npu": {
+      "upstream_url": "https://files.pythonhosted.org/packages/cf/74/cfc6bc7d3b251b8e0942ad27e966ac8131e286da73c987a0ff63db451bbe/torch_npu-2.13.0rc1-cp312-cp312-manylinux_2_28_aarch64.whl",
+      "filename": "torch_npu-2.13.0rc1-cp312-cp312-manylinux_2_28_aarch64.whl",
+      "url": "https://github.com/DeepLinkNext/DeepLinkEngine/releases/download/r8-runtime-dependencies-20261119-v1/torch_npu-2.13.0rc1-cp312-cp312-manylinux_2_28_aarch64.whl",
+      "api_url": "https://api.github.com/repos/DeepLinkNext/DeepLinkEngine/releases/assets/768200359",
+      "sha256": "6f7da48ba3db796b06ded6087e1a9a1827af4cada0fb298be76451e5947f10a8",
+      "bytes": 38955010
+    },
+    "transformers": {
+      "upstream_url": "https://files.pythonhosted.org/packages/6f/67/8d85ca2323233ae3c0365a659c4e52ee1f587b440e4bc577e7d8e4416d0f/transformers-5.14.1-py3-none-any.whl",
+      "filename": "transformers-5.14.1-py3-none-any.whl",
+      "url": "https://github.com/DeepLinkNext/DeepLinkEngine/releases/download/r8-runtime-dependencies-20261119-v1/transformers-5.14.1-py3-none-any.whl",
+      "api_url": "https://api.github.com/repos/DeepLinkNext/DeepLinkEngine/releases/assets/768200805",
+      "sha256": "9db974c4079ede2d1a3ea7ca5a240df33f2cc26fc2b36ba64c5f2a4f43b6e725",
+      "bytes": 11625234
+    },
+    "tokenizers": {
+      "upstream_url": "https://files.pythonhosted.org/packages/d6/84/7990e799f1309a8b87af6b948f31edaa12a3ed22d11b352eaf4f4b2e5753/tokenizers-0.22.2-cp39-abi3-manylinux_2_17_aarch64.manylinux2014_aarch64.whl",
+      "filename": "tokenizers-0.22.2-cp39-abi3-manylinux_2_17_aarch64.manylinux2014_aarch64.whl",
+      "url": "https://github.com/DeepLinkNext/DeepLinkEngine/releases/download/r8-runtime-dependencies-20261119-v1/tokenizers-0.22.2-cp39-abi3-manylinux_2_17_aarch64.manylinux2014_aarch64.whl",
+      "api_url": "https://api.github.com/repos/DeepLinkNext/DeepLinkEngine/releases/assets/768200974",
+      "sha256": "2249487018adec45d6e3554c71d46eb39fa8ea67156c640f7513eb26f318cec7",
+      "bytes": 3290736
     }
   }
 }
