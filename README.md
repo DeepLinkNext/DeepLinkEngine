@@ -40,6 +40,6 @@ python benchmark/scripts/recompute_m01_qualified_pair.py --check
 | 4.1 有效算力 | [MMLU-Pro 固定 200 题、输出上限 256 的算量和参考时间](benchmark/reports/m01-qualified-pair-20261103/README.md) |
 | 4.2 吞吐、时延与质量 | [固定五项 B0/B1 配对结果](benchmark/reports/r8-fixed-five-20261118/summary-public-v2.json) |
 | 4.3 长上下文 | [4K–8K、16K–24K、32K–48K 的连续负载结果](benchmark/reports/r8-context-tenant-20261119/summary-public-v1.json) |
-| 4.4 成本与利用率 | [四租户结果](benchmark/reports/r8-context-tenant-20261119/summary-public-v1.json) · [MMLU-Pro 同窗占卡和利用率](evidence/mmlu-r8-window.json) |
+| 4.4 成本与利用率 | [第三方测试记录及复算](benchmark/indicator-4.4.md) · [MMLU-Pro 同窗记录](evidence/mmlu-r8-window.json) · [四租户结果](benchmark/reports/r8-context-tenant-20261119/summary-public-v1.json) |
 
-4.1 的参考分母与其同步墙钟工况绑定。4.4 的单位 token 成本按同费率折算，实际费用待核对。
+4.1 的参考分母与其同步墙钟工况绑定。4.4 在测试记录中注明每卡月度综合费率及取值依据，两臂适用同一费率时可直接用每输出 token 的占卡时长计算成本降幅。
