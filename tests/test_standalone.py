@@ -204,6 +204,21 @@ class Standalone(unittest.TestCase):
             command=execute.call_args.args[1]
             self.assertEqual(command[command.index('--cache')+1],str(installed.parent/'.cache/deeplinkengine/serving'))
 
+    def test_qualified_service_reaches_device_admission(self):
+        import one_click
+        import environment_setup as setup
+        with tempfile.TemporaryDirectory() as folder:
+            out=Path(folder);model=out/'model';model.mkdir();sdk=out/'sdk';sdk.mkdir()
+            (model/'config.json').write_text(json.dumps({'model_type':'qwen3_5_moe_text','num_hidden_layers':40,'hidden_size':2048}))
+            (sdk/'deployment.json').write_text(json.dumps({'python':str(out/'venv/bin/python')}))
+            required=json.loads((ROOT/'engine/r8-lock.json').read_bytes())['required_python_packages']
+            args=['service','--installation',str(out),'--model',str(model),'--physical-devices','0,7','--devices','0,1','--cache',str(out/'cache')]
+            guard=types.SimpleNamespace(verify_mapping=lambda logical:None,acquire=unittest.mock.Mock(side_effect=RuntimeError('device-admission-boundary')))
+            with patch.object(deeplink,'installation',return_value=(out,{})),patch.object(one_click,'verify_kit'),patch.dict(os.environ),patch.dict(sys.modules,engine_entry=types.SimpleNamespace(),resource_guard=guard,restore_b1_r4=types.SimpleNamespace(verify_installed_sources=lambda root:None),dependency_admission=types.SimpleNamespace(admit_dependencies=lambda root:None)),patch.object(setup,'probe',return_value={'packages':required}),patch.object(setup,'vendor_integrity',return_value={'verified':True}),patch.object(sys,'argv',args):
+                os.environ.pop('DEEPLINK_SERVICE_BOOTSTRAPPED',None)
+                with self.assertRaisesRegex(RuntimeError,'device-admission-boundary'):service.main()
+            guard.acquire.assert_called_once()
+
     def test_chat_example_sends_real_http(self):
         observed=[]
         class Handler(BaseHTTPRequestHandler):

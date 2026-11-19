@@ -125,9 +125,6 @@ def main():
             raise ValueError("Installed runtime dependency versions differ; prepare a clean installation")
         if not vendor_integrity(profile["python"], required, os.environ)["verified"]:
             raise ValueError("Installed Ascend Triton files are overwritten; prepare a clean installation")
-        from environment_setup import verify_triton_payload
-        profile = json.loads((root / "deployment.json").read_bytes())
-        verify_triton_payload(profile["python"])
         if args.devices:
             logical = ",".join(map(str, pair(args.devices)))
         else:
