@@ -4,9 +4,9 @@
 
 ## 完整测试与第三方验证
 
-完整数据正文从[本仓库固定数据包](../data/README.md)自动恢复并校验，安装前完成准备。离线环境设置`DEEPLINKENGINE_DATA_ARCHIVES`指向已下载的五包目录。
+完整数据正文从[本仓库固定数据包](../data/README.md)自动恢复并校验，安装前完成准备。离线环境设置 `DEEPLINKENGINE_DATA_ARCHIVES` 指向已下载的五包目录。
 
-按[首页说明](../README.md#一键安装与测试)填写配置后，在仓库根目录执行：
+按[首页说明](#完整测试与第三方验证)填写配置后，在仓库根目录执行：
 
 ```sh
 python run_all.py --config evaluation.json

@@ -1,0 +1,45 @@
+{
+  "date": "2026-11-20",
+  "scope": "Standalone engine installation and inference entrypoints",
+  "base_commit": "e1658ffa147e03865b4b396f1d8af18d8f3c893a",
+  "installation": {
+    "status": "passed",
+    "mode": "explicit qualified private venv",
+    "verified_runtime_files": 9235,
+    "native_packages_imported": false,
+    "model_loaded": false,
+    "dependencies": {
+      "vllm": "0.28.1.post1.dev143+gf18cf803c.empty",
+      "vllm-ascend": "0.25.1rc2.dev125+hust.20260903.4.g74f0c0a27",
+      "torch": "2.13.0+cpu",
+      "torch-npu": "2.13.0rc1",
+      "transformers": "5.14.1"
+    }
+  },
+  "service_plan": {
+    "status": "passed",
+    "real_packaged_launcher": true,
+    "geometry": {
+      "schema": "vllm-hust-runtime-geometry/v1",
+      "id": "r8-E36-R54",
+      "execution_seats": 36,
+      "resident_seats": 54,
+      "speculative_tokens": 2,
+      "prefill_tokens": 4096,
+      "host_bytes_per_rank": 4294967296
+    },
+    "model_loaded": false,
+    "device_lease": false
+  },
+  "resource_guard": {
+    "status": "passed",
+    "busy_lease_rejected": true,
+    "model_loaded": false
+  },
+  "cpu_tests": 69,
+  "model_http_smoke": {
+    "status": "not_run",
+    "reason": "Selected physical NPUs are occupied by an existing job; its leases and processes were preserved"
+  },
+  "pipeline": "Existing evaluation, dataset recovery, reference evidence and historical results preserved"
+}

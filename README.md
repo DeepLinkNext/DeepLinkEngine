@@ -1,104 +1,43 @@
 # DeepLinkEngine
 
-DeepLinkEngine 提供推理引擎的一键安装、自动环境准备、配对测试和报告生成。课题四正式验收在第三方见证下现场运行，按当次采集的数据判定。
+面向昇腾的推理引擎，提供自动环境准备、安装、推理服务和调用示例。引擎源码随发行包提供。
 
-## 课题四现场测试说明
+## 安装与使用
 
-[下载 Word（可编辑 .docx）](https://github.com/DeepLinkNext/DeepLinkEngine/releases/download/topic4-test-guide-standalone/topic4-test-guide.docx) · [下载 PDF](https://github.com/DeepLinkNext/DeepLinkEngine/releases/download/topic4-test-guide-standalone/topic4-test-guide.pdf) · [在线预览 PDF](benchmark/docs/topic4-test-guide.pdf)
-
-## 一键安装与测试
-
-五项题目、答案、图像及原始轨迹已统一封存到[本仓库数据Release](https://github.com/DeepLinkNext/DeepLinkEngine/releases/tag/fixed-five-data-20261120-v1)。入口在安装前自动恢复并校验；测试期间无需再从Hugging Face或其他原数据站点下载正文。[数据包、离线使用及校验说明](data/README.md)。
-
-准备双卡昇腾 910B2、模型权重和已安装的 CANN 9.1.0。脚本自动探测 Python、加载 CANN 环境，并在缓存中的独立环境补齐不匹配的依赖。复制[配置示例](benchmark/run-all.example.json)，填写模型路径、物理卡号、缓存和新的结果目录：
-
-```sh
-cp benchmark/run-all.example.json evaluation.json
-python run_all.py --config evaluation.json
-```
-
-入口按锁定索引从本仓库 Release 下载四个引擎安装包，逐个校验大小和 SHA-256，再从本地安装。随后执行 B0/B1 固定五项、长上下文和四租户测试，生成结果与报告。所需数据及项目证据的获取方式见[测试说明](benchmark/README.md#昇腾实机配对测试)。
-
-结果目录包含 `results.json`、`fixed-five-report/report.html` 和 `context-tenant/paired-report/report.html`，同时保留原始记录与校验值。第三方见证现场运行并复核当次原始记录。4.1 随此入口自动生成本轮原生计时、有效算量和明确标记为原完整参考分母复用的结果；不冒充现场重新标定的完整参考 DAG。正式见证方案及现场新标定要求见[现场采集说明](benchmark/indicator-retest.md)。
-
-| 我想查看 | 从这里开始 |
-| --- | --- |
-| 下载引擎、查看版本和运行环境 | [依赖下载中心](https://github.com/DeepLinkNext/DeepLinkEngine/releases/tag/r8-runtime-dependencies-20261119-v1) · [引擎安装与校验](engine/README.md) · [技术资料](https://vllm-hust.sage.org.ai/engine.html) |
-| 查看五项固定题单或回放清单 | [评测范围与数据入口](#五项评测) |
-| 复算公开结果或查看实机测试命令 | [测试与复核指南](benchmark/README.md) |
-
-## 仓库结构
-
-| 目录 | 内容与入口 |
-| --- | --- |
-| [`engine/`](engine/README.md) | 各发行版本的安装说明、下载索引及校验清单。引擎源码随 Release 发行包提供。 |
-| [`datasets/`](datasets/README.md) | 五项固定题单、回放清单、评测协议和清单校验脚本。 |
-| [`benchmark/`](benchmark/README.md) | 实机测试配置、公开结果、证据来源和复算脚本。 |
-| [`evidence/`](evidence/mmlu-r8-window.json) | MMLU-Pro 同窗占卡、输出 token、利用率及成本复核记录。 |
-| [`tools/`](tools/verify_snapshot.py) | 仓库快照校验及公开结果检查工具。 |
-
-## 获取仓库
+当前支持 Linux aarch64、双昇腾 910B2、CANN 9.1.0 和 Qwen3.5-35B-A3B。准备模型权重及系统运行环境后执行：
 
 ```sh
 git clone https://github.com/DeepLinkNext/DeepLinkEngine.git
 cd DeepLinkEngine
+python deeplink.py install --out /workspace/deeplink-install
+python deeplink.py serve --installation /workspace/deeplink-install \
+  --model /models/Qwen3.5-35B-A3B --physical-devices 0,7
 ```
 
-## 单独运行五项与自动参考认证
-
-先按[引擎安装说明](engine/README.md)准备当前发行版、配套依赖和 Qwen3.5-35B-A3B 权重。复制根目录的 [evaluation.example.json](evaluation.example.json)，填写模型路径、已安装的 `sdk` 目录、两张物理卡号和全新的输出目录：
+安装会自动准备独立 Python 环境，按锁定索引下载并校验本仓库 Release 附件，再从本地文件安装。除版本号外，还校验 Ascend Triton 的 565 个已登记文件，依赖解析覆盖厂商文件时自动恢复。卡号填写实际分配的两张物理卡，逻辑卡号自动探测。服务默认监听 `127.0.0.1:8000`，提供 OpenAI 兼容接口：
 
 ```sh
-cp evaluation.example.json evaluation.json
-# 编辑 evaluation.json 后执行：
-python one_click.py run --config evaluation.json
+python examples/chat.py "你好，请介绍一下自己"
 ```
 
-该命令默认运行全部五项 B0/B1 配对、辅助评分和有效算力参考认证，生成 `<out>-report/report.html`、JSON、曲线及封存校验清单。参考阶段另用固定 MMLU200/out256、每臂三轮的原生同步墙钟；完整回答评测的性能与质量保留各自预算。`test_mode: "quick"` 只缩短五项范围为 MMLU200，仍自动执行参考认证。
+[安装与服务配置](engine/README.md) · [当前版本](engine/versions/2026.11.17.8.post2.md) · [下载中心](https://github.com/DeepLinkNext/DeepLinkEngine/releases/tag/r8-runtime-dependencies-20261119-v1) · [技术资料](https://vllm-hust.sage.org.ai/engine.html)
 
-根入口使用仓库内[修正版工具源码](benchmark/one-click-kit/one_click.py)，自动从本仓库公开 Release 下载并校验固定参考证据，无需 GitHub 凭据。B0 从固定公开镜像自动恢复；原题数据从本仓库固定数据包恢复并校验。环境及模型须先准备好，详见[测试指南](benchmark/README.md)。可先运行 `python one_click.py prepare --config evaluation.json` 检查环境，再用 `run` 正式测试；两者使用独立输出目录。
+## 测试与报告
+
+需要完整配对测试时，填写[示例配置](benchmark/run-all.example.json)后执行：
 
 ```sh
-python one_click.py verify
-python one_click.py status --run /path/to/new-run --json
+python run_all.py --config evaluation.json
 ```
 
-修正版按本轮必要算量和计时计算 `C_current_lower`，重新验证原完整参考的 `F_reference`、`T_reference` 和适用工况后计算 `C_reference_upper`，达成率下界为 `100 × C_current_lower / C_reference_upper`。不同算量不约分，不使用硬件峰值、历史百分比或局部 dense 投影替代完整参考；缺少证据会返回非零并列明缺项。此项是同工况原完整参考分母的合格复用，报告不将其称为本轮重新构建的完整参考 DAG。工具和证据的版本、字节数与 SHA-256 见[一键版本锁](benchmark/one-click-lock.json)。引擎和评测工具按各自的版本清单核验；当前测试统一使用仓库根入口。
+[固定数据包](data/README.md)由测试入口自动恢复并校验。[测试与复核指南](benchmark/README.md)包含固定五项、长上下文、四租户、报告生成和第三方验证；[现场测试说明](benchmark/docs/topic4-test-guide.pdf)提供见证流程。
 
-## 公开结果复核
+## 目录
 
-使用 Python 3.11 及以上版本，在仓库根目录执行。以下命令只读取仓库中的公开材料，无需安装推理引擎。
-
-```sh
-python datasets/verify.py
-python tools/verify_snapshot.py
-python tools/review_results.py
-python benchmark/scripts/recompute_m01_qualified_pair.py --check
-```
-
-第一条校验题单和回放协议，第二条校验发布文件及来源，第三条打印五项对照和四组专项结果并复核其计算，第四条用已公开的算量、计时和参考路径附件复算 4.1。
-
-## 五项评测
-
-| 评测 | 固定题单或回放清单 | 每臂请求 | 输出 |
-| --- | --- | ---: | --- |
-| MMLU-Pro | [200 题，按固定题序](datasets/mmlu-fixed200.json) | 200 | 正确数、吞吐、TTFT、TPOT |
-| HLE-Verified | [200 题，Gold/Revision × 文本/图像](datasets/hle-fixed200.json) | 200 | 正确数、吞吐、TTFT、TPOT |
-| FrontierScience | [Olympiad 100 题和 Research 60 题](datasets/frontier-full160.json) | 160 | 正确数、吞吐、TTFT、TPOT |
-| SWE-bench Pro | [32 个任务的离线回放清单](datasets/individual/swe-bench-pro-fixed32.json) | 64 | 吞吐、TTFT、TPOT |
-| Terminal-Bench 2.1 | [32 个任务的离线回放清单](datasets/individual/terminal-bench-2.1-fixed32.json) | 48 | 吞吐、TTFT、TPOT |
-
-两项回放使用清单中的模型请求，保留历史轮次和工具描述并关闭工具执行。公开清单记录原始来源、版本、顺序及校验值。原题、答案、图像及回放正文由[本仓库固定数据包](data/README.md)恢复，保留各来源使用条件。完整口径见[固定评测协议](datasets/standard.json)和[抽样及计分说明](datasets/README.md)。
-
-## 现场测试与历史预检
-
-[课题四 4.1–4.3 现场测试与历史预检](benchmark/submission-review.md)汇总正式工况、判据和历史数据。下表的公开记录用于预检对照。
-
-| 指标 | 公开记录 |
+| 目录 | 内容 |
 | --- | --- |
-| 4.1 有效算力 | [2026-11-19 自测：B1 参考下界 ≥89.7838%，原完整分母复用](benchmark/reports/r8-compute-reference-20261119-v1/README.md) · [原完整参考](benchmark/reports/m01-qualified-pair-20261103/README.md) |
-| 4.2 吞吐、时延与质量 | [固定五项 B0/B1 配对结果](benchmark/reports/r8-fixed-five-20261118/summary-public-v2.json) |
-| 4.3 长上下文 | [4K–8K、16K–24K、32K–48K 的连续负载结果](benchmark/reports/r8-context-tenant-20261119/summary-public-v1.json) |
-| 4.4 成本与利用率 | [现场采集、费率及历史测算](benchmark/indicator-4.4.md) · [MMLU-Pro 同窗记录](evidence/mmlu-r8-window.json) · [四租户结果](benchmark/reports/r8-context-tenant-20261119/summary-public-v1.json) |
-
-4.1 的参考分母与其同步墙钟工况绑定。4.4 采用估算费率 **1,875 元/卡月**，按 30 天折算。历史预检中，MMLU-Pro 的每百万输出 token 估算成本为 **2.858 → 1.001 元**，降幅 **64.99%**。报价来源、四租户结果及复算公式见[成本测算说明](benchmark/indicator-4.4.md)。
+| [engine/](engine/README.md) | 安装、服务适配器、版本和依赖索引 |
+| [examples/](examples/chat.py) | 推理 API 调用示例 |
+| [data/](data/README.md) · [datasets/](datasets/README.md) | 固定数据包、评测题单与协议 |
+| [benchmark/](benchmark/README.md) | 测试工具、公开结果与复算 |
+| [tools/](tools/verify_snapshot.py) | 发布材料和校验工具 |
