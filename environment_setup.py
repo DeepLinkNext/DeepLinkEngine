@@ -1,6 +1,8 @@
 """Repair Python dependencies in a private cache; load an installed CANN toolkit."""
 import hashlib
 import http.client
+import codecs
+from contextlib import contextmanager
 import json
 import os
 from pathlib import Path
@@ -8,6 +10,7 @@ import platform
 import shutil
 import subprocess
 import tempfile
+import threading
 import urllib.request
 import urllib.error
 import sys
@@ -95,13 +98,43 @@ def run_repair_stage(args, env, log):
     return run_stage(args, env=env, stdout=log, stderr=subprocess.STDOUT)
 
 
+@contextmanager
+def follow_log(path, offset):
+    """Follow only this invocation's bytes while retaining the original log."""
+    stopped = threading.Event()
+
+    def follow():
+        decoder = codecs.getincrementaldecoder("utf-8")("replace")
+        with path.open("rb") as source:
+            source.seek(offset)
+            while True:
+                chunk = source.read(65536)
+                if chunk:
+                    print(decoder.decode(chunk), end="", flush=True)
+                elif stopped.is_set():
+                    print(decoder.decode(b"", final=True), end="", flush=True)
+                    return
+                else:
+                    stopped.wait(0.2)
+
+    thread = threading.Thread(target=follow, daemon=True)
+    thread.start()
+    try:
+        yield
+    finally:
+        stopped.set()
+        thread.join()
+
+
 def command(args, env, directory, name, report, report_path):
     print("ENVIRONMENT", name, flush=True)
     record = {"name": name, "status": "running"}
     report["steps"].append(record)
     save(report_path, report)
     try:
-        with (directory / (name + ".log")).open("ab") as log:
+        log_path = directory / (name + ".log")
+        print("ENVIRONMENT_LOG", log_path, flush=True)
+        with log_path.open("ab", buffering=0) as log, follow_log(log_path, log.tell()):
             result = run_repair_stage(args, env, log)
         record.update(status="completed" if result.returncode == 0 else "failed", returncode=result.returncode)
         if result.returncode:
@@ -191,6 +224,45 @@ def report_state(path):
         return {}
 
 
+def distribution_integrity(name):
+    """Check installed RECORD hashes, including files shared with another wheel."""
+    import base64
+    from importlib import metadata
+    distribution = metadata.distribution(name)
+    mismatches, checked = [], 0
+    for entry in distribution.files or []:
+        if entry.hash is None:
+            continue
+        checked += 1
+        path = distribution.locate_file(entry)
+        if not path.is_file():
+            mismatches.append(str(entry))
+            continue
+        digest = hashlib.new(entry.hash.mode)
+        with path.open("rb") as source:
+            for block in iter(lambda: source.read(1024 * 1024), b""):
+                digest.update(block)
+        actual = base64.urlsafe_b64encode(digest.digest()).rstrip(b"=").decode()
+        if actual != entry.hash.value:
+            mismatches.append(str(entry))
+    return dict(verified=checked > 0 and not mismatches, checked_files=checked,
+                mismatches=mismatches)
+
+
+def vendor_integrity(python, required, env):
+    if "triton-ascend" not in required:
+        return dict(verified=True, packages={})
+    code = """import importlib.util,json,sys
+spec=importlib.util.spec_from_file_location('environment_setup',sys.argv[1])
+module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
+print(json.dumps(module.distribution_integrity('triton-ascend')))
+"""
+    observed = subprocess.run([str(python), "-I", "-c", code, str(ROOT / "environment_setup.py")],
+                              env=env, capture_output=True, text=True, check=True, timeout=180)
+    result = json.loads(observed.stdout)
+    return dict(verified=result["verified"], packages={"triton-ascend": result})
+
+
 def ensure_environment(data):
     """Return an exec handoff when repair/loading is needed; None in a verified child."""
     if platform.system() != "Linux" or platform.machine() != "aarch64":
@@ -225,8 +297,12 @@ def ensure_environment(data):
         if (current.get("recipe_sha256") == key and current.get("status") == "ready"
                 and current.get("after", {}).get("python") == sys.executable
                 and current.get("after", {}).get("prefix") == sys.prefix):
-            os.environ.update(env)
-            return None
+            integrity = vendor_integrity(python, required, env)
+            if integrity["verified"]:
+                current["vendor_integrity"] = integrity
+                save(report_path, current)
+                os.environ.update(env)
+                return None
     import fcntl
     with (directory / "repair.lock").open("a+b") as lease:
         fcntl.flock(lease, fcntl.LOCK_EX)
@@ -254,6 +330,9 @@ def ensure_environment(data):
             links = [str(Path(x)) for x in wheelhouses if x and Path(x).is_dir()]
             if options.get("wheelhouse") and not Path(options["wheelhouse"]).is_dir():
                 raise ValueError("environment.wheelhouse is not a directory")
+            install = [python, "-m", "pip", "install", "--disable-pip-version-check", "--only-binary=:all:", "--no-compile"]
+            for folder in links:
+                install += ["--find-links", folder]
             if differences(info, required) or not reusable:
                 requirements = directory / "requirements.txt"
                 lines = []
@@ -266,19 +345,30 @@ def ensure_environment(data):
                     else:
                         lines.append(name + "==" + version)
                 requirements.write_text("\n".join(lines) + "\n")
-                install = [python, "-m", "pip", "install", "--disable-pip-version-check", "--only-binary=:all:", "--no-compile"]
-                for folder in links:
-                    install += ["--find-links", folder]
                 # Required distributions must have real metadata in the SDK's own site-packages.
                 # --ignore-installed applies only inside this private venv, never to the host.
                 command([*install, "--no-deps", "--ignore-installed", "-r", str(requirements)],
                         env, directory, "repair-vendor-packages", report, report_path)
                 command([*install, "-r", str(requirements)], env, directory,
                         "resolve-python-dependencies", report, report_path)
+            integrity = vendor_integrity(python, required, env)
+            if not integrity["verified"]:
+                # triton-ascend declares the base triton distribution as a
+                # dependency, but overlays its Python modules and native library.
+                # Dependency resolution can install the base wheel after the
+                # vendor wheel. Restore the pinned vendor bytes last.
+                source = recipe["sources"]["triton-ascend"]
+                local = cached_wheel(source, links, Path(data["cache"]) / "wheels")
+                report["vendor_integrity_before_repair"] = integrity
+                command([*install, "--no-deps", "--ignore-installed", str(local)],
+                        env, directory, "restore-ascend-triton-overlay", report, report_path)
+                integrity = vendor_integrity(python, required, env)
+                if not integrity["verified"]:
+                    raise ValueError("Ascend Triton installed files differ from their RECORD hashes")
             after = probe(python, required, env)
             if differences(after, required):
                 raise ValueError("Dependency versions remain inconsistent after repair")
-            report.update(status="ready", after=after)
+            report.update(status="ready", after=after, vendor_integrity=integrity)
             save(report_path, report)
             env["DEEPLINKENGINE_ENVIRONMENT_REPORT"] = str(report_path)
             env["DEEPLINKENGINE_MANAGED_PYTHON"] = str(python)
