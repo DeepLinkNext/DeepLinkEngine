@@ -29,6 +29,10 @@ jobs:
       - run: python -B tests/test_dependency_index.py
       - run: python -B datasets/verify.py
       - run: python -B one_click.py verify
+      - run: python -B benchmark/one-click-kit/tests/test_checkpoint_cache.py
+      - run: python -B benchmark/one-click-kit/tests/test_startup_cache_admission.py
+      - name: Verify downloadable evaluation tools and startup-only changes
+        run: python -B tools/verify_evaluation_bundle.py --cache "${RUNNER_TEMP}/deeplink-evaluation"
       - run: python -B one_click.py run --help
       - run: python -B tools/test_public_one_click.py
       - run: python -B tools/test_public_run_all.py

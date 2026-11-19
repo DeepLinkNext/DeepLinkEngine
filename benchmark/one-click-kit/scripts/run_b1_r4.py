@@ -97,14 +97,14 @@ def check_memory(guard, initial, root):
 
 
 def admit_startup_memory(guard, model, weights, root):
-    """Reclaim this checkpoint's verified cache before testing allocation reserve."""
+    """Reclaim clean startup cache before allocating model host state."""
     initial = guard.sample()
     save(root / "memory-initial.json", initial)
     # Hashing the checkpoint can fill the active file cache. Do not fail the
     # working-set gate before the existing read-only checkpoint hint can run.
     # Credit only actual raw headroom after the hint, retaining the12GiB gate.
     release_loaded_checkpoint_cache(
-        model, weights, root / "checkpoint-cache-startup.json", guard.sample
+        model, weights, root / "checkpoint-cache-startup.json", guard.sample, before_service=True
     )
     check_memory(guard, initial, root)
     return initial
