@@ -1,22 +1,41 @@
-# 引擎安装与版本
+# 安装与推理服务
 
-DeepLinkEngine 按发行版本管理引擎、依赖、评测工具和校验信息。
+在仓库根目录执行。当前设备、模型与系统要求见[版本说明](versions/2026.11.17.8.post2.md)。引擎源码由发行包提供。
 
-## 一键安装与测试
-
-按[当前发行版的安装说明](versions/2026.11.17.8.post2.md)准备设备、模型权重及系统运行环境，在仓库根目录填写配置后执行：
+## 安装
 
 ```sh
-cp benchmark/run-all.example.json evaluation.json
-python run_all.py --config evaluation.json
+python deeplink.py install --out /workspace/deeplink-install \
+  --cache /workspace/deeplink-cache
 ```
 
-脚本自动探测并准备 Python 环境，安装和校验引擎，执行配对测试并生成报告。完整流程见[项目首页](../README.md#一键安装与测试)。
+自动探测 CPython 3.12、加载已安装的 CANN 9.1.0，在专用 venv 中准备依赖，再安装引擎并校验运行时文件。安装不需要权重或评测数据。目标目录须为新目录，安装收据为 `installation.json`。
 
-## 版本与校验
+可用 `--wheelhouse /path/to/packages` 指定已下载的包，`--python /path/to/python3.12`、`--cann-home /path/to/cann` 指定系统环境。已有满足版本要求的专用 venv 可通过 `--use-environment /path/to/venv/bin/python` 显式复用。Python 包可自动补齐；系统驱动、CANN 和模型权重需事先准备。
 
-- [当前发行版说明](versions/2026.11.17.8.post2.md)：环境要求、安装命令、源码来源和适用范围。
-- [统一下载中心](https://github.com/DeepLinkNext/DeepLinkEngine/releases/tag/r8-runtime-dependencies-20261119-v1)与[完整索引](dependencies.json)：安装包、依赖、工具及 SHA-256。
-- [运行时版本清单](r8-lock.json)与[评测工具版本清单](../benchmark/one-click-lock.json)：自动安装和评测所用的具体版本。
+## 启动服务
 
-[引擎技术资料](https://vllm-hust.sage.org.ai/engine.html)
+```sh
+python deeplink.py serve --installation /workspace/deeplink-install \
+  --model /models/Qwen3.5-35B-A3B --physical-devices 0,7 \
+  --host 127.0.0.1 --port 8000 --served-model-name deeplink
+```
+
+物理卡号按实际分配填写，逻辑卡号由 `npu-smi` 探测；也可用 `--devices 0,1` 显式指定并核对映射。启动前校验源码和依赖并申请共享设备锁，所选卡有其他作业时退出；`--lease-timeout 300` 可等待。每次服务使用独立缓存和工作目录，路径在启动时输出。使用 Ctrl+C 关闭服务并释放设备锁。
+
+加 `--dry-run` 可生成启动计划，不加载模型、不占设备。当前后端的模型与并行配置由版本适配器管理。
+
+## 调用
+
+```sh
+python examples/chat.py "你好" --base-url http://127.0.0.1:8000 --model deeplink
+```
+
+服务提供 `/health`、`/v1/models` 和 `/v1/chat/completions`。示例仅使用 Python 标准库，可用 `--max-tokens` 调整输出长度。
+
+## 版本与下载
+
+- [当前发行版说明](versions/2026.11.17.8.post2.md)
+- [统一下载中心](https://github.com/DeepLinkNext/DeepLinkEngine/releases/tag/r8-runtime-dependencies-20261119-v1)与[完整索引](dependencies.json)
+- [运行时版本清单](r8-lock.json)与[测试工具版本清单](../benchmark/one-click-lock.json)
+- [测试与复核](../benchmark/README.md)
