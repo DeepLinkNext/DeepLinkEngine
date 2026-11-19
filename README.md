@@ -67,6 +67,8 @@ python benchmark/scripts/recompute_m01_qualified_pair.py --check
 
 ## 测试结果
 
+[课题四 4.1–4.3 送检复核](benchmark/submission-review.md)汇总正式工况、判据和公开证据。
+
 | 指标 | 公开记录 |
 | --- | --- |
 | 4.1 有效算力 | [MMLU-Pro 固定 200 题、输出上限 256 的算量和参考时间](benchmark/reports/m01-qualified-pair-20261103/README.md) |
