@@ -98,26 +98,28 @@ def run_repair_stage(args, env, log):
     return run_stage(args, env=env, stdout=log, stderr=subprocess.STDOUT)
 
 
+def stream_log(path, offset, stopped):
+    decoder = codecs.getincrementaldecoder("utf-8")("replace")
+    with path.open("rb") as source:
+        source.seek(offset)
+        while not stopped.is_set():
+            chunk = source.read(65536)
+            if chunk:
+                print(decoder.decode(chunk), end="", flush=True)
+            else:
+                stopped.wait(0.2)
+        # A read may have reached the old EOF just before the producer's last
+        # write and stop signal. Drain after observing stop, then flush UTF-8.
+        while chunk := source.read(65536):
+            print(decoder.decode(chunk), end="", flush=True)
+        print(decoder.decode(b"", final=True), end="", flush=True)
+
+
 @contextmanager
 def follow_log(path, offset):
     """Follow only this invocation's bytes while retaining the original log."""
     stopped = threading.Event()
-
-    def follow():
-        decoder = codecs.getincrementaldecoder("utf-8")("replace")
-        with path.open("rb") as source:
-            source.seek(offset)
-            while True:
-                chunk = source.read(65536)
-                if chunk:
-                    print(decoder.decode(chunk), end="", flush=True)
-                elif stopped.is_set():
-                    print(decoder.decode(b"", final=True), end="", flush=True)
-                    return
-                else:
-                    stopped.wait(0.2)
-
-    thread = threading.Thread(target=follow, daemon=True)
+    thread = threading.Thread(target=stream_log, args=(path, offset, stopped), daemon=True)
     thread.start()
     try:
         yield

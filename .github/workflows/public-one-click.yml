@@ -23,7 +23,7 @@ jobs:
         with:
           python-version: '3.11'
       - name: Install dependency audit test requirements
-        run: python -m pip install --disable-pip-version-check packaging==26.3
+        run: python -m pip install --disable-pip-version-check packaging==26.3 pytest==8.3.2
       - run: python -B tools/verify_snapshot.py
       - run: python -B tools/verify_dependency_index.py
       - run: python -B tests/test_dependency_index.py
@@ -31,7 +31,11 @@ jobs:
       - run: python -B one_click.py verify
       - run: python -B benchmark/one-click-kit/tests/test_checkpoint_cache.py
       - run: python -B benchmark/one-click-kit/tests/test_startup_cache_admission.py
-      - name: Verify downloadable evaluation tools and startup-only changes
+      - name: Verify native memory monitoring against the actual controller statements
+        env:
+          PYTEST_DISABLE_PLUGIN_AUTOLOAD: '1'
+        run: python -B -m pytest -q benchmark/one-click-kit/tests/test_native_checkpoint_reserve.py
+      - name: Verify downloadable evaluation tools and declared cache/reserve changes
         run: python -B tools/verify_evaluation_bundle.py --cache "${RUNNER_TEMP}/deeplink-evaluation"
       - run: python -B one_click.py run --help
       - run: python -B tools/test_public_one_click.py

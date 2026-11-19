@@ -87,7 +87,7 @@ def bootstrap_resume(data):
     return prior
 
 
-def before_model_resume(data):
+def before_model_resume(data, *, allow_model_startup=False):
     """Recover only a sealed first-stage failure that never started a model."""
     out = Path(data["out"])
     if out.is_symlink() or not out.is_dir():
@@ -106,10 +106,23 @@ def before_model_resume(data):
     if (ledger.get("status") != "failed" or ledger.get("selected_execution_complete") is not False
             or not rows or rows[0].get("name") != "continuous-B0" or rows[0].get("status") != "failed"
             or any(r.get("status") != "planned" for r in rows[1:])
-            or first.get("model_service_started") is not False or first.get("client_started") is not False
+            or (not allow_model_startup and first.get("model_service_started") is not False)
+            or first.get("client_started") is not False
             or first.get("quiescent") is not True or first.get("completed") is not False
-            or any(campaign.rglob("service-process.json")) or (out / "context-tenant").exists()):
+            or (not allow_model_startup and any(campaign.rglob("service-process.json")))
+            or (out / "context-tenant").exists()):
         raise ValueError("A model may have started; pre-model recovery refuses to repeat inference")
+    if allow_model_startup:
+        arm=campaign / "continuous-B0"
+        if (type(first.get("model_service_started")) is not bool or first.get("role") != "B0"
+            or first.get("kind") != "continuous" or (arm / "client.log").exists()
+            or (arm / "service/continuous").exists() or any(arm.rglob("*.sse"))):
+            raise ValueError("Pre-inference recovery refuses any possible formal client execution")
+        sys.path.insert(0,str(ROOT / "benchmark/one-click-kit/scripts"))
+        from qualification import sealed_files
+        from third_party_report import verify_campaign_bindings
+        sealed_files(arm)
+        verify_campaign_bindings(campaign)
     if json.loads((out / "evaluation.json").read_text()) != evaluation_configuration(data, out / "installation"):
         raise ValueError("Recovery configuration differs from the original full-test configuration")
     return prior
@@ -221,10 +234,11 @@ raise SystemExit(subprocess.run([str(python),'-B',str(root/'full_report.py'),'--
     return [sys.executable,'-c',command,str(ROOT),str(out),str(destination or out/'full-report')]
 
 
-def run(data, *, resume_bootstrap=False, resume_before_model=False):
+def run(data, *, resume_bootstrap=False, resume_before_model=False, resume_before_inference=False):
     out = Path(data["out"])
-    prior = before_model_resume(data) if resume_before_model else bootstrap_resume(data) if resume_bootstrap else None
-    reuse_installation = resume_bootstrap or resume_before_model
+    pre_inference = resume_before_model or resume_before_inference
+    prior = before_model_resume(data, allow_model_startup=resume_before_inference) if pre_inference else bootstrap_resume(data) if resume_bootstrap else None
+    reuse_installation = resume_bootstrap or pre_inference
     out.mkdir(parents=True, exist_ok=reuse_installation)
     installation = out / "installation"
     cli = str(Path(sysconfig.get_path("scripts")) / "vllm-hust-engine")
@@ -237,7 +251,7 @@ def run(data, *, resume_bootstrap=False, resume_before_model=False):
         archived.write_bytes(raw)
         receipt["previous_attempts"] = [*prior.get("previous_attempts", []),
             {"path": str(archived.relative_to(out)), "sha256": hashlib.sha256(raw).hexdigest()}]
-        if resume_before_model:
+        if pre_inference:
             original = history / ("pre-model-failure-" + uuid.uuid4().hex)
             original.mkdir()
             for name in ("fixed-five", "fixed-five-logs", "fixed-five-report"):
@@ -315,7 +329,7 @@ def run(data, *, resume_bootstrap=False, resume_before_model=False):
         prepare_command = [*evaluate, "prepare", "--config", str(config)]
         if reuse_installation:
             prepare_command += ["--out", str(out / ("preflight-" + uuid.uuid4().hex))]
-        if resume_before_model:
+        if pre_inference:
             receipt["reused_preflight"] = prior["stages"][4]
             stage("prepare-fixed-five", [*evaluate, "verify"], mode="verify_existing_preflight")
         else:
@@ -373,24 +387,25 @@ def main():
     parser.add_argument("--prepare-environment", action="store_true", help="Repair and verify the environment without starting model tests")
     parser.add_argument("--resume-bootstrap", action="store_true", help="Recover a failed preflight using its verified installation; refuses existing inference campaigns")
     parser.add_argument("--resume-before-model", action="store_true", help="Recover a sealed first-stage failure only when no service or inference ever started")
+    parser.add_argument("--resume-before-inference", action="store_true", help="Recover a sealed failed model startup only if no formal client ever started; preserves startup originals")
     parser.add_argument("--report-only", action="store_true", help="Re-audit completed originals and regenerate all four decisions without repeating inference")
     args = parser.parse_args()
     try:
-        data = configuration(args.config, allow_existing=args.resume_bootstrap or args.resume_before_model or args.report_only)
+        data = configuration(args.config, allow_existing=args.resume_bootstrap or args.resume_before_model or args.resume_before_inference or args.report_only)
         if args.report_only:
-            if args.resume_bootstrap or args.resume_before_model or args.prepare_environment:
+            if args.resume_bootstrap or args.resume_before_model or args.resume_before_inference or args.prepare_environment:
                 raise ValueError("Report-only cannot be combined with execution or recovery modes")
             out = Path(data["out"])
             destination = out / ("full-report-" + uuid.uuid4().hex)
             return subprocess.run(full_report_command(out,destination)).returncode
-        if args.resume_bootstrap and args.resume_before_model:
+        if sum((args.resume_bootstrap,args.resume_before_model,args.resume_before_inference))>1:
             raise ValueError("Choose only one recovery mode")
-        if args.resume_before_model:
-            before_model_resume(data)
+        if args.resume_before_model or args.resume_before_inference:
+            before_model_resume(data,allow_model_startup=args.resume_before_inference)
         if args.resume_bootstrap:
             bootstrap_resume(data)
         from environment_setup import ensure_environment
-        prepared = recovery_environment(data) if (args.resume_before_model or args.resume_bootstrap) else ensure_environment(data)
+        prepared = recovery_environment(data) if (args.resume_before_model or args.resume_before_inference or args.resume_bootstrap) else ensure_environment(data)
         if prepared is not None:
             os.execve(prepared["python"], [prepared["python"], str(Path(__file__).resolve()), *sys.argv[1:]], prepared["env"])
             raise ValueError("Could not hand off to the prepared Python environment")
@@ -400,7 +415,7 @@ def main():
     if args.prepare_environment:
         print("ENVIRONMENT verified; no model tests started", flush=True)
         return 0
-    return run(data, resume_bootstrap=args.resume_bootstrap, resume_before_model=args.resume_before_model)
+    return run(data, resume_bootstrap=args.resume_bootstrap, resume_before_model=args.resume_before_model, resume_before_inference=args.resume_before_inference)
 
 
 if __name__ == "__main__":

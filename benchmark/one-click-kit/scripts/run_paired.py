@@ -144,7 +144,7 @@ def execute_pair(args, root):
             "seal_sha256": qualification["seal_sha256"],
         },
         "native_controller_sources": native,
-        "cache_policy": "New services and compiler caches; same checkpoint-only clean-cache hints and raw cgroup reserves. No model writes or global cache flush.",
+        "cache_policy": "New services and compiler caches; same checkpoint-only clean-cache hints, 12GiB raw pre-allocation admission and original SDK4GiB working-set/OOM checks after allocation. No model writes or global cache flush.",
         "measurement": "Original first-submission through response-drain clocks; actual successful output tokens; per-request equal-weight TTFT/TPOT",
         "scope": "New full-answer MMLU200 pair; other datasets and existing M01 reference are separate evidence, not silently supplied by this pair",
         "optimized_deployment_sha256": hashlib.sha256((deployment / "deployment.json").read_bytes()).hexdigest(),

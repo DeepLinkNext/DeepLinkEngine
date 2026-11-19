@@ -254,6 +254,31 @@ class EnvironmentTests(unittest.TestCase):
         self.assertNotIn("previous invocation", output.getvalue())
         self.assertEqual(path.read_text(), "previous invocation\n安装进度\n")
 
+    def test_log_follower_drains_a_final_write_that_arrives_after_an_empty_read(self):
+        import threading
+        path=self.root/'last-write.log';path.write_bytes(b'previous invocation\n')
+        offset=path.stat().st_size;stopped=threading.Event();output=io.StringIO()
+        original_open=Path.open
+        class Reader:
+            def __init__(self,source):self.source=source;self.raced=False
+            def __enter__(self):return self
+            def __exit__(self,*args):self.source.close()
+            def seek(self,*args):return self.source.seek(*args)
+            def read(self,*args):
+                chunk=self.source.read(*args)
+                if not chunk and not self.raced:
+                    self.raced=True
+                    with original_open(path,'ab',buffering=0) as writer:writer.write('安装进度\n'.encode())
+                    stopped.set()
+                return chunk
+        def open_file(file,mode='r',*args,**kwargs):
+            source=original_open(file,mode,*args,**kwargs)
+            return Reader(source) if file==path and mode=='rb' else source
+        with patch.object(Path,'open',new=open_file),contextlib.redirect_stdout(output):
+            setup.stream_log(path,offset,stopped)
+        self.assertEqual(output.getvalue(),'安装进度\n')
+        self.assertEqual(path.read_text(),'previous invocation\n安装进度\n')
+
     def test_dependency_metadata_does_not_hide_overwritten_vendor_module(self):
         package = self.root / "site/triton"
         package.mkdir(parents=True)

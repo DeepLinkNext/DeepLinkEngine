@@ -364,7 +364,7 @@ def main():
         qualification=qualification
         or {"status": "pending", "historical_result_reused": False},
         activation_audit="Pending re-audit of this run's raw events and both ranks",
-        cache_policy="Fresh per-arm service/compiler caches. Read-only POSIX_FADV_DONTNEED hints release this checkpoint's clean pages before startup and after both ranks load, retaining 12GiB raw cgroup headroom for host State plus reserve. No global drop_caches, no checkpoint writes, no imported answers/state. Same admission is required for compared arms.",
+        cache_policy="Fresh per-arm service/compiler caches. Read-only POSIX_FADV_DONTNEED hints release this checkpoint's clean pages before startup and after both ranks load; 12GiB raw admission is required before model allocation, then the original SDK4GiB conservative working-set reserve and OOM guard apply. No global drop_caches, no checkpoint writes, no imported answers/state. Same admission is required for compared arms.",
         source_bindings_sha256=hashlib.sha256(
             (root / "provenance/installed-files.json").read_bytes()
         ).hexdigest(),

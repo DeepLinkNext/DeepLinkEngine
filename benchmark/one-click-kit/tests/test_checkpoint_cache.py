@@ -65,6 +65,7 @@ class CheckpointCacheTests(unittest.TestCase):
                         "current": 127 * 2**30,
                         "working_estimate": 40 * 2**30,
                     },
+                    before_service=True,
                 )
             self.assertTrue((root / "receipt.json").exists())
 
@@ -84,6 +85,49 @@ class CheckpointCacheTests(unittest.TestCase):
                     sample,
                 )
             self.assertEqual(other.read_bytes(), b"outside")
+
+
+class RuntimeMemoryReserveTests(unittest.TestCase):
+    def state(self, working=44):
+        return dict(limit=64*2**30,current=63*2**30,working_estimate=working*2**30,
+                    stat=dict(file=40*2**30,inactive_file=20*2**30,shmem=0,file_dirty=0,file_writeback=0),events=dict(oom=0))
+
+    def test_after_load_clean_cache_does_not_invoke_startup_pressure_or_raw_gate(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root=Path(temp);p=root/'fixture.safetensors';p.write_bytes(b'fixture')
+            weights={p.name:dict(bytes=7,sha256=hashlib.sha256(b'fixture').hexdigest())}
+            with patch('checkpoint_cache.allocate_private_chunk',side_effect=AssertionError('No pressure allocation with a live model')):
+                record=release_loaded_checkpoint_cache(root,weights,root/'cache.json',self.state)
+            self.assertEqual(record['required_raw_headroom_bytes'],0)
+            self.assertEqual(p.read_bytes(),b'fixture')
+
+    def test_loaded_worker_uses_original_working_and_oom_guard_even_when_raw_cache_is_full(self):
+        from run_b1_r4 import monitor_loaded_memory
+        checks=[]
+        guard=SimpleNamespace(sample=self.state,check=lambda value,initial:checks.append(value))
+        with tempfile.TemporaryDirectory() as temp:
+            self.assertTrue(monitor_loaded_memory(guard,{},Path(temp),Path(temp),{},True))
+        self.assertEqual(len(checks),1)
+        self.assertLess(checks[0]['limit']-checks[0]['current'],4*2**30)
+        self.assertGreater(checks[0]['limit']-checks[0]['working_estimate'],4*2**30)
+
+    def test_real_working_pressure_and_new_oom_still_abort_before_service_progress(self):
+        from run_b1_r4 import monitor_loaded_memory
+        for reason in ('4GiB working-set reserve reached','New cgroup OOM event'):
+            guard=SimpleNamespace(sample=self.state,check=lambda *args:(_ for _ in ()).throw(RuntimeError(reason)))
+            with tempfile.TemporaryDirectory() as temp:
+                with self.assertRaisesRegex(RuntimeError,reason):monitor_loaded_memory(guard,{},Path(temp),Path(temp),{},True)
+
+    def test_invalid_cache_counters_still_fall_back_to_raw_reserve(self):
+        from run_b1_r4 import monitor_loaded_memory
+        def state():
+            value=self.state();value['stat']['file_writeback']=2**64-1;return value
+        def check(value,initial):
+            self.assertEqual(value['working_estimate'],value['current'])
+            raise RuntimeError('raw fallback reserve reached')
+        with tempfile.TemporaryDirectory() as temp:
+            with self.assertRaisesRegex(RuntimeError,'raw fallback'):
+                monitor_loaded_memory(SimpleNamespace(sample=state,check=check),{},Path(temp),Path(temp),{},True)
 
 
 class BoundedPreServiceReclaimTests(unittest.TestCase):
@@ -174,8 +218,8 @@ class BoundedPreServiceReclaimTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root=Path(directory);p=root/"fixture.safetensors";p.write_bytes(b"fixture")
             with patch("checkpoint_cache.reclaim_before_service", side_effect=AssertionError("not before service")):
-                with self.assertRaisesRegex(RuntimeError,"Insufficient raw cgroup headroom"):
-                    release_loaded_checkpoint_cache(root,{p.name:dict(bytes=7,sha256="fixture")},root/"receipt.json",self.state)
+                result=release_loaded_checkpoint_cache(root,{p.name:dict(bytes=7,sha256="fixture")},root/"receipt.json",self.state)
+                self.assertEqual(result["required_raw_headroom_bytes"],0)
 
 
 if __name__ == "__main__":

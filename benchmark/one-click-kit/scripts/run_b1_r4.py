@@ -96,6 +96,22 @@ def check_memory(guard, initial, root):
     return value
 
 
+def monitor_loaded_memory(guard, initial, root, model, weights, checkpoint_cache_admitted):
+    # The SDK's conservative working-set reserve and every OOM event are checked
+    # on every iteration. Raw current also contains clean inactive page cache;
+    # requiring raw free4GiB after allocation would reject reclaimable cache.
+    check_memory(guard, initial, root)
+    if not checkpoint_cache_admitted:
+        ranks = set(re.findall(
+            r"Worker_TP([01]) pid=\d+.*(?:Model runner load_model total time:|Loading model weights took)",
+            (root / "service.log").read_text(errors="replace")))
+        if ranks == {"0", "1"}:
+            release_loaded_checkpoint_cache(model, weights, root / "checkpoint-cache-after-load.json",
+                lambda: check_memory(guard, initial, root))
+            checkpoint_cache_admitted = True
+    return checkpoint_cache_admitted
+
+
 def admit_startup_memory(guard, model, weights, root):
     """Reclaim clean startup cache before allocating model host state."""
     initial = guard.sample()
@@ -424,26 +440,8 @@ def admitted_run(args, root, cleanup):
                         stream.write(json.dumps(dict(wall=time.time(), files=hints,
                             actual_headroom_gate_unchanged=True)) + "\n")
                 last_cache_sweep = now
-            memory = check_memory(memory_guard, initial_memory, root)
-            if not checkpoint_cache_admitted:
-                ranks = set(
-                    re.findall(
-                        r"Worker_TP([01]) pid=\d+.*(?:Model runner load_model total time:|Loading model weights took)",
-                        (root / "service.log").read_text(errors="replace"),
-                    )
-                )
-                if ranks == {"0", "1"}:
-                    release_loaded_checkpoint_cache(
-                        args.model,
-                        weights,
-                        root / "checkpoint-cache-after-load.json",
-                        lambda: check_memory(memory_guard, initial_memory, root),
-                    )
-                    checkpoint_cache_admitted = True
-            elif memory["limit"] - memory["current"] < 4 * 2**30:
-                raise RuntimeError(
-                    "Raw cgroup allocation reserve below4GiB after checkpoint cache admission"
-                )
+            checkpoint_cache_admitted = monitor_loaded_memory(
+                memory_guard, initial_memory, root, args.model, weights, checkpoint_cache_admitted)
             if shutil.disk_usage(root).free < 2 * 2**30:
                 raise RuntimeError("2GiB disk reserve reached")
             if service.poll() is not None:

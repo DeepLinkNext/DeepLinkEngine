@@ -1,4 +1,4 @@
-"""Download evaluation tools and prove the startup patch preserves frozen protocols."""
+"""Download evaluation tools and prove the memory-management patch preserves frozen protocols."""
 import argparse
 import hashlib
 import json
@@ -8,7 +8,7 @@ import tarfile
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
-PATCH_FILES = {'scripts/checkpoint_cache.py', 'scripts/run_b1_r4.py', 'tests/test_checkpoint_cache.py'}
+PATCH_FILES = {'scripts/checkpoint_cache.py', 'scripts/run_b1_r4.py', 'scripts/run_native_reference.py', 'scripts/baseline_entry.py', 'scripts/engine_entry.py', 'scripts/run_paired.py', 'tests/test_checkpoint_cache.py', 'tests/test_native_checkpoint_reserve.py'}
 
 
 def inventory(path):
@@ -44,22 +44,22 @@ def verify(cache):
     if hashlib.sha256(old['DEPLOYMENT-TOOLS.json']).hexdigest() != base['manifest_sha256']:
         raise ValueError('Original evaluation manifest differs from its frozen identity')
     if len(manifest['files']) != lock['files'] or set(new) != set(old):
-        raise ValueError('Startup patch changed the frozen evaluation inventory')
+        raise ValueError('Memory-management patch changed the frozen evaluation inventory')
     differences = {n for n in new if n != 'DEPLOYMENT-TOOLS.json' and new[n] != old[n]}
     patch = manifest['local_patchset']
     if differences != PATCH_FILES or set(patch['files']) != PATCH_FILES:
-        raise ValueError('Startup patch changed files outside its declared preparation scope')
+        raise ValueError('Memory-management patch changed files outside its declared preparation scope')
     if (patch['base_manifest_sha256'] != base['manifest_sha256']
             or manifest['commit'] != old_manifest['commit']):
-        raise ValueError('Startup patch lost its original source binding')
+        raise ValueError('Memory-management patch lost its original source binding')
     for name in PATCH_FILES:
         if patch['files'][name] != dict(before_sha256=old_manifest['files'][name], after_sha256=manifest['files'][name]):
-            raise ValueError('Startup patch before/after hashes differ: ' + name)
+            raise ValueError('Memory-management patch before/after hashes differ: ' + name)
     local = ROOT / 'benchmark/one-click-kit'
     for name, body in new.items():
         if (local / name).read_bytes() != body:
             raise ValueError('Repository evaluation source differs from its downloadable archive: ' + name)
-    print('EVALUATION_BUNDLE_VERIFIED', len(manifest['files']), 'files; only the three startup patch files differ from the original', flush=True)
+    print('EVALUATION_BUNDLE_VERIFIED', len(manifest['files']), 'files; only the eight declared cache/reserve patch files differ from the original', flush=True)
 
 
 if __name__ == '__main__':
