@@ -1,0 +1,60 @@
+{
+  "source_commit": "4d539805a08268253719ec9894d86716b7290c34",
+  "files": [
+    {
+      "path": "benchmark/reports/m01-qualified-pair-20261103/README.md",
+      "source": "https://github.com/vLLM-HUST/vllm-hust-benchmark/blob/4d539805a08268253719ec9894d86716b7290c34/reports/m01-qualified-pair-20261103/README.md",
+      "sha256": "fc78d0aedf12caad8c77be389fe6dcdbc986fc4fc475f10df04efb6bd250da1d"
+    },
+    {
+      "path": "benchmark/reports/m01-qualified-pair-20261103/summary.json",
+      "source": "https://github.com/vLLM-HUST/vllm-hust-benchmark/blob/4d539805a08268253719ec9894d86716b7290c34/reports/m01-qualified-pair-20261103/summary.json",
+      "sha256": "95c6bd465c4beb558cd25284e221a166e33634ea2f9b6d44364d2b1114863bd0"
+    },
+    {
+      "path": "benchmark/reports/r8-context-tenant-20261119/README.md",
+      "source": "https://github.com/vLLM-HUST/vllm-hust-benchmark/blob/4d539805a08268253719ec9894d86716b7290c34/reports/r8-context-tenant-20261119/README.md",
+      "sha256": "ba0e7009f1e710a40867b29700a6bd7e06b155e2938deb11e1607f6dc9fd04d8"
+    },
+    {
+      "path": "benchmark/reports/r8-context-tenant-20261119/reproduce_publication.py",
+      "source": "https://github.com/vLLM-HUST/vllm-hust-benchmark/blob/4d539805a08268253719ec9894d86716b7290c34/reports/r8-context-tenant-20261119/reproduce_publication.py",
+      "sha256": "ee17c9379984c6dbdee1556fc0231e7bfd71d8c665cc1ad7d362cb805b39cbd9"
+    },
+    {
+      "path": "benchmark/reports/r8-context-tenant-20261119/summary-public-v1.json",
+      "source": "https://github.com/vLLM-HUST/vllm-hust-benchmark/blob/4d539805a08268253719ec9894d86716b7290c34/reports/r8-context-tenant-20261119/summary-public-v1.json",
+      "sha256": "91fddefadc2b544c9a241cfded994aa7cea5064d43f851b765a2757042198be0"
+    },
+    {
+      "path": "benchmark/reports/r8-fixed-five-20261118/README.md",
+      "source": "https://github.com/vLLM-HUST/vllm-hust-benchmark/blob/4d539805a08268253719ec9894d86716b7290c34/reports/r8-fixed-five-20261118/README.md",
+      "sha256": "91a61af843935c3aa3f5137bd10d020781dee4a17d29c83466049461c3f8e5e7"
+    },
+    {
+      "path": "benchmark/reports/r8-fixed-five-20261118/reproduce_publication.py",
+      "source": "https://github.com/vLLM-HUST/vllm-hust-benchmark/blob/4d539805a08268253719ec9894d86716b7290c34/reports/r8-fixed-five-20261118/reproduce_publication.py",
+      "sha256": "5b791bc1a6366202fa5b2ab5128e0fa3d7a638b760179e956e2cefa2ac5f6a53"
+    },
+    {
+      "path": "benchmark/reports/r8-fixed-five-20261118/summary-public-v2.json",
+      "source": "https://github.com/vLLM-HUST/vllm-hust-benchmark/blob/4d539805a08268253719ec9894d86716b7290c34/reports/r8-fixed-five-20261118/summary-public-v2.json",
+      "sha256": "c002426f6882a7733621e6ae784d4beeb007e8731c4f56d2ff401ec772279168"
+    },
+    {
+      "path": "benchmark/scripts/recompute_m01_qualified_pair.py",
+      "source": "https://github.com/vLLM-HUST/vllm-hust-benchmark/blob/4d539805a08268253719ec9894d86716b7290c34/scripts/recompute_m01_qualified_pair.py",
+      "sha256": "97c5ab301a12ac10cc5d3b97a1c38d155e9a0862cbcc52650f0084ff3884220c"
+    },
+    {
+      "path": "benchmark/website-publication/data/context-tenant-a01-20261115/analysis-v1.json",
+      "source": "https://github.com/vLLM-HUST/vllm-hust-benchmark/blob/4d539805a08268253719ec9894d86716b7290c34/website-publication/data/context-tenant-a01-20261115/analysis-v1.json",
+      "sha256": "0e3947af17badfa7edb244a2ca397c5367480678eeb416bb1c1f886d02c08c5f"
+    },
+    {
+      "path": "benchmark/website-publication/data/context-tenant-a01-20261115/protocol-v1.json",
+      "source": "https://github.com/vLLM-HUST/vllm-hust-benchmark/blob/4d539805a08268253719ec9894d86716b7290c34/website-publication/data/context-tenant-a01-20261115/protocol-v1.json",
+      "sha256": "3d5b3344e219080322872a0fd20357551fb519a9ebc648cf3659773a667b1d5c"
+    }
+  ]
+}

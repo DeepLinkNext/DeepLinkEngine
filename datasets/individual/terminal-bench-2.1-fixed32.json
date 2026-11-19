@@ -1,0 +1,3244 @@
+{
+  "schema": "deepengine-public-trace-manifest/v1",
+  "dataset": "Terminal-Bench 2.1",
+  "planned_tasks": 32,
+  "planned_requests": 48,
+  "shared_protocol": "../public-agent-trace-fixed32-v1.json",
+  "shared_protocol_sha256": "eacf3628cda8d7accc2e39b20fce687b1deb1cb0b0f470e8b11c8dd4517f71f8",
+  "public_source": "https://github.com/vLLM-HUST/vllm-hust-benchmark/blob/4d539805a08268253719ec9894d86716b7290c34/website-publication/data/dataset-standard-v1/public-agent-trace-fixed32-v1.json?plain=1#L3603",
+  "source": {
+    "publisher": "shadowpa0327, third-party real provider request capture",
+    "repository": "https://huggingface.co/datasets/shadowpa0327/pi_agents_terminal_bench",
+    "revision": "ccc3fad7ed2cf81f98094f8fdd001bdb480e096e",
+    "task_repository": "harbor-framework/terminal-bench-2-1",
+    "task_commit": "7131e4375048a0e408a8fb404b5f499d726b695b",
+    "license": "research-only (author dataset card); original bodies downloaded by user, not redistributed in this protocol or tools archive"
+  },
+  "selection": {
+    "sources": [
+      {
+        "cache_key": "terminal/break-filter-js-from-html__subagents__2026-08-16__04-31-31/requests-1453.jsonl",
+        "url": "https://huggingface.co/datasets/shadowpa0327/pi_agents_terminal_bench/resolve/ccc3fad7ed2cf81f98094f8fdd001bdb480e096e/break-filter-js-from-html__subagents__2026-08-16__04-31-31/requests-1453.jsonl",
+        "size": 1932893,
+        "sha256": "167a961fe0b4937d409f972fe9aa992d70b64c6a706be907924e330ffeecdb91",
+        "source_path": "break-filter-js-from-html__subagents__2026-08-16__04-31-31/requests-1453.jsonl",
+        "task_id": "break-filter-js-from-html",
+        "alternate_urls": [
+          "https://hf-mirror.com/datasets/shadowpa0327/pi_agents_terminal_bench/resolve/ccc3fad7ed2cf81f98094f8fdd001bdb480e096e/break-filter-js-from-html__subagents__2026-08-16__04-31-31/requests-1453.jsonl?download=true"
+        ],
+        "git_blob": "d3f5c73e26c93e39b9ed15dc3551c14e6d7634ab"
+      },
+      {
+        "cache_key": "terminal/build-cython-ext__subagents__2026-08-16__04-31-31/requests-1448.jsonl",
+        "url": "https://huggingface.co/datasets/shadowpa0327/pi_agents_terminal_bench/resolve/ccc3fad7ed2cf81f98094f8fdd001bdb480e096e/build-cython-ext__subagents__2026-08-16__04-31-31/requests-1448.jsonl",
+        "size": 91755,
+        "sha256": "2c22db219ecf508ca60be093a96a048ae352b197820370567358212565409422",
+        "source_path": "build-cython-ext__subagents__2026-08-16__04-31-31/requests-1448.jsonl",
+        "task_id": "build-cython-ext",
+        "alternate_urls": [
+          "https://hf-mirror.com/datasets/shadowpa0327/pi_agents_terminal_bench/resolve/ccc3fad7ed2cf81f98094f8fdd001bdb480e096e/build-cython-ext__subagents__2026-08-16__04-31-31/requests-1448.jsonl?download=true"
+        ],
+        "git_blob": "3e31a13bae82fade6a278fd4a93ed5019a272cb4"
+      },
+      {
+        "cache_key": "terminal/constraints-scheduling__subagents__2026-08-16__04-31-31/requests-1600.jsonl",
+        "url": "https://huggingface.co/datasets/shadowpa0327/pi_agents_terminal_bench/resolve/ccc3fad7ed2cf81f98094f8fdd001bdb480e096e/constraints-scheduling__subagents__2026-08-16__04-31-31/requests-1600.jsonl",
+        "size": 125588,
+        "sha256": "cdcf0fe93bd8129827e2cdf8251e842d01eda14f16c5529dddbf42a2dd55907e",
+        "source_path": "constraints-scheduling__subagents__2026-08-16__04-31-31/requests-1600.jsonl",
+        "task_id": "constraints-scheduling",
+        "alternate_urls": [
+          "https://hf-mirror.com/datasets/shadowpa0327/pi_agents_terminal_bench/resolve/ccc3fad7ed2cf81f98094f8fdd001bdb480e096e/constraints-scheduling__subagents__2026-08-16__04-31-31/requests-1600.jsonl?download=true"
+        ],
+        "git_blob": "4a847b1bff537a06e110ffd96a45c1d8b44f8c0e"
+      },
+      {
+        "cache_key": "terminal/custom-memory-heap-crash__subagents__2026-08-16__04-31-31/requests-1486.jsonl",
+        "url": "https://huggingface.co/datasets/shadowpa0327/pi_agents_terminal_bench/resolve/ccc3fad7ed2cf81f98094f8fdd001bdb480e096e/custom-memory-heap-crash__subagents__2026-08-16__04-31-31/requests-1486.jsonl",
+        "size": 119764,
+        "sha256": "0670868478c456252344e16eb3a3fa4951a35d48ab2c4b430375cc2d619c7e03",
+        "source_path": "custom-memory-heap-crash__subagents__2026-08-16__04-31-31/requests-1486.jsonl",
+        "task_id": "custom-memory-heap-crash",
+        "alternate_urls": [
+          "https://hf-mirror.com/datasets/shadowpa0327/pi_agents_terminal_bench/resolve/ccc3fad7ed2cf81f98094f8fdd001bdb480e096e/custom-memory-heap-crash__subagents__2026-08-16__04-31-31/requests-1486.jsonl?download=true"
+        ],
+        "git_blob": "c6edb04d2cf0d69d3bda36bf5f370cc2f7f096b0"
+      },
+      {
+        "cache_key": "terminal/db-wal-recovery__subagents__2026-08-16__04-31-31/requests-1560.jsonl",
+        "url": "https://huggingface.co/datasets/shadowpa0327/pi_agents_terminal_bench/resolve/ccc3fad7ed2cf81f98094f8fdd001bdb480e096e/db-wal-recovery__subagents__2026-08-16__04-31-31/requests-1560.jsonl",
+        "size": 1304274,
+        "sha256": "8ed37260b3a6ffc306367507c1cb683eb7b4e6d548d3991d0db6847c2a1408c2",
+        "source_path": "db-wal-recovery__subagents__2026-08-16__04-31-31/requests-1560.jsonl",
+        "task_id": "db-wal-recovery",
+        "alternate_urls": [
+          "https://hf-mirror.com/datasets/shadowpa0327/pi_agents_terminal_bench/resolve/ccc3fad7ed2cf81f98094f8fdd001bdb480e096e/db-wal-recovery__subagents__2026-08-16__04-31-31/requests-1560.jsonl?download=true"
+        ],
+        "git_blob": "239b76d491dcda345693302dd084788ecdf06e58"
+      },
+      {
+        "cache_key": "terminal/distribution-search__subagents__2026-08-16__04-31-31/requests-1599.jsonl",
+        "url": "https://huggingface.co/datasets/shadowpa0327/pi_agents_terminal_bench/resolve/ccc3fad7ed2cf81f98094f8fdd001bdb480e096e/distribution-search__subagents__2026-08-16__04-31-31/requests-1599.jsonl",
+        "size": 120472,
+        "sha256": "1da2d74f9dac1e07d2d7bf5efd302822a531b6a00fafac00f84e47e81e67437e",
+        "source_path": "distribution-search__subagents__2026-08-16__04-31-31/requests-1599.jsonl",
+        "task_id": "distribution-search",
+        "alternate_urls": [
+          "https://hf-mirror.com/datasets/shadowpa0327/pi_agents_terminal_bench/resolve/ccc3fad7ed2cf81f98094f8fdd001bdb480e096e/distribution-search__subagents__2026-08-16__04-31-31/requests-1599.jsonl?download=true"
+        ],
+        "git_blob": "3b13f04d15b73c15fcff4bb05da43721e00e1af2"
+      },
+      {
+        "cache_key": "terminal/dna-insert__subagents__2026-08-16__04-31-31/requests-3761.jsonl",
+        "url": "https://huggingface.co/datasets/shadowpa0327/pi_agents_terminal_bench/resolve/ccc3fad7ed2cf81f98094f8fdd001bdb480e096e/dna-insert__subagents__2026-08-16__04-31-31/requests-3761.jsonl",
+        "size": 2087626,
+        "sha256": "0ce81f1b7f331e0084923a6601467f2e3318ceb0480e52ba765e1b7ff6812f23",
+        "source_path": "dna-insert__subagents__2026-08-16__04-31-31/requests-3761.jsonl",
+        "task_id": "dna-insert",
+        "alternate_urls": [
+          "https://hf-mirror.com/datasets/shadowpa0327/pi_agents_terminal_bench/resolve/ccc3fad7ed2cf81f98094f8fdd001bdb480e096e/dna-insert__subagents__2026-08-16__04-31-31/requests-3761.jsonl?download=true"
+        ],
+        "git_blob": "a5cb77266376c7d5a0e85416b5b95d53ba1e3649"
+      },
+      {
+        "cache_key": "terminal/feal-differential-cryptanalysis__subagents__2026-08-16__04-31-31/requests-1602.jsonl",
+        "url": "https://huggingface.co/datasets/shadowpa0327/pi_agents_terminal_bench/resolve/ccc3fad7ed2cf81f98094f8fdd001bdb480e096e/feal-differential-cryptanalysis__subagents__2026-08-16__04-31-31/requests-1602.jsonl",
+        "size": 118016,
+        "sha256": "c91a86c7add08f0f5d958a35ced243f5a0da006e2ed045a1c3577acca053daec",
+        "source_path": "feal-differential-cryptanalysis__subagents__2026-08-16__04-31-31/requests-1602.jsonl",
+        "task_id": "feal-differential-cryptanalysis",
+        "alternate_urls": [
+          "https://hf-mirror.com/datasets/shadowpa0327/pi_agents_terminal_bench/resolve/ccc3fad7ed2cf81f98094f8fdd001bdb480e096e/feal-differential-cryptanalysis__subagents__2026-08-16__04-31-31/requests-1602.jsonl?download=true"
+        ],
+        "git_blob": "6b4d9d76a383c0ed230b606aa5126b6034a021eb"
+      },
+      {
+        "cache_key": "terminal/filter-js-from-html__subagents__2026-08-16__04-31-31/requests-1464.jsonl",
+        "url": "https://huggingface.co/datasets/shadowpa0327/pi_agents_terminal_bench/resolve/ccc3fad7ed2cf81f98094f8fdd001bdb480e096e/filter-js-from-html__subagents__2026-08-16__04-31-31/requests-1464.jsonl",
+        "size": 118468,
+        "sha256": "d4c9fbdde0792173f1b25d2b660a31c75db267c0c482f440b6fd0cc65da278ba",
+        "source_path": "filter-js-from-html__subagents__2026-08-16__04-31-31/requests-1464.jsonl",
+        "task_id": "filter-js-from-html",
+        "alternate_urls": [
+          "https://hf-mirror.com/datasets/shadowpa0327/pi_agents_terminal_bench/resolve/ccc3fad7ed2cf81f98094f8fdd001bdb480e096e/filter-js-from-html__subagents__2026-08-16__04-31-31/requests-1464.jsonl?download=true"
+        ],
+        "git_blob": "61c5627091907ace2ec35b9d4a24a75931737ed7"
+      },
+      {
+        "cache_key": "terminal/financial-document-processor__subagents__2026-08-16__04-31-31/requests-3761.jsonl",
+        "url": "https://huggingface.co/datasets/shadowpa0327/pi_agents_terminal_bench/resolve/ccc3fad7ed2cf81f98094f8fdd001bdb480e096e/financial-document-processor__subagents__2026-08-16__04-31-31/requests-3761.jsonl",
+        "size": 120144,
+        "sha256": "7f13af8654bced98339236d48f44af43aa6632d80128ab01caee43a055486bf4",
+        "source_path": "financial-document-processor__subagents__2026-08-16__04-31-31/requests-3761.jsonl",
+        "task_id": "financial-document-processor",
+        "alternate_urls": [
+          "https://hf-mirror.com/datasets/shadowpa0327/pi_agents_terminal_bench/resolve/ccc3fad7ed2cf81f98094f8fdd001bdb480e096e/financial-document-processor__subagents__2026-08-16__04-31-31/requests-3761.jsonl?download=true"
+        ],
+        "git_blob": "67fe9d7e678b2a6c726493a0aa8eda6f29c87ffe"
+      },
+      {
+        "cache_key": "terminal/fix-git__subagents__2026-08-16__02-00-29/requests-1426.jsonl",
+        "url": "https://huggingface.co/datasets/shadowpa0327/pi_agents_terminal_bench/resolve/ccc3fad7ed2cf81f98094f8fdd001bdb480e096e/fix-git__subagents__2026-08-16__02-00-29/requests-1426.jsonl",
+        "size": 205294,
+        "sha256": "3a4e71315e87bb889ce83299438c84f15babf9565bf315f0ebb8c9db4eab3e36",
+        "source_path": "fix-git__subagents__2026-08-16__02-00-29/requests-1426.jsonl",
+        "task_id": "fix-git",
+        "alternate_urls": [
+          "https://hf-mirror.com/datasets/shadowpa0327/pi_agents_terminal_bench/resolve/ccc3fad7ed2cf81f98094f8fdd001bdb480e096e/fix-git__subagents__2026-08-16__02-00-29/requests-1426.jsonl?download=true"
+        ],
+        "git_blob": "f6a7a19a2a0a2d2869ce4408aedf81e556827cb1"
+      },
+      {
+        "cache_key": "terminal/install-windows-3.11__subagents__2026-08-16__04-31-31/requests-1496.jsonl",
+        "url": "https://huggingface.co/datasets/shadowpa0327/pi_agents_terminal_bench/resolve/ccc3fad7ed2cf81f98094f8fdd001bdb480e096e/install-windows-3.11__subagents__2026-08-16__04-31-31/requests-1496.jsonl",
+        "size": 1608407,
+        "sha256": "f96107b1589f35b474a5c0e3134e21e112f70cad1fdcdc4d70941cb0856932a1",
+        "source_path": "install-windows-3.11__subagents__2026-08-16__04-31-31/requests-1496.jsonl",
+        "task_id": "install-windows-3.11",
+        "alternate_urls": [
+          "https://hf-mirror.com/datasets/shadowpa0327/pi_agents_terminal_bench/resolve/ccc3fad7ed2cf81f98094f8fdd001bdb480e096e/install-windows-3.11__subagents__2026-08-16__04-31-31/requests-1496.jsonl?download=true"
+        ],
+        "git_blob": "419935cbb039c58c135c0c9e550b87ae1db77258"
+      },
+      {
+        "cache_key": "terminal/kv-store-grpc__subagents__2026-08-16__04-31-31/requests-1603.jsonl",
+        "url": "https://huggingface.co/datasets/shadowpa0327/pi_agents_terminal_bench/resolve/ccc3fad7ed2cf81f98094f8fdd001bdb480e096e/kv-store-grpc__subagents__2026-08-16__04-31-31/requests-1603.jsonl",
+        "size": 709387,
+        "sha256": "70f3ea7c7a8f0782984529ed338ac6c6f4684b9a1f331814931e8d0f334ddd4a",
+        "source_path": "kv-store-grpc__subagents__2026-08-16__04-31-31/requests-1603.jsonl",
+        "task_id": "kv-store-grpc",
+        "alternate_urls": [
+          "https://hf-mirror.com/datasets/shadowpa0327/pi_agents_terminal_bench/resolve/ccc3fad7ed2cf81f98094f8fdd001bdb480e096e/kv-store-grpc__subagents__2026-08-16__04-31-31/requests-1603.jsonl?download=true"
+        ],
+        "git_blob": "57a609b5ae033d588f93e7499e8f01502a11773f"
+      },
+      {
+        "cache_key": "terminal/large-scale-text-editing__subagents__2026-08-16__04-31-31/requests-1604.jsonl",
+        "url": "https://huggingface.co/datasets/shadowpa0327/pi_agents_terminal_bench/resolve/ccc3fad7ed2cf81f98094f8fdd001bdb480e096e/large-scale-text-editing__subagents__2026-08-16__04-31-31/requests-1604.jsonl",
+        "size": 906322,
+        "sha256": "086d2e1c78ed28a44360401cfdad708c797aaebdf8b4e0e89a0944f032bc1f31",
+        "source_path": "large-scale-text-editing__subagents__2026-08-16__04-31-31/requests-1604.jsonl",
+        "task_id": "large-scale-text-editing",
+        "alternate_urls": [
+          "https://hf-mirror.com/datasets/shadowpa0327/pi_agents_terminal_bench/resolve/ccc3fad7ed2cf81f98094f8fdd001bdb480e096e/large-scale-text-editing__subagents__2026-08-16__04-31-31/requests-1604.jsonl?download=true"
+        ],
+        "git_blob": "f56e6060c6a1c4cda00d1996c355efe29724c12a"
+      },
+      {
+        "cache_key": "terminal/log-summary-date-ranges__subagents__2026-08-16__04-31-31/requests-1604.jsonl",
+        "url": "https://huggingface.co/datasets/shadowpa0327/pi_agents_terminal_bench/resolve/ccc3fad7ed2cf81f98094f8fdd001bdb480e096e/log-summary-date-ranges__subagents__2026-08-16__04-31-31/requests-1604.jsonl",
+        "size": 91110,
+        "sha256": "6f2ea2e66e22dcb6defcd36319c0dd1ae074776e83a0277e1fe373c31e68a844",
+        "source_path": "log-summary-date-ranges__subagents__2026-08-16__04-31-31/requests-1604.jsonl",
+        "task_id": "log-summary-date-ranges",
+        "alternate_urls": [
+          "https://hf-mirror.com/datasets/shadowpa0327/pi_agents_terminal_bench/resolve/ccc3fad7ed2cf81f98094f8fdd001bdb480e096e/log-summary-date-ranges__subagents__2026-08-16__04-31-31/requests-1604.jsonl?download=true"
+        ],
+        "git_blob": "5d85a0946d9b9aaf4bc0661bc98b8c1cc4612f41"
+      },
+      {
+        "cache_key": "terminal/make-doom-for-mips__subagents__2026-08-16__04-31-31/requests-1327.jsonl",
+        "url": "https://huggingface.co/datasets/shadowpa0327/pi_agents_terminal_bench/resolve/ccc3fad7ed2cf81f98094f8fdd001bdb480e096e/make-doom-for-mips__subagents__2026-08-16__04-31-31/requests-1327.jsonl",
+        "size": 117808,
+        "sha256": "e200575ac2d7e84257b75ec1a91894288195d72d0e52f1d5a280061ebcb29e9b",
+        "source_path": "make-doom-for-mips__subagents__2026-08-16__04-31-31/requests-1327.jsonl",
+        "task_id": "make-doom-for-mips",
+        "alternate_urls": [
+          "https://hf-mirror.com/datasets/shadowpa0327/pi_agents_terminal_bench/resolve/ccc3fad7ed2cf81f98094f8fdd001bdb480e096e/make-doom-for-mips__subagents__2026-08-16__04-31-31/requests-1327.jsonl?download=true"
+        ],
+        "git_blob": "b19fe615b86edc596108a1692ec35f2126123023"
+      },
+      {
+        "cache_key": "terminal/make-mips-interpreter__subagents__2026-08-16__04-31-31/requests-1327.jsonl",
+        "url": "https://huggingface.co/datasets/shadowpa0327/pi_agents_terminal_bench/resolve/ccc3fad7ed2cf81f98094f8fdd001bdb480e096e/make-mips-interpreter__subagents__2026-08-16__04-31-31/requests-1327.jsonl",
+        "size": 117800,
+        "sha256": "8da1c1437d4458411037e97dddd85bcda9b4dc46a23f2ff583177fc7c1c3a430",
+        "source_path": "make-mips-interpreter__subagents__2026-08-16__04-31-31/requests-1327.jsonl",
+        "task_id": "make-mips-interpreter",
+        "alternate_urls": [
+          "https://hf-mirror.com/datasets/shadowpa0327/pi_agents_terminal_bench/resolve/ccc3fad7ed2cf81f98094f8fdd001bdb480e096e/make-mips-interpreter__subagents__2026-08-16__04-31-31/requests-1327.jsonl?download=true"
+        ],
+        "git_blob": "527c718db80f2742e479455c619629a3c78d58c6"
+      },
+      {
+        "cache_key": "terminal/mcmc-sampling-stan__subagents__2026-08-16__04-31-31/requests-1267.jsonl",
+        "url": "https://huggingface.co/datasets/shadowpa0327/pi_agents_terminal_bench/resolve/ccc3fad7ed2cf81f98094f8fdd001bdb480e096e/mcmc-sampling-stan__subagents__2026-08-16__04-31-31/requests-1267.jsonl",
+        "size": 4823856,
+        "sha256": "b1146e2de2b3c9b64e77208ec4915beae0e4ac4f3d6d179618355c0637d393fa",
+        "source_path": "mcmc-sampling-stan__subagents__2026-08-16__04-31-31/requests-1267.jsonl",
+        "task_id": "mcmc-sampling-stan",
+        "alternate_urls": [
+          "https://hf-mirror.com/datasets/shadowpa0327/pi_agents_terminal_bench/resolve/ccc3fad7ed2cf81f98094f8fdd001bdb480e096e/mcmc-sampling-stan__subagents__2026-08-16__04-31-31/requests-1267.jsonl?download=true"
+        ],
+        "git_blob": "7410f444169ef55eff865adc5d4f47c11284b7ca"
+      },
+      {
+        "cache_key": "terminal/merge-diff-arc-agi-task__subagents__2026-08-16__04-31-31/requests-3761.jsonl",
+        "url": "https://huggingface.co/datasets/shadowpa0327/pi_agents_terminal_bench/resolve/ccc3fad7ed2cf81f98094f8fdd001bdb480e096e/merge-diff-arc-agi-task__subagents__2026-08-16__04-31-31/requests-3761.jsonl",
+        "size": 868949,
+        "sha256": "aa787a51aed701d75886c21ba751c47ebb5f24fbff2954526bb4b193059ea0fd",
+        "source_path": "merge-diff-arc-agi-task__subagents__2026-08-16__04-31-31/requests-3761.jsonl",
+        "task_id": "merge-diff-arc-agi-task",
+        "alternate_urls": [
+          "https://hf-mirror.com/datasets/shadowpa0327/pi_agents_terminal_bench/resolve/ccc3fad7ed2cf81f98094f8fdd001bdb480e096e/merge-diff-arc-agi-task__subagents__2026-08-16__04-31-31/requests-3761.jsonl?download=true"
+        ],
+        "git_blob": "abbef2f7dbce3f3f33c4c2cca1797c0f3b73a28b"
+      },
+      {
+        "cache_key": "terminal/password-recovery__subagents__2026-08-16__04-31-31/requests-1429.jsonl",
+        "url": "https://huggingface.co/datasets/shadowpa0327/pi_agents_terminal_bench/resolve/ccc3fad7ed2cf81f98094f8fdd001bdb480e096e/password-recovery__subagents__2026-08-16__04-31-31/requests-1429.jsonl",
+        "size": 88821,
+        "sha256": "a98ace9a5c53ce6c498bd294d568842b04c24586214deb3b7f158afba3523306",
+        "source_path": "password-recovery__subagents__2026-08-16__04-31-31/requests-1429.jsonl",
+        "task_id": "password-recovery",
+        "alternate_urls": [
+          "https://hf-mirror.com/datasets/shadowpa0327/pi_agents_terminal_bench/resolve/ccc3fad7ed2cf81f98094f8fdd001bdb480e096e/password-recovery__subagents__2026-08-16__04-31-31/requests-1429.jsonl?download=true"
+        ],
+        "git_blob": "39157de462bff16514ab9e51438cfeb391ded625"
+      },
+      {
+        "cache_key": "terminal/path-tracing-reverse__subagents__2026-08-16__04-31-31/requests-1264.jsonl",
+        "url": "https://huggingface.co/datasets/shadowpa0327/pi_agents_terminal_bench/resolve/ccc3fad7ed2cf81f98094f8fdd001bdb480e096e/path-tracing-reverse__subagents__2026-08-16__04-31-31/requests-1264.jsonl",
+        "size": 117928,
+        "sha256": "9db4404dbbfcf585a6dfbdfd94c6f070642091d7f2bd90977a3bfc3cfd50c166",
+        "source_path": "path-tracing-reverse__subagents__2026-08-16__04-31-31/requests-1264.jsonl",
+        "task_id": "path-tracing-reverse",
+        "alternate_urls": [
+          "https://hf-mirror.com/datasets/shadowpa0327/pi_agents_terminal_bench/resolve/ccc3fad7ed2cf81f98094f8fdd001bdb480e096e/path-tracing-reverse__subagents__2026-08-16__04-31-31/requests-1264.jsonl?download=true"
+        ],
+        "git_blob": "cc87a82019cbcc17eae929c070f7699c74989079"
+      },
+      {
+        "cache_key": "terminal/polyglot-c-py__subagents__2026-08-16__04-31-31/requests-3751.jsonl",
+        "url": "https://huggingface.co/datasets/shadowpa0327/pi_agents_terminal_bench/resolve/ccc3fad7ed2cf81f98094f8fdd001bdb480e096e/polyglot-c-py__subagents__2026-08-16__04-31-31/requests-3751.jsonl",
+        "size": 1586738,
+        "sha256": "1399715f79f38da4f9df8bb31b852b7b1faaf3f2b87e5c2a7ff95aac537b2cce",
+        "source_path": "polyglot-c-py__subagents__2026-08-16__04-31-31/requests-3751.jsonl",
+        "task_id": "polyglot-c-py",
+        "alternate_urls": [
+          "https://hf-mirror.com/datasets/shadowpa0327/pi_agents_terminal_bench/resolve/ccc3fad7ed2cf81f98094f8fdd001bdb480e096e/polyglot-c-py__subagents__2026-08-16__04-31-31/requests-3751.jsonl?download=true"
+        ],
+        "git_blob": "56953a3c16c7676e440d76b4b0ddca00a87cc4be"
+      },
+      {
+        "cache_key": "terminal/polyglot-rust-c__subagents__2026-08-16__04-31-31/requests-3751.jsonl",
+        "url": "https://huggingface.co/datasets/shadowpa0327/pi_agents_terminal_bench/resolve/ccc3fad7ed2cf81f98094f8fdd001bdb480e096e/polyglot-rust-c__subagents__2026-08-16__04-31-31/requests-3751.jsonl",
+        "size": 1756251,
+        "sha256": "25b626420f87693d2323b8c8a532b1d7bf96a57274bf11ab6fbfd812d0919936",
+        "source_path": "polyglot-rust-c__subagents__2026-08-16__04-31-31/requests-3751.jsonl",
+        "task_id": "polyglot-rust-c",
+        "alternate_urls": [
+          "https://hf-mirror.com/datasets/shadowpa0327/pi_agents_terminal_bench/resolve/ccc3fad7ed2cf81f98094f8fdd001bdb480e096e/polyglot-rust-c__subagents__2026-08-16__04-31-31/requests-3751.jsonl?download=true"
+        ],
+        "git_blob": "7d7d04eadf1303c2ecec7ffc4134170e2a90bec9"
+      },
+      {
+        "cache_key": "terminal/pytorch-model-cli__subagents__2026-08-16__04-31-31/requests-1604.jsonl",
+        "url": "https://huggingface.co/datasets/shadowpa0327/pi_agents_terminal_bench/resolve/ccc3fad7ed2cf81f98094f8fdd001bdb480e096e/pytorch-model-cli__subagents__2026-08-16__04-31-31/requests-1604.jsonl",
+        "size": 1703598,
+        "sha256": "b99df29b79c68f052e30dbce23a8e5d9aea0e012f2ab52f5d7b7042366692ec6",
+        "source_path": "pytorch-model-cli__subagents__2026-08-16__04-31-31/requests-1604.jsonl",
+        "task_id": "pytorch-model-cli",
+        "alternate_urls": [
+          "https://hf-mirror.com/datasets/shadowpa0327/pi_agents_terminal_bench/resolve/ccc3fad7ed2cf81f98094f8fdd001bdb480e096e/pytorch-model-cli__subagents__2026-08-16__04-31-31/requests-1604.jsonl?download=true"
+        ],
+        "git_blob": "e385048cbc33bba4d9ae15a04966114d52fa7eca"
+      },
+      {
+        "cache_key": "terminal/raman-fitting__subagents__2026-08-16__04-31-31/requests-1604.jsonl",
+        "url": "https://huggingface.co/datasets/shadowpa0327/pi_agents_terminal_bench/resolve/ccc3fad7ed2cf81f98094f8fdd001bdb480e096e/raman-fitting__subagents__2026-08-16__04-31-31/requests-1604.jsonl",
+        "size": 88617,
+        "sha256": "c7b6377bab05328aa3aa71381c63ba962ff2d97113ba211a0c6f802034895dad",
+        "source_path": "raman-fitting__subagents__2026-08-16__04-31-31/requests-1604.jsonl",
+        "task_id": "raman-fitting",
+        "alternate_urls": [
+          "https://hf-mirror.com/datasets/shadowpa0327/pi_agents_terminal_bench/resolve/ccc3fad7ed2cf81f98094f8fdd001bdb480e096e/raman-fitting__subagents__2026-08-16__04-31-31/requests-1604.jsonl?download=true"
+        ],
+        "git_blob": "94b52fb9aa25a191163f4cc20c92df6a5780620a"
+      },
+      {
+        "cache_key": "terminal/regex-log__subagents__2026-08-16__04-31-31/requests-3760.jsonl",
+        "url": "https://huggingface.co/datasets/shadowpa0327/pi_agents_terminal_bench/resolve/ccc3fad7ed2cf81f98094f8fdd001bdb480e096e/regex-log__subagents__2026-08-16__04-31-31/requests-3760.jsonl",
+        "size": 89976,
+        "sha256": "2e510acb20c669e82714f2b14f3fe3cce3736f582bb7111168b2d22584d2516e",
+        "source_path": "regex-log__subagents__2026-08-16__04-31-31/requests-3760.jsonl",
+        "task_id": "regex-log",
+        "alternate_urls": [
+          "https://hf-mirror.com/datasets/shadowpa0327/pi_agents_terminal_bench/resolve/ccc3fad7ed2cf81f98094f8fdd001bdb480e096e/regex-log__subagents__2026-08-16__04-31-31/requests-3760.jsonl?download=true"
+        ],
+        "git_blob": "dbdc43c2b103e574817e8b921670e1b7a95d9d34"
+      },
+      {
+        "cache_key": "terminal/reshard-c4-data__subagents__2026-08-16__04-31-31/requests-1604.jsonl",
+        "url": "https://huggingface.co/datasets/shadowpa0327/pi_agents_terminal_bench/resolve/ccc3fad7ed2cf81f98094f8fdd001bdb480e096e/reshard-c4-data__subagents__2026-08-16__04-31-31/requests-1604.jsonl",
+        "size": 121028,
+        "sha256": "2d3ed88f92b6ba384128401e3cb818b9e97145c15ab42ce76b0c2738c8a6edfc",
+        "source_path": "reshard-c4-data__subagents__2026-08-16__04-31-31/requests-1604.jsonl",
+        "task_id": "reshard-c4-data",
+        "alternate_urls": [
+          "https://hf-mirror.com/datasets/shadowpa0327/pi_agents_terminal_bench/resolve/ccc3fad7ed2cf81f98094f8fdd001bdb480e096e/reshard-c4-data__subagents__2026-08-16__04-31-31/requests-1604.jsonl?download=true"
+        ],
+        "git_blob": "3e8d9b9c82b41c2e6f1370108d781d09402a15ed"
+      },
+      {
+        "cache_key": "terminal/rstan-to-pystan__subagents__2026-08-16__04-31-31/requests-1599.jsonl",
+        "url": "https://huggingface.co/datasets/shadowpa0327/pi_agents_terminal_bench/resolve/ccc3fad7ed2cf81f98094f8fdd001bdb480e096e/rstan-to-pystan__subagents__2026-08-16__04-31-31/requests-1599.jsonl",
+        "size": 30792405,
+        "sha256": "815534e85d094fc7d07175772fde76575295a254cdd9921f43c47d168f2b5b78",
+        "source_path": "rstan-to-pystan__subagents__2026-08-16__04-31-31/requests-1599.jsonl",
+        "task_id": "rstan-to-pystan",
+        "alternate_urls": [
+          "https://hf-mirror.com/datasets/shadowpa0327/pi_agents_terminal_bench/resolve/ccc3fad7ed2cf81f98094f8fdd001bdb480e096e/rstan-to-pystan__subagents__2026-08-16__04-31-31/requests-1599.jsonl?download=true"
+        ],
+        "git_blob": "d480e309eb6eec0c44a4a19e6bf26378c6a4c849",
+        "git_lfs_sha256": "815534e85d094fc7d07175772fde76575295a254cdd9921f43c47d168f2b5b78"
+      },
+      {
+        "cache_key": "terminal/sparql-university__subagents__2026-08-16__04-31-31/requests-3757.jsonl",
+        "url": "https://huggingface.co/datasets/shadowpa0327/pi_agents_terminal_bench/resolve/ccc3fad7ed2cf81f98094f8fdd001bdb480e096e/sparql-university__subagents__2026-08-16__04-31-31/requests-3757.jsonl",
+        "size": 90729,
+        "sha256": "2959d5b5c4d799f280a3f4500d5d034b16340c18232679b09dc8332be558d53c",
+        "source_path": "sparql-university__subagents__2026-08-16__04-31-31/requests-3757.jsonl",
+        "task_id": "sparql-university",
+        "alternate_urls": [
+          "https://hf-mirror.com/datasets/shadowpa0327/pi_agents_terminal_bench/resolve/ccc3fad7ed2cf81f98094f8fdd001bdb480e096e/sparql-university__subagents__2026-08-16__04-31-31/requests-3757.jsonl?download=true"
+        ],
+        "git_blob": "6f0ab76463da23a67a02119efbe4e19659695fdd"
+      },
+      {
+        "cache_key": "terminal/sqlite-db-truncate__subagents__2026-08-16__04-31-31/requests-1601.jsonl",
+        "url": "https://huggingface.co/datasets/shadowpa0327/pi_agents_terminal_bench/resolve/ccc3fad7ed2cf81f98094f8fdd001bdb480e096e/sqlite-db-truncate__subagents__2026-08-16__04-31-31/requests-1601.jsonl",
+        "size": 1073774,
+        "sha256": "f6c8689716ebd6eaed994b7e06a0ed8650cca03fb0a9d9a7296ed4512e1eecde",
+        "source_path": "sqlite-db-truncate__subagents__2026-08-16__04-31-31/requests-1601.jsonl",
+        "task_id": "sqlite-db-truncate",
+        "alternate_urls": [
+          "https://hf-mirror.com/datasets/shadowpa0327/pi_agents_terminal_bench/resolve/ccc3fad7ed2cf81f98094f8fdd001bdb480e096e/sqlite-db-truncate__subagents__2026-08-16__04-31-31/requests-1601.jsonl?download=true"
+        ],
+        "git_blob": "9decd88f87d41a19e49e252c8b31880a4716fca9"
+      },
+      {
+        "cache_key": "terminal/torch-tensor-parallelism__subagents__2026-08-16__04-31-31/requests-3761.jsonl",
+        "url": "https://huggingface.co/datasets/shadowpa0327/pi_agents_terminal_bench/resolve/ccc3fad7ed2cf81f98094f8fdd001bdb480e096e/torch-tensor-parallelism__subagents__2026-08-16__04-31-31/requests-3761.jsonl",
+        "size": 397066,
+        "sha256": "f4ccb3c27efb7c601b408e3e5dbe0c91482ea72fe74b5bf85be6d2c9710795b2",
+        "source_path": "torch-tensor-parallelism__subagents__2026-08-16__04-31-31/requests-3761.jsonl",
+        "task_id": "torch-tensor-parallelism",
+        "alternate_urls": [
+          "https://hf-mirror.com/datasets/shadowpa0327/pi_agents_terminal_bench/resolve/ccc3fad7ed2cf81f98094f8fdd001bdb480e096e/torch-tensor-parallelism__subagents__2026-08-16__04-31-31/requests-3761.jsonl?download=true"
+        ],
+        "git_blob": "c154dca0b4754efc076233882ed3c853e29c46c4"
+      },
+      {
+        "cache_key": "terminal/winning-avg-corewars__subagents__2026-08-16__04-31-31/requests-1342.jsonl",
+        "url": "https://huggingface.co/datasets/shadowpa0327/pi_agents_terminal_bench/resolve/ccc3fad7ed2cf81f98094f8fdd001bdb480e096e/winning-avg-corewars__subagents__2026-08-16__04-31-31/requests-1342.jsonl",
+        "size": 9777490,
+        "sha256": "00776c28227ee4f49075ba5121fc675a6900111511e09a22e7ffbea31879fbeb",
+        "source_path": "winning-avg-corewars__subagents__2026-08-16__04-31-31/requests-1342.jsonl",
+        "task_id": "winning-avg-corewars",
+        "alternate_urls": [
+          "https://hf-mirror.com/datasets/shadowpa0327/pi_agents_terminal_bench/resolve/ccc3fad7ed2cf81f98094f8fdd001bdb480e096e/winning-avg-corewars__subagents__2026-08-16__04-31-31/requests-1342.jsonl?download=true"
+        ],
+        "git_blob": "c6602912e6410a36a0b182d6f7516e4ee56763a5"
+      }
+    ],
+    "requests": [
+      {
+        "case_id": "terminal-trace-00-0",
+        "task_id": "break-filter-js-from-html",
+        "source_key": "terminal/break-filter-js-from-html__subagents__2026-08-16__04-31-31/requests-1453.jsonl",
+        "extracted_index": 0,
+        "source_index": 0,
+        "source_body_sha256": "66fdf93fd8093bf2822752d8bc229e2ad972ee0e1ead387f5fbbc6477d86aa23",
+        "prompt_tokens": 7219,
+        "original_timestamp_ms": 1786869206877
+      },
+      {
+        "case_id": "terminal-trace-00-1",
+        "task_id": "break-filter-js-from-html",
+        "source_key": "terminal/break-filter-js-from-html__subagents__2026-08-16__04-31-31/requests-1453.jsonl",
+        "extracted_index": 18,
+        "source_index": 18,
+        "source_body_sha256": "54de14bd20f754a488f0521caf62f6574582a240c5fdf5c71445ba20724115da",
+        "prompt_tokens": 16269,
+        "original_timestamp_ms": 1786869807468
+      },
+      {
+        "case_id": "terminal-trace-01-0",
+        "task_id": "build-cython-ext",
+        "source_key": "terminal/build-cython-ext__subagents__2026-08-16__04-31-31/requests-1448.jsonl",
+        "extracted_index": 0,
+        "source_index": 0,
+        "source_body_sha256": "f2e5979073aab0a10856f05e4fe06e26a820c3e2b52adf8c657205c2c28d251c",
+        "prompt_tokens": 7504,
+        "original_timestamp_ms": 1786894807680
+      },
+      {
+        "case_id": "terminal-trace-02-0",
+        "task_id": "constraints-scheduling",
+        "source_key": "terminal/constraints-scheduling__subagents__2026-08-16__04-31-31/requests-1600.jsonl",
+        "extracted_index": 0,
+        "source_index": 0,
+        "source_body_sha256": "d311e2cef37af7302f824d47231d09dd04d6ff92072cddf4ae8abffd9c21b2a1",
+        "prompt_tokens": 7711,
+        "original_timestamp_ms": 1786887683224
+      },
+      {
+        "case_id": "terminal-trace-03-0",
+        "task_id": "custom-memory-heap-crash",
+        "source_key": "terminal/custom-memory-heap-crash__subagents__2026-08-16__04-31-31/requests-1486.jsonl",
+        "extracted_index": 0,
+        "source_index": 0,
+        "source_body_sha256": "a2fa9a6ff1e16b1f436179c72a364a24941dad335b87f7ee62e4114e6695138c",
+        "prompt_tokens": 7370,
+        "original_timestamp_ms": 1786889963453
+      },
+      {
+        "case_id": "terminal-trace-04-0",
+        "task_id": "db-wal-recovery",
+        "source_key": "terminal/db-wal-recovery__subagents__2026-08-16__04-31-31/requests-1560.jsonl",
+        "extracted_index": 0,
+        "source_index": 0,
+        "source_body_sha256": "c882c45d81d5fa7c6b764717a54d8235df95c973016194ddb3fde52eb7b742e8",
+        "prompt_tokens": 7282,
+        "original_timestamp_ms": 1786877236023
+      },
+      {
+        "case_id": "terminal-trace-04-1",
+        "task_id": "db-wal-recovery",
+        "source_key": "terminal/db-wal-recovery__subagents__2026-08-16__04-31-31/requests-1560.jsonl",
+        "extracted_index": 21,
+        "source_index": 21,
+        "source_body_sha256": "4d51d8f6eb55bc1e5f21092d4d2a7fc162f71dd0adc2d434a76fcf4bc6633f6f",
+        "prompt_tokens": 15655,
+        "original_timestamp_ms": 1786877485175
+      },
+      {
+        "case_id": "terminal-trace-05-0",
+        "task_id": "distribution-search",
+        "source_key": "terminal/distribution-search__subagents__2026-08-16__04-31-31/requests-1599.jsonl",
+        "extracted_index": 0,
+        "source_index": 0,
+        "source_body_sha256": "990c1d648d9f3d0d3e1be0bcfa33f01a794b67102f04b2ac137f0116453e4770",
+        "prompt_tokens": 7402,
+        "original_timestamp_ms": 1786882298612
+      },
+      {
+        "case_id": "terminal-trace-06-0",
+        "task_id": "dna-insert",
+        "source_key": "terminal/dna-insert__subagents__2026-08-16__04-31-31/requests-3761.jsonl",
+        "extracted_index": 0,
+        "source_index": 0,
+        "source_body_sha256": "26a6d17cf8836afeacdaf79fba885819da80f0d7ecca459b080977e138f4fb0b",
+        "prompt_tokens": 7366,
+        "original_timestamp_ms": 1786875258912
+      },
+      {
+        "case_id": "terminal-trace-06-1",
+        "task_id": "dna-insert",
+        "source_key": "terminal/dna-insert__subagents__2026-08-16__04-31-31/requests-3761.jsonl",
+        "extracted_index": 10,
+        "source_index": 10,
+        "source_body_sha256": "3399a64b9659c7ca98516e770b31009173f76eec1b162fe673a136631fd80fea",
+        "prompt_tokens": 15932,
+        "original_timestamp_ms": 1786875560546
+      },
+      {
+        "case_id": "terminal-trace-07-0",
+        "task_id": "feal-differential-cryptanalysis",
+        "source_key": "terminal/feal-differential-cryptanalysis__subagents__2026-08-16__04-31-31/requests-1602.jsonl",
+        "extracted_index": 0,
+        "source_index": 0,
+        "source_body_sha256": "fad3ca01a1cf3d8b37b56201a484fab6dd332d060429b5aa66661c4ed6ad1d9c",
+        "prompt_tokens": 7229,
+        "original_timestamp_ms": 1786890317951
+      },
+      {
+        "case_id": "terminal-trace-08-0",
+        "task_id": "filter-js-from-html",
+        "source_key": "terminal/filter-js-from-html__subagents__2026-08-16__04-31-31/requests-1464.jsonl",
+        "extracted_index": 0,
+        "source_index": 0,
+        "source_body_sha256": "c821500b3dd487d651062f1d9963b4a225b8f6fac2c048c71da3b46d403f069d",
+        "prompt_tokens": 7234,
+        "original_timestamp_ms": 1786893522917
+      },
+      {
+        "case_id": "terminal-trace-09-0",
+        "task_id": "financial-document-processor",
+        "source_key": "terminal/financial-document-processor__subagents__2026-08-16__04-31-31/requests-3761.jsonl",
+        "extracted_index": 0,
+        "source_index": 0,
+        "source_body_sha256": "918e03166d4805bfc40e1050bd94a1ed6585f3c3afd1ebbf27886059a45cb1eb",
+        "prompt_tokens": 7355,
+        "original_timestamp_ms": 1786884473063
+      },
+      {
+        "case_id": "terminal-trace-10-0",
+        "task_id": "fix-git",
+        "source_key": "terminal/fix-git__subagents__2026-08-16__02-00-29/requests-1426.jsonl",
+        "extracted_index": 0,
+        "source_index": 0,
+        "source_body_sha256": "dfee9954535591ad69684b880cf0d9e48687741da8636f59500aa299f73d27c3",
+        "prompt_tokens": 2065,
+        "original_timestamp_ms": 1786860045849
+      },
+      {
+        "case_id": "terminal-trace-10-1",
+        "task_id": "fix-git",
+        "source_key": "terminal/fix-git__subagents__2026-08-16__02-00-29/requests-1426.jsonl",
+        "extracted_index": 10,
+        "source_index": 10,
+        "source_body_sha256": "4d202223fb6cea7bddd3b96deaedb19772738707e5a92d4148afa2a1c95ae987",
+        "prompt_tokens": 6872,
+        "original_timestamp_ms": 1786860141979
+      },
+      {
+        "case_id": "terminal-trace-11-0",
+        "task_id": "install-windows-3.11",
+        "source_key": "terminal/install-windows-3.11__subagents__2026-08-16__04-31-31/requests-1496.jsonl",
+        "extracted_index": 0,
+        "source_index": 0,
+        "source_body_sha256": "0ab3eaf8f7b943ae7cc8bb2add54d75c7284c7dd2ab8332165dff50147414f95",
+        "prompt_tokens": 7321,
+        "original_timestamp_ms": 1786880518554
+      },
+      {
+        "case_id": "terminal-trace-11-1",
+        "task_id": "install-windows-3.11",
+        "source_key": "terminal/install-windows-3.11__subagents__2026-08-16__04-31-31/requests-1496.jsonl",
+        "extracted_index": 23,
+        "source_index": 23,
+        "source_body_sha256": "07497b7da7953ee8d15085efe5cff8e012e758710a5ee54569070b7c6dbdb7e0",
+        "prompt_tokens": 16182,
+        "original_timestamp_ms": 1786880822339
+      },
+      {
+        "case_id": "terminal-trace-12-0",
+        "task_id": "kv-store-grpc",
+        "source_key": "terminal/kv-store-grpc__subagents__2026-08-16__04-31-31/requests-1603.jsonl",
+        "extracted_index": 0,
+        "source_index": 0,
+        "source_body_sha256": "9d125344715e1940e282b09cb8da4c34d0c5bd32cc97c4d4cf6bf68c879133c7",
+        "prompt_tokens": 7381,
+        "original_timestamp_ms": 1786877082843
+      },
+      {
+        "case_id": "terminal-trace-12-1",
+        "task_id": "kv-store-grpc",
+        "source_key": "terminal/kv-store-grpc__subagents__2026-08-16__04-31-31/requests-1603.jsonl",
+        "extracted_index": 17,
+        "source_index": 17,
+        "source_body_sha256": "6216729f42c5d0e3818f91c47aa1dbfecf670cebfe381c874059f76fbcfcacd7",
+        "prompt_tokens": 11954,
+        "original_timestamp_ms": 1786877263964
+      },
+      {
+        "case_id": "terminal-trace-13-0",
+        "task_id": "large-scale-text-editing",
+        "source_key": "terminal/large-scale-text-editing__subagents__2026-08-16__04-31-31/requests-1604.jsonl",
+        "extracted_index": 0,
+        "source_index": 0,
+        "source_body_sha256": "f25e937831f3e5f09dd3e0038208f1c46b379db8c2a13e9a65db8a8e104b50dd",
+        "prompt_tokens": 7415,
+        "original_timestamp_ms": 1786877803577
+      },
+      {
+        "case_id": "terminal-trace-13-1",
+        "task_id": "large-scale-text-editing",
+        "source_key": "terminal/large-scale-text-editing__subagents__2026-08-16__04-31-31/requests-1604.jsonl",
+        "extracted_index": 8,
+        "source_index": 8,
+        "source_body_sha256": "b914b6abbf03b48ab5598a9b66ecd399fbcfb840e1692064229d83c59c3c8346",
+        "prompt_tokens": 11528,
+        "original_timestamp_ms": 1786877889194
+      },
+      {
+        "case_id": "terminal-trace-14-0",
+        "task_id": "log-summary-date-ranges",
+        "source_key": "terminal/log-summary-date-ranges__subagents__2026-08-16__04-31-31/requests-1604.jsonl",
+        "extracted_index": 0,
+        "source_index": 0,
+        "source_body_sha256": "7238d8aaacbe6fb10af7ffc54599d5951b655b6aad51f66d7569db70d032e574",
+        "prompt_tokens": 7477,
+        "original_timestamp_ms": 1786884167355
+      },
+      {
+        "case_id": "terminal-trace-15-0",
+        "task_id": "make-doom-for-mips",
+        "source_key": "terminal/make-doom-for-mips__subagents__2026-08-16__04-31-31/requests-1327.jsonl",
+        "extracted_index": 0,
+        "source_index": 0,
+        "source_body_sha256": "94333073367b9d794deb2f9322fd2556da45fe1c88b464a352a6b036027faad1",
+        "prompt_tokens": 7213,
+        "original_timestamp_ms": 1786885722793
+      },
+      {
+        "case_id": "terminal-trace-16-0",
+        "task_id": "make-mips-interpreter",
+        "source_key": "terminal/make-mips-interpreter__subagents__2026-08-16__04-31-31/requests-1327.jsonl",
+        "extracted_index": 0,
+        "source_index": 0,
+        "source_body_sha256": "d184b58a996bd25ea63f43cc975553bacbd056a11ed3b441ae119cd73de75b78",
+        "prompt_tokens": 7202,
+        "original_timestamp_ms": 1786891237716
+      },
+      {
+        "case_id": "terminal-trace-17-0",
+        "task_id": "mcmc-sampling-stan",
+        "source_key": "terminal/mcmc-sampling-stan__subagents__2026-08-16__04-31-31/requests-1267.jsonl",
+        "extracted_index": 0,
+        "source_index": 0,
+        "source_body_sha256": "d5f76ddfece9201619a2d32b1764502d2ae087902071c95c74ccb624b0786b9c",
+        "prompt_tokens": 7461,
+        "original_timestamp_ms": 1786871415590
+      },
+      {
+        "case_id": "terminal-trace-17-1",
+        "task_id": "mcmc-sampling-stan",
+        "source_key": "terminal/mcmc-sampling-stan__subagents__2026-08-16__04-31-31/requests-1267.jsonl",
+        "extracted_index": 13,
+        "source_index": 13,
+        "source_body_sha256": "a4b529e193c30602b75e64636570045c8f5baa3a88e6ebad10dc966b2eacfac3",
+        "prompt_tokens": 14263,
+        "original_timestamp_ms": 1786871745731
+      },
+      {
+        "case_id": "terminal-trace-18-0",
+        "task_id": "merge-diff-arc-agi-task",
+        "source_key": "terminal/merge-diff-arc-agi-task__subagents__2026-08-16__04-31-31/requests-3761.jsonl",
+        "extracted_index": 0,
+        "source_index": 0,
+        "source_body_sha256": "421b69e176bddd8f7ca250fd176ddc9be21392c7b5acb455c552bcb505930258",
+        "prompt_tokens": 7444,
+        "original_timestamp_ms": 1786871115464
+      },
+      {
+        "case_id": "terminal-trace-18-1",
+        "task_id": "merge-diff-arc-agi-task",
+        "source_key": "terminal/merge-diff-arc-agi-task__subagents__2026-08-16__04-31-31/requests-3761.jsonl",
+        "extracted_index": 18,
+        "source_index": 18,
+        "source_body_sha256": "be28ceb199738b9c4572c0c97c3ff0654161ed0aded0fc8e16cc8166ac437eb0",
+        "prompt_tokens": 14970,
+        "original_timestamp_ms": 1786871302887
+      },
+      {
+        "case_id": "terminal-trace-19-0",
+        "task_id": "password-recovery",
+        "source_key": "terminal/password-recovery__subagents__2026-08-16__04-31-31/requests-1429.jsonl",
+        "extracted_index": 0,
+        "source_index": 0,
+        "source_body_sha256": "34d6b704e38b0174cf8cb33800603a9f35a6ea4e67e9ce4b306467940fb896fa",
+        "prompt_tokens": 7235,
+        "original_timestamp_ms": 1786889977388
+      },
+      {
+        "case_id": "terminal-trace-20-0",
+        "task_id": "path-tracing-reverse",
+        "source_key": "terminal/path-tracing-reverse__subagents__2026-08-16__04-31-31/requests-1264.jsonl",
+        "extracted_index": 0,
+        "source_index": 0,
+        "source_body_sha256": "d728b32165798e5f251c4c88f6c6c1364eed009fccf9b08bd3e4e106a8e20564",
+        "prompt_tokens": 7218,
+        "original_timestamp_ms": 1786886073689
+      },
+      {
+        "case_id": "terminal-trace-21-0",
+        "task_id": "polyglot-c-py",
+        "source_key": "terminal/polyglot-c-py__subagents__2026-08-16__04-31-31/requests-3751.jsonl",
+        "extracted_index": 0,
+        "source_index": 0,
+        "source_body_sha256": "09652b41a514e5d8678e41fc765380d365e98920ba9f345a440819f66f068e1b",
+        "prompt_tokens": 7230,
+        "original_timestamp_ms": 1786874802570
+      },
+      {
+        "case_id": "terminal-trace-21-1",
+        "task_id": "polyglot-c-py",
+        "source_key": "terminal/polyglot-c-py__subagents__2026-08-16__04-31-31/requests-3751.jsonl",
+        "extracted_index": 24,
+        "source_index": 24,
+        "source_body_sha256": "7eebe6253a41a809482ff49af51bc376355ec998c7f5d1ea1956e543f4b90b62",
+        "prompt_tokens": 16011,
+        "original_timestamp_ms": 1786875472288
+      },
+      {
+        "case_id": "terminal-trace-22-0",
+        "task_id": "polyglot-rust-c",
+        "source_key": "terminal/polyglot-rust-c__subagents__2026-08-16__04-31-31/requests-3751.jsonl",
+        "extracted_index": 0,
+        "source_index": 0,
+        "source_body_sha256": "5a763456f3afde59451aab9366c2d05562cd7da8b1d538139952b0e6560c427c",
+        "prompt_tokens": 7249,
+        "original_timestamp_ms": 1786875868228
+      },
+      {
+        "case_id": "terminal-trace-22-1",
+        "task_id": "polyglot-rust-c",
+        "source_key": "terminal/polyglot-rust-c__subagents__2026-08-16__04-31-31/requests-3751.jsonl",
+        "extracted_index": 28,
+        "source_index": 28,
+        "source_body_sha256": "7ff106ec26378990df1f7d09eb68b36d192082104a79297ae995b37bf0174948",
+        "prompt_tokens": 16265,
+        "original_timestamp_ms": 1786876446749
+      },
+      {
+        "case_id": "terminal-trace-23-0",
+        "task_id": "pytorch-model-cli",
+        "source_key": "terminal/pytorch-model-cli__subagents__2026-08-16__04-31-31/requests-1604.jsonl",
+        "extracted_index": 0,
+        "source_index": 0,
+        "source_body_sha256": "6acd17b8346616ed736a053994f64de3e86a48c63aacc612d1a3caa2e5cbd7dc",
+        "prompt_tokens": 7214,
+        "original_timestamp_ms": 1786874256597
+      },
+      {
+        "case_id": "terminal-trace-23-1",
+        "task_id": "pytorch-model-cli",
+        "source_key": "terminal/pytorch-model-cli__subagents__2026-08-16__04-31-31/requests-1604.jsonl",
+        "extracted_index": 15,
+        "source_index": 15,
+        "source_body_sha256": "375dd6a5497feb2e67909960c0f48cf19eab7ccc0e95b05bd597e699e641425e",
+        "prompt_tokens": 16187,
+        "original_timestamp_ms": 1786874799717
+      },
+      {
+        "case_id": "terminal-trace-24-0",
+        "task_id": "raman-fitting",
+        "source_key": "terminal/raman-fitting__subagents__2026-08-16__04-31-31/requests-1604.jsonl",
+        "extracted_index": 0,
+        "source_index": 0,
+        "source_body_sha256": "25a6776c8716ba1a6a1cf9c274a12886f5d8dde2f08e4591fed7956b0ed5e3cd",
+        "prompt_tokens": 7268,
+        "original_timestamp_ms": 1786885799251
+      },
+      {
+        "case_id": "terminal-trace-25-0",
+        "task_id": "regex-log",
+        "source_key": "terminal/regex-log__subagents__2026-08-16__04-31-31/requests-3760.jsonl",
+        "extracted_index": 0,
+        "source_index": 0,
+        "source_body_sha256": "322675085709e11d3d3238632a8eeb4e8be94fb7769f481e71e2b9a840f2a244",
+        "prompt_tokens": 7342,
+        "original_timestamp_ms": 1786890915546
+      },
+      {
+        "case_id": "terminal-trace-26-0",
+        "task_id": "reshard-c4-data",
+        "source_key": "terminal/reshard-c4-data__subagents__2026-08-16__04-31-31/requests-1604.jsonl",
+        "extracted_index": 0,
+        "source_index": 0,
+        "source_body_sha256": "c8502543b86a751d0f151a1fc80830ac6702981954256efa1e231f36929e9445",
+        "prompt_tokens": 7395,
+        "original_timestamp_ms": 1786886725513
+      },
+      {
+        "case_id": "terminal-trace-27-0",
+        "task_id": "rstan-to-pystan",
+        "source_key": "terminal/rstan-to-pystan__subagents__2026-08-16__04-31-31/requests-1599.jsonl",
+        "extracted_index": 0,
+        "source_index": 0,
+        "source_body_sha256": "afc426160e0e7a081483bf438cda1aa7eb417960751b1cdb4c19888b71a05446",
+        "prompt_tokens": 7543,
+        "original_timestamp_ms": 1786873667686
+      },
+      {
+        "case_id": "terminal-trace-27-1",
+        "task_id": "rstan-to-pystan",
+        "source_key": "terminal/rstan-to-pystan__subagents__2026-08-16__04-31-31/requests-1599.jsonl",
+        "extracted_index": 17,
+        "source_index": 17,
+        "source_body_sha256": "33ee1f5ae8fa80c9537994bc2df20330b74acd95801404b1cc511a6d7d761120",
+        "prompt_tokens": 16294,
+        "original_timestamp_ms": 1786873826904
+      },
+      {
+        "case_id": "terminal-trace-28-0",
+        "task_id": "sparql-university",
+        "source_key": "terminal/sparql-university__subagents__2026-08-16__04-31-31/requests-3757.jsonl",
+        "extracted_index": 0,
+        "source_index": 0,
+        "source_body_sha256": "2155bbf8a80c18ee19989627955593efab7b8e8f3b228f3b258477009a4e1332",
+        "prompt_tokens": 7401,
+        "original_timestamp_ms": 1786886737730
+      },
+      {
+        "case_id": "terminal-trace-29-0",
+        "task_id": "sqlite-db-truncate",
+        "source_key": "terminal/sqlite-db-truncate__subagents__2026-08-16__04-31-31/requests-1601.jsonl",
+        "extracted_index": 0,
+        "source_index": 0,
+        "source_body_sha256": "c2a4aee17e432fd374e09b487006d89dad94a93983b5502e5af7560eb290ebbc",
+        "prompt_tokens": 7170,
+        "original_timestamp_ms": 1786879476648
+      },
+      {
+        "case_id": "terminal-trace-29-1",
+        "task_id": "sqlite-db-truncate",
+        "source_key": "terminal/sqlite-db-truncate__subagents__2026-08-16__04-31-31/requests-1601.jsonl",
+        "extracted_index": 11,
+        "source_index": 11,
+        "source_body_sha256": "ddf37783bda5a17f0b2d31bc5dd4e48a29f4f96e4de670ab8e029f89d85c3200",
+        "prompt_tokens": 15479,
+        "original_timestamp_ms": 1786879850513
+      },
+      {
+        "case_id": "terminal-trace-30-0",
+        "task_id": "torch-tensor-parallelism",
+        "source_key": "terminal/torch-tensor-parallelism__subagents__2026-08-16__04-31-31/requests-3761.jsonl",
+        "extracted_index": 0,
+        "source_index": 0,
+        "source_body_sha256": "c21ce477b312c872cb2b769247c9b3e9b5173b4860c68139657e66aa474fad87",
+        "prompt_tokens": 7418,
+        "original_timestamp_ms": 1786870462151
+      },
+      {
+        "case_id": "terminal-trace-30-1",
+        "task_id": "torch-tensor-parallelism",
+        "source_key": "terminal/torch-tensor-parallelism__subagents__2026-08-16__04-31-31/requests-3761.jsonl",
+        "extracted_index": 10,
+        "source_index": 10,
+        "source_body_sha256": "ce057d70690e81bda3665f7ff2652f09a1f331d3c92754f6ea79bd9cf1dd8c8c",
+        "prompt_tokens": 13221,
+        "original_timestamp_ms": 1786870641102
+      },
+      {
+        "case_id": "terminal-trace-31-0",
+        "task_id": "winning-avg-corewars",
+        "source_key": "terminal/winning-avg-corewars__subagents__2026-08-16__04-31-31/requests-1342.jsonl",
+        "extracted_index": 0,
+        "source_index": 0,
+        "source_body_sha256": "c22b8d06c1765754dffdaa4ac6b1576adb9b5e17c5ea3f10c465521e000a7cac",
+        "prompt_tokens": 7392,
+        "original_timestamp_ms": 1786871511731
+      },
+      {
+        "case_id": "terminal-trace-31-1",
+        "task_id": "winning-avg-corewars",
+        "source_key": "terminal/winning-avg-corewars__subagents__2026-08-16__04-31-31/requests-1342.jsonl",
+        "extracted_index": 17,
+        "source_index": 17,
+        "source_body_sha256": "61059bd58d85073b7ead94593d73e694c93a29e3180e79f8b5f96aba02743f37",
+        "prompt_tokens": 16061,
+        "original_timestamp_ms": 1786871785688
+      }
+    ],
+    "scope": {
+      "profile": "public-agent-trace-fixed32-v1",
+      "measurement": "real inference on published request snapshots; quality_measured=false",
+      "benchmark_source_tasks": 89,
+      "available_published_tasks": 88,
+      "selected_tasks": 32,
+      "selected_task_ids": [
+        "break-filter-js-from-html",
+        "build-cython-ext",
+        "constraints-scheduling",
+        "custom-memory-heap-crash",
+        "db-wal-recovery",
+        "distribution-search",
+        "dna-insert",
+        "feal-differential-cryptanalysis",
+        "filter-js-from-html",
+        "financial-document-processor",
+        "fix-git",
+        "install-windows-3.11",
+        "kv-store-grpc",
+        "large-scale-text-editing",
+        "log-summary-date-ranges",
+        "make-doom-for-mips",
+        "make-mips-interpreter",
+        "mcmc-sampling-stan",
+        "merge-diff-arc-agi-task",
+        "password-recovery",
+        "path-tracing-reverse",
+        "polyglot-c-py",
+        "polyglot-rust-c",
+        "pytorch-model-cli",
+        "raman-fitting",
+        "regex-log",
+        "reshard-c4-data",
+        "rstan-to-pystan",
+        "sparql-university",
+        "sqlite-db-truncate",
+        "torch-tensor-parallelism",
+        "winning-avg-corewars"
+      ],
+      "selected_requests": 48,
+      "source_unavailable_task_ids": [
+        "pytorch-model-recovery"
+      ],
+      "outside_sample_available_tasks": 56,
+      "selected_tasks_without_eligible_requests": [],
+      "repository_quotas": null,
+      "prompt_tokens_min": 2065,
+      "prompt_tokens_max": 16294,
+      "prompt_tokens_sum": 462869,
+      "prompt_at_least16k": 0,
+      "upper_bound_output_tokens_per_arm": 98304,
+      "quality_measured": false
+    },
+    "task_selection_audit": [
+      {
+        "task_id": "break-filter-js-from-html",
+        "published_requests": 32,
+        "eligible_requests": 19,
+        "selected_requests": 2,
+        "excluded": [
+          {
+            "source_index": 19,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 16848
+          },
+          {
+            "source_index": 20,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 17298
+          },
+          {
+            "source_index": 21,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 17914
+          },
+          {
+            "source_index": 22,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 18733
+          },
+          {
+            "source_index": 23,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 19425
+          },
+          {
+            "source_index": 24,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 19626
+          },
+          {
+            "source_index": 25,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 19704
+          },
+          {
+            "source_index": 26,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 19796
+          },
+          {
+            "source_index": 27,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 19996
+          },
+          {
+            "source_index": 28,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 20455
+          },
+          {
+            "source_index": 29,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 21145
+          },
+          {
+            "source_index": 30,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 21675
+          },
+          {
+            "source_index": 31,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 23104
+          }
+        ],
+        "terminal_instruction_sha256": "ad42558111b2a8e8534bdf52b584b804348e1a8d68d756f812a31d5147e65be5",
+        "instruction_exact_substring_verified": true
+      },
+      {
+        "task_id": "build-cython-ext",
+        "published_requests": 3,
+        "eligible_requests": 1,
+        "selected_requests": 1,
+        "excluded": [
+          {
+            "source_index": 1,
+            "reason": "duplicate_request_body"
+          },
+          {
+            "source_index": 2,
+            "reason": "duplicate_request_body"
+          }
+        ],
+        "terminal_instruction_sha256": "7e52874e45f88505bd21540229719de6639a401477557d814489981d472f0e34",
+        "instruction_exact_substring_verified": true
+      },
+      {
+        "task_id": "constraints-scheduling",
+        "published_requests": 4,
+        "eligible_requests": 1,
+        "selected_requests": 1,
+        "excluded": [
+          {
+            "source_index": 1,
+            "reason": "duplicate_request_body"
+          },
+          {
+            "source_index": 2,
+            "reason": "duplicate_request_body"
+          },
+          {
+            "source_index": 3,
+            "reason": "duplicate_request_body"
+          }
+        ],
+        "terminal_instruction_sha256": "342def78177f9bc41bea4d11af679bc385a9dda2ac8a1e425be384a5b7f937b6",
+        "instruction_exact_substring_verified": true
+      },
+      {
+        "task_id": "custom-memory-heap-crash",
+        "published_requests": 4,
+        "eligible_requests": 1,
+        "selected_requests": 1,
+        "excluded": [
+          {
+            "source_index": 1,
+            "reason": "duplicate_request_body"
+          },
+          {
+            "source_index": 2,
+            "reason": "duplicate_request_body"
+          },
+          {
+            "source_index": 3,
+            "reason": "duplicate_request_body"
+          }
+        ],
+        "terminal_instruction_sha256": "53c68ae14a3c3af9a97c40bfd9bdc30a5d98b37eaa2f69f763475745f70f108d",
+        "instruction_exact_substring_verified": true
+      },
+      {
+        "task_id": "db-wal-recovery",
+        "published_requests": 29,
+        "eligible_requests": 22,
+        "selected_requests": 2,
+        "excluded": [
+          {
+            "source_index": 22,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 17437
+          },
+          {
+            "source_index": 23,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 17841
+          },
+          {
+            "source_index": 24,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 19185
+          },
+          {
+            "source_index": 25,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 21519
+          },
+          {
+            "source_index": 26,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 30555
+          },
+          {
+            "source_index": 27,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 31554
+          },
+          {
+            "source_index": 28,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 33736
+          }
+        ],
+        "terminal_instruction_sha256": "5a20375162921b8911c67035d1905df7fd335d1bed03044271e608b2c3c93b26",
+        "instruction_exact_substring_verified": true
+      },
+      {
+        "task_id": "distribution-search",
+        "published_requests": 4,
+        "eligible_requests": 1,
+        "selected_requests": 1,
+        "excluded": [
+          {
+            "source_index": 1,
+            "reason": "duplicate_request_body"
+          },
+          {
+            "source_index": 2,
+            "reason": "duplicate_request_body"
+          },
+          {
+            "source_index": 3,
+            "reason": "duplicate_request_body"
+          }
+        ],
+        "terminal_instruction_sha256": "aba2e1835b2f827686402c3d3ff9b309aab8c9cbac26e23fc46aaeb34e958915",
+        "instruction_exact_substring_verified": true
+      },
+      {
+        "task_id": "dna-insert",
+        "published_requests": 29,
+        "eligible_requests": 11,
+        "selected_requests": 2,
+        "excluded": [
+          {
+            "source_index": 11,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 19049
+          },
+          {
+            "source_index": 12,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 19549
+          },
+          {
+            "source_index": 13,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 19883
+          },
+          {
+            "source_index": 14,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 20662
+          },
+          {
+            "source_index": 15,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 22341
+          },
+          {
+            "source_index": 16,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 23254
+          },
+          {
+            "source_index": 17,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 26686
+          },
+          {
+            "source_index": 18,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 29332
+          },
+          {
+            "source_index": 19,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 32302
+          },
+          {
+            "source_index": 20,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 33089
+          },
+          {
+            "source_index": 21,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 34752
+          },
+          {
+            "source_index": 22,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 35182
+          },
+          {
+            "source_index": 23,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 35541
+          },
+          {
+            "source_index": 24,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 36578
+          },
+          {
+            "source_index": 25,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 37895
+          },
+          {
+            "source_index": 26,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 38232
+          },
+          {
+            "source_index": 27,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 38663
+          },
+          {
+            "source_index": 28,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 39091
+          }
+        ],
+        "terminal_instruction_sha256": "49fce0ee8b73d7ccdf4b8476c6bb87cf362689fd1d77b21a0d8737d16019a473",
+        "instruction_exact_substring_verified": true
+      },
+      {
+        "task_id": "feal-differential-cryptanalysis",
+        "published_requests": 4,
+        "eligible_requests": 1,
+        "selected_requests": 1,
+        "excluded": [
+          {
+            "source_index": 1,
+            "reason": "duplicate_request_body"
+          },
+          {
+            "source_index": 2,
+            "reason": "duplicate_request_body"
+          },
+          {
+            "source_index": 3,
+            "reason": "duplicate_request_body"
+          }
+        ],
+        "terminal_instruction_sha256": "b4093780b283e5c9838997769fb7bca090e3f4cbbd2d7cb275ba60cdfd722572",
+        "instruction_exact_substring_verified": true
+      },
+      {
+        "task_id": "filter-js-from-html",
+        "published_requests": 4,
+        "eligible_requests": 1,
+        "selected_requests": 1,
+        "excluded": [
+          {
+            "source_index": 1,
+            "reason": "duplicate_request_body"
+          },
+          {
+            "source_index": 2,
+            "reason": "duplicate_request_body"
+          },
+          {
+            "source_index": 3,
+            "reason": "duplicate_request_body"
+          }
+        ],
+        "terminal_instruction_sha256": "48d6ac95e8ccb552195ce9fbdea86ba8d5d7ccf54e159c31590797802c5cf171",
+        "instruction_exact_substring_verified": true
+      },
+      {
+        "task_id": "financial-document-processor",
+        "published_requests": 4,
+        "eligible_requests": 1,
+        "selected_requests": 1,
+        "excluded": [
+          {
+            "source_index": 1,
+            "reason": "duplicate_request_body"
+          },
+          {
+            "source_index": 2,
+            "reason": "duplicate_request_body"
+          },
+          {
+            "source_index": 3,
+            "reason": "duplicate_request_body"
+          }
+        ],
+        "terminal_instruction_sha256": "b21cf2af1891922732327bf586d14b250d36d96de7867479c15bd1c58ef0db58",
+        "instruction_exact_substring_verified": true
+      },
+      {
+        "task_id": "fix-git",
+        "published_requests": 11,
+        "eligible_requests": 11,
+        "selected_requests": 2,
+        "excluded": [],
+        "terminal_instruction_sha256": "f98174e47ba5ce040f6fad22ef3cbca4dd27b3192868ea5d082077222c3ec4e8",
+        "instruction_exact_substring_verified": true
+      },
+      {
+        "task_id": "install-windows-3.11",
+        "published_requests": 32,
+        "eligible_requests": 24,
+        "selected_requests": 2,
+        "excluded": [
+          {
+            "source_index": 24,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 16494
+          },
+          {
+            "source_index": 25,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 16823
+          },
+          {
+            "source_index": 26,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 16950
+          },
+          {
+            "source_index": 27,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 17356
+          },
+          {
+            "source_index": 28,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 17865
+          },
+          {
+            "source_index": 29,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 18084
+          },
+          {
+            "source_index": 30,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 18472
+          },
+          {
+            "source_index": 31,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 18726
+          }
+        ],
+        "terminal_instruction_sha256": "6757fff2157378201478ef17ff3da4d4992aa586fa577dd518c63b98bb1945c5",
+        "instruction_exact_substring_verified": true
+      },
+      {
+        "task_id": "kv-store-grpc",
+        "published_requests": 18,
+        "eligible_requests": 18,
+        "selected_requests": 2,
+        "excluded": [],
+        "terminal_instruction_sha256": "f4b3facc199d5b1c78db6e603ffa29ec1b93a77ff7d291e1a92b42e6bf582bed",
+        "instruction_exact_substring_verified": true
+      },
+      {
+        "task_id": "large-scale-text-editing",
+        "published_requests": 14,
+        "eligible_requests": 9,
+        "selected_requests": 2,
+        "excluded": [
+          {
+            "source_index": 9,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 47081
+          },
+          {
+            "source_index": 10,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 47393
+          },
+          {
+            "source_index": 11,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 47649
+          },
+          {
+            "source_index": 12,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 84397
+          },
+          {
+            "source_index": 13,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 84546
+          }
+        ],
+        "terminal_instruction_sha256": "2746a16369b28b2e368ca168bc85222811cbe570f3b315f1b1c432afad07ddc8",
+        "instruction_exact_substring_verified": true
+      },
+      {
+        "task_id": "log-summary-date-ranges",
+        "published_requests": 3,
+        "eligible_requests": 1,
+        "selected_requests": 1,
+        "excluded": [
+          {
+            "source_index": 1,
+            "reason": "duplicate_request_body"
+          },
+          {
+            "source_index": 2,
+            "reason": "duplicate_request_body"
+          }
+        ],
+        "terminal_instruction_sha256": "c1d4516ad4ec2238209740eaf01291df9ab48b0028a3fc5df383c6f831453484",
+        "instruction_exact_substring_verified": true
+      },
+      {
+        "task_id": "make-doom-for-mips",
+        "published_requests": 4,
+        "eligible_requests": 1,
+        "selected_requests": 1,
+        "excluded": [
+          {
+            "source_index": 1,
+            "reason": "duplicate_request_body"
+          },
+          {
+            "source_index": 2,
+            "reason": "duplicate_request_body"
+          },
+          {
+            "source_index": 3,
+            "reason": "duplicate_request_body"
+          }
+        ],
+        "terminal_instruction_sha256": "1903b660e4c64966ff257f828c932adff2b289de589bd6aee22b933bb4fef429",
+        "instruction_exact_substring_verified": true
+      },
+      {
+        "task_id": "make-mips-interpreter",
+        "published_requests": 4,
+        "eligible_requests": 1,
+        "selected_requests": 1,
+        "excluded": [
+          {
+            "source_index": 1,
+            "reason": "duplicate_request_body"
+          },
+          {
+            "source_index": 2,
+            "reason": "duplicate_request_body"
+          },
+          {
+            "source_index": 3,
+            "reason": "duplicate_request_body"
+          }
+        ],
+        "terminal_instruction_sha256": "d25c0ed6d4697c2b2e6fe047b6cd7317f640dc84d7457ccc9d3d1b4cf8021ffd",
+        "instruction_exact_substring_verified": true
+      },
+      {
+        "task_id": "mcmc-sampling-stan",
+        "published_requests": 49,
+        "eligible_requests": 14,
+        "selected_requests": 2,
+        "excluded": [
+          {
+            "source_index": 14,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 17579
+          },
+          {
+            "source_index": 15,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 17768
+          },
+          {
+            "source_index": 16,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 17945
+          },
+          {
+            "source_index": 17,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 18089
+          },
+          {
+            "source_index": 18,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 18503
+          },
+          {
+            "source_index": 19,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 18792
+          },
+          {
+            "source_index": 20,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 18933
+          },
+          {
+            "source_index": 21,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 19089
+          },
+          {
+            "source_index": 22,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 19179
+          },
+          {
+            "source_index": 23,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 24362
+          },
+          {
+            "source_index": 24,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 24588
+          },
+          {
+            "source_index": 25,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 34942
+          },
+          {
+            "source_index": 26,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 39535
+          },
+          {
+            "source_index": 27,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 39811
+          },
+          {
+            "source_index": 28,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 39968
+          },
+          {
+            "source_index": 29,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 40180
+          },
+          {
+            "source_index": 30,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 40361
+          },
+          {
+            "source_index": 31,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 40502
+          },
+          {
+            "source_index": 32,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 41089
+          },
+          {
+            "source_index": 33,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 41323
+          },
+          {
+            "source_index": 34,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 41476
+          },
+          {
+            "source_index": 35,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 41957
+          },
+          {
+            "source_index": 36,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 42376
+          },
+          {
+            "source_index": 37,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 42803
+          },
+          {
+            "source_index": 38,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 43238
+          },
+          {
+            "source_index": 39,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 43521
+          },
+          {
+            "source_index": 40,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 43980
+          },
+          {
+            "source_index": 41,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 44391
+          },
+          {
+            "source_index": 42,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 44553
+          },
+          {
+            "source_index": 43,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 44763
+          },
+          {
+            "source_index": 44,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 44939
+          },
+          {
+            "source_index": 45,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 45469
+          },
+          {
+            "source_index": 46,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 45942
+          },
+          {
+            "source_index": 47,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 46498
+          },
+          {
+            "source_index": 48,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 47117
+          }
+        ],
+        "terminal_instruction_sha256": "5554ddc6d7b069e965eda4936cd02fce45ed54f51cf38045e6c51aeb39bed943",
+        "instruction_exact_substring_verified": true
+      },
+      {
+        "task_id": "merge-diff-arc-agi-task",
+        "published_requests": 19,
+        "eligible_requests": 19,
+        "selected_requests": 2,
+        "excluded": [],
+        "terminal_instruction_sha256": "2d826479873e5ac1c94c1f802763bf85c22bb04624384685ebdf6b153fe0278e",
+        "instruction_exact_substring_verified": true
+      },
+      {
+        "task_id": "password-recovery",
+        "published_requests": 3,
+        "eligible_requests": 1,
+        "selected_requests": 1,
+        "excluded": [
+          {
+            "source_index": 1,
+            "reason": "duplicate_request_body"
+          },
+          {
+            "source_index": 2,
+            "reason": "duplicate_request_body"
+          }
+        ],
+        "terminal_instruction_sha256": "bc4f501148805bbccdb94a5c5b745f1ce9564f04ef0fe36bc37c3ca20b7810a5",
+        "instruction_exact_substring_verified": true
+      },
+      {
+        "task_id": "path-tracing-reverse",
+        "published_requests": 4,
+        "eligible_requests": 1,
+        "selected_requests": 1,
+        "excluded": [
+          {
+            "source_index": 1,
+            "reason": "duplicate_request_body"
+          },
+          {
+            "source_index": 2,
+            "reason": "duplicate_request_body"
+          },
+          {
+            "source_index": 3,
+            "reason": "duplicate_request_body"
+          }
+        ],
+        "terminal_instruction_sha256": "03e4ef347c1b6bde7ad020b297571cf22c74cfb0434b399b267f3d87462e1176",
+        "instruction_exact_substring_verified": true
+      },
+      {
+        "task_id": "polyglot-c-py",
+        "published_requests": 33,
+        "eligible_requests": 25,
+        "selected_requests": 2,
+        "excluded": [
+          {
+            "source_index": 25,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 16855
+          },
+          {
+            "source_index": 26,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 17439
+          },
+          {
+            "source_index": 27,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 18102
+          },
+          {
+            "source_index": 28,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 18350
+          },
+          {
+            "source_index": 29,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 18681
+          },
+          {
+            "source_index": 30,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 18968
+          },
+          {
+            "source_index": 31,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 19241
+          },
+          {
+            "source_index": 32,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 19503
+          }
+        ],
+        "terminal_instruction_sha256": "a57c0c0e1232113113cd29a154ea7e0ac9ea45e4aedc16958fbc6bc753a4ef96",
+        "instruction_exact_substring_verified": true
+      },
+      {
+        "task_id": "polyglot-rust-c",
+        "published_requests": 36,
+        "eligible_requests": 29,
+        "selected_requests": 2,
+        "excluded": [
+          {
+            "source_index": 29,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 17043
+          },
+          {
+            "source_index": 30,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 18130
+          },
+          {
+            "source_index": 31,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 18324
+          },
+          {
+            "source_index": 32,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 18988
+          },
+          {
+            "source_index": 33,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 19314
+          },
+          {
+            "source_index": 34,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 19801
+          },
+          {
+            "source_index": 35,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 20683
+          }
+        ],
+        "terminal_instruction_sha256": "b0fbcd99a97fc886e4e198b6189b977409dada47cae0a87ac7dc185b440b2355",
+        "instruction_exact_substring_verified": true
+      },
+      {
+        "task_id": "pytorch-model-cli",
+        "published_requests": 30,
+        "eligible_requests": 16,
+        "selected_requests": 2,
+        "excluded": [
+          {
+            "source_index": 16,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 16636
+          },
+          {
+            "source_index": 17,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 16854
+          },
+          {
+            "source_index": 18,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 17127
+          },
+          {
+            "source_index": 19,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 17389
+          },
+          {
+            "source_index": 20,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 17633
+          },
+          {
+            "source_index": 21,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 18422
+          },
+          {
+            "source_index": 22,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 18869
+          },
+          {
+            "source_index": 23,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 19118
+          },
+          {
+            "source_index": 24,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 19426
+          },
+          {
+            "source_index": 25,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 19667
+          },
+          {
+            "source_index": 26,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 19791
+          },
+          {
+            "source_index": 27,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 20028
+          },
+          {
+            "source_index": 28,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 20701
+          },
+          {
+            "source_index": 29,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 21333
+          }
+        ],
+        "terminal_instruction_sha256": "ce36ee1f6c589f81ee6a6be4967e25c76a2ed697006928023f42dfb9f28a6750",
+        "instruction_exact_substring_verified": true
+      },
+      {
+        "task_id": "raman-fitting",
+        "published_requests": 3,
+        "eligible_requests": 1,
+        "selected_requests": 1,
+        "excluded": [
+          {
+            "source_index": 1,
+            "reason": "duplicate_request_body"
+          },
+          {
+            "source_index": 2,
+            "reason": "duplicate_request_body"
+          }
+        ],
+        "terminal_instruction_sha256": "1fa59a89d88daf6a4b2d422955f53779b461880b527f40d79c71b16e0ee52433",
+        "instruction_exact_substring_verified": true
+      },
+      {
+        "task_id": "regex-log",
+        "published_requests": 3,
+        "eligible_requests": 1,
+        "selected_requests": 1,
+        "excluded": [
+          {
+            "source_index": 1,
+            "reason": "duplicate_request_body"
+          },
+          {
+            "source_index": 2,
+            "reason": "duplicate_request_body"
+          }
+        ],
+        "terminal_instruction_sha256": "4f7ac05e70cf9220ea0f1e5a052c5f908cd0fa884e847d80b0bd51bae2e96f9c",
+        "instruction_exact_substring_verified": true
+      },
+      {
+        "task_id": "reshard-c4-data",
+        "published_requests": 4,
+        "eligible_requests": 1,
+        "selected_requests": 1,
+        "excluded": [
+          {
+            "source_index": 1,
+            "reason": "duplicate_request_body"
+          },
+          {
+            "source_index": 2,
+            "reason": "duplicate_request_body"
+          },
+          {
+            "source_index": 3,
+            "reason": "duplicate_request_body"
+          }
+        ],
+        "terminal_instruction_sha256": "1810abbf666e51e410950b4f495d3dae88d392ad056afa392e4c687ff31e3992",
+        "instruction_exact_substring_verified": true
+      },
+      {
+        "task_id": "rstan-to-pystan",
+        "published_requests": 146,
+        "eligible_requests": 18,
+        "selected_requests": 2,
+        "excluded": [
+          {
+            "source_index": 18,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 16484
+          },
+          {
+            "source_index": 19,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 41115
+          },
+          {
+            "source_index": 20,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 41419
+          },
+          {
+            "source_index": 21,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 41662
+          },
+          {
+            "source_index": 22,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 41787
+          },
+          {
+            "source_index": 23,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 41910
+          },
+          {
+            "source_index": 24,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 42483
+          },
+          {
+            "source_index": 25,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 42790
+          },
+          {
+            "source_index": 26,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 43154
+          },
+          {
+            "source_index": 27,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 44165
+          },
+          {
+            "source_index": 28,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 44477
+          },
+          {
+            "source_index": 29,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 44536
+          },
+          {
+            "source_index": 30,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 44662
+          },
+          {
+            "source_index": 31,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 45124
+          },
+          {
+            "source_index": 32,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 45249
+          },
+          {
+            "source_index": 33,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 45376
+          },
+          {
+            "source_index": 34,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 48697
+          },
+          {
+            "source_index": 35,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 49193
+          },
+          {
+            "source_index": 36,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 49742
+          },
+          {
+            "source_index": 37,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 49924
+          },
+          {
+            "source_index": 38,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 50250
+          },
+          {
+            "source_index": 39,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 50423
+          },
+          {
+            "source_index": 40,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 50783
+          },
+          {
+            "source_index": 41,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 50955
+          },
+          {
+            "source_index": 42,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 51089
+          },
+          {
+            "source_index": 43,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 63834
+          },
+          {
+            "source_index": 44,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 63984
+          },
+          {
+            "source_index": 45,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 64110
+          },
+          {
+            "source_index": 46,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 64214
+          },
+          {
+            "source_index": 47,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 64331
+          },
+          {
+            "source_index": 48,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 64449
+          },
+          {
+            "source_index": 49,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 64579
+          },
+          {
+            "source_index": 50,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 65103
+          },
+          {
+            "source_index": 51,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 65442
+          },
+          {
+            "source_index": 52,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 65558
+          },
+          {
+            "source_index": 53,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 66232
+          },
+          {
+            "source_index": 54,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 66437
+          },
+          {
+            "source_index": 55,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 66590
+          },
+          {
+            "source_index": 56,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 66680
+          },
+          {
+            "source_index": 57,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 66836
+          },
+          {
+            "source_index": 58,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 67105
+          },
+          {
+            "source_index": 59,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 67212
+          },
+          {
+            "source_index": 60,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 67377
+          },
+          {
+            "source_index": 61,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 67478
+          },
+          {
+            "source_index": 62,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 67569
+          },
+          {
+            "source_index": 63,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 68447
+          },
+          {
+            "source_index": 64,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 69286
+          },
+          {
+            "source_index": 65,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 69427
+          },
+          {
+            "source_index": 66,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 69544
+          },
+          {
+            "source_index": 67,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 69628
+          },
+          {
+            "source_index": 68,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 72748
+          },
+          {
+            "source_index": 69,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 72987
+          },
+          {
+            "source_index": 70,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 73107
+          },
+          {
+            "source_index": 71,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 73387
+          },
+          {
+            "source_index": 72,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 74667
+          },
+          {
+            "source_index": 73,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 76401
+          },
+          {
+            "source_index": 74,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 76502
+          },
+          {
+            "source_index": 75,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 76556
+          },
+          {
+            "source_index": 76,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 76748
+          },
+          {
+            "source_index": 77,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 76844
+          },
+          {
+            "source_index": 78,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 77334
+          },
+          {
+            "source_index": 79,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 77388
+          },
+          {
+            "source_index": 80,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 82383
+          },
+          {
+            "source_index": 81,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 82466
+          },
+          {
+            "source_index": 82,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 82620
+          },
+          {
+            "source_index": 83,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 82870
+          },
+          {
+            "source_index": 84,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 83004
+          },
+          {
+            "source_index": 85,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 83527
+          },
+          {
+            "source_index": 86,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 83655
+          },
+          {
+            "source_index": 87,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 84107
+          },
+          {
+            "source_index": 88,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 84177
+          },
+          {
+            "source_index": 89,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 84362
+          },
+          {
+            "source_index": 90,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 84473
+          },
+          {
+            "source_index": 91,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 85517
+          },
+          {
+            "source_index": 92,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 85764
+          },
+          {
+            "source_index": 93,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 86120
+          },
+          {
+            "source_index": 94,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 86418
+          },
+          {
+            "source_index": 95,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 86609
+          },
+          {
+            "source_index": 96,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 86726
+          },
+          {
+            "source_index": 97,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 86879
+          },
+          {
+            "source_index": 98,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 86966
+          },
+          {
+            "source_index": 99,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 87169
+          },
+          {
+            "source_index": 100,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 87267
+          },
+          {
+            "source_index": 101,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 91284
+          },
+          {
+            "source_index": 102,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 91400
+          },
+          {
+            "source_index": 103,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 96434
+          },
+          {
+            "source_index": 104,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 96622
+          },
+          {
+            "source_index": 105,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 96676
+          },
+          {
+            "source_index": 106,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 97059
+          },
+          {
+            "source_index": 107,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 97135
+          },
+          {
+            "source_index": 108,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 102788
+          },
+          {
+            "source_index": 109,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 103162
+          },
+          {
+            "source_index": 110,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 103454
+          },
+          {
+            "source_index": 111,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 103522
+          },
+          {
+            "source_index": 112,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 108341
+          },
+          {
+            "source_index": 113,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 108414
+          },
+          {
+            "source_index": 114,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 108638
+          },
+          {
+            "source_index": 115,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 108728
+          },
+          {
+            "source_index": 116,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 108782
+          },
+          {
+            "source_index": 117,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 109206
+          },
+          {
+            "source_index": 118,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 109292
+          },
+          {
+            "source_index": 119,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 109460
+          },
+          {
+            "source_index": 120,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 109556
+          },
+          {
+            "source_index": 121,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 109871
+          },
+          {
+            "source_index": 122,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 110042
+          },
+          {
+            "source_index": 123,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 110226
+          },
+          {
+            "source_index": 124,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 111149
+          },
+          {
+            "source_index": 125,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 111222
+          },
+          {
+            "source_index": 126,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 111315
+          },
+          {
+            "source_index": 127,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 111406
+          },
+          {
+            "source_index": 128,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 111482
+          },
+          {
+            "source_index": 129,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 111575
+          },
+          {
+            "source_index": 130,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 111629
+          },
+          {
+            "source_index": 131,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 111719
+          },
+          {
+            "source_index": 132,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 111795
+          },
+          {
+            "source_index": 133,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 111867
+          },
+          {
+            "source_index": 134,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 111977
+          },
+          {
+            "source_index": 135,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 112356
+          },
+          {
+            "source_index": 136,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 112421
+          },
+          {
+            "source_index": 137,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 112594
+          },
+          {
+            "source_index": 138,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 112918
+          },
+          {
+            "source_index": 139,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 113173
+          },
+          {
+            "source_index": 140,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 113548
+          },
+          {
+            "source_index": 141,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 113978
+          },
+          {
+            "source_index": 142,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 114185
+          },
+          {
+            "source_index": 143,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 114615
+          },
+          {
+            "source_index": 144,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 114808
+          },
+          {
+            "source_index": 145,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 115299
+          }
+        ],
+        "terminal_instruction_sha256": "7b6dd84eb47579469556915a5eab6d303217bba438424eaee4db52375d5add2a",
+        "instruction_exact_substring_verified": true
+      },
+      {
+        "task_id": "sparql-university",
+        "published_requests": 3,
+        "eligible_requests": 1,
+        "selected_requests": 1,
+        "excluded": [
+          {
+            "source_index": 1,
+            "reason": "duplicate_request_body"
+          },
+          {
+            "source_index": 2,
+            "reason": "duplicate_request_body"
+          }
+        ],
+        "terminal_instruction_sha256": "22eeab47d3b27b06df2627b3c21cfbd579ed7dcc85ebcb7c4b3a241c3c35f449",
+        "instruction_exact_substring_verified": true
+      },
+      {
+        "task_id": "sqlite-db-truncate",
+        "published_requests": 22,
+        "eligible_requests": 12,
+        "selected_requests": 2,
+        "excluded": [
+          {
+            "source_index": 12,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 16564
+          },
+          {
+            "source_index": 13,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 17452
+          },
+          {
+            "source_index": 14,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 17657
+          },
+          {
+            "source_index": 15,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 18335
+          },
+          {
+            "source_index": 16,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 19568
+          },
+          {
+            "source_index": 17,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 22143
+          },
+          {
+            "source_index": 18,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 23442
+          },
+          {
+            "source_index": 19,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 24802
+          },
+          {
+            "source_index": 20,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 25369
+          },
+          {
+            "source_index": 21,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 26098
+          }
+        ],
+        "terminal_instruction_sha256": "465c135cd80be49023ea3ecf8f1d840c679b3a960efe425d510894e417b9d802",
+        "instruction_exact_substring_verified": true
+      },
+      {
+        "task_id": "torch-tensor-parallelism",
+        "published_requests": 11,
+        "eligible_requests": 11,
+        "selected_requests": 2,
+        "excluded": [],
+        "terminal_instruction_sha256": "13bde2ab165d72a311e2bf066d5d6c3c8761bf9d3dd39d1b23eda23bc546b910",
+        "instruction_exact_substring_verified": true
+      },
+      {
+        "task_id": "winning-avg-corewars",
+        "published_requests": 92,
+        "eligible_requests": 18,
+        "selected_requests": 2,
+        "excluded": [
+          {
+            "source_index": 18,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 16457
+          },
+          {
+            "source_index": 19,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 16832
+          },
+          {
+            "source_index": 20,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 17378
+          },
+          {
+            "source_index": 21,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 17816
+          },
+          {
+            "source_index": 22,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 18440
+          },
+          {
+            "source_index": 23,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 18894
+          },
+          {
+            "source_index": 24,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 19259
+          },
+          {
+            "source_index": 25,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 19678
+          },
+          {
+            "source_index": 26,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 20094
+          },
+          {
+            "source_index": 27,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 20402
+          },
+          {
+            "source_index": 28,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 20755
+          },
+          {
+            "source_index": 29,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 21227
+          },
+          {
+            "source_index": 30,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 21747
+          },
+          {
+            "source_index": 31,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 22354
+          },
+          {
+            "source_index": 32,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 22914
+          },
+          {
+            "source_index": 33,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 23456
+          },
+          {
+            "source_index": 34,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 24104
+          },
+          {
+            "source_index": 35,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 24620
+          },
+          {
+            "source_index": 36,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 25105
+          },
+          {
+            "source_index": 37,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 25704
+          },
+          {
+            "source_index": 38,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 26297
+          },
+          {
+            "source_index": 39,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 27059
+          },
+          {
+            "source_index": 40,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 27720
+          },
+          {
+            "source_index": 41,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 28406
+          },
+          {
+            "source_index": 42,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 29016
+          },
+          {
+            "source_index": 43,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 29563
+          },
+          {
+            "source_index": 44,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 30387
+          },
+          {
+            "source_index": 45,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 31112
+          },
+          {
+            "source_index": 46,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 31695
+          },
+          {
+            "source_index": 47,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 32422
+          },
+          {
+            "source_index": 48,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 33081
+          },
+          {
+            "source_index": 49,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 33556
+          },
+          {
+            "source_index": 50,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 34142
+          },
+          {
+            "source_index": 51,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 34709
+          },
+          {
+            "source_index": 52,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 35437
+          },
+          {
+            "source_index": 53,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 36176
+          },
+          {
+            "source_index": 54,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 36802
+          },
+          {
+            "source_index": 55,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 37446
+          },
+          {
+            "source_index": 56,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 38042
+          },
+          {
+            "source_index": 57,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 38449
+          },
+          {
+            "source_index": 58,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 38887
+          },
+          {
+            "source_index": 59,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 39010
+          },
+          {
+            "source_index": 60,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 39688
+          },
+          {
+            "source_index": 61,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 39979
+          },
+          {
+            "source_index": 62,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 40508
+          },
+          {
+            "source_index": 63,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 40925
+          },
+          {
+            "source_index": 64,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 41587
+          },
+          {
+            "source_index": 65,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 42236
+          },
+          {
+            "source_index": 66,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 42850
+          },
+          {
+            "source_index": 67,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 43243
+          },
+          {
+            "source_index": 68,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 43686
+          },
+          {
+            "source_index": 69,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 44457
+          },
+          {
+            "source_index": 70,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 44943
+          },
+          {
+            "source_index": 71,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 45480
+          },
+          {
+            "source_index": 72,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 46024
+          },
+          {
+            "source_index": 73,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 46501
+          },
+          {
+            "source_index": 74,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 47433
+          },
+          {
+            "source_index": 75,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 47987
+          },
+          {
+            "source_index": 76,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 48537
+          },
+          {
+            "source_index": 77,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 49153
+          },
+          {
+            "source_index": 78,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 49546
+          },
+          {
+            "source_index": 79,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 49722
+          },
+          {
+            "source_index": 80,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 50426
+          },
+          {
+            "source_index": 81,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 50868
+          },
+          {
+            "source_index": 82,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 51247
+          },
+          {
+            "source_index": 83,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 52082
+          },
+          {
+            "source_index": 84,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 52931
+          },
+          {
+            "source_index": 85,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 53176
+          },
+          {
+            "source_index": 86,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 53882
+          },
+          {
+            "source_index": 87,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 54047
+          },
+          {
+            "source_index": 88,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 54539
+          },
+          {
+            "source_index": 89,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 54710
+          },
+          {
+            "source_index": 90,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 55069
+          },
+          {
+            "source_index": 91,
+            "reason": "prompt_over16384",
+            "prompt_tokens": 55575
+          }
+        ],
+        "terminal_instruction_sha256": "f8198a1644547b116b4b67384f6bb6b3a78e85076f8cda20079a77f2f3499242",
+        "instruction_exact_substring_verified": true
+      }
+    ],
+    "task_universe": [
+      "adaptive-rejection-sampler",
+      "bn-fit-modify",
+      "break-filter-js-from-html",
+      "build-cython-ext",
+      "build-pmars",
+      "build-pov-ray",
+      "caffe-cifar-10",
+      "cancel-async-tasks",
+      "chess-best-move",
+      "circuit-fibsqrt",
+      "cobol-modernization",
+      "code-from-image",
+      "compile-compcert",
+      "configure-git-webserver",
+      "constraints-scheduling",
+      "count-dataset-tokens",
+      "crack-7z-hash",
+      "custom-memory-heap-crash",
+      "db-wal-recovery",
+      "distribution-search",
+      "dna-assembly",
+      "dna-insert",
+      "extract-elf",
+      "extract-moves-from-video",
+      "feal-differential-cryptanalysis",
+      "feal-linear-cryptanalysis",
+      "filter-js-from-html",
+      "financial-document-processor",
+      "fix-code-vulnerability",
+      "fix-git",
+      "fix-ocaml-gc",
+      "gcode-to-text",
+      "git-leak-recovery",
+      "git-multibranch",
+      "gpt2-codegolf",
+      "headless-terminal",
+      "hf-model-inference",
+      "install-windows-3.11",
+      "kv-store-grpc",
+      "large-scale-text-editing",
+      "largest-eigenval",
+      "llm-inference-batching-scheduler",
+      "log-summary-date-ranges",
+      "mailman",
+      "make-doom-for-mips",
+      "make-mips-interpreter",
+      "mcmc-sampling-stan",
+      "merge-diff-arc-agi-task",
+      "model-extraction-relu-logits",
+      "modernize-scientific-stack",
+      "mteb-leaderboard",
+      "mteb-retrieve",
+      "multi-source-data-merger",
+      "nginx-request-logging",
+      "openssl-selfsigned-cert",
+      "overfull-hbox",
+      "password-recovery",
+      "path-tracing-reverse",
+      "path-tracing",
+      "polyglot-c-py",
+      "polyglot-rust-c",
+      "portfolio-optimization",
+      "protein-assembly",
+      "prove-plus-comm",
+      "pypi-server",
+      "pytorch-model-cli",
+      "pytorch-model-recovery",
+      "qemu-alpine-ssh",
+      "qemu-startup",
+      "query-optimize",
+      "raman-fitting",
+      "regex-chess",
+      "regex-log",
+      "reshard-c4-data",
+      "rstan-to-pystan",
+      "sam-cell-seg",
+      "sanitize-git-repo",
+      "schemelike-metacircular-eval",
+      "sparql-university",
+      "sqlite-db-truncate",
+      "sqlite-with-gcov",
+      "torch-pipeline-parallelism",
+      "torch-tensor-parallelism",
+      "train-fasttext",
+      "tune-mjcf",
+      "video-processing",
+      "vulnerable-secret",
+      "winning-avg-corewars",
+      "write-compressor"
+    ],
+    "available_published_task_ids": [
+      "adaptive-rejection-sampler",
+      "bn-fit-modify",
+      "break-filter-js-from-html",
+      "build-cython-ext",
+      "build-pmars",
+      "build-pov-ray",
+      "caffe-cifar-10",
+      "cancel-async-tasks",
+      "chess-best-move",
+      "circuit-fibsqrt",
+      "cobol-modernization",
+      "code-from-image",
+      "compile-compcert",
+      "configure-git-webserver",
+      "constraints-scheduling",
+      "count-dataset-tokens",
+      "crack-7z-hash",
+      "custom-memory-heap-crash",
+      "db-wal-recovery",
+      "distribution-search",
+      "dna-assembly",
+      "dna-insert",
+      "extract-elf",
+      "extract-moves-from-video",
+      "feal-differential-cryptanalysis",
+      "feal-linear-cryptanalysis",
+      "filter-js-from-html",
+      "financial-document-processor",
+      "fix-code-vulnerability",
+      "fix-git",
+      "fix-ocaml-gc",
+      "gcode-to-text",
+      "git-leak-recovery",
+      "git-multibranch",
+      "gpt2-codegolf",
+      "headless-terminal",
+      "hf-model-inference",
+      "install-windows-3.11",
+      "kv-store-grpc",
+      "large-scale-text-editing",
+      "largest-eigenval",
+      "llm-inference-batching-scheduler",
+      "log-summary-date-ranges",
+      "mailman",
+      "make-doom-for-mips",
+      "make-mips-interpreter",
+      "mcmc-sampling-stan",
+      "merge-diff-arc-agi-task",
+      "model-extraction-relu-logits",
+      "modernize-scientific-stack",
+      "mteb-leaderboard",
+      "mteb-retrieve",
+      "multi-source-data-merger",
+      "nginx-request-logging",
+      "openssl-selfsigned-cert",
+      "overfull-hbox",
+      "password-recovery",
+      "path-tracing",
+      "path-tracing-reverse",
+      "polyglot-c-py",
+      "polyglot-rust-c",
+      "portfolio-optimization",
+      "protein-assembly",
+      "prove-plus-comm",
+      "pypi-server",
+      "pytorch-model-cli",
+      "qemu-alpine-ssh",
+      "qemu-startup",
+      "query-optimize",
+      "raman-fitting",
+      "regex-chess",
+      "regex-log",
+      "reshard-c4-data",
+      "rstan-to-pystan",
+      "sam-cell-seg",
+      "sanitize-git-repo",
+      "schemelike-metacircular-eval",
+      "sparql-university",
+      "sqlite-db-truncate",
+      "sqlite-with-gcov",
+      "torch-pipeline-parallelism",
+      "torch-tensor-parallelism",
+      "train-fasttext",
+      "tune-mjcf",
+      "video-processing",
+      "vulnerable-secret",
+      "winning-avg-corewars",
+      "write-compressor"
+    ]
+  }
+}

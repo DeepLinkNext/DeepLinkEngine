@@ -1,0 +1,38 @@
+{
+  "schema": "deepengine-public-metered-window/v1",
+  "dataset": "MMLU-Pro fixed 200",
+  "scope": "R8 paired full-answer serving window",
+  "source_publication": "https://github.com/vLLM-HUST/vllm-hust-benchmark/blob/4d539805a08268253719ec9894d86716b7290c34/reports/r8-fixed-five-20261118/summary-public-v2.json",
+  "sealed_campaign_summary_sha256": "471ddb8653cbf98785496563e0ce9eb1901c76c06611fb533dc3d05cd25d7a8c",
+  "arms": {
+    "B0": {
+      "formal_window_seconds": 1426.005969121994,
+      "output_tokens": 721900,
+      "occupied_cards": 2,
+      "per_card_ai_core_percent": {
+        "1": 33.00333538557099,
+        "6": 33.451083567727835
+      },
+      "ai_core_weighted_mean_percent": 33.22720947664941,
+      "sample_coverage_seconds": 1426.005969121994,
+      "missing_sample_seconds": 0.0,
+      "stage_seal_sha256": "b879abd7204d5f719132000a54c87a066c11abf148fc0c056f7e33a7546d6659"
+    },
+    "B1": {
+      "formal_window_seconds": 477.5332458920311,
+      "output_tokens": 690468,
+      "occupied_cards": 2,
+      "per_card_ai_core_percent": {
+        "1": 79.11544101134638,
+        "6": 78.00552589729617
+      },
+      "ai_core_weighted_mean_percent": 78.56048345432127,
+      "sample_coverage_seconds": 477.5332458920311,
+      "missing_sample_seconds": 0.0,
+      "stage_seal_sha256": "d4f70c9e9c116f04c2bc8ac68c7390c2027fc2aa4ec35a6581fe5973b23d115f"
+    }
+  },
+  "utilization_gain_percentage_points": 45.33327397767186,
+  "same_rate_estimated_unit_cost_reduction_percent": 64.98809389388553,
+  "actual_billing_evidence": "pending reconciliation"
+}
