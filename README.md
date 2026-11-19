@@ -92,7 +92,7 @@ python benchmark/scripts/recompute_m01_qualified_pair.py --check
 
 | 指标 | 公开记录 |
 | --- | --- |
-| 4.1 有效算力 | [MMLU-Pro 固定 200 题、输出上限 256 的算量和参考时间](benchmark/reports/m01-qualified-pair-20261103/README.md) |
+| 4.1 有效算力 | [本轮 r8：B1 达成率下界 ≥89.7838%，逐轮原件复算](benchmark/reports/r8-compute-reference-20261119-v1/README.md) · [原完整参考](benchmark/reports/m01-qualified-pair-20261103/README.md) |
 | 4.2 吞吐、时延与质量 | [固定五项 B0/B1 配对结果](benchmark/reports/r8-fixed-five-20261118/summary-public-v2.json) |
 | 4.3 长上下文 | [4K–8K、16K–24K、32K–48K 的连续负载结果](benchmark/reports/r8-context-tenant-20261119/summary-public-v1.json) |
 | 4.4 成本与利用率 | [第三方测试记录及复算](benchmark/indicator-4.4.md) · [MMLU-Pro 同窗记录](evidence/mmlu-r8-window.json) · [四租户结果](benchmark/reports/r8-context-tenant-20261119/summary-public-v1.json) |

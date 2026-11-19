@@ -423,7 +423,7 @@ def reference_only(args):
     document = reference_report(result)
     plot_failed = False
     if (hasattr(args, "report_python") and target(result)["status"] == "current_workload_measured"
-            and result.get("certificate_kind") == "matched_complete_necessary_work_and_full_reference_lower_bound"):
+            and result.get("certificate_kind") == "qualified_full_reference_denominator_reuse/v1"):
         try:
             from report_environment import report_python
 

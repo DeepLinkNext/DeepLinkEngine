@@ -135,6 +135,37 @@ def test_modified_parent_is_rejected_before_new_run(tmp_path):
     assert not a.out.exists()
 
 
+def test_reference_only_renders_qualified_reuse_and_fails_closed_if_plot_fails(tmp_path, monkeypatch):
+    import compute_reference
+    import report_environment
+
+    parent = tmp_path / "parent"
+    parent.mkdir()
+    save(parent / "frozen-execution-plan.json", workload())
+    save(parent / "campaign.json", {"status": "completed"})
+    save(parent / "campaign-checksums.json", {name: sha(parent / name)
+        for name in ["frozen-execution-plan.json", "campaign.json"]})
+    monkeypatch.setattr(compute_reference, "prepare", lambda *a, **k: {})
+    monkeypatch.setattr(compute_reference, "execute", lambda *a: qualified_bound())
+    monkeypatch.setattr(report_environment, "report_python", lambda *a: (Path(sys.executable), {}))
+    calls = []
+    monkeypatch.setattr(compute_reference.subprocess, "run", lambda command, **kwargs: calls.append(command))
+    a = args(tmp_path)
+    a.reference_campaign = parent
+    a.report_python = Path(sys.executable)
+    assert reference_only(a) == 0
+    assert len(calls) == 1 and "--reference-run" in calls[0]
+    assert "reference-report/current-reference-bounds.svg" in (a.out / "report.html").read_text()
+
+    def fail(*a, **k):
+        raise subprocess.CalledProcessError(1, "plot fixture")
+
+    monkeypatch.setattr(compute_reference.subprocess, "run", fail)
+    a.out = tmp_path / "plot-failed"
+    assert reference_only(a) == 2
+    assert (a.out / "report-plot-failure.json").exists()
+
+
 def test_public_entry_exposes_reference_workflow():
     result = subprocess.run(
         [sys.executable, str(ROOT / "one_click.py"), "--help"],

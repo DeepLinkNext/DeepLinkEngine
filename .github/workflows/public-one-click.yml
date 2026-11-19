@@ -33,3 +33,7 @@ jobs:
           unset GH_TOKEN GITHUB_TOKEN VLLM_HUST_PROJECT_EVIDENCE
           export XDG_CACHE_HOME="${RUNNER_TEMP}/deeplink-public-evidence"
           python -B one_click.py fetch-reference
+      - name: Recompute the published current certificate from work and clock originals
+        env:
+          XDG_CACHE_HOME: ${{ runner.temp }}/deeplink-public-evidence
+        run: python -B benchmark/reports/r8-compute-reference-20261119-v1/recompute.py

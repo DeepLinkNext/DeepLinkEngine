@@ -29,6 +29,20 @@
       "seal_source_sha256": "2b22f63d3bf92862247e7c88156a36e696da7260aacca89a63430ff45f6252f5",
       "status": "missing_same_profile_effective_work_record",
       "efficiency_lower": null
+    },
+    "current_r8_native_out256": {
+      "status": "measured",
+      "profile": "MMLU-Pro fixed200 native/out256 BF16 TP2 910B2",
+      "certificate_kind": "qualified_full_reference_denominator_reuse/v1",
+      "source": "benchmark/reports/r8-compute-reference-20261119-v1/compute-reference/matched-reference-pair.json",
+      "efficiency_lower_percent": {
+        "B0": "22.22697494640671988678248116022501679767",
+        "B1": "89.78382533250482332421774762109257529198"
+      },
+      "milestone_50_met": true,
+      "exact_efficiency": null,
+      "hardware_peak_utilization_percent": null,
+      "original_efficiency_used": false
     }
   },
   "indicator_4_2": {

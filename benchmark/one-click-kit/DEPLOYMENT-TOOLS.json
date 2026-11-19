@@ -1,5 +1,5 @@
 {
-  "commit": "bc07811e2c93f4b0bc64fa244a2c344d97b8060d",
+  "commit": "ce1a4acb803024834ddbf46e96b783679b2baee8",
   "files": {
     ".gitignore": "ca0e719c00d91939319116aec3cab3977105adc232dbbaf97daf5252d141db7d",
     "README.md": "c0eeb374aa878ec81bb6486255a62579f334224bc9f4f071aae63e4f69aa8b51",
@@ -185,7 +185,7 @@
     "scripts/child_runner.py": "cf295a7446843cecc53f3ebf189b38f16c49635e3c09c75bc4c93afb739160e7",
     "scripts/compile_boundary.py": "be079beb88b23a452bd4f4b4d1c6d6c3cd2463d331eb8e95372d1d3fe48bf754",
     "scripts/completion_warmup.py": "c3b292de6297a448d9af89b21de22d7b8c57b516ee341d1ed751549545b3afa0",
-    "scripts/compute_reference.py": "b00d753558d9de4f1367da45461985051f3c417e6b3e9cfe98c5ed8d8201a969",
+    "scripts/compute_reference.py": "a83140187ef655073b60f78cb72da34cc99ca2b23060825f2f24f9173ea89e05",
     "scripts/continuous_inputs.py": "8bef6275f3bc75cfbb8f49333b7c64060da683ca961d24435d22783e09160562",
     "scripts/dataset_client.py": "fe2f147b9da8c23f60984cee0a227f2032768b0298bd237db1a01696052196c9",
     "scripts/dataset_contract.py": "c19e2043c43a44cbce2d314dc60eb89477b6a587d6f2695a83d00daed2694de1",
@@ -274,7 +274,7 @@
     "tests/test_canonical_workgroups.py": "c9307e04932e78965e44dbf3ecf63a9bf581b78c02591d8a068e954c0687ea73",
     "tests/test_checkpoint_cache.py": "1ff11a66582ea8067c39207db592ad7c294662f2f943b1cc3deb08d11211a364",
     "tests/test_child_runner.py": "0be7b76e7b7ea929ec2ff5139d85cd019bd5b8b0f01967f67f2cbc6d19c65e67",
-    "tests/test_compute_reference_integration.py": "f8424e888bb8179efdf9b4780f08eb84e0facef04a56c264e4fba0ec8833b18d",
+    "tests/test_compute_reference_integration.py": "6c67df157dc776be3ea9b74ac0aafe5c41878365c748c2f4d5e6fade37f3a53d",
     "tests/test_compute_reference_plot.py": "e3f1e4be4b30387e0c47f125d6cfe45bd1b74eb8052c0b2b64af2a415bdc76d3",
     "tests/test_continuous_input_result.py": "2888afaee2bc4a02432d9793592ae8158d4606987daf59f8db588ceebb515119",
     "tests/test_current_reference_report.py": "bf1f15d20b0e6529e2604e2db79339337b827275d4ad5506bec1734d489da92e",

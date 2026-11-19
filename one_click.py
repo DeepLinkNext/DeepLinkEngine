@@ -12,6 +12,7 @@ import sys
 import tarfile
 import tempfile
 import urllib.request
+import urllib.error
 
 ROOT = Path(__file__).resolve().parent
 KIT = ROOT / "benchmark/one-click-kit"
@@ -85,22 +86,37 @@ def reference_evidence(lock):
             return root
         archive = cache / "source.tar.gz"
         if not (archive.is_file() and archive.stat().st_size == record["bytes"] and digest(archive) == record["sha256"]):
-            print("REFERENCE_DOWNLOAD", record["url"], flush=True)
-            request = urllib.request.Request(record["url"], headers={"User-Agent": "DeepLinkEngine-public-one-click"})
-            with tempfile.NamedTemporaryFile(prefix="reference-", dir=cache, delete=False) as output:
-                partial = Path(output.name)
-                try:
-                    with urllib.request.urlopen(request, timeout=120) as response:
-                        while block := response.read(1024 * 1024):
-                            output.write(block)
-                            if output.tell() > record["bytes"]:
-                                raise ValueError("Reference mirror exceeds its fixed size")
-                    output.flush()
-                    if partial.stat().st_size != record["bytes"] or digest(partial) != record["sha256"]:
-                        raise ValueError("Reference mirror size/SHA-256 mismatch")
-                    partial.replace(archive)
-                finally:
-                    partial.unlink(missing_ok=True)
+            urls = list(dict.fromkeys([record.get("api_url", record["url"]), record["url"]]))
+            last_error = None
+            for attempt in range(2):
+                for url in urls:
+                    print("REFERENCE_DOWNLOAD", url, flush=True)
+                    request = urllib.request.Request(url, headers={
+                        "User-Agent": "DeepLinkEngine-public-one-click", "Accept": "application/octet-stream"})
+                    with tempfile.NamedTemporaryFile(prefix="reference-", dir=cache, delete=False) as output:
+                        partial = Path(output.name)
+                        try:
+                            with urllib.request.urlopen(request, timeout=30) as response:
+                                while block := response.read(1024 * 1024):
+                                    output.write(block)
+                                    if output.tell() > record["bytes"]:
+                                        raise ValueError("Reference mirror exceeds its fixed size")
+                            output.flush()
+                            if partial.stat().st_size != record["bytes"] or digest(partial) != record["sha256"]:
+                                raise ValueError("Reference mirror size/SHA-256 mismatch")
+                            partial.replace(archive)
+                        except (urllib.error.URLError, TimeoutError, OSError) as error:
+                            last_error = error
+                            print("REFERENCE_DOWNLOAD_RETRY", type(error).__name__, flush=True)
+                            continue
+                        finally:
+                            partial.unlink(missing_ok=True)
+                    break
+                else:
+                    continue
+                break
+            else:
+                raise OSError("Public reference download failed after both endpoints and retries: " + str(last_error))
         with tempfile.TemporaryDirectory(prefix="public-unpack-", dir=cache) as temp:
             with tarfile.open(archive) as source:
                 seen = set()

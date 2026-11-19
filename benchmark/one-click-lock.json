@@ -1,18 +1,18 @@
 {
   "schema": "deeplinkengine-public-one-click/v1",
-  "version": "r8-evaluation-reference-20261119-v1",
+  "version": "r8-evaluation-reference-20261119-v2",
   "engine_release": "r8-frozen-20261117",
   "tools": {
     "upstream_repository": "vLLM-HUST/vllm-hust-engine",
-    "upstream_commit": "bc07811e2c93f4b0bc64fa244a2c344d97b8060d",
+    "upstream_commit": "ce1a4acb803024834ddbf46e96b783679b2baee8",
     "files": 510,
     "archive": "engine-tools.tar.gz",
-    "sha256": "51b7003be1706fd1152d4b476ed2bbbfa861954d5f118cb7b72deb04ec4c5fed",
-    "bytes": 1156341,
-    "manifest_sha256": "3f1a309327412dd815ffd96f85f336aca3c50f629f025c3aa8071979d92cfc6b",
+    "sha256": "dd461695e25dc8db9705df7697f33838a340a83115e868fb427cc79a6eb368d5",
+    "bytes": 1156573,
+    "manifest_sha256": "738ae2a8a9f7351797f57d958b85d6ac1348f5b7840303eae084766d58ec9271",
     "build_kind": "local-source-snapshot",
     "public_source": "benchmark/one-click-kit",
-    "url": "https://github.com/DeepLinkNext/DeepLinkEngine/releases/download/r8-evaluation-reference-20261119-v1/engine-tools.tar.gz",
+    "url": "https://github.com/DeepLinkNext/DeepLinkEngine/releases/download/r8-evaluation-reference-20261119-v2/engine-tools.tar.gz",
     "public_source_readback": "All 510 publication file Git blob identities verified against the upstream commit; archive built from a local source snapshot."
   },
   "reference_evidence": {
@@ -20,7 +20,8 @@
     "name": "qualified-reference-evidence-53541118.tar.gz",
     "bytes": 17200471,
     "sha256": "e887a90707989281d3421d16c3cc73fc3827a2a440c636e1ad134a8ad1c13cb9",
-    "url": "https://github.com/DeepLinkNext/DeepLinkEngine/releases/download/r8-evaluation-reference-20261119-v1/qualified-reference-evidence-53541118.tar.gz"
+    "url": "https://github.com/DeepLinkNext/DeepLinkEngine/releases/download/r8-evaluation-reference-20261119-v1/qualified-reference-evidence-53541118.tar.gz",
+    "api_url": "https://api.github.com/repos/DeepLinkNext/DeepLinkEngine/releases/assets/767752879"
   },
   "certificate_kind": "qualified_full_reference_denominator_reuse/v1",
   "default_reference_profile": "submission-v2",

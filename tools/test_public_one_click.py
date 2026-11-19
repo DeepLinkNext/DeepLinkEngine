@@ -10,6 +10,7 @@ from pathlib import Path
 import sys
 import tarfile
 import tempfile
+from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
 
@@ -75,6 +76,31 @@ class PublicEntryTests(unittest.TestCase):
                 patch.object(entry.urllib.request, "urlopen", return_value=io.BytesIO(raw)):
             with self.assertRaisesRegex(ValueError, "Unsafe reference archive"):
                 entry.reference_evidence(lock)
+
+    def test_anonymous_endpoint_failure_uses_verified_public_fallback(self):
+        body = io.BytesIO()
+        with tarfile.open(fileobj=body, mode="w:gz") as archive:
+            info = tarfile.TarInfo("benchmark-evidence/sentinel")
+            info.size = 6
+            archive.addfile(info, io.BytesIO(b"golden"))
+        raw = body.getvalue()
+        lock = entry.verify_kit()
+        pin = hashlib.sha256(raw).hexdigest()
+        lock["reference_evidence"].update(bytes=len(raw), sha256=pin,
+            api_url="https://api.github.com/public-fixture", url="https://github.com/public-fixture")
+        def verify(path):
+            self.assertEqual((path / "sentinel").read_bytes(), b"golden")
+        module = SimpleNamespace(ASSET_BYTES=len(raw), ASSET_SHA256=pin, verify=verify)
+        with tempfile.TemporaryDirectory() as temp, \
+                patch.dict(os.environ, {"XDG_CACHE_HOME": temp}, clear=True), \
+                patch.object(entry, "evidence_module", return_value=module), \
+                patch.object(entry.urllib.request, "urlopen", side_effect=[
+                    entry.urllib.error.URLError("transient fixture"), io.BytesIO(raw)]) as opened:
+            result = entry.reference_evidence(lock)
+            self.assertEqual((result / "sentinel").read_bytes(), b"golden")
+            self.assertEqual(opened.call_count, 2)
+            for call in opened.call_args_list:
+                self.assertFalse(call.args[0].has_header("Authorization"))
 
     def test_reference_different_work_does_not_cancel(self):
         result = arm_statistics([dict(repetition=1, F_interval=[100, 110], T_seconds="2")],
