@@ -158,6 +158,29 @@ class Standalone(unittest.TestCase):
                     service.main()
                 build.assert_not_called()
 
+    def check_service_environment_rejection(self, *, changed_version=False):
+        import one_click
+        import environment_setup as setup
+        with tempfile.TemporaryDirectory() as folder:
+            out=Path(folder);model=out/'model';model.mkdir();sdk=out/'sdk';sdk.mkdir()
+            (model/'config.json').write_text(json.dumps({'model_type':'qwen3_5_moe_text','num_hidden_layers':40,'hidden_size':2048}))
+            (sdk/'deployment.json').write_text(json.dumps({'python':str(out/'venv/bin/python')}))
+            args=['service','--installation',str(out),'--model',str(model),'--physical-devices','0,7','--cache',str(out/'cache')]
+            required=json.loads((ROOT/'engine/r8-lock.json').read_bytes())['required_python_packages']
+            observed=dict(required)
+            if changed_version:observed['triton-ascend']='3.2.2'
+            guard=types.SimpleNamespace(acquire=unittest.mock.Mock())
+            with patch.object(deeplink,'installation',return_value=(out,{})),patch.object(one_click,'verify_kit'),patch.dict(os.environ),patch.dict(sys.modules,engine_entry=types.SimpleNamespace(),resource_guard=guard,restore_b1_r4=types.SimpleNamespace(verify_installed_sources=lambda root:None),dependency_admission=types.SimpleNamespace(admit_dependencies=lambda root:None)),patch.object(setup,'probe',return_value={'packages':observed}),patch.object(setup,'vendor_integrity',return_value={'verified':False}),patch.object(sys,'argv',args):
+                os.environ.pop('DEEPLINK_SERVICE_BOOTSTRAPPED',None)
+                with self.assertRaisesRegex(ValueError,'versions differ' if changed_version else 'files are overwritten'):service.main()
+            guard.acquire.assert_not_called()
+
+    def test_serving_rejects_changed_vendor_files_before_any_device_lease(self):
+        self.check_service_environment_rejection()
+
+    def test_serving_rejects_old_triton_despite_other_qualified_dependencies(self):
+        self.check_service_environment_rejection(changed_version=True)
+
     def test_chat_example_sends_real_http(self):
         observed=[]
         class Handler(BaseHTTPRequestHandler):

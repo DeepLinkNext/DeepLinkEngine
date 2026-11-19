@@ -118,6 +118,16 @@ def main():
         from dependency_admission import admit_dependencies
         verify_installed_sources(root)
         admit_dependencies(root)
+        from environment_setup import probe, differences, vendor_integrity
+        profile = json.loads((root / "deployment.json").read_bytes())
+        required = json.loads((ROOT / "engine/r8-lock.json").read_bytes())["required_python_packages"]
+        if differences(probe(profile["python"], required, os.environ), required):
+            raise ValueError("Installed runtime dependency versions differ; prepare a clean installation")
+        if not vendor_integrity(profile["python"], required, os.environ)["verified"]:
+            raise ValueError("Installed Ascend Triton files are overwritten; prepare a clean installation")
+        from environment_setup import verify_triton_payload
+        profile = json.loads((root / "deployment.json").read_bytes())
+        verify_triton_payload(profile["python"])
         if args.devices:
             logical = ",".join(map(str, pair(args.devices)))
         else:

@@ -158,6 +158,16 @@ def prepare_data(arguments):
     return arguments
 
 
+def prepare_baseline(arguments):
+    if (option(arguments, "--baseline-deployment") is None
+            and "--context-tenant-only" not in arguments
+            and "--compute-reference-only" not in arguments):
+        from baseline_setup import prepare
+        cache = option(arguments, "--cache") or str(Path.home() / ".cache/vllm-hust-engine/third-party")
+        prepare(cache)
+    return arguments
+
+
 def main(arguments=None):
     arguments = list(sys.argv[1:] if arguments is None else arguments)
     lock = verify_kit()
@@ -190,6 +200,7 @@ def main(arguments=None):
         if option(effective, "--deployment") is None:
             raise ValueError("Provide deployment: /path/to/r8-installation/sdk from the public r8 installation; see engine/README.md")
         effective = prepare_data(effective)
+        effective = prepare_baseline(effective)
         os.environ["VLLM_HUST_PROJECT_EVIDENCE"] = str(reference_evidence(lock))
         arguments = effective
     sys.dont_write_bytecode = True
