@@ -44,7 +44,7 @@ class EngineInstallTests(unittest.TestCase):
              patch("child_runner.run_stage", return_value=types.SimpleNamespace(returncode=0)) as run:
             result = engine_install.install(self.root / "cache", wheelhouse=self.wheels)
         self.assertEqual(result["status"], "installed")
-        self.resolver.assert_called_once()
+        self.resolver.assert_called_once_with((self.root / "cache").resolve(), wheelhouse=self.wheels)
         args = run.call_args.args[0]
         self.assertIn("--no-deps", args)
         self.assertIn("--require-hashes", args)
@@ -82,6 +82,52 @@ class EngineInstallTests(unittest.TestCase):
 
 
 class RuntimeDependencyTests(unittest.TestCase):
+    def test_dependency_repair_cli_forwards_the_offline_wheelhouse(self):
+        with tempfile.TemporaryDirectory() as name:
+            cache = Path(name) / "cache"
+            wheels = Path(name) / "offline"
+            with patch.object(sys, "argv", ["engine_install.py", "--cache", str(cache),
+                                           "--wheelhouse", str(wheels), "--repair-dependencies"]), \
+                 patch.object(engine_install, "resolve_runtime_dependencies") as repair:
+                engine_install.main()
+            repair.assert_called_once_with(cache, wheelhouse=wheels)
+
+    def test_compatibility_wheel_uses_the_offline_directory_without_network(self):
+        with tempfile.TemporaryDirectory() as name:
+            root = Path(name)
+            (root / "engine").mkdir()
+            wheels = root / "offline"
+            wheels.mkdir()
+            content = b"fixed compatibility wheel fixture"
+            wheel = wheels / "compatibility.whl"
+            wheel.write_bytes(content)
+            source = dict(filename=wheel.name, version="1+fixture", bytes=len(content),
+                          sha256=hashlib.sha256(content).hexdigest(), url="https://fixture.invalid/compatibility.whl")
+            (root / "engine/r8-lock.json").write_text(json.dumps(dict(required_python_packages={},
+                runtime_compatibility_sources={"opencv-python-headless": source})))
+            commands = []
+            def execute(args, **kwargs):
+                commands.append(args)
+                if "--out" in args:
+                    Path(args[args.index("--out") + 1]).write_text('{"verified": true}')
+                return types.SimpleNamespace(returncode=0)
+            with patch.object(engine_install, "ROOT", root), \
+                 patch.object(engine_install, "sources", return_value=[]), \
+                 patch.object(engine_install, "RUNTIME_ROOTS", ()), \
+                 patch.object(engine_install, "ADAPTER_REQUIREMENTS", ()), \
+                 patch.object(engine_install.metadata, "version", side_effect=engine_install.metadata.PackageNotFoundError), \
+                 patch.object(engine_install, "dependency_audit", side_effect=[dict(verified=False, issues=[{"requires": "fixture>=1", "found": None}], observed_versions={}), dict(verified=True, issues=[], observed_versions={})]), \
+                 patch("one_click.verify_kit"), \
+                 patch("environment_setup.vendor_integrity", return_value={"verified": True}), \
+                 patch("environment_setup.distribution_integrity", return_value={"verified": True}), \
+                 patch("urllib.request.urlopen", side_effect=AssertionError("network forbidden")), \
+                 patch("child_runner.run_stage", side_effect=execute):
+                result = engine_install.resolve_runtime_dependencies(root / "cache", wheelhouse=wheels)
+            self.assertTrue(result["after"]["verified"])
+            self.assertIn(str(wheel), commands[0])
+            resolver_command = next(command for command in commands if "-c" in command)
+            self.assertEqual(resolver_command[resolver_command.index("--find-links") + 1], str(wheels))
+
     def test_source_only_manager_dependencies_are_required_even_without_wheel_metadata(self):
         for installed in (None, "3.9", "4.5"):
             with self.subTest(installed=installed):

@@ -55,8 +55,11 @@ def dependency_audit():
     return dict(verified=not issues, issues=issues, observed_versions=observed)
 
 
-def resolve_runtime_dependencies(cache):
+def resolve_runtime_dependencies(cache, *, wheelhouse=None):
     """Resolve engine API dependencies while retaining all frozen vendor versions."""
+    links = [str(Path(wheelhouse).resolve())] if wheelhouse else []
+    if links and not Path(links[0]).is_dir():
+        raise ValueError("Runtime wheelhouse is not a directory")
     from packaging.requirements import Requirement
     from environment_setup import vendor_integrity, cached_wheel, distribution_integrity
     import os
@@ -79,7 +82,7 @@ def resolve_runtime_dependencies(cache):
         except metadata.PackageNotFoundError:
             observed = None
         if observed != source["version"] or not distribution_integrity(name)["verified"]:
-            wheel = cached_wheel(source, [], Path(cache) / "wheels")
+            wheel = cached_wheel(source, links, Path(cache) / "wheels")
             completed = run_stage([sys.executable, "-m", "pip", "install", "--disable-pip-version-check",
                                    "--no-deps", "--ignore-installed", "--no-compile", str(wheel)])
             if completed.returncode:
@@ -99,14 +102,17 @@ def resolve_runtime_dependencies(cache):
     before = dependency_audit()
     if not before["verified"]:
         print("RUNTIME_DEPENDENCIES repairing", len(before["issues"]), "requirements", flush=True)
-        completed = run_stage([sys.executable, "-m", "pip", "install", "--disable-pip-version-check",
-                              "--only-binary=:all:", "--no-compile", "-c", str(constraints), "-r", str(required)])
+        command = [sys.executable, "-m", "pip", "install", "--disable-pip-version-check",
+                   "--only-binary=:all:", "--no-compile"]
+        for wheel_directory in links:
+            command += ["--find-links", wheel_directory]
+        completed = run_stage([*command, "-c", str(constraints), "-r", str(required)])
         if completed.returncode:
             raise RuntimeError("Engine Python dependency resolution failed: " + str(completed.returncode))
     integrity = vendor_integrity(sys.executable, lock["required_python_packages"], dict(os.environ))
     if not integrity["verified"]:
         source = lock["environment_sources"]["triton-ascend"]
-        wheel = cached_wheel(source, [], Path(cache) / "wheels")
+        wheel = cached_wheel(source, links, Path(cache) / "wheels")
         result = run_stage([sys.executable, "-m", "pip", "install", "--no-deps", "--ignore-installed", "--no-compile", str(wheel)])
         if result.returncode:
             raise RuntimeError("Could not restore Ascend Triton after engine dependency resolution")
@@ -191,7 +197,7 @@ def install(cache, *, wheelhouse=None, download_only=False):
         try:
             from package_metadata import prepare
             result["package_metadata"] = prepare(sys.executable)
-            result["runtime_dependencies"] = resolve_runtime_dependencies(cache)
+            result["runtime_dependencies"] = resolve_runtime_dependencies(cache, wheelhouse=wheelhouse)
         except BaseException:
             result["status"] = "failed"
             receipt.write_text(json.dumps(result, indent=2) + "\n")
@@ -210,7 +216,7 @@ def main():
     args = parser.parse_args()
     try:
         if args.repair_dependencies:
-            resolve_runtime_dependencies(args.cache)
+            resolve_runtime_dependencies(args.cache, wheelhouse=args.wheelhouse)
         else:
             install(args.cache, wheelhouse=args.wheelhouse, download_only=args.download_only)
     except (ValueError, OSError, RuntimeError) as error:
