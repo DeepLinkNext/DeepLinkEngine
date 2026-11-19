@@ -48,6 +48,7 @@ class EngineInstallTests(unittest.TestCase):
         args = run.call_args.args[0]
         self.assertIn("--no-deps", args)
         self.assertIn("--require-hashes", args)
+        self.assertEqual(args[args.index("--find-links") + 1], str(self.wheels.resolve()))
         requirements = Path(args[args.index("-r") + 1]).read_text().splitlines()
         self.assertEqual(len(requirements), 4)
         self.assertTrue(all(line.startswith("file://") and "%20" in line and " --hash=sha256:" in line

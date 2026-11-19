@@ -187,7 +187,11 @@ def install(cache, *, wheelhouse=None, download_only=False):
         sys.path.insert(0, str(ROOT / "benchmark/one-click-kit/scripts"))
         from child_runner import run_stage
         command = [sys.executable, "-m", "pip", "install", "--disable-pip-version-check",
-                   "--no-deps", "--no-compile", "--require-hashes", "-r", str(requirements)]
+                   "--no-deps", "--no-compile"]
+        # pip also needs this local source when resolving isolated sdist build requirements.
+        for wheel_directory in links:
+            command += ["--find-links", wheel_directory]
+        command += ["--require-hashes", "-r", str(requirements)]
         completed = run_stage(command)
         result.update(status="installed" if completed.returncode == 0 else "failed",
                       returncode=completed.returncode)
