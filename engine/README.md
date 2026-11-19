@@ -24,6 +24,8 @@ python vllm-hust-engine/one_click.py prepare --help
 
 ## 安装
 
+安装后运行全部测试并生成报告，使用[首页的一键入口](../README.md#一键安装与测试)。下列命令用于单独安装引擎。
+
 | 项目 | 固定环境 |
 | --- | --- |
 | 设备及模型 | 双昇腾 910B2，Qwen3.5-35B-A3B，BF16，TP2 |

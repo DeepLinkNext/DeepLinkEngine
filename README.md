@@ -1,8 +1,21 @@
 # DeepLinkEngine
 
-DeepLinkEngine fork 自 [vllm-hust-engine](https://vllm-hust.sage.org.ai/engine.html)，由浦江统管。
+DeepLinkEngine fork 自 [vllm-hust-engine](https://vllm-hust.sage.org.ai/engine.html)。
 
-DeepLinkEngine 归档课题四的 **冻结 r8 推理引擎、五项评测清单和复核脚本**。公开材料可直接下载，可在普通电脑上校验和复算。
+提供冻结 r8 引擎的一键安装、完整测试和报告生成，供第三方独立验证或现场见证。
+
+## 一键安装与测试
+
+准备双卡昇腾 910B2、模型权重及[运行环境](engine/README.md#安装)。复制[配置示例](benchmark/run-all.example.json)，填写模型路径、物理卡号、缓存和新的结果目录：
+
+```sh
+cp benchmark/run-all.example.json evaluation.json
+python run_all.py --config evaluation.json
+```
+
+依次安装并校验引擎，执行 B0/B1 固定五项、长上下文和四租户测试，生成结果与报告。所需数据及项目证据的获取方式见[测试说明](benchmark/README.md#昇腾实机配对测试)。
+
+结果目录包含 `results.json`、`fixed-five-report/report.html` 和 `context-tenant/paired-report/report.html`，同时保留原始记录与校验值。第三方可独立复测或现场见证，并据此出具验证结论。
 
 | 我想查看 | 从这里开始 |
 | --- | --- |
@@ -27,7 +40,7 @@ git clone https://github.com/DeepLinkNext/DeepLinkEngine.git
 cd DeepLinkEngine
 ```
 
-## 快速复核
+## 公开结果复核
 
 使用 Python 3.11 及以上版本，在仓库根目录执行。以下命令只读取仓库中的公开材料，无需安装推理引擎。
 
