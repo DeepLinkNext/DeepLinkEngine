@@ -61,6 +61,10 @@ def install(args):
     cli = str(Path(sysconfig.get_path("scripts")) / "vllm-hust-engine")
     commands = [package_command, [cli, "verify"], [sys.executable, str(ROOT / "runtime_storage.py"), "--out", str(target)]]
     for name, command in zip(("install-package", "verify-package", "install-runtime"), commands):
+        if name == "verify-package":
+            from python_storage import admitted, ensure as local_python
+            if admitted(Path(sys.executable),cache):
+                local_python(Path(sys.executable).parent.parent,allow_current=True)
         print("INSTALL", name, flush=True)
         result = run_repair_stage(command, dict(os.environ), None)
         if result.returncode:
