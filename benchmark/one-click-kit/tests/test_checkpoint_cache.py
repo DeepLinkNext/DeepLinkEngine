@@ -91,7 +91,7 @@ class StartupReserveTests(unittest.TestCase):
     def test_real_pages_are_held_until_healthy_idle_boundary_and_released_once(self):
         from checkpoint_cache import StartupMemoryReserve
         chunks = [SimpleNamespace(close=__import__('unittest.mock', fromlist=['Mock']).Mock()) for _ in range(64)]
-        value = dict(limit=64*2**30, current=55*2**30)
+        value = dict(limit=64*2**30, current=50*2**30)
         checks = []
         with tempfile.TemporaryDirectory() as temp, patch('checkpoint_cache.allocate_private_chunk', side_effect=chunks):
             reserve = StartupMemoryReserve(Path(temp)/'reserve.json', lambda: value, lambda: checks.append(True))
@@ -107,17 +107,44 @@ class StartupReserveTests(unittest.TestCase):
         chunk=SimpleNamespace(close=Mock())
         with tempfile.TemporaryDirectory() as temp, patch('checkpoint_cache.allocate_private_chunk',return_value=chunk):
             with self.assertRaisesRegex(RuntimeError,'working reserve'):
-                StartupMemoryReserve(Path(temp)/'reserve.json', lambda:{}, lambda: (_ for _ in ()).throw(RuntimeError('working reserve')))
+                StartupMemoryReserve(Path(temp)/'reserve.json', lambda:dict(limit=64*2**30,current=50*2**30), lambda: (_ for _ in ()).throw(RuntimeError('working reserve')))
             chunk.close.assert_called_once()
             self.assertTrue(json.loads((Path(temp)/'reserve.json').read_text())['released'])
 
     def test_cache_refill_cannot_silently_enter_warmup_without_raw_headroom(self):
         from checkpoint_cache import StartupMemoryReserve
         with tempfile.TemporaryDirectory() as temp, patch('checkpoint_cache.allocate_private_chunk',return_value=SimpleNamespace(close=lambda:None)):
-            reserve=StartupMemoryReserve(Path(temp)/'reserve.json',lambda:dict(limit=64*2**30,current=63*2**30),lambda:None)
+            value=dict(limit=64*2**30,current=50*2**30)
+            reserve=StartupMemoryReserve(Path(temp)/'reserve.json',lambda:value,lambda:None)
+            value['current']=63*2**30
             with self.assertRaisesRegex(RuntimeError,'raw memory before warmup'):
                 reserve.before_warmup()
             self.assertTrue(reserve.record['released'])
+
+    def test_input_cache_refill_cannot_fill_reserve_against_a_live_startup(self):
+        from checkpoint_cache import StartupMemoryReserve
+        with tempfile.TemporaryDirectory() as temp, patch('checkpoint_cache.allocate_private_chunk') as allocate:
+            with self.assertRaisesRegex(RuntimeError,'12GiB raw memory immediately before'):
+                StartupMemoryReserve(Path(temp)/'reserve.json',lambda:dict(limit=64*2**30,current=60*2**30),lambda:None)
+            allocate.assert_not_called()
+            record=json.loads((Path(temp)/'reserve.json').read_text())
+            self.assertTrue(record['released'])
+            self.assertFalse(record['model_started_at_allocation'])
+
+    def test_final_cache_admission_runs_before_holding_reserve_or_starting_model(self):
+        from run_b1_r4 import prepare_startup_reserve
+        from unittest.mock import Mock
+        value=dict(limit=64*2**30,current=50*2**30,working_estimate=40*2**30,stat=dict(file=20*2**30),events={})
+        guard=SimpleNamespace(sample=lambda:value,check=Mock())
+        sequence=[]
+        def cleanup(*args,**kwargs):
+            self.assertTrue(kwargs['before_service']);sequence.append('cleanup')
+        def reserve(*args):
+            self.assertEqual(sequence,['cleanup']);sequence.append('reserve');return 'held'
+        with tempfile.TemporaryDirectory() as temp, patch('run_b1_r4.release_loaded_checkpoint_cache',side_effect=cleanup), patch('checkpoint_cache.StartupMemoryReserve',side_effect=reserve):
+            self.assertEqual(prepare_startup_reserve(guard,{},Path(temp),{},Path(temp)),'held')
+        guard.check.assert_called_once()
+        self.assertEqual(sequence,['cleanup','reserve'])
 
     def test_buffer_lifetime_excludes_both_warmup_and_formal_clients(self):
         import ast

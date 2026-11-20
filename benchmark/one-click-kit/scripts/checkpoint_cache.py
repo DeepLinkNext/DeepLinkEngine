@@ -25,6 +25,8 @@ class StartupMemoryReserve:
             bytes=4 * GIB, before=sample(), model_started_at_allocation=False,
             global_drop_caches=False, memory_limit_changed=False, released=False)
         try:
+            if self.record["before"]["limit"] - self.record["before"]["current"] < 12 * GIB:
+                raise RuntimeError("Less than12GiB raw memory immediately before startup reserve allocation; model not started")
             # Startup admission has already verified 12GiB raw headroom. This
             # four-GiB reserve is included in the unchanged working-set guard.
             for _ in range(64):

@@ -134,6 +134,21 @@ def admit_startup_memory(guard, model, weights, root):
     return initial
 
 
+def prepare_startup_reserve(guard, initial, model, weights, root):
+    # Input/tokenizer preparation and device waiting can refill many GiB after
+    # the initial admission. Reclaim/recheck at the final boundary, before
+    # holding reserve pages and spawning any service or driver pin preflight.
+    release_loaded_checkpoint_cache(
+        model, weights, root / "checkpoint-cache-before-spawn.json",
+        guard.sample, before_service=True)
+    check_memory(guard, initial, root)
+    from checkpoint_cache import StartupMemoryReserve
+
+    return StartupMemoryReserve(
+        root / "startup-memory-reserve.json", guard.sample,
+        lambda: check_memory(guard, initial, root))
+
+
 def listener_owned(owned, port):
     inodes = set()
     for table in ("/proc/net/tcp", "/proc/net/tcp6"):
@@ -418,11 +433,8 @@ def admitted_run(args, root, cleanup):
     startup_reserve = None
     try:
         wait_before_service(root, args.lease_timeout)
-        from checkpoint_cache import StartupMemoryReserve
-
-        startup_reserve = StartupMemoryReserve(
-            root / "startup-memory-reserve.json", memory_guard.sample,
-            lambda: check_memory(memory_guard, initial_memory, root))
+        startup_reserve = prepare_startup_reserve(
+            memory_guard, initial_memory, args.model, weights, root)
         log = (root / "service.log").open("xb")
         handles.append(log)
         service = subprocess.Popen(
