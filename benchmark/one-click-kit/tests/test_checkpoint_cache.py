@@ -90,15 +90,15 @@ class CheckpointCacheTests(unittest.TestCase):
 class StartupReserveTests(unittest.TestCase):
     def test_real_pages_are_held_until_healthy_idle_boundary_and_released_once(self):
         from checkpoint_cache import StartupMemoryReserve
-        chunks = [SimpleNamespace(close=__import__('unittest.mock', fromlist=['Mock']).Mock()) for _ in range(64)]
-        value = dict(limit=64*2**30, current=50*2**30)
+        chunks = [SimpleNamespace(close=__import__('unittest.mock', fromlist=['Mock']).Mock()) for _ in range(128)]
+        value = dict(limit=64*2**30, current=28*2**30)
         checks = []
         with tempfile.TemporaryDirectory() as temp, patch('checkpoint_cache.allocate_private_chunk', side_effect=chunks):
             reserve = StartupMemoryReserve(Path(temp)/'reserve.json', lambda: value, lambda: checks.append(True))
             self.assertFalse(any(c.close.called for c in chunks))
             reserve.before_warmup();reserve.close('cleanup')
             self.assertTrue(all(c.close.call_count == 1 for c in chunks))
-            self.assertEqual(len(checks),65)
+            self.assertEqual(len(checks),129)
             self.assertEqual(reserve.record['release_reason'],'healthy-idle-service-before-first-warmup')
 
     def test_guard_failure_releases_every_allocated_page_before_model_start(self):
@@ -107,14 +107,14 @@ class StartupReserveTests(unittest.TestCase):
         chunk=SimpleNamespace(close=Mock())
         with tempfile.TemporaryDirectory() as temp, patch('checkpoint_cache.allocate_private_chunk',return_value=chunk):
             with self.assertRaisesRegex(RuntimeError,'working reserve'):
-                StartupMemoryReserve(Path(temp)/'reserve.json', lambda:dict(limit=64*2**30,current=50*2**30), lambda: (_ for _ in ()).throw(RuntimeError('working reserve')))
+                StartupMemoryReserve(Path(temp)/'reserve.json', lambda:dict(limit=64*2**30,current=28*2**30), lambda: (_ for _ in ()).throw(RuntimeError('working reserve')))
             chunk.close.assert_called_once()
             self.assertTrue(json.loads((Path(temp)/'reserve.json').read_text())['released'])
 
     def test_cache_refill_cannot_silently_enter_warmup_without_raw_headroom(self):
         from checkpoint_cache import StartupMemoryReserve
         with tempfile.TemporaryDirectory() as temp, patch('checkpoint_cache.allocate_private_chunk',return_value=SimpleNamespace(close=lambda:None)):
-            value=dict(limit=64*2**30,current=50*2**30)
+            value=dict(limit=64*2**30,current=28*2**30)
             reserve=StartupMemoryReserve(Path(temp)/'reserve.json',lambda:value,lambda:None)
             value['current']=63*2**30
             with self.assertRaisesRegex(RuntimeError,'raw memory before warmup'):
@@ -124,7 +124,7 @@ class StartupReserveTests(unittest.TestCase):
     def test_input_cache_refill_cannot_fill_reserve_against_a_live_startup(self):
         from checkpoint_cache import StartupMemoryReserve
         with tempfile.TemporaryDirectory() as temp, patch('checkpoint_cache.allocate_private_chunk') as allocate:
-            with self.assertRaisesRegex(RuntimeError,'12GiB raw memory immediately before'):
+            with self.assertRaisesRegex(RuntimeError,'32GiB raw memory immediately before'):
                 StartupMemoryReserve(Path(temp)/'reserve.json',lambda:dict(limit=64*2**30,current=60*2**30),lambda:None)
             allocate.assert_not_called()
             record=json.loads((Path(temp)/'reserve.json').read_text())
@@ -134,7 +134,7 @@ class StartupReserveTests(unittest.TestCase):
     def test_final_cache_admission_runs_before_holding_reserve_or_starting_model(self):
         from run_b1_r4 import prepare_startup_reserve
         from unittest.mock import Mock
-        value=dict(limit=64*2**30,current=50*2**30,working_estimate=40*2**30,stat=dict(file=20*2**30),events={})
+        value=dict(limit=64*2**30,current=28*2**30,working_estimate=40*2**30,stat=dict(file=20*2**30),events={})
         guard=SimpleNamespace(sample=lambda:value,check=Mock())
         sequence=[]
         def cleanup(*args,**kwargs):
@@ -306,15 +306,24 @@ class BoundedPreServiceReclaimTests(unittest.TestCase):
         value = self.state()
         plan = reclaim_plan(value, 12*2**30)
         self.assertTrue(plan["eligible"])
-        self.assertLessEqual(plan["temporary_bytes"], 16*2**30)
-        self.assertLess(plan["non_file_estimate"] + plan["temporary_bytes"], value["limit"] - 4*2**30)
+        self.assertLessEqual(plan["temporary_bytes"], 40*2**30)
+        self.assertLess(plan["non_file_estimate"] + plan["temporary_bytes"], value["limit"] - 8*2**30)
+
+    def test_full_startup_preparation_covers_raw_admission_and_retains_extra_safety(self):
+        value=self.state()
+        plan=reclaim_plan(value,32*2**30)
+        self.assertTrue(plan['eligible'])
+        self.assertGreaterEqual(plan['temporary_bytes'],33*2**30)
+        self.assertLess(plan['non_file_estimate']+plan['temporary_bytes'],value['limit']-8*2**30)
+        value['stat']['file_mapped']=20*2**30
+        self.assertFalse(reclaim_plan(value,32*2**30)['eligible'])
 
     def test_repeated_hashing_active_cache_is_reclaimed_before_model_creation(self):
         value=self.state();value["stat"]["inactive_file"]=6*2**30
         value["working_estimate"]=value["current"]-6*2**30
         plan=reclaim_plan(value,12*2**30)
         self.assertTrue(plan["eligible"])
-        self.assertEqual(plan["temporary_bytes"],16*2**30)
+        self.assertEqual(plan["temporary_bytes"],40*2**30)
         self.assertEqual(plan["inactive_file_observed_bytes"],6*2**30)
 
     def test_mapped_and_locked_file_pages_are_never_credited(self):
@@ -340,7 +349,7 @@ class BoundedPreServiceReclaimTests(unittest.TestCase):
         with patch("checkpoint_cache.allocate_private_chunk", side_effect=allocate):
             result = reclaim_before_service(sample, 12*2**30)
         self.assertEqual(result["status"], "completed")
-        self.assertEqual(sum(allocated), 16*2**30)
+        self.assertEqual(sum(allocated), 40*2**30)
         self.assertEqual(allocated, closed)
         self.assertGreaterEqual(result["after"]["limit"]-result["after"]["current"],12*2**30)
         self.assertFalse(result["model_service_started"])

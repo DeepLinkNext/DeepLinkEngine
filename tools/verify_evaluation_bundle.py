@@ -19,6 +19,7 @@ PATCH_FILES = {
     'tests/test_checkpoint_cache.py',
     'tests/test_child_runner.py',
     'tests/test_native_checkpoint_reserve.py',
+    'tests/test_startup_cache_admission.py',
 }
 
 
