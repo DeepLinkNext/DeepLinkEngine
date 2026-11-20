@@ -80,7 +80,7 @@ def test_new_root_forwards_all_explicit_sources_and_retains_full_scope():
     import contextlib
     import io
     import test_run_all as fixture
-    case=fixture.WorkflowTests('runTest');case.setUp()
+    case=fixture.WorkflowTests('runTest');case.setUp();case.data['rerun_b0']=False
     try:
         workflow=fixture.workflow
         source=case.root/'previous';(source/'installation').mkdir(parents=True)
@@ -119,7 +119,7 @@ def test_bootstrap_recovery_keeps_multi_source_and_original200_selection():
     import contextlib
     import io
     import test_run_all as fixture
-    case=fixture.WorkflowTests('runTest');case.setUp()
+    case=fixture.WorkflowTests('runTest');case.setUp();case.data['rerun_b0']=False
     try:
         workflow=fixture.workflow;case.failed_preflight()
         selection=dict(campaigns=[str(case.root/'historical')],mmlu_baseline_arm=str(case.root/'old-mmlu/B0'))

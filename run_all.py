@@ -14,7 +14,7 @@ import uuid
 
 ROOT = Path(__file__).resolve().parent
 PATH_FIELDS = {"model", "cache", "out", "baseline_deployment", "dataset_assets", "env_file"}
-FIELDS = PATH_FIELDS | {"physical_devices", "devices", "environment", "engine_version"}
+FIELDS = PATH_FIELDS | {"physical_devices", "devices", "environment", "engine_version", "rerun_b0"}
 
 
 def configuration(path, *, allow_existing=False):
@@ -48,6 +48,9 @@ def configuration(path, *, allow_existing=False):
                 raise ValueError("environment." + name + " requires a path")
             if name != "python" or "/" in value or "\\" in value:
                 options[name] = str((path.parent / Path(value).expanduser()).resolve())
+    if "rerun_b0" in data:
+        from b0_run_policy import boolean
+        boolean(data["rerun_b0"])
     if not Path(data["model"]).is_dir():
         raise ValueError("Model directory does not exist: " + data["model"])
     if os.path.lexists(data["out"]) and not allow_existing:
@@ -242,7 +245,7 @@ def completed_run_source(data, source):
     if source == out or source.is_relative_to(out) or out.is_relative_to(source):
         raise ValueError("Reuse source and new output must be independent")
     prior = json.loads((source / "results.json").read_text())
-    comparable = lambda value: {k: v for k, v in value.items() if k not in ("out", "engine_version")}
+    comparable = lambda value: {k: v for k, v in value.items() if k not in ("out", "engine_version", "rerun_b0")}
     if comparable(prior.get("configuration", {})) != comparable(data):
         raise ValueError("Reuse model/device/cache configuration differs")
     if prior.get("status") not in ("failed", "completed"):
@@ -307,7 +310,7 @@ def run(data, *, resume_bootstrap=False, resume_before_model=False, resume_befor
     out.mkdir(parents=True, exist_ok=reuse_installation)
     installation = out / "installation"
     cli = str(Path(sysconfig.get_path("scripts")) / "vllm-hust-engine")
-    receipt = {"status": "running", "stages": [], "configuration": data, "automated_acceptance_complete": False}
+    receipt = {"status": "running", "stages": [], "configuration": data, "automated_acceptance_complete": False, "baseline_policy": {"rerun_b0": data.get("rerun_b0", False)}}
     if reused_run:
         receipt["reused_run"] = reused_run
         receipt["reuse_selection"] = reuse_selection
@@ -444,6 +447,8 @@ def run(data, *, resume_bootstrap=False, resume_before_model=False, resume_befor
                       "--devices", plan["logical_devices"]]
         if reuse_selection.get("context_baseline_arm"):
             supplement += ["--reuse-b0", reuse_selection["context_baseline_arm"]]
+        if data.get("rerun_b0", False):
+            supplement += ["--rerun-b0"]
         stage("run-context-tenant", supplement)
         campaign, reports, hashes = completed_evidence(out)
         reference_target = qualified_reference(campaign)
@@ -507,9 +512,12 @@ def main():
     parser.add_argument('--reuse-mmlu-baseline-arm', type=Path, help='Explicit sealed fixed-B0 original200 arm; retain its original answers, dates and identity')
     parser.add_argument('--reuse-context-baseline-arm', type=Path, help='Explicit sealed fixed-B0 context/four-tenant arm; verify identical inputs, budgets, warmup, model, image, devices and reviewed controller sources')
     parser.add_argument("--reuse-compute-baseline-arm", type=Path, help="Reuse sealed fixed-B0 native timing repetitions; retain original clocks and sources instead of starting B0")
+    parser.add_argument("--rerun-b0", action=argparse.BooleanOptionalAction, default=None, help="是否重跑固定 B0；默认否，复用已封存结果；首次测量显式开启")
     args = parser.parse_args()
     try:
         data = configuration(args.config, allow_existing=args.resume_bootstrap or args.resume_before_model or args.resume_before_inference or args.report_only)
+        if args.rerun_b0 is not None:
+            data["rerun_b0"] = args.rerun_b0
         os.environ["XDG_CACHE_HOME"] = os.environ.get("XDG_CACHE_HOME") or str(Path(data["cache"]) / "xdg")
         os.environ["MPLCONFIGDIR"] = os.environ.get("MPLCONFIGDIR") or str(Path(os.environ["XDG_CACHE_HOME"]) / "matplotlib")
         if args.report_only:
@@ -524,6 +532,11 @@ def main():
         recovery = args.resume_bootstrap or args.resume_before_model or args.resume_before_inference
         if (args.reuse_completed_campaign or args.reuse_mmlu_baseline_arm or args.reuse_context_baseline_arm or args.reuse_compute_baseline_arm) and not (args.reuse_completed_run or recovery):
             raise ValueError('Additional sealed sources require explicit completed-run recovery')
+        if not args.prepare_environment:
+            from b0_run_policy import full_entry_policy
+            args.reuse_context_baseline_arm, args.reuse_compute_baseline_arm = full_entry_policy(
+                data, prior=args.reuse_completed_run, context=args.reuse_context_baseline_arm,
+                compute=args.reuse_compute_baseline_arm, recovery=recovery)
         select_run_engine(data, recovery=recovery, reuse_completed_run=args.reuse_completed_run)
         if sum((args.resume_bootstrap,args.resume_before_model,args.resume_before_inference))>1:
             raise ValueError("Choose only one recovery mode")

@@ -69,7 +69,7 @@ class FullSuiteEntryTests(unittest.TestCase):
             return SimpleNamespace(returncode=0)
 
         with patch("one_click.verify_kit"), patch("child_runner.run_stage", side_effect=command):
-            status = run_all.run(dict(out=str(out), model="/model", physical_devices=[1, 6], cache="/cache"))
+            status = run_all.run(dict(out=str(out), model="/model", physical_devices=[1, 6], cache="/cache", rerun_b0=True))
         return status, json.loads((out / "results.json").read_text()), commands, out
 
     def test_public_suite_runs_corrected_entry_and_automatic_reference_before_supplement(self):

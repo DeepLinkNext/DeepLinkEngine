@@ -11,8 +11,10 @@
 按[首页说明](../README.md#测试与报告)填写配置后，在仓库根目录执行：
 
 ```sh
-python run_all.py --config evaluation.json
+python run_all.py --config evaluation.json --rerun-b0
 ```
+
+是否重跑 B0 默认选择“否”（`rerun_b0: false`）。上例用于首次测量，显式 `--rerun-b0` 才启动固定 B0。后续省略该开关，并用 `--reuse-completed-run` 指定旧结果；已保存的 B0 上下文和原生计时来源随恢复记录沿用，也可分别用 `--reuse-context-baseline-arm`、`--reuse-compute-baseline-arm` 指定。缺少匹配原件时在模型启动前报错，不自动退回重跑。`--no-rerun-b0` 可覆盖配置中的 `true`；重跑选项不与复用来源并用。
 
 入口依次完成引擎安装与校验、固定五项 B0/B1 测试、长上下文和四租户测试，输出原始记录、校验值、JSON 结果及 HTML 报告。第三方见证运行，核对版本、配置、当次原始记录和报告后出具结论。4.1 随一键流程自动生成本轮原生双卡计时、必要算量与原完整参考分母复用认证，报告保留其方法身份。若现场方案要求重新独立标定完整参考，按[现场采集说明](indicator-retest.md)执行；自动复用报告不冒充现场新标定结果。历史预检不替代第三方正式判定。
 
@@ -57,7 +59,7 @@ B0 为固定的 `original018-cann8.5.1`，由工具核验上游镜像摘要并�
 
 ```sh
 python one_click.py verify
-python one_click.py run --config /path/to/evaluation.json
+python one_click.py run --config /path/to/evaluation.json --rerun-b0
 ```
 
 `test_mode: "full"` 运行固定五项，`"quick"` 仅运行 MMLU-Pro 200 题，两种模式都自动执行参考认证。默认 `reference_profile: "submission-v2"` 为固定 MMLU200/out256，每臂三轮；不能将该参考分母套到 out8192 完整回答。达成率使用本轮必要算量和全部三轮同步墙钟，除以重新核验的原完整参考每卡上界；保留两边各自的算量和参考时间，不直接复用历史达成率。工况或证据不匹配时返回非零，缺项单列。该认证明确标记为原完整参考分母的同工况复用，详见[参考认证说明](one-click-kit/third-party-test-kit/参考算力标定与复算.md)。
