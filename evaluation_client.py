@@ -264,6 +264,38 @@ def native_baseline_bridge(result):
     result[key] = text.encode()
 
 
+def warmup_memory_bridge(result):
+    """Release bounded cache pressure before any warmup or formal request."""
+    result['scripts/warmup_memory_recovery.py'] = (ROOT / 'warmup_memory_recovery.py').read_bytes()
+    key = 'scripts/checkpoint_cache.py'
+    text = result[key].decode()
+    text = once(text,
+        'at the healthy, idle service boundary. No pressure allocation runs against a\n    live model and no buffer survives into warmup or a measured request.',
+        'at the healthy, idle service boundary. Bounded cache recovery may run only\n    at that idle boundary; no buffer survives into warmup or a measured request.')
+    old = ('        value=self.sample()\n'
+           '        self.record[\'warmup_admission\']=value\n'
+           '        self.record[\'required_warmup_raw_bytes\']=12*GIB\n'
+           '        self.record[\'warmup_raw_basis\']=\'two frozen4GiB/rank State budgets plus original4GiB raw reserve\'\n'
+           '        self.save()\n'
+           '        if value[\'limit\']-value[\'current\'] < 12*GIB:\n'
+           '            raise RuntimeError(\'Less than12GiB raw memory before warmup after startup reserve release; no formal request submitted\')')
+    new = ('        value=self.sample()\n'
+           '        required=24*GIB\n'
+           '        self.record[\'required_warmup_raw_bytes\']=required\n'
+           '        self.record[\'warmup_raw_basis\']=\'two frozen4GiB/rank State budgets plus16GiB transient host allocator/cache headroom; original working-set and OOM gates unchanged\'\n'
+           '        if value[\'limit\']-value[\'current\'] < required:\n'
+           '            from warmup_memory_recovery import reclaim_idle_headroom\n'
+           '            recovery=self.path.with_name(\'memory-recovery-before-warmup.json\')\n'
+           '            self.record[\'healthy_idle_recovery\']=reclaim_idle_headroom(self.sample,self.check,required,recovery)\n'
+           '            value=self.sample()\n'
+           '        self.record[\'warmup_admission\']=value\n'
+           '        self.save()\n'
+           '        if value[\'limit\']-value[\'current\'] < required:\n'
+           '            raise RuntimeError(\'Less than24GiB raw memory before warmup after idle cache recovery; no formal request submitted\')')
+    text = once(text, old, new)
+    result[key] = text.encode()
+
+
 def context_baseline_bridge(result):
     """Preserve completed fixed-B0 context phases across a B1-only change."""
     def scripts(files):
@@ -283,6 +315,7 @@ def context_baseline_bridge(result):
     if digest(scripts(result)) not in reviewed_sources:
         raise ValueError('B0 context assessment-source compatibility requires review')
     native_baseline_bridge(result)
+    warmup_memory_bridge(result)
     key = 'scripts/acceptance_suite.py'
     text = result[key].decode()
     old = ('    if admission["deployment"] != str(args.deployment.resolve()):\n'
