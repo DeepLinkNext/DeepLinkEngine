@@ -165,6 +165,88 @@ def baseline_location_bridge(result):
     result[key] = text.encode()
 
 
+CONTEXT_BASELINE_HELPER = '''"""Admit the reviewed fixed-B0 context measurement without relabelling it."""
+import hashlib
+import json
+from pathlib import Path
+
+OLD_SOURCES = '026d8526833090abce577801e4f6a767f6aea086e34c75fbb8716a59a2afe19d'
+CURRENT_SOURCES = '__CURRENT_SOURCES__'
+
+
+def digest(value):
+    return hashlib.sha256(json.dumps(value, sort_keys=True, separators=(',', ':')).encode()).hexdigest()
+
+
+def validate(prior, args, current):
+    read = lambda path: json.loads(Path(path).read_bytes())
+    previous = read(prior / 'controller-source.json')
+    # Old66-file source inventory was checked against its complete original
+    # candidate-v12 source. Only the reviewed94-file R9 client may adapt it.
+    # Current inventory excludes this generated verifier to avoid a self hash.
+    adapted = previous != current
+    observed = {n: h for n, h in current.items() if n != 'scripts/context_baseline_reuse.py'}
+    if adapted and (digest(previous) != OLD_SOURCES or digest(observed) != CURRENT_SOURCES):
+        raise ValueError('B0 context controller sources require compatibility review')
+    from runtime_geometry import capacity36
+    from completion_warmup import protocol
+    release = read(Path(args.deployment) / 'deployment.json')['release']
+    plan = read(prior / 'service/plan.json')
+    if plan.get('serving_warmup') != protocol('continuous', acceptance=True, capacity36=capacity36(release)):
+        raise ValueError('B0 context shared warmup protocol differs')
+    mapping = read(prior / 'device-mapping.json')
+    if mapping['logical_cards'] != [int(n) for n in args.devices.split(',')]:
+        raise ValueError('B0 context logical card mapping differs')
+    from reuse_campaign import verify_baseline_serve_args
+    verify_baseline_serve_args('continuous-B0', prior / 'service/plan.json')
+    old_companion = read(prior / 'source-admission.json')
+    return dict(schema='deeplinkengine-fixed-b0-context-reuse/v1',
+        original_run=str(prior), original_companion=old_companion,
+        requested_companion=str(Path(args.deployment).resolve()),
+        original_sources_sha256=digest(previous), current_sources_sha256=digest(current),
+        source_adaptation=adapted, shared_warmup=plan['serving_warmup'],
+        scope='Original fixed B0 dates, actual runtime, raw phases and responses retained; companion B1 identity is not B0 identity.')
+'''
+
+
+def context_baseline_bridge(result):
+    """Preserve completed fixed-B0 context phases across a B1-only change."""
+    def scripts(files):
+        return {name: sha(body) for name, body in files.items()
+                if name.startswith('scripts/') and '/' not in name[len('scripts/'): ]}
+    def digest(value):
+        return sha(json.dumps(value, sort_keys=True, separators=(',', ':')).encode())
+    if digest(scripts(result)) != '378c81fc3b0d27ccbf0f9a78bbae401053a0a4d6b318d0bfa921669dd82fce0f':
+        raise ValueError('B0 context assessment-source compatibility requires review')
+    key = 'scripts/acceptance_suite.py'
+    text = result[key].decode()
+    old = ('    if admission["deployment"] != str(args.deployment.resolve()):\n'
+           '        raise ValueError("Reuse uses a different deployment")\n'
+           '    if json.loads((prior / "controller-source.json").read_bytes()) != provenance():\n'
+           '        raise ValueError("Reuse controller code differs; no silent adaptation")')
+    new = ('    if role == "B0":\n'
+           '        from context_baseline_reuse import validate as validate_baseline_sources\n'
+           '        source_binding = validate_baseline_sources(prior, args, provenance())\n'
+           '    else:\n'
+           '        if admission["deployment"] != str(args.deployment.resolve()):\n'
+           '            raise ValueError("Reuse uses a different deployment")\n'
+           '        if json.loads((prior / "controller-source.json").read_bytes()) != provenance():\n'
+           '            raise ValueError("Reuse controller code differs; no silent adaptation")')
+    text = once(text, old, new)
+    text = once(text, '        if target != captured:\n            raise ValueError("Reuse baseline identity differs")',
+        '        from baseline_relocation import verify as verify_baseline_location\n'
+        '        location = verify_baseline_location(captured, args.baseline_deployment)\n'
+        '        if target["versions"] != captured["versions"] or target["variant"] != captured["variant"]:\n'
+        '            raise ValueError("Reuse baseline identity differs")\n'
+        '        source_binding.update(baseline_location=location, seal_sha256=sha(prior / "checksums.json"),\n'
+        '            original_started=receipt["started"], original_ended=receipt["ended"],\n'
+        '            complete_original_phases_verified=True)\n'
+        '        save(args.out / "reused-B0-context-provenance.json", source_binding)')
+    result[key] = text.encode()
+    current = digest(scripts(result))
+    result['scripts/context_baseline_reuse.py'] = CONTEXT_BASELINE_HELPER.replace('__CURRENT_SOURCES__', current).encode()
+
+
 def bridge(client, provider):
     """Keep assessment and reference protocols; import producer model admission."""
     result = dict(client)
@@ -239,6 +321,7 @@ def bridge(client, provider):
         scope='Only imports and a CLI result-file channel were added; prepare() and original input recipe are byte-identical. All frozen dataset/task/budget/source checks remain required.')
     result[key] = (json.dumps(compat, indent=2) + '\n').encode()
     baseline_location_bridge(result)
+    context_baseline_bridge(result)
     return result
 
 
