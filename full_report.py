@@ -167,6 +167,69 @@ def context_decisions(context, audits):
                 measured_window_ratios={k:str(v) if v is not None else None for k,v in windows.items()})
 
 
+def dataset_costs(fixed, pairs):
+    mmlu=fixed.get('current_mmlu_pair') or {}
+    mmlu_gains=mmlu.get('gains',{})
+    observations=dict(fixed.get('current_cost_utilization') or {})
+    observations['mmlu']=dict(unit_cost_reduction_percent=mmlu_gains.get('equal_rate_unit_cost_reduction_pct'),
+        utilization_gain_pp=mmlu_gains.get('ai_core_utilization_gain_pp'),utilization=mmlu.get('utilization',{}))
+    details={}
+    for name in DATASETS:
+        row=observations.get(name,{})
+        cost=number(row.get('unit_cost_reduction_percent'));util=number(row.get('utilization_gain_pp'))
+        samples=row.get('utilization',{})
+        pair=pairs.get(name,{})
+        met=bool(pair.get('complete') and pair.get('quality',{}).get('met')
+            and set(samples)=={'B0','B1'} and all(coverage(v) for v in samples.values())
+            and cost is not None and util is not None and cost>=10 and util>=10)
+        details[name]=dict(met=met,execution_complete=bool(pair.get('complete')),
+            quality=pair.get('quality'),unit_cost_reduction_percent=str(cost) if cost is not None else None,
+            utilization_gain_pp=str(util) if util is not None else None,utilization=samples)
+    winners=[n for n in DATASETS if details[n]['met']]
+    selected=winners[0] if winners else 'mmlu'
+    return winners,selected,details
+
+
+def sealed_dataset_utilization(root, expected_count):
+    """Use raw sealed request clocks and the same physical-card sampler window."""
+    from telemetry_audit import utilization
+    root=Path(root).resolve();seal=json.loads((root/'checksums.json').read_bytes())
+    consumed={}
+    def read(path):
+        relative=str(path.relative_to(root));raw=path.read_bytes()
+        digest=hashlib.sha256(raw).hexdigest()
+        if seal.get(relative)!=digest:raise ValueError('Dataset cost input has no matching seal: '+relative)
+        consumed[relative]=digest
+        return raw
+    clocks=[]
+    for path in sorted((root/'service/evaluation/requests').glob('*.json')):
+        record=json.loads(read(path));clocks.append((record['start']['monotonic'],record['end']['monotonic']))
+    if len(clocks)!=expected_count:raise ValueError('Dataset cost window requires every frozen request')
+    devices=json.loads(read(root/'resource-admission.json'))['physical_cards']
+    if len(devices)!=2 or len(set(devices))!=2:raise ValueError('Dataset cost requires the same two physical cards')
+    rows=[json.loads(line) for line in read(root/'device-samples.jsonl').splitlines() if line]
+    start=min(v[0] for v in clocks);end=max(v[1] for v in clocks)
+    result=utilization(rows,start,end,tuple(map(str,devices)))
+    result['request_window']=dict(start_monotonic=start,end_monotonic=end,requests=expected_count)
+    result['sealed_inputs']=consumed
+    return result
+
+
+def attach_dataset_costs(fixed, root):
+    pairs=workload_pairs(fixed);rows={}
+    for name in DATASETS[1:]:
+        pair=pairs.get(name,{})
+        if not pair.get('complete'):continue
+        stage=lambda role: name+('-trace-' if name in ('swe','terminal') else '-solver-')+role
+        samples={role:sealed_dataset_utilization(Path(fixed.get('reused_stage_sources',{}).get(stage(role),root/stage(role))),COUNTS[name]) for role in ('B0','B1')}
+        if set(samples['B0']['per_card_percent'])!=set(samples['B1']['per_card_percent']):
+            raise ValueError('Dataset cost pair requires identical physical cards')
+        speed=ratio(pair['arms']['B0'].get('output_tokens_per_second'),pair['arms']['B1'].get('output_tokens_per_second'))
+        rows[name]=dict(unit_cost_reduction_percent=str(100*(1-speed)) if speed is not None else None,
+            utilization_gain_pp=str(number(samples['B1']['mean_percent'])-number(samples['B0']['mean_percent'])),utilization=samples)
+    fixed['current_cost_utilization']=rows
+
+
 def targets(fixed, context, audits):
     fixed=fixed or {}; ref=fixed.get('current_compute_reference') or {}
     value=None
@@ -181,12 +244,9 @@ def targets(fixed, context, audits):
     pairs=workload_pairs(fixed)
     milestone, details=performance(pairs,'1.10','.95'); final, final_details=performance(pairs,'2','.80')
     speed=dict(milestone=milestone,final=final,datasets=details,final_datasets=final_details)
-    mmlu=fixed.get('current_mmlu_pair') or {}; gains=mmlu.get('gains',{})
-    cost=number(gains.get('equal_rate_unit_cost_reduction_pct')); util=number(gains.get('ai_core_utilization_gain_pp'))
-    cost_met=(pairs.get('mmlu',{}).get('complete') and pairs['mmlu']['quality']['met']
-              and all(coverage(v) for v in mmlu.get('utilization',{}).values())
-              and set(mmlu.get('utilization',{}))=={'B0','B1'}
-              and cost is not None and util is not None and cost>=10 and util>=10)
+    cost_winners,cost_selected,cost_details=dataset_costs(fixed,pairs)
+    selected=cost_details[cost_selected]
+    cost=number(selected['unit_cost_reduction_percent']);util=number(selected['utilization_gain_pp'])
     multi=next((r for r in (context or {}).get('comparison',[]) if r['phase']=='multi-tenant-formal'),None)
     final_met=False;reduction=None;usage=None
     if multi and all(phase_valid(multi[r]) and audits.get(r,{}).get('clean') is True and coverage(multi[r].get('utilization',{})) for r in ('B0','B1')):
@@ -195,7 +255,8 @@ def targets(fixed, context, audits):
         usage=number(multi['B1'].get('utilization',{}).get('mean_percent'))
         final_met=(reduction is not None and usage is not None and reduction>=30 and usage>=80
                    and len(tenants)==4 and all(m.get('requests',0)>0 and m.get('successful')==m.get('requests') and m.get('failed')==0 for m in tenants.values()))
-    costs=dict(milestone=decision(cost_met,'MMLU完整回答：单位输出token成本降低≥10%，同窗AI Core均值提高≥10个百分点。'),
+    costs=dict(milestone=decision(bool(cost_winners),'同一固定数据集完整请求及质量门槛满足，单位输出token成本降低≥10%，同窗AI Core均值提高≥10个百分点。'),
+               datasets=cost_details,qualifying_datasets=cost_winners,display_dataset=cost_selected,
                final=decision(final_met,'四租户：单位输出token成本降低≥30%，B1利用率≥80%，四个租户均成功且无失败。'),
                unit_cost_reduction_percent=str(cost) if cost is not None else None,
                utilization_gain_pp=str(util) if util is not None else None,
@@ -219,6 +280,7 @@ def collect(root):
     fixed=inspect(root/'fixed-five')
     if fixed['plan']['datasets']!=list(DATASETS):
         raise ValueError('Full report requires all five frozen datasets')
+    attach_dataset_costs(fixed,root/'fixed-five')
     context=paired({r:root/'context-tenant'/r for r in ('B0','B1')})
     stored=json.loads((root/'context-tenant/paired-summary.json').read_text())
     if stored!=context:

@@ -392,9 +392,9 @@ def render(root, out):
             "Current original200 pair",
         ),
         (
-            "3.4.3 Dataset stability",
-            "Incomplete",
-            "Quality subsets + published agent trace scope",
+            "Fixed-five execution",
+            "Complete" if data['receipt'].get('selected_execution_complete') else "Incomplete",
+            "Frozen quality samples + public agent inference traces",
         ),
         (
             "3.4.4 Cost + utilization",

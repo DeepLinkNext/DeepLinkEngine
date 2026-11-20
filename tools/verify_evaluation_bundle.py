@@ -16,6 +16,7 @@ PATCH_FILES = {
     'scripts/run_b1_r4.py',
     'scripts/run_native_reference.py',
     'scripts/run_paired.py',
+    'scripts/third_party_report.py',
     'tests/test_checkpoint_cache.py',
     'tests/test_child_runner.py',
     'tests/test_native_checkpoint_reserve.py',
