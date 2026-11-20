@@ -122,7 +122,8 @@ def main():
         if args.dry_run:
             forwarded.append('--dry-run')
         python = receipt['python']
-        os.execve(python, [python, '-m', 'vllm_hust_engine.cli', 'serve',
+        entry = 'from vllm_hust_engine.cli import main; raise SystemExit(main())'
+        os.execve(python, [python, '-c', entry, 'serve',
                           '--installation', str(installed), '--', *forwarded], dict(os.environ))
         raise RuntimeError('Producer service handoff returned unexpectedly')
     root = installed / "sdk"

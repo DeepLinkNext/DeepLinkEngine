@@ -120,8 +120,44 @@ def test_new_service_delegates_intern_and_qwen_to_installed_producer(tmp_path):
              patch.object(os,'execve',side_effect=Handoff) as handoff:
             with pytest.raises(Handoff):service.main()
         command=handoff.call_args.args[1]
-        assert command[:4]==['/private/bin/python','-m','vllm_hust_engine.cli','serve']
+        assert command[:4]==['/private/bin/python','-c','from vllm_hust_engine.cli import main; raise SystemExit(main())','serve']
         assert '--dry-run' in command and str(tmp_path/model) in command
+
+
+@pytest.mark.skipif(sys.platform != 'linux', reason='The serving adapter supports Linux')
+@pytest.mark.parametrize('model', ['Intern-S2', 'Qwen3.5-35B-A3B'])
+def test_service_really_invokes_producer_cli_main_in_a_new_process(tmp_path, model):
+    import subprocess
+    package = tmp_path / 'vllm_hust_engine'
+    package.mkdir()
+    (package / '__init__.py').write_text('')
+    # Match the published entry-point contract: cli.main exists, with no -m guard.
+    (package / 'cli.py').write_text(
+        'import json,os,sys\nfrom pathlib import Path\n'
+        'def main():\n'
+        ' Path(os.environ["PRODUCER_MAIN_RECEIPT"]).write_text(json.dumps(sys.argv[1:]))\n'
+        ' return 0\n'
+    )
+    installed = tmp_path / 'installation'
+    (installed / 'sdk').mkdir(parents=True)
+    release = 'full-answer-b1-20261119-r9'
+    (installed / 'installation.json').write_text(json.dumps(dict(
+        release=release, package_version='2026.11.19.9.post1',
+        deployment=str(installed / 'sdk'), python=sys.executable)))
+    (installed / 'sdk/deployment.json').write_text(json.dumps(dict(release=release)))
+    receipt = tmp_path / 'producer-main.json'
+    env = dict(os.environ, PYTHONPATH=os.pathsep.join([str(ROOT), str(tmp_path)]),
+               PYTHONDONTWRITEBYTECODE='1', PRODUCER_MAIN_RECEIPT=str(receipt))
+    completed = subprocess.run([
+        sys.executable, '-B', str(ROOT / 'engine/service.py'), '--installation', str(installed),
+        '--model', str(tmp_path / model), '--physical-devices', '0,7', '--devices', '0,1',
+        '--cache', str(tmp_path / 'cache'), '--dry-run'],
+        env=env, capture_output=True, text=True, encoding='utf-8', timeout=30)
+    assert completed.returncode == 0, completed.stderr
+    arguments = json.loads(receipt.read_text())
+    assert arguments[:3] == ['serve', '--installation', str(installed)]
+    assert arguments[arguments.index('--model') + 1] == str(tmp_path / model)
+    assert '--dry-run' in arguments
 
 
 def test_post_revision_is_stable_and_keeps_frozen_release(tmp_path):
