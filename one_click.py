@@ -144,6 +144,16 @@ def validate_deployment(arguments):
         raise ValueError("Provide an installed frozen r8 SDK before downloading test inputs: " + str(path))
 
 
+def configuration_arguments(subcommand, arguments):
+    """Use the sealed parser without executing/download side effects."""
+    verify_kit()
+    spec = importlib.util.spec_from_file_location("public_one_click_configuration", KIT / "one_click.py")
+    module = importlib.util.module_from_spec(spec)
+    sys.path.insert(0, str(KIT / "scripts"))
+    spec.loader.exec_module(module)
+    return module.configuration(subcommand, arguments)
+
+
 def prepare_data(arguments):
     from dataset_bundle import prepare
     validate_deployment(arguments)

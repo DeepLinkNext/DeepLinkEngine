@@ -87,6 +87,54 @@ class CheckpointCacheTests(unittest.TestCase):
             self.assertEqual(other.read_bytes(), b"outside")
 
 
+class StartupReserveTests(unittest.TestCase):
+    def test_real_pages_are_held_until_healthy_idle_boundary_and_released_once(self):
+        from checkpoint_cache import StartupMemoryReserve
+        chunks = [SimpleNamespace(close=__import__('unittest.mock', fromlist=['Mock']).Mock()) for _ in range(64)]
+        value = dict(limit=64*2**30, current=55*2**30)
+        checks = []
+        with tempfile.TemporaryDirectory() as temp, patch('checkpoint_cache.allocate_private_chunk', side_effect=chunks):
+            reserve = StartupMemoryReserve(Path(temp)/'reserve.json', lambda: value, lambda: checks.append(True))
+            self.assertFalse(any(c.close.called for c in chunks))
+            reserve.before_warmup();reserve.close('cleanup')
+            self.assertTrue(all(c.close.call_count == 1 for c in chunks))
+            self.assertEqual(len(checks),65)
+            self.assertEqual(reserve.record['release_reason'],'healthy-idle-service-before-first-warmup')
+
+    def test_guard_failure_releases_every_allocated_page_before_model_start(self):
+        from checkpoint_cache import StartupMemoryReserve
+        from unittest.mock import Mock
+        chunk=SimpleNamespace(close=Mock())
+        with tempfile.TemporaryDirectory() as temp, patch('checkpoint_cache.allocate_private_chunk',return_value=chunk):
+            with self.assertRaisesRegex(RuntimeError,'working reserve'):
+                StartupMemoryReserve(Path(temp)/'reserve.json', lambda:{}, lambda: (_ for _ in ()).throw(RuntimeError('working reserve')))
+            chunk.close.assert_called_once()
+            self.assertTrue(json.loads((Path(temp)/'reserve.json').read_text())['released'])
+
+    def test_cache_refill_cannot_silently_enter_warmup_without_raw_headroom(self):
+        from checkpoint_cache import StartupMemoryReserve
+        with tempfile.TemporaryDirectory() as temp, patch('checkpoint_cache.allocate_private_chunk',return_value=SimpleNamespace(close=lambda:None)):
+            reserve=StartupMemoryReserve(Path(temp)/'reserve.json',lambda:dict(limit=64*2**30,current=63*2**30),lambda:None)
+            with self.assertRaisesRegex(RuntimeError,'raw memory before warmup'):
+                reserve.before_warmup()
+            self.assertTrue(reserve.record['released'])
+
+    def test_buffer_lifetime_excludes_both_warmup_and_formal_clients(self):
+        import ast
+        module=ast.parse((Path(__file__).resolve().parents[1]/'scripts/run_b1_r4.py').read_text())
+        function=next(n for n in module.body if isinstance(n,ast.FunctionDef) and n.name=='admitted_run')
+        lines={}
+        for n in ast.walk(function):
+            if isinstance(n,ast.Assign) and any(isinstance(t,ast.Name) and t.id in ('startup_reserve','service','warmup','client') for t in n.targets):
+                if isinstance(n.value,ast.Call):
+                    for t in n.targets:
+                        if isinstance(t,ast.Name):lines[t.id]=n.lineno
+        releases=[n.lineno for n in ast.walk(function) if isinstance(n,ast.Call) and isinstance(n.func,ast.Attribute) and n.func.attr=='before_warmup']
+        self.assertLess(lines['startup_reserve'],lines['service'])
+        self.assertTrue(any(lines['service']<line<lines['warmup'] for line in releases))
+        self.assertTrue(any(lines['warmup']<line<lines['client'] for line in releases))
+
+
 class RuntimeMemoryReserveTests(unittest.TestCase):
     def state(self, working=44):
         return dict(limit=64*2**30,current=63*2**30,working_estimate=working*2**30,

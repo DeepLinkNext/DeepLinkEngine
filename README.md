@@ -30,6 +30,8 @@ python examples/chat.py "你好，请介绍一下自己"
 python run_all.py --config evaluation.json
 ```
 
+入口自动完成环境准备、缓存回收、双臂预热、五项配对、有效算力参考、上下文与四租户测试，并生成 `full-report/report.html` 及 PNG/SVG 对比图。终端持续显示原始日志和阶段进度。
+
 [固定数据包](data/README.md)和[B0 镜像原件](data/B0-README.md)均由测试入口从本仓库 Release 自动恢复并校验。[测试与复核指南](benchmark/README.md)包含固定五项、长上下文、四租户、报告生成和第三方验证；[现场测试说明](benchmark/docs/topic4-test-guide.pdf)提供见证流程。
 
 ## 目录

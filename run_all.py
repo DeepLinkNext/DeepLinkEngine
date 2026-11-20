@@ -234,15 +234,47 @@ raise SystemExit(subprocess.run([str(python),'-B',str(root/'full_report.py'),'--
     return [sys.executable,'-c',command,str(ROOT),str(out),str(destination or out/'full-report')]
 
 
-def run(data, *, resume_bootstrap=False, resume_before_model=False, resume_before_inference=False):
+def completed_run_source(data, source):
+    """Audit a sealed prior run before preparing a fresh, independent output."""
+    source = Path(source).resolve()
+    out = Path(data["out"]).resolve()
+    if source == out or source.is_relative_to(out) or out.is_relative_to(source):
+        raise ValueError("Reuse source and new output must be independent")
+    prior = json.loads((source / "results.json").read_text())
+    comparable = lambda value: {k: v for k, v in value.items() if k != "out"}
+    if comparable(prior.get("configuration", {})) != comparable(data):
+        raise ValueError("Reuse model/device/cache configuration differs")
+    if prior.get("status") not in ("failed", "completed"):
+        raise ValueError("Reuse requires a stopped prior run")
+    sys.path.insert(0, str(ROOT / "benchmark/one-click-kit/scripts"))
+    from reuse_campaign import source as audit_source, audit_stage
+    _, _, campaign, _ = audit_source(source / "fixed-five")
+    if campaign.get("status") not in ("failed", "completed"):
+        raise ValueError("Reuse campaign is not sealed and stopped")
+    names = [row["name"] for row in campaign["stages"] if row["status"] == "completed"]
+    if not names:
+        raise ValueError("No completed sealed stages are available to reuse")
+    for name in names:
+        audit_stage(source / "fixed-five", name)
+    return dict(root=str(source), completed_stages=names,
+                results_sha256=hashlib.sha256((source / "results.json").read_bytes()).hexdigest())
+
+
+def run(data, *, resume_bootstrap=False, resume_before_model=False, resume_before_inference=False,
+        reuse_completed_run=None):
     out = Path(data["out"])
+    reused_run = completed_run_source(data, reuse_completed_run) if reuse_completed_run else None
+    if reused_run and os.path.lexists(out):
+        raise ValueError("Completed-run reuse requires a new output directory")
     pre_inference = resume_before_model or resume_before_inference
     prior = before_model_resume(data, allow_model_startup=resume_before_inference) if pre_inference else bootstrap_resume(data) if resume_bootstrap else None
-    reuse_installation = resume_bootstrap or pre_inference
+    reuse_installation = resume_bootstrap or pre_inference or reused_run is not None
     out.mkdir(parents=True, exist_ok=reuse_installation)
     installation = out / "installation"
     cli = str(Path(sysconfig.get_path("scripts")) / "vllm-hust-engine")
     receipt = {"status": "running", "stages": [], "configuration": data, "automated_acceptance_complete": False}
+    if reused_run:
+        receipt["reused_run"] = reused_run
     if prior is not None:
         history = out / "attempts"
         history.mkdir(exist_ok=True)
@@ -334,7 +366,14 @@ def run(data, *, resume_bootstrap=False, resume_before_model=False, resume_befor
             stage("prepare-fixed-five", [*evaluate, "verify"], mode="verify_existing_preflight")
         else:
             stage("prepare-fixed-five", prepare_command)
-        stage("run-fixed-five", [*evaluate, "run", "--config", str(config)])
+        run_command = [*evaluate, "run", "--config", str(config)]
+        if reused_run:
+            # Translate the public configuration before adding a controller-only
+            # option. The frozen subcommand parser intentionally rejects extras.
+            from one_click import configuration_arguments
+            run_command = [*evaluate, *configuration_arguments("run", ["--config", str(config)]),
+                           "--reuse-completed-campaign", str(Path(reused_run["root"]) / "fixed-five")]
+        stage("run-fixed-five", run_command)
         current = json.loads((out / "fixed-five/campaign.json").read_text())
         reference_target = qualified_reference(current)
         receipt.update(compute_reference=current["compute_reference"], compute_reference_target=reference_target)
@@ -389,23 +428,29 @@ def main():
     parser.add_argument("--resume-before-model", action="store_true", help="Recover a sealed first-stage failure only when no service or inference ever started")
     parser.add_argument("--resume-before-inference", action="store_true", help="Recover a sealed failed model startup only if no formal client ever started; preserves startup originals")
     parser.add_argument("--report-only", action="store_true", help="Re-audit completed originals and regenerate all four decisions without repeating inference")
+    parser.add_argument("--reuse-completed-run", type=Path, help="Continue in a NEW output directory; audit and reuse completed sealed stages from this prior run, retaining all failed originals")
     args = parser.parse_args()
     try:
         data = configuration(args.config, allow_existing=args.resume_bootstrap or args.resume_before_model or args.resume_before_inference or args.report_only)
         if args.report_only:
-            if args.resume_bootstrap or args.resume_before_model or args.resume_before_inference or args.prepare_environment:
+            if args.resume_bootstrap or args.resume_before_model or args.resume_before_inference or args.prepare_environment or args.reuse_completed_run:
                 raise ValueError("Report-only cannot be combined with execution or recovery modes")
             out = Path(data["out"])
             destination = out / ("full-report-" + uuid.uuid4().hex)
             return subprocess.run(full_report_command(out,destination)).returncode
         if sum((args.resume_bootstrap,args.resume_before_model,args.resume_before_inference))>1:
             raise ValueError("Choose only one recovery mode")
+        if args.reuse_completed_run and (args.resume_bootstrap or args.resume_before_model or args.resume_before_inference):
+            raise ValueError("Completed-run reuse requires a new output, separate from in-place startup recovery")
+        if args.reuse_completed_run:
+            completed_run_source(data, args.reuse_completed_run)
         if args.resume_before_model or args.resume_before_inference:
             before_model_resume(data,allow_model_startup=args.resume_before_inference)
         if args.resume_bootstrap:
             bootstrap_resume(data)
         from environment_setup import ensure_environment
-        prepared = recovery_environment(data) if (args.resume_before_model or args.resume_before_inference or args.resume_bootstrap) else ensure_environment(data)
+        recovery_data = dict(data, out=str(args.reuse_completed_run.resolve())) if args.reuse_completed_run else data
+        prepared = recovery_environment(recovery_data) if (args.resume_before_model or args.resume_before_inference or args.resume_bootstrap or args.reuse_completed_run) else ensure_environment(data)
         if prepared is not None:
             os.execve(prepared["python"], [prepared["python"], str(Path(__file__).resolve()), *sys.argv[1:]], prepared["env"])
             raise ValueError("Could not hand off to the prepared Python environment")
@@ -415,7 +460,8 @@ def main():
     if args.prepare_environment:
         print("ENVIRONMENT verified; no model tests started", flush=True)
         return 0
-    return run(data, resume_bootstrap=args.resume_bootstrap, resume_before_model=args.resume_before_model, resume_before_inference=args.resume_before_inference)
+    return run(data, resume_bootstrap=args.resume_bootstrap, resume_before_model=args.resume_before_model, resume_before_inference=args.resume_before_inference,
+               reuse_completed_run=args.reuse_completed_run)
 
 
 if __name__ == "__main__":

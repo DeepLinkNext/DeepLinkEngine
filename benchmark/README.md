@@ -68,3 +68,16 @@ python run_all.py --config evaluation.json --report-only
 输出为新的 `full-report-<标识>` 目录，保留原报告与封存数据。MMLU、HLE 总体和 Frontier 两赛道使用固定计划分母，正确率绝对下降上限为 5 个百分点；未决计非成功。上下文判定同时核查服务日志、OOM 事件和采样覆盖，写盘失败不能由吞吐曲线掩盖。
 
 模型启动或预热失败、正式客户端尚未启动时，可用 `python run_all.py --config evaluation.json --resume-before-inference` 接续。入口核验封存原件、清理状态及零正式客户端记录，保留失败原件；已有正式客户端或请求记录时拒绝此模式。
+
+
+## 自动内存准备与中断接续
+
+完整测试入口自动回收已校验的安装归档及模型文件缓存。每次模型启动前检查容器实际内存和 OOM 事件；保留 4 GiB 匿名内存贯穿模型加载，在服务健康、尚未发送首条预热请求时释放，给驱动锁页分配提供实际余量。释放后再次检查至少 4 GiB 原始余量。缓冲区不进入预热或正式计时，B0/B1 使用相同流程；不改变容器限制、每 rank 状态预算或推理参数。记录保存在各臂的 `checkpoint-cache-startup.json`、`startup-memory-reserve.json` 和 `memory-samples.jsonl`。清理失败时停止并保留原因，不发送正式请求。
+
+某一阶段失败但此前已有完成记录时，保持原输出目录不动，在配置中填写新的 `out`，然后执行：
+
+```sh
+python run_all.py --config evaluation-next.json --reuse-completed-run /path/to/previous-run
+```
+
+入口重新核验封存、原始请求、模型、设备、缓存和运行配置。只有通过核验的完整阶段会复用；失败原件留在原目录，后续阶段在新目录执行。报告标明复用来源和原运行身份。零正式推理的首次启动失败仍可使用前述 `--resume-before-inference`。
