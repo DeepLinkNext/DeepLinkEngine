@@ -231,9 +231,17 @@ def main():
             if args.repair_dependencies and version is None:
                 version = metadata.version("vllm-hust-engine")
             select(args.cache, version=version)
-        if args.repair_dependencies:
+        selected = active()
+        try:
+            installed = metadata.version("vllm-hust-engine")
+        except metadata.PackageNotFoundError:
+            installed = None
+        target_changed = selected is not None and selected["version"] != installed
+        if args.repair_dependencies and not target_changed:
             resolve_runtime_dependencies(args.cache, wheelhouse=args.wheelhouse)
         else:
+            # Reusing B0 preserves its separate SDK, not the old B1 package.
+            # Install all four hash-pinned target artifacts before admitting it.
             install(args.cache, wheelhouse=args.wheelhouse, download_only=args.download_only)
     except (ValueError, OSError, RuntimeError) as error:
         parser.error(str(error))

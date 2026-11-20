@@ -95,6 +95,26 @@ class RuntimeDependencyTests(unittest.TestCase):
                 engine_install.main()
             repair.assert_called_once_with(cache, wheelhouse=wheels)
 
+    def test_repair_installs_new_selected_target_before_dependency_admission(self):
+        with patch.object(sys, "argv", ["engine_install.py", "--cache", "/cache", "--repair-dependencies"]), \
+             patch("release_selection.active", return_value={"version":"2026.11.19.9.post1"}), \
+             patch.object(engine_install.metadata, "version", return_value="2026.11.17.8.post2"), \
+             patch.object(engine_install, "install") as install, \
+             patch.object(engine_install, "resolve_runtime_dependencies") as repair:
+            engine_install.main()
+        install.assert_called_once_with(Path("/cache"), wheelhouse=None, download_only=False)
+        repair.assert_not_called()
+
+    def test_same_selected_target_keeps_dependency_only_repair(self):
+        with patch.object(sys, "argv", ["engine_install.py", "--cache", "/cache", "--repair-dependencies"]), \
+             patch("release_selection.active", return_value={"version":"2026.11.19.9.post1"}), \
+             patch.object(engine_install.metadata, "version", return_value="2026.11.19.9.post1"), \
+             patch.object(engine_install, "install") as install, \
+             patch.object(engine_install, "resolve_runtime_dependencies") as repair:
+            engine_install.main()
+        repair.assert_called_once_with(Path("/cache"), wheelhouse=None)
+        install.assert_not_called()
+
     def test_compatibility_wheel_uses_the_offline_directory_without_network(self):
         with tempfile.TemporaryDirectory() as name:
             root = Path(name)
