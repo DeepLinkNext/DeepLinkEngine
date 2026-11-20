@@ -41,6 +41,6 @@ python examples/chat.py "你好" --base-url http://127.0.0.1:8000 --model deepli
 
 - [R9 发行版说明](versions/2026.11.19.9.md)
 - [官方最新稳定源码包](https://pypi.org/project/vllm-hust-engine/)与[R9 原生运行包](https://github.com/vLLM-HUST/vllm-hust-website/releases/tag/engine-wheels-r9-v1)
-- [R8 历史下载中心](https://github.com/DeepLinkNext/DeepLinkEngine/releases/tag/r8-runtime-dependencies-20261119-v1)与[R8 封存索引](dependencies.json)
-- [运行时版本清单](r8-lock.json)与[测试工具版本清单](../benchmark/one-click-lock.json)
+- [依赖与工具下载中心](https://github.com/DeepLinkNext/DeepLinkEngine/releases/tag/r8-runtime-dependencies-20261119-v1)与[依赖与工具索引](dependencies.json)
+- [基础依赖清单](r8-lock.json)与[测试工具版本清单](../benchmark/one-click-lock.json)
 - [测试与复核](../benchmark/README.md)
