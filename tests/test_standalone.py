@@ -22,6 +22,12 @@ spec.loader.exec_module(service)
 
 
 class Standalone(unittest.TestCase):
+    def setUp(self):
+        # Network selection is independently tested with real archive fixtures.
+        selected=patch('release_selection.select',return_value=None)
+        selected.start()
+        self.addCleanup(selected.stop)
+
     def test_help_without_runtime(self):
         for args in [["--help"], ["install", "--help"], ["serve", "--help"]]:
             result = subprocess.run([sys.executable, str(ROOT / "deeplink.py"), *args], capture_output=True)
@@ -46,6 +52,8 @@ class Standalone(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             out = Path(folder)
             value = dict(release=lock["upstream_release"], package_version=lock["public_distribution"].split("==")[1], deployment=str(out / "sdk"))
+            (out / "sdk").mkdir()
+            (out / "sdk/deployment.json").write_text(json.dumps(dict(release=value["release"])))
             receipt = out / "installation.json"
             receipt.write_text(json.dumps(value))
             self.assertEqual(deeplink.installation(out)[0], out.resolve())
@@ -140,7 +148,7 @@ class Standalone(unittest.TestCase):
             args=['service','--installation',str(out),'--model',str(model),'--physical-devices','0,7','--cache',str(out/'cache')]
             guard=types.SimpleNamespace(acquire=unittest.mock.Mock())
             verifier=types.SimpleNamespace(verify_installed_sources=unittest.mock.Mock(side_effect=ValueError('source changed')))
-            with patch.object(deeplink,'installation',return_value=(out,{})), patch.object(one_click,'verify_kit'), patch.dict(os.environ), patch.dict(sys.modules,engine_entry=types.SimpleNamespace(),resource_guard=guard,restore_b1_r4=verifier,dependency_admission=types.SimpleNamespace(admit_dependencies=lambda root:None)), patch.object(sys,'argv',args):
+            with patch.object(deeplink,'installation',return_value=(out,{'release':'full-answer-b1-20261117-r8'})), patch.object(one_click,'verify_kit'), patch.dict(os.environ), patch.dict(sys.modules,engine_entry=types.SimpleNamespace(),resource_guard=guard,restore_b1_r4=verifier,dependency_admission=types.SimpleNamespace(admit_dependencies=lambda root:None)), patch.object(sys,'argv',args):
                 os.environ.pop('DEEPLINK_SERVICE_BOOTSTRAPPED',None)
                 with self.assertRaisesRegex(ValueError,'source changed'):
                     service.main()
@@ -154,7 +162,7 @@ class Standalone(unittest.TestCase):
             (sdk/'deployment.json').write_text('{}')
             args=['service','--installation',str(out),'--model',str(model),'--physical-devices','0,7','--devices','0,1','--cache',str(out/'cache'),'--work-dir',str(out)]
             guard=types.SimpleNamespace(inherited=lambda:None)
-            with patch.object(deeplink,'installation',return_value=(out,{})), patch.object(one_click,'verify_kit'), patch.dict(os.environ,DEEPLINK_SERVICE_BOOTSTRAPPED=str(out)), patch.dict(sys.modules,engine_entry=types.SimpleNamespace(),resource_guard=guard), patch.object(sys,'argv',args), patch.object(service,'build') as build:
+            with patch.object(deeplink,'installation',return_value=(out,{'release':'full-answer-b1-20261117-r8'})), patch.object(one_click,'verify_kit'), patch.dict(os.environ,DEEPLINK_SERVICE_BOOTSTRAPPED=str(out)), patch.dict(sys.modules,engine_entry=types.SimpleNamespace(),resource_guard=guard), patch.object(sys,'argv',args), patch.object(service,'build') as build:
                 with self.assertRaisesRegex(ValueError,'valid inherited device lease'):
                     service.main()
                 build.assert_not_called()
@@ -171,7 +179,7 @@ class Standalone(unittest.TestCase):
             observed=dict(required)
             if changed_version:observed['triton-ascend']='3.2.2'
             guard=types.SimpleNamespace(acquire=unittest.mock.Mock())
-            with patch.object(deeplink,'installation',return_value=(out,{})),patch.object(one_click,'verify_kit'),patch.dict(os.environ),patch.dict(sys.modules,engine_entry=types.SimpleNamespace(),resource_guard=guard,restore_b1_r4=types.SimpleNamespace(verify_installed_sources=lambda root:None),dependency_admission=types.SimpleNamespace(admit_dependencies=lambda root:None)),patch.object(setup,'probe',return_value={'packages':observed}),patch.object(setup,'vendor_integrity',return_value={'verified':False}),patch.object(sys,'argv',args):
+            with patch.object(deeplink,'installation',return_value=(out,{'release':'full-answer-b1-20261117-r8'})),patch.object(one_click,'verify_kit'),patch.dict(os.environ),patch.dict(sys.modules,engine_entry=types.SimpleNamespace(),resource_guard=guard,restore_b1_r4=types.SimpleNamespace(verify_installed_sources=lambda root:None),dependency_admission=types.SimpleNamespace(admit_dependencies=lambda root:None)),patch.object(setup,'probe',return_value={'packages':observed}),patch.object(setup,'vendor_integrity',return_value={'verified':False}),patch.object(sys,'argv',args):
                 os.environ.pop('DEEPLINK_SERVICE_BOOTSTRAPPED',None)
                 with self.assertRaisesRegex(ValueError,'versions differ' if changed_version else 'files are overwritten'):service.main()
             guard.acquire.assert_not_called()
@@ -215,7 +223,7 @@ class Standalone(unittest.TestCase):
             required=json.loads((ROOT/'engine/r8-lock.json').read_bytes())['required_python_packages']
             args=['service','--installation',str(out),'--model',str(model),'--physical-devices','0,7','--devices','0,1','--cache',str(out/'cache')]
             guard=types.SimpleNamespace(verify_mapping=lambda logical:None,acquire=unittest.mock.Mock(side_effect=RuntimeError('device-admission-boundary')))
-            with patch.object(deeplink,'installation',return_value=(out,{})),patch.object(one_click,'verify_kit'),patch.dict(os.environ),patch.dict(sys.modules,engine_entry=types.SimpleNamespace(),resource_guard=guard,restore_b1_r4=types.SimpleNamespace(verify_installed_sources=lambda root:None),dependency_admission=types.SimpleNamespace(admit_dependencies=lambda root:None)),patch.object(setup,'probe',return_value={'packages':required}),patch.object(setup,'vendor_integrity',return_value={'verified':True}),patch.object(sys,'argv',args):
+            with patch.object(deeplink,'installation',return_value=(out,{'release':'full-answer-b1-20261117-r8'})),patch.object(one_click,'verify_kit'),patch.dict(os.environ),patch.dict(sys.modules,engine_entry=types.SimpleNamespace(),resource_guard=guard,restore_b1_r4=types.SimpleNamespace(verify_installed_sources=lambda root:None),dependency_admission=types.SimpleNamespace(admit_dependencies=lambda root:None)),patch.object(setup,'probe',return_value={'packages':required}),patch.object(setup,'vendor_integrity',return_value={'verified':True}),patch.object(sys,'argv',args):
                 os.environ.pop('DEEPLINK_SERVICE_BOOTSTRAPPED',None)
                 with self.assertRaisesRegex(RuntimeError,'device-admission-boundary'):service.main()
             guard.acquire.assert_called_once()

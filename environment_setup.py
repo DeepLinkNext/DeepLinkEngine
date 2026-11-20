@@ -1,3 +1,4 @@
+from release_selection import kit_path, runtime_lock, profile as selected_profile
 """Repair Python dependencies in a private cache; load an installed CANN toolkit."""
 import hashlib
 import http.client
@@ -93,7 +94,7 @@ def save(path, value):
 def run_repair_stage(args, env, log):
     from one_click import verify_kit
     verify_kit()
-    sys.path.insert(0, str(ROOT / "benchmark/one-click-kit/scripts"))
+    sys.path.insert(0, str(kit_path() / "scripts"))
     from child_runner import run_stage
     return run_stage(args, env=env, stdout=log, stderr=subprocess.STDOUT)
 
@@ -255,12 +256,14 @@ def vendor_integrity(python, required, env):
     if "triton-ascend" not in required:
         return dict(verified=True, packages={})
     code = """import importlib.util,json,sys
+from pathlib import Path
+sys.path.insert(0,str(Path(sys.argv[1]).resolve().parent))
 spec=importlib.util.spec_from_file_location('environment_setup',sys.argv[1])
 module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
 print(json.dumps(module.distribution_integrity('triton-ascend')))
 """
-    observed = subprocess.run([str(python), "-I", "-c", code, str(ROOT / "environment_setup.py")],
-                              env=env, capture_output=True, text=True, check=True, timeout=180)
+    observed = subprocess.run([str(python), "-I", "-X", "utf8", "-c", code, str(ROOT / "environment_setup.py")],
+                              env=env, capture_output=True, text=True, encoding="utf-8", check=True, timeout=180)
     result = json.loads(observed.stdout)
     return dict(verified=result["verified"], packages={"triton-ascend": result})
 
@@ -293,7 +296,7 @@ def ensure_environment(data):
     if platform.system() != "Linux" or platform.machine() != "aarch64":
         raise ValueError("The frozen engine requires Linux aarch64; an OS/architecture mismatch cannot be repaired with pip")
     options = data.get("environment", {})
-    lock = json.loads((ROOT / "engine/r8-lock.json").read_text())
+    lock = runtime_lock(ROOT)
     required = lock["required_python_packages"]
     env, cann = cann_environment(options)
     selection = dict(options)

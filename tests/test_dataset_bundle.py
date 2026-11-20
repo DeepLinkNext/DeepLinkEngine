@@ -124,7 +124,7 @@ class DataBundleTests(unittest.TestCase):
         sdk.mkdir()
         (sdk / 'deployment.json').write_text(json.dumps({'release':'full-answer-b1-20261030-r4'}))
         with patch('baseline_bundle.ensure_deployment') as baseline, patch.object(bundle, 'prepare') as data:
-            with self.assertRaisesRegex(ValueError, 'installed frozen r8 SDK'):
+            with self.assertRaisesRegex(ValueError, 'selected stable SDK'):
                 one_click.prepare_data(['--cache',str(self.cache),'--deployment',str(sdk)])
         baseline.assert_not_called()
         data.assert_not_called()

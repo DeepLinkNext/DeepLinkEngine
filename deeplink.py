@@ -1,3 +1,4 @@
+from release_selection import kit_path, runtime_lock, profile as selected_profile
 """Install DeepLinkEngine and start an inference service without evaluation workloads."""
 import argparse
 import json
@@ -15,9 +16,13 @@ def installation(path):
     restore_missing(Path(path).expanduser())
     path = Path(path).expanduser().resolve()
     receipt = json.loads((path / "installation.json").read_bytes())
-    lock = json.loads((ROOT / "engine/r8-lock.json").read_bytes())
-    if receipt["release"] != lock["upstream_release"] or receipt["package_version"] != lock["public_distribution"].split("==")[1]:
-        raise ValueError("Installation version does not match this runtime adapter")
+    from packaging.version import Version
+    v = Version(receipt['package_version'])
+    a, b, c, number = v.release
+    if receipt['release'] != f'full-answer-b1-{a:04d}{b:02d}{c:02d}-r{number}':
+        raise ValueError('Installation release/version identity differs')
+    if json.loads((path / 'sdk/deployment.json').read_bytes())['release'] != receipt['release']:
+        raise ValueError('Installation SDK belongs to a different release')
     if Path(receipt["deployment"]).resolve() != path / "sdk":
         raise ValueError("Installation receipt points outside the selected SDK")
     return path, receipt
@@ -32,12 +37,14 @@ def install(args):
     for name, folder in {"TMPDIR": cache / "tmp", "PIP_CACHE_DIR": cache / "pip"}.items():
         folder.mkdir(parents=True, exist_ok=True)
         os.environ[name] = str(folder)
+    from release_selection import select
+    select(cache, version=getattr(args,"engine_version",None))
     options = {key: value for key, value in {"python": args.python, "wheelhouse": args.wheelhouse, "cann_home": args.cann_home}.items() if value}
     if args.use_environment:
         python = Path(args.use_environment).expanduser().absolute()
         if not (python.parent.parent / "pyvenv.cfg").is_file():
             raise ValueError("--use-environment must point to a private venv Python")
-        lock = json.loads((ROOT / "engine/r8-lock.json").read_bytes())
+        lock = runtime_lock(ROOT)
         env, _ = cann_environment(options)
         observed = probe(python, lock["required_python_packages"], env)
         if not compatible_python(observed) or differences(observed, lock["required_python_packages"]):
@@ -69,6 +76,8 @@ def install(args):
         result = run_repair_stage(command, dict(os.environ), None)
         if result.returncode:
             return result.returncode
+    from release_selection import save
+    save(target)
     print("INSTALLED", target, flush=True)
     return 0
 
@@ -97,6 +106,7 @@ def main():
     sub = parser.add_subparsers(dest="action", required=True)
     setup = sub.add_parser("install", help="Prepare dependencies and install the runtime; no model or dataset required")
     setup.add_argument("--out", required=True)
+    setup.add_argument("--engine-version", help="Pin an explicit stable version; otherwise use latest stable")
     setup.add_argument("--cache", help="Cache directory; defaults beside the installation on its target filesystem")
     setup.add_argument("--python")
     setup.add_argument("--wheelhouse")

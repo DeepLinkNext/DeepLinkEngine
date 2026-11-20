@@ -89,7 +89,9 @@ class RuntimeDependencyTests(unittest.TestCase):
             wheels = Path(name) / "offline"
             with patch.object(sys, "argv", ["engine_install.py", "--cache", str(cache),
                                            "--wheelhouse", str(wheels), "--repair-dependencies"]), \
-                 patch.object(engine_install, "resolve_runtime_dependencies") as repair:
+                 patch.object(engine_install, "resolve_runtime_dependencies") as repair, \
+                 patch("release_selection.select"), \
+                 patch("importlib.metadata.version",return_value="2026.11.17.8.post2"):
                 engine_install.main()
             repair.assert_called_once_with(cache, wheelhouse=wheels)
 

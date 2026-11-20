@@ -1,6 +1,6 @@
 # 安装与推理服务
 
-在仓库根目录执行。当前设备、模型与系统要求见[版本说明](versions/2026.11.17.8.post2.md)。引擎源码由发行包提供。
+在仓库根目录执行。安装默认跟随上游最新稳定发行版；R9 的设备、模型、实测范围及系统要求见[版本说明](versions/2026.11.19.9.md)。引擎源码由发行包提供，[R8 历史说明](versions/2026.11.17.8.post2.md)保留。
 
 ## 安装
 
@@ -10,6 +10,8 @@ python deeplink.py install --out /workspace/deeplink-install \
 ```
 
 自动探测 CPython 3.12、加载已安装的 CANN 9.1.0，在专用 venv 中准备依赖，再安装引擎并校验运行时文件。安装不需要权重或评测数据。目标目录须为新目录，安装收据为 `installation.json`。未指定 `--cache` 时，缓存放在安装目录的同级位置。
+
+`engine-selection.json` 记录本次解析的正式版本、源码包及三份原生运行包的 SHA256；全流程沿用该记录。显式安装历史稳定版使用 `--engine-version VERSION`。服务使用指定安装目录的版本，不会在启动时更换引擎。R9 及以后的服务通过安装包提供的启动 API 选择模型及 worker，避免在下游另写 Qwen 或书生专用启动器。
 
 缓存位于 NFS 时优先使用本机磁盘存放 SDK 和私有 Python，逐文件核对 SHA-256，保留持久原件，并在本机缓存丢失后恢复。可设置 `DEEPLINKENGINE_RUNTIME_CACHE` 指定至少 10 GiB 的本机目录；默认探测无可用本机盘时沿用 NFS。
 
@@ -37,7 +39,8 @@ python examples/chat.py "你好" --base-url http://127.0.0.1:8000 --model deepli
 
 ## 版本与下载
 
-- [当前发行版说明](versions/2026.11.17.8.post2.md)
-- [统一下载中心](https://github.com/DeepLinkNext/DeepLinkEngine/releases/tag/r8-runtime-dependencies-20261119-v1)与[完整索引](dependencies.json)
+- [R9 发行版说明](versions/2026.11.19.9.md)
+- [官方最新稳定源码包](https://pypi.org/project/vllm-hust-engine/)与[R9 原生运行包](https://github.com/vLLM-HUST/vllm-hust-website/releases/tag/engine-wheels-r9-v1)
+- [R8 历史下载中心](https://github.com/DeepLinkNext/DeepLinkEngine/releases/tag/r8-runtime-dependencies-20261119-v1)与[R8 封存索引](dependencies.json)
 - [运行时版本清单](r8-lock.json)与[测试工具版本清单](../benchmark/one-click-lock.json)
 - [测试与复核](../benchmark/README.md)

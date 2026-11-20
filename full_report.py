@@ -1,3 +1,4 @@
+from release_selection import kit_path, runtime_lock, profile as selected_profile
 """Build binary milestone/final decisions from independently audited run summaries."""
 import argparse
 from decimal import Decimal, InvalidOperation
@@ -233,7 +234,7 @@ def attach_dataset_costs(fixed, root):
 def targets(fixed, context, audits):
     fixed=fixed or {}; ref=fixed.get('current_compute_reference') or {}
     value=None
-    sys.path.insert(0, str(ROOT/'benchmark/one-click-kit/scripts'))
+    sys.path.insert(0, str(kit_path()/'scripts'))
     from compute_reference import target as reference_target
     valid = ref.get('certificate_kind')=='qualified_full_reference_denominator_reuse/v1' and reference_target(ref).get('status')=='current_workload_measured'
     if valid:
@@ -270,11 +271,15 @@ LABELS={'4.1':'有效算力','4.2':'吞吐与时延','4.3':'上下文稳定性',
 
 
 def collect(root):
+    from release_selection import bind
+    saved = Path(root) / 'engine-selection.json'
+    if saved.is_file():
+        bind(saved)
     """Re-audit sealed originals; generated summaries alone never authorize a pass."""
     root=Path(root).resolve()
     from runtime_storage import restore_missing
     restore_missing(root/'installation')
-    sys.path.insert(0,str(ROOT/'benchmark/one-click-kit/scripts'))
+    sys.path.insert(0,str(kit_path()/'scripts'))
     from third_party_report import inspect
     from acceptance_suite import paired
     fixed=inspect(root/'fixed-five')
@@ -285,8 +290,18 @@ def collect(root):
     stored=json.loads((root/'context-tenant/paired-summary.json').read_text())
     if stored!=context:
         raise ValueError('Context summary differs from independently re-audited originals')
-    stack_path=ROOT/'benchmark/one-click-kit/mods/active-stack-r8.json'
+    stack_path=kit_path()/'mods'/('active-stack-'+fixed['plan']['engine_release'].rsplit('-',1)[1]+'.json')
     stack=json.loads(stack_path.read_text())
+    if 'enabled_mods' not in stack:
+        registry=json.loads((kit_path()/'mods/registry.json').read_text())
+        rows=registry['entries']
+        rows=[dict(m,**json.loads((kit_path()/'mods'/m['manifest']).read_text())) for m in rows]
+        if isinstance(rows,dict):
+            rows=[dict(value,id=key) for key,value in rows.items()]
+        wanted=set(stack['inherited']+stack['additions'])
+        stack['enabled_mods']=[m for m in rows if m['id'] in wanted]
+        if {m['id'] for m in stack['enabled_mods']}!=wanted:
+            raise ValueError('Selected MOD registry is incomplete')
     if stack['release']!=fixed['plan']['engine_release']:
         raise ValueError('MOD catalog release differs from the measured engine')
     audits={r:audit_context(root/'context-tenant'/r) for r in ('B0','B1')}

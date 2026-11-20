@@ -1,3 +1,4 @@
+from release_selection import kit_path, runtime_lock, profile as selected_profile
 """Install frozen r8, run fixed-five and context/tenant tests, and retain reports."""
 import argparse
 import json
@@ -13,7 +14,7 @@ import uuid
 
 ROOT = Path(__file__).resolve().parent
 PATH_FIELDS = {"model", "cache", "out", "baseline_deployment", "dataset_assets", "env_file"}
-FIELDS = PATH_FIELDS | {"physical_devices", "devices", "environment"}
+FIELDS = PATH_FIELDS | {"physical_devices", "devices", "environment", "engine_version"}
 
 
 def configuration(path, *, allow_existing=False):
@@ -55,7 +56,7 @@ def configuration(path, *, allow_existing=False):
 
 
 def evaluation_configuration(data, installation):
-    return dict({k: v for k, v in data.items() if k != "environment"}, engine_profile="r8", test_mode="full",
+    return dict({k: v for k, v in data.items() if k not in ("environment", "engine_version")}, engine_profile=selected_profile(), test_mode="full",
                 reference_profile="submission-v2", deployment=str(installation / "sdk"),
                 out=str(Path(data["out"]) / "fixed-five"))
 
@@ -118,7 +119,7 @@ def before_model_resume(data, *, allow_model_startup=False):
             or first.get("kind") != "continuous" or (arm / "client.log").exists()
             or (arm / "service/continuous").exists() or any(arm.rglob("*.sse"))):
             raise ValueError("Pre-inference recovery refuses any possible formal client execution")
-        sys.path.insert(0,str(ROOT / "benchmark/one-click-kit/scripts"))
+        sys.path.insert(0,str(kit_path() / "scripts"))
         from qualification import sealed_files
         from third_party_report import verify_campaign_bindings
         sealed_files(arm)
@@ -145,7 +146,7 @@ def recovery_environment(data):
     if not (python.parent.parent / "pyvenv.cfg").is_file():
         from environment_setup import ensure_environment
         return ensure_environment(data)
-    lock = json.loads((ROOT / "engine/r8-lock.json").read_text())
+    lock = runtime_lock(ROOT)
     env, _ = cann_environment(data.get("environment", {}))
     observed = probe(python, lock["required_python_packages"], env)
     if not compatible_python(observed) or differences(observed, lock["required_python_packages"]):
@@ -166,7 +167,7 @@ def preflight():
     if (sys.version_info[:2] != (3, 12) or platform.python_implementation() != "CPython"
         or platform.system() != "Linux" or platform.machine() != "aarch64"):
         raise ValueError("Requires CPython 3.12, Linux aarch64 and the documented Ascend runtime")
-    lock = json.loads((ROOT / "engine/r8-lock.json").read_text())
+    lock = runtime_lock(ROOT)
     differences = []
     for name, expected in lock["required_python_packages"].items():
         try:
@@ -212,7 +213,7 @@ def fixed_five_plan(out):
 
 
 def qualified_reference(campaign):
-    sys.path.insert(0, str(ROOT / "benchmark/one-click-kit/scripts"))
+    sys.path.insert(0, str(kit_path() / "scripts"))
     from compute_reference import target
     reference = campaign.get("compute_reference", {})
     if reference.get("certificate_kind") != "qualified_full_reference_denominator_reuse/v1":
@@ -226,7 +227,7 @@ def qualified_reference(campaign):
 def full_report_command(out, destination=None):
     command="""import subprocess,sys
 from pathlib import Path
-root=Path(sys.argv[1]);sys.path.insert(0,str(root/'benchmark/one-click-kit/scripts'))
+root=Path(sys.argv[1]);sys.path.insert(0,str(__import__('release_selection').kit_path()/'scripts'))
 from report_environment import report_python
 python,env=report_python()
 raise SystemExit(subprocess.run([str(python),'-B',str(root/'full_report.py'),'--run',sys.argv[2],'--out',sys.argv[3]],env=env).returncode)
@@ -246,7 +247,7 @@ def completed_run_source(data, source):
         raise ValueError("Reuse model/device/cache configuration differs")
     if prior.get("status") not in ("failed", "completed"):
         raise ValueError("Reuse requires a stopped prior run")
-    sys.path.insert(0, str(ROOT / "benchmark/one-click-kit/scripts"))
+    sys.path.insert(0, str(kit_path() / "scripts"))
     from reuse_campaign import source as audit_source, audit_stage
     _, _, campaign, _ = audit_source(source / "fixed-five")
     if campaign.get("status") not in ("failed", "completed"):
@@ -300,6 +301,10 @@ def run(data, *, resume_bootstrap=False, resume_before_model=False, resume_befor
         shutil.copyfile(environment_report, out / "environment.json")
         receipt["environment"] = {"path": "environment.json", "sha256": hashlib.sha256((out / "environment.json").read_bytes()).hexdigest()}
 
+    from release_selection import save as save_selection, active as active_selection
+    save_selection(out)
+    receipt["engine_selection"] = active_selection()
+
     def save():
         (out / "results.json").write_text(json.dumps(receipt, ensure_ascii=False, indent=2) + "\n")
 
@@ -324,7 +329,7 @@ def run(data, *, resume_bootstrap=False, resume_before_model=False, resume_befor
     try:
         from one_click import verify_kit
         verify_kit()
-        sys.path.insert(0, str(ROOT / "benchmark/one-click-kit/scripts"))
+        sys.path.insert(0, str(kit_path() / "scripts"))
         from child_runner import run_stage as run_owned_stage
         data_command = [sys.executable, str(ROOT / "tools/prepare_datasets.py"), "--cache", data["cache"], "--context"]
         if data.get("dataset_assets"):
@@ -441,8 +446,22 @@ def main():
             if args.resume_bootstrap or args.resume_before_model or args.resume_before_inference or args.prepare_environment or args.reuse_completed_run:
                 raise ValueError("Report-only cannot be combined with execution or recovery modes")
             out = Path(data["out"])
+            from release_selection import bind
+            if (out / 'engine-selection.json').is_file():
+                bind(out / 'engine-selection.json')
             destination = out / ("full-report-" + uuid.uuid4().hex)
             return subprocess.run(full_report_command(out,destination)).returncode
+        from release_selection import select, bind, active
+        saved = Path(data['out']) / 'engine-selection.json'
+        recovery = args.resume_bootstrap or args.resume_before_model or args.resume_before_inference
+        if recovery or args.reuse_completed_run:
+            saved = (args.reuse_completed_run.resolve() / 'engine-selection.json') if args.reuse_completed_run else saved
+            if saved.is_file():
+                bind(saved)
+            elif not active():
+                select(data['cache'], version='2026.11.17.8.post2')
+        else:
+            select(data['cache'], version=data.get('engine_version'))
         if sum((args.resume_bootstrap,args.resume_before_model,args.resume_before_inference))>1:
             raise ValueError("Choose only one recovery mode")
         if args.reuse_completed_run and (args.resume_bootstrap or args.resume_before_model or args.resume_before_inference):
