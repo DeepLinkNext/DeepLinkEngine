@@ -252,7 +252,7 @@
     "scripts/streaming_transport.py": "31431faf8af468bdcc03cc6c6e66c8f4a7f7be105c219a42c642fa5bbea6e775",
     "scripts/telemetry_audit.py": "53987d3e5a4464703f05aa25877a41aafbc52c59c198eac2cdcf0bc5d8205689",
     "scripts/third_party.py": "afddde79745b8bc4433f7740b057405ee4307ea1693e61947975086b1a5a8cbf",
-    "scripts/third_party_report.py": "20087f84f551d8632d2ebf8033fedf4618e10a8af4051b5f7d7cbc7c5cc2e96e",
+    "scripts/third_party_report.py": "f1189717506e96cc0884803302bed97e2302efe924936aea1c103f0f83451f4d",
     "tests/fixtures/loaded-work-dimensions-two-layer.json": "b701f20fa9bbcccab4ad490d56a5e92cba508a7a88d73783c7d312d958995f49",
     "tests/fixtures/m01_progress_source_snapshot.py": "56f7cd9c37ec88d1dc22ef5055a5c80332586b8a425921892f5fe21c705c3d3d",
     "tests/fixtures/owned_optimistic_operand_r4.py": "1581d33ff9e5fa1a161102ec82330c48e12ef6b03480e12bdca8f69ca62e2ddf",
@@ -514,7 +514,7 @@
   },
   "local_patchset": {
     "base_manifest_sha256": "b2dd50d83c6f081269bda8e94e4128741ac80f08b0cf71fdf5db983ca3a98762",
-    "description": "Pre-service clean-cache reclamation capped at40GiB with8GiB non-file safety; require32GiB actual raw headroom immediately before model spawn and hold8GiB optional startup reserve. Original4GiB working-set/OOM and pre-warmup raw gates retained; no live-model pressure allocation or engine/protocol changes.",
+    "description": "Preserve v7 pre-service memory preparation and protections; detailed report shows actual selected fixed-five execution completion separately from official quality scope. Frozen engine, workloads, scoring and clocks unchanged.",
     "files": {
       "scripts/baseline_entry.py": {
         "after_sha256": "efa3fbb979eed315238c859a6d44459fb02838d3f35e6d33d107b8a3524348ee",
@@ -544,6 +544,10 @@
         "after_sha256": "b038564f4911b2b05e7b9f37cfb6de1725456bbc41d675515c4fc73253db256b",
         "before_sha256": "1319d03608e9d169d5bd92af9381f7301d2140fae70c72d940d5e41aeba6d42a"
       },
+      "scripts/third_party_report.py": {
+        "after_sha256": "f1189717506e96cc0884803302bed97e2302efe924936aea1c103f0f83451f4d",
+        "before_sha256": "20087f84f551d8632d2ebf8033fedf4618e10a8af4051b5f7d7cbc7c5cc2e96e"
+      },
       "tests/test_checkpoint_cache.py": {
         "after_sha256": "41066c8f1bdda0b6189fd2b6978ad81a8100a14e961b4c4b73c030a97c26c3c6",
         "before_sha256": "1ff11a66582ea8067c39207db592ad7c294662f2f943b1cc3deb08d11211a364"
@@ -561,9 +565,9 @@
         "before_sha256": "adba40759c3d852267e35831e8317e2c6f7c251a3c1069db91eca00bcabf3267"
       }
     },
-    "id": "deeplink-owned-startup-capacity-20261120-v7",
-    "parent_manifest_sha256": "d0220220f5d2b1bc82d9f44dec9831f22d4fb90aeb80212af0aea2bb2818de7c",
-    "parent_patchset": "deeplink-owned-startup-reserve-release-20261120-v6",
+    "id": "deeplink-report-selected-execution-20261120-v8",
+    "parent_manifest_sha256": "e61cef441f1ff4067b2ac5d317e93d7c59057deb5bd6a43d05b84f3f11f34d5b",
+    "parent_patchset": "deeplink-owned-startup-capacity-20261120-v7",
     "scope": "Original SDK4GiB conservative working-set/OOM monitoring for serving and native reference after allocation; pre-service12GiB raw admission unchanged. No engine, workload, warmup budget, scoring or timer-definition changes. Validated inherited resource lease descriptors now survive owned subprocess boundaries; task, engine, warmup, scoring and timing definitions remain unchanged."
   },
   "repository": "vLLM-HUST/vllm-hust-engine"

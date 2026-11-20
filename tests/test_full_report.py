@@ -1,5 +1,6 @@
 """Acceptance regressions: quality denominators, log failures and numeric gates."""
 import copy
+import hashlib
 import importlib.util
 from unittest.mock import patch
 import json
@@ -132,5 +133,40 @@ class Decisions(unittest.TestCase):
             (p/'service.log').write_text('Healthy server\n');(p/'memory-samples.jsonl').write_text(json.dumps(dict(events=dict(oom=1)))+'\n')
             self.assertFalse(report.audit_context(p)['clean'])
 
+
+class CostTests(unittest.TestCase):
+ def fixed(self):
+  data=fixed();data['current_mmlu_pair']['gains']['ai_core_utilization_gain_pp']=0
+  a={r:dict(planned=64,recorded=64,successful=64,failed=0,unreturned=0,diagnostic=False,output_tokens_per_second=100 if r=='B0' else 200) for r in ['B0','B1']}
+  data['current_trace_performance']={'swe':dict(arms=a,paired_execution_complete=True)}
+  data['current_cost_utilization']={'swe':dict(unit_cost_reduction_percent=50,utilization_gain_pp=15,utilization={r:dict(missing_seconds=0,covered_seconds=10) for r in ['B0','B1']})};return data
+ def test_complete_swe_can_meet_cost_when_mmlu_does_not(self):
+  c=report.targets(self.fixed(),{}, {})['4.4'];self.assertTrue(c['milestone']['met']);self.assertEqual(c['display_dataset'],'swe');self.assertEqual(c['qualifying_datasets'],['swe'])
+ def test_partial_or_uncovered_request_window_cannot_pass(self):
+  for kind in ['partial','missing']:
+   d=self.fixed()
+   if kind=='partial':d['current_trace_performance']['swe']['arms']['B1']['recorded']=63
+   else:d['current_cost_utilization']['swe']['utilization']['B1']['missing_seconds']=.01
+   self.assertFalse(report.targets(d,{}, {})['4.4']['milestone']['met'])
+ def test_cost_and_utilization_cannot_be_mixed_between_datasets(self):
+  d=self.fixed();d['current_mmlu_pair']['gains']['ai_core_utilization_gain_pp']=20;d['current_mmlu_pair']['gains']['equal_rate_unit_cost_reduction_pct']=0;d['current_cost_utilization']['swe']['utilization_gain_pp']=0
+  self.assertFalse(report.targets(d,{}, {})['4.4']['milestone']['met'])
+ def test_positive_sealed_sampler_uses_exact_request_window_and_detects_tampering(self):
+  with tempfile.TemporaryDirectory() as temp:
+   root=Path(temp);folder=root/'service/evaluation/requests';folder.mkdir(parents=True)
+   raw='| 1 910B2 | OK | 90 |\n| 0 | 0000:01:00.0 | 50 |\n| 6 910B2 | OK | 90 |\n| 0 | 0000:82:00.0 | 50 |\n'
+   request=folder/'one.json';request.write_text(json.dumps(dict(start=dict(monotonic=1),end=dict(monotonic=10))))
+   devices=root/'resource-admission.json';devices.write_text(json.dumps(dict(physical_cards=[1,6])))
+   sampler=root/'device-samples.jsonl';sampler.write_text('\n'.join(json.dumps(dict(monotonic_start=t,monotonic_end=t,raw=raw,returncode=0)) for t in [0,20])+'\n')
+   seal={str(p.relative_to(root)):hashlib.sha256(p.read_bytes()).hexdigest() for p in [request,devices,sampler]};(root/'checksums.json').write_text(json.dumps(seal))
+   result=report.sealed_dataset_utilization(root,1);self.assertEqual(result['covered_seconds'],9);self.assertEqual(result['missing_seconds'],0);self.assertEqual(result['request_window']['requests'],1);self.assertEqual(set(result['per_card_percent']),{'1','6'})
+   sampler.write_text(sampler.read_text()+'\n')
+   with self.assertRaisesRegex(ValueError,'matching seal'):report.sealed_dataset_utilization(root,1)
+ def test_telemetry_reader_rejects_missing_requests_or_altered_sealed_input(self):
+  with tempfile.TemporaryDirectory() as temp:
+   root=Path(temp);folder=root/'service/evaluation/requests';folder.mkdir(parents=True);(root/'checksums.json').write_text('{}')
+   with self.assertRaisesRegex(ValueError,'every frozen request'):report.sealed_dataset_utilization(root,64)
+   p=folder/'one.json';p.write_text(json.dumps(dict(start=dict(monotonic=1),end=dict(monotonic=2))))
+   with self.assertRaisesRegex(ValueError,'matching seal'):report.sealed_dataset_utilization(root,1)
 
 if __name__=='__main__':unittest.main()
