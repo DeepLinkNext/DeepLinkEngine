@@ -204,6 +204,59 @@ class RuntimeMemoryReserveTests(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError,'raw fallback'):
                 monitor_loaded_memory(SimpleNamespace(sample=state,check=check),{},Path(temp),Path(temp),{},True)
 
+    def test_optional_startup_buffer_is_released_before_it_consumes_original_reserve(self):
+        from run_b1_r4 import monitor_loaded_memory
+        checks=[];state=self.state(61)
+        def check(value,initial):
+            checks.append(value['working_estimate'])
+            if value['working_estimate'] >= value['limit']-4*2**30:
+                raise RuntimeError('4GiB conservative working-set memory reserve reached')
+        def close(reason):
+            state['current']-=4*2**30;state['working_estimate']-=4*2**30
+            reserve.record.update(released=True,release_reason=reason)
+        reserve=SimpleNamespace(record={'released':False},close=close)
+        with tempfile.TemporaryDirectory() as temp, patch('checkpoint_cache.allocate_private_chunk',side_effect=AssertionError('live model')):
+            result=monitor_loaded_memory(SimpleNamespace(sample=lambda:state,check=check),{},Path(temp),Path(temp),{},True,startup_reserve=reserve)
+        self.assertTrue(result)
+        self.assertEqual(checks,[61*2**30,57*2**30])
+        self.assertTrue(reserve.record['released'])
+        self.assertEqual(reserve.record['working_set_guard_release']['working_estimate'],61*2**30)
+
+    def test_releasing_optional_pages_never_admits_real_remaining_pressure(self):
+        from run_b1_r4 import monitor_loaded_memory
+        from unittest.mock import Mock
+        guard=SimpleNamespace(sample=lambda:self.state(63),check=Mock(side_effect=RuntimeError('4GiB conservative working-set memory reserve reached')))
+        reserve=SimpleNamespace(record={'released':False},close=Mock())
+        with tempfile.TemporaryDirectory() as temp:
+            with self.assertRaisesRegex(RuntimeError,'4GiB conservative'):
+                monitor_loaded_memory(guard,{},Path(temp),Path(temp),{},True,startup_reserve=reserve)
+        reserve.close.assert_called_once()
+        self.assertEqual(guard.check.call_count,2)
+
+    def test_optional_buffer_is_not_retried_on_oom_or_after_its_release(self):
+        from run_b1_r4 import monitor_loaded_memory
+        from unittest.mock import Mock
+        for released,reason in [(False,'New cgroup oom event'),(True,'4GiB conservative working-set memory reserve reached')]:
+            reserve=SimpleNamespace(record={'released':released},close=Mock())
+            guard=SimpleNamespace(sample=self.state,check=Mock(side_effect=RuntimeError(reason)))
+            with tempfile.TemporaryDirectory() as temp:
+                with self.assertRaisesRegex(RuntimeError,reason):
+                    monitor_loaded_memory(guard,{},Path(temp),Path(temp),{},True,startup_reserve=reserve)
+            reserve.close.assert_not_called()
+            self.assertEqual(guard.check.call_count,1)
+
+    def test_simultaneous_pressure_and_oom_never_retries_by_releasing_buffer(self):
+        from run_b1_r4 import monitor_loaded_memory
+        from unittest.mock import Mock
+        state=self.state(61);state['events']['oom']=1
+        guard=SimpleNamespace(sample=lambda:state,check=Mock(side_effect=RuntimeError('4GiB conservative working-set memory reserve reached')))
+        reserve=SimpleNamespace(record={'released':False},close=Mock())
+        with tempfile.TemporaryDirectory() as temp:
+            with self.assertRaisesRegex(RuntimeError,'New cgroup oom event'):
+                monitor_loaded_memory(guard,{'events':{'oom':0}},Path(temp),Path(temp),{},True,startup_reserve=reserve)
+        reserve.close.assert_not_called()
+        self.assertEqual(guard.check.call_count,1)
+
     def test_underflow_longer_than_three_reads_recovers_without_zeroing_counters(self):
         from run_b1_r4 import check_memory
         bad=self.state();bad['stat']['file_writeback']=2**64-28672
