@@ -11,7 +11,7 @@ python deeplink.py install --out /workspace/deeplink-install \
 
 自动探测 CPython 3.12、加载已安装的 CANN 9.1.0，在专用 venv 中准备依赖，再安装引擎并校验运行时文件。安装不需要权重或评测数据。目标目录须为新目录，安装收据为 `installation.json`。未指定 `--cache` 时，缓存放在安装目录的同级位置。
 
-当输出或缓存目录位于 NFS 时，SDK 和已安装的私有 Python 环境自动放在本机磁盘，通过链接保持安装路径不变，避免逐文件校验和冷导入超时。迁移逐文件校验 SHA256，原 Python 环境、原始包、安装记录和测试结果仍在持久目录。本机缓存丢失后自动恢复并重新校验；可用 `DEEPLINKENGINE_RUNTIME_CACHE` 指定至少有 10 GiB 空间的本机缓存目录。
+缓存位于 NFS 时优先使用本机磁盘存放 SDK 和私有 Python，逐文件核对 SHA-256，保留持久原件，并在本机缓存丢失后恢复。可设置 `DEEPLINKENGINE_RUNTIME_CACHE` 指定至少 10 GiB 的本机目录；默认探测无可用本机盘时沿用 NFS。
 
 可用 `--wheelhouse /path/to/packages` 指定已下载的包，`--python /path/to/python3.12`、`--cann-home /path/to/cann` 指定系统环境。已有满足版本要求的专用 venv 可通过 `--use-environment /path/to/venv/bin/python` 显式复用。Python 包可自动补齐；系统驱动、CANN 和模型权重需事先准备。
 

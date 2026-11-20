@@ -73,4 +73,33 @@ class PythonStorage(unittest.TestCase):
         copy.assert_not_called();self.assertFalse(self.managed.is_symlink())
 
 
+    def test_automatic_no_disk_fallback_preserves_existing_nfs_environment(self):
+        before=(self.managed/'lib/package.py').read_bytes()
+        with patch.dict(storage.os.environ):
+            storage.os.environ.pop('DEEPLINKENGINE_RUNTIME_CACHE',None)
+            with patch.object(storage.shutil,'disk_usage',return_value=type('Usage',(),{'free':2**30})()):
+                self.assertEqual(storage.ensure(self.managed),self.managed)
+        self.assertFalse(self.managed.is_symlink())
+        self.assertEqual((self.managed/'lib/package.py').read_bytes(),before)
+        self.assertFalse(storage.marker(self.managed).exists())
+        self.assertEqual(list(self.managed.parent.glob('venv-nfs-original-*')),[])
+
+    def test_explicit_local_cache_without_capacity_is_rejected_without_mutation(self):
+        with patch.object(storage.shutil,'disk_usage',return_value=type('Usage',(),{'free':2**30})()):
+            with self.assertRaisesRegex(ValueError,'10GiB'):storage.ensure(self.managed)
+        self.assertFalse(self.managed.is_symlink())
+        self.assertFalse(storage.marker(self.managed).exists())
+
+    def test_automatic_fallback_does_not_ignore_corrupt_storage_identity(self):
+        storage.ensure(self.managed)
+        marker=storage.marker(self.managed);record=json.loads(marker.read_text())
+        record['logical']=str(self.root/'wrong-environment');marker.write_text(json.dumps(record))
+        with patch.dict(storage.os.environ):
+            storage.os.environ.pop('DEEPLINKENGINE_RUNTIME_CACHE',None)
+            with patch.object(storage.shutil,'disk_usage',return_value=type('Usage',(),{'free':2**30})()):
+                with self.assertRaisesRegex(ValueError,'identity differs'):storage.ensure(self.managed)
+        self.assertTrue(self.managed.is_symlink())
+
+
+
 if __name__=='__main__':unittest.main()

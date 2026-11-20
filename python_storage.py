@@ -12,6 +12,10 @@ import uuid
 from runtime_storage import filesystem
 
 
+class LocalPythonStorageUnavailable(ValueError):
+    """No local directory meets the capacity required for relocation."""
+
+
 def canonical(path):
     path=Path(os.path.abspath(Path(path).expanduser()))
     return path.parent.resolve()/path.name
@@ -41,7 +45,7 @@ def location(managed):
         if home.is_symlink():raise ValueError('Private Python cache root must not be a symlink')
         home.mkdir(mode=0o700,exist_ok=True)
         return home/key/'venv'
-    raise ValueError('NFS Python setup requires 10GiB free on local disk; set DEEPLINKENGINE_RUNTIME_CACHE')
+    raise LocalPythonStorageUnavailable('NFS Python setup requires 10GiB free on local disk; set DEEPLINKENGINE_RUNTIME_CACHE')
 
 
 def active_users(managed):
@@ -105,7 +109,14 @@ def ensure(managed, *, allow_current=False):
     managed.parent.mkdir(parents=True,exist_ok=True)
     with managed.with_name(managed.name+'.storage.lock').open('a+b') as lease:
         fcntl.flock(lease,fcntl.LOCK_EX)
-        target=location(managed)
+        try:
+            target=location(managed)
+        except LocalPythonStorageUnavailable:
+            if (os.environ.get('DEEPLINKENGINE_RUNTIME_CACHE') or marker(managed).exists()
+                    or managed.is_symlink()):
+                raise
+            print('PYTHON_STORAGE nfs',managed,'local disk capacity unavailable; keeping persistent environment',flush=True)
+            return managed
         if target.is_symlink() or target.parent.is_symlink():raise ValueError('Physical Python storage must not be a symlink')
         if managed.is_symlink():
             if not marker(managed).is_file() or managed.resolve()!=target.resolve():
