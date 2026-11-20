@@ -60,7 +60,10 @@ def http_client_context(command, deployment, profile, output, cache, devices):
 
 
 def check_memory(guard, initial, root):
-    for attempt in range(3):
+    # A single memory.stat update may expose unsigned writeback underflow.
+    # Observe for at most20 samples (~1.9s plus reads), within the ordinary
+    # two-second monitoring cadence. Never substitute an old/cache-zero sample.
+    for attempt in range(20):
         value = guard.sample()
         stat = value["stat"]
         invalid = [
@@ -77,15 +80,20 @@ def check_memory(guard, initial, root):
         save(root / "memory-latest.json", value)
         with (root / "memory-samples.jsonl").open("a") as stream:
             stream.write(json.dumps(value) + "\n")
+        # OOM accounting is independent of cache validity and cannot wait for
+        # the bounded retry. The frozen SDK checks the same events on valid
+        # samples and on the final raw-current fallback below.
+        if invalid:
+            for name in ("oom", "oom_kill", "oom_group_kill"):
+                if value.get("events", {}).get(name, 0) > initial.get("events", {}).get(name, 0):
+                    raise RuntimeError(f"New cgroup {name} event")
         if not invalid:
             guard.check(value, initial)
             return value
-        if attempt < 2:
-            time.sleep(0.02)
-    # Some kernels expose unsigned file_writeback underflow for longer than
-    # one stat update. No cache can safely be credited from that observation.
-    # Check the entire raw allocation instead: this is a stricter upper bound
-    # than current minus any reclaimable cache, with the same reserve/OOM gate.
+        if attempt < 19:
+            time.sleep(0.1)
+    # Persistently invalid observations receive no clean-cache credit. Keep
+    # the same four-GiB reserve and OOM gate against the entire raw allocation.
     value["sampled_working_estimate"] = value["working_estimate"]
     value["working_estimate"] = value["current"]
     value["counter_validation"]["fallback"] = "raw_current_no_cache_credit"
