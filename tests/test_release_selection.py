@@ -53,9 +53,19 @@ def test_model_client_bridge_keeps_reference_and_startup_fixes():
     manifest=json.loads((ROOT/'benchmark/one-click-kit/DEPLOYMENT-TOOLS.json').read_bytes())
     original={name:(ROOT/'benchmark/one-click-kit'/name).read_bytes() for name in manifest['files']}
     combined=client.bridge(original,provider)
-    for name in ('checkpoint_cache.py','child_runner.py','run_native_reference.py','run_b1_r4.py',
+    for name in ('child_runner.py','run_native_reference.py','run_b1_r4.py',
                  'compute_reference.py','reference_observation.py','reference_http_client.py'):
         assert combined['scripts/'+name]==original['scripts/'+name]
+    # The only startup-cache change is the declared idle-before-warmup
+    # boundary. Every allocator, pre-service gate and other method stays exact.
+    old=ast.parse(original['scripts/checkpoint_cache.py'])
+    new=ast.parse(combined['scripts/checkpoint_cache.py'])
+    for tree in (old,new):
+        cls=next(n for n in tree.body if isinstance(n,ast.ClassDef) and n.name=='StartupMemoryReserve')
+        cls.body[0]=ast.Pass()
+        method=next(n for n in cls.body if isinstance(n,ast.FunctionDef) and n.name=='before_warmup')
+        method.body=[ast.Pass()]
+    assert ast.dump(old)==ast.dump(new)
     entry=combined['scripts/engine_entry.py'].decode()
     assert 'adapter = select_model(profile, args.model' in entry
     assert 'reference_observation' in entry and 'local_runtime_root' in entry
