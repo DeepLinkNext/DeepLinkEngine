@@ -85,6 +85,7 @@ class WorkflowTests(unittest.TestCase):
     def test_sealed_stage_reuse_is_forwarded_and_failure_originals_are_untouched(self):
         source=self.root/'previous';source.mkdir();original=b'original failed ledger\n'
         (source/'results.json').write_bytes(original)
+        (source/'installation').mkdir();(source/'installation/installation.json').write_text(json.dumps(dict(package_version='previous')))
         def execute(args,**kwargs):
             if '--reuse-completed-campaign' in args:
                 self.assertEqual(args[args.index('--reuse-completed-campaign')+1],str(source/'fixed-five'))
@@ -93,6 +94,7 @@ class WorkflowTests(unittest.TestCase):
                 return self.execute([*args,'run'],**kwargs)
             return self.execute(args,**kwargs)
         with patch.object(workflow,'completed_run_source',return_value=dict(root=str(source),completed_stages=['continuous-B0'])), \
+             patch('release_selection.active',return_value=dict(version='new',client=None,engine_profile='r9')),patch('release_selection.save'), \
              patch('one_click.configuration_arguments',return_value=['--datasets','mmlu,hle,frontier,swe,terminal']), \
              patch('one_click.verify_kit'),patch('child_runner.run_stage',side_effect=execute), \
              contextlib.redirect_stdout(io.StringIO()):

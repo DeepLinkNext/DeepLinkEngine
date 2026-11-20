@@ -277,7 +277,7 @@ def completed_run_source(data, source):
 
 
 def run(data, *, resume_bootstrap=False, resume_before_model=False, resume_before_inference=False,
-        reuse_completed_run=None):
+        reuse_completed_run=None, reuse_completed_campaigns=(), reuse_mmlu_baseline_arm=None):
     out = Path(data["out"])
     reused_run = completed_run_source(data, reuse_completed_run) if reuse_completed_run else None
     if reused_run and os.path.lexists(out):
@@ -287,6 +287,14 @@ def run(data, *, resume_bootstrap=False, resume_before_model=False, resume_befor
     if reused_run is None and prior and prior.get("reused_run"):
         # A failed preflight must not discard the explicit no-repeat choice.
         reused_run = completed_run_source(data, prior["reused_run"]["root"])
+    reuse_selection = dict(campaigns=[str(Path(p).resolve()) for p in reuse_completed_campaigns],
+                           mmlu_baseline_arm=str(Path(reuse_mmlu_baseline_arm).resolve()) if reuse_mmlu_baseline_arm else None)
+    if prior and prior.get('reuse_selection'):
+        if any(reuse_selection.values()) and reuse_selection != prior['reuse_selection']:
+            raise ValueError('Recovery reuse selection differs from the original invocation')
+        reuse_selection = prior['reuse_selection']
+    if any(reuse_selection.values()) and not reused_run:
+        raise ValueError('Additional sealed sources require explicit completed-run recovery')
     reuse_installation = resume_bootstrap or pre_inference or reused_run is not None
     out.mkdir(parents=True, exist_ok=reuse_installation)
     installation = out / "installation"
@@ -294,6 +302,7 @@ def run(data, *, resume_bootstrap=False, resume_before_model=False, resume_befor
     receipt = {"status": "running", "stages": [], "configuration": data, "automated_acceptance_complete": False}
     if reused_run:
         receipt["reused_run"] = reused_run
+        receipt["reuse_selection"] = reuse_selection
     if prior is not None:
         history = out / "attempts"
         history.mkdir(exist_ok=True)
@@ -376,6 +385,11 @@ def run(data, *, resume_bootstrap=False, resume_before_model=False, resume_befor
         runtime_command = [sys.executable, str(ROOT / "runtime_storage.py"), "--out", str(installation)]
         if reuse_installation:
             runtime_command.append("--reuse")
+        if reused_run and prior is None:
+            previous_installation = Path(reused_run['root']) / 'installation'
+            previous_runtime = json.loads((previous_installation / 'installation.json').read_text())
+            if previous_runtime['package_version'] == active_selection()['version']:
+                runtime_command += ['--reuse-from', str(previous_installation)]
         stage("install-engine", runtime_command, mode="verify_existing" if reuse_installation else "execute")
         evaluation = evaluation_configuration(data, installation)
         config = out / "evaluation.json"
@@ -396,6 +410,11 @@ def run(data, *, resume_bootstrap=False, resume_before_model=False, resume_befor
             from one_click import configuration_arguments
             run_command = [*evaluate, *configuration_arguments("run", ["--config", str(config)]),
                            "--reuse-completed-campaign", str(Path(reused_run["root"]) / "fixed-five")]
+        if reused_run:
+            for campaign in reuse_selection['campaigns']:
+                run_command += ['--reuse-completed-campaign', campaign]
+            if reuse_selection['mmlu_baseline_arm']:
+                run_command += ['--reuse-mmlu-baseline-arm', reuse_selection['mmlu_baseline_arm']]
         stage("run-fixed-five", run_command)
         current = json.loads((out / "fixed-five/campaign.json").read_text())
         reference_target = qualified_reference(current)
@@ -472,13 +491,15 @@ def main():
     parser.add_argument("--resume-before-inference", action="store_true", help="Recover a sealed failed model startup only if no formal client ever started; preserves startup originals")
     parser.add_argument("--report-only", action="store_true", help="Re-audit completed originals and regenerate all four decisions without repeating inference")
     parser.add_argument("--reuse-completed-run", type=Path, help="Continue in a NEW output directory; audit and reuse completed sealed stages from this prior run, retaining all failed originals")
+    parser.add_argument('--reuse-completed-campaign', type=Path, action='append', default=[], help='Additional explicitly selected sealed campaign; all scope, runtime, raw and provenance checks remain required')
+    parser.add_argument('--reuse-mmlu-baseline-arm', type=Path, help='Explicit sealed fixed-B0 original200 arm; retain its original answers, dates and identity')
     args = parser.parse_args()
     try:
         data = configuration(args.config, allow_existing=args.resume_bootstrap or args.resume_before_model or args.resume_before_inference or args.report_only)
         os.environ["XDG_CACHE_HOME"] = os.environ.get("XDG_CACHE_HOME") or str(Path(data["cache"]) / "xdg")
         os.environ["MPLCONFIGDIR"] = os.environ.get("MPLCONFIGDIR") or str(Path(os.environ["XDG_CACHE_HOME"]) / "matplotlib")
         if args.report_only:
-            if args.resume_bootstrap or args.resume_before_model or args.resume_before_inference or args.prepare_environment or args.reuse_completed_run:
+            if args.resume_bootstrap or args.resume_before_model or args.resume_before_inference or args.prepare_environment or args.reuse_completed_run or args.reuse_completed_campaign or args.reuse_mmlu_baseline_arm:
                 raise ValueError("Report-only cannot be combined with execution or recovery modes")
             out = Path(data["out"])
             from release_selection import bind
@@ -487,6 +508,8 @@ def main():
             destination = out / ("full-report-" + uuid.uuid4().hex)
             return subprocess.run(full_report_command(out,destination)).returncode
         recovery = args.resume_bootstrap or args.resume_before_model or args.resume_before_inference
+        if (args.reuse_completed_campaign or args.reuse_mmlu_baseline_arm) and not (args.reuse_completed_run or recovery):
+            raise ValueError('Additional sealed sources require explicit completed-run recovery')
         select_run_engine(data, recovery=recovery, reuse_completed_run=args.reuse_completed_run)
         if sum((args.resume_bootstrap,args.resume_before_model,args.resume_before_inference))>1:
             raise ValueError("Choose only one recovery mode")
@@ -511,7 +534,8 @@ def main():
         print("ENVIRONMENT verified; no model tests started", flush=True)
         return 0
     return run(data, resume_bootstrap=args.resume_bootstrap, resume_before_model=args.resume_before_model, resume_before_inference=args.resume_before_inference,
-               reuse_completed_run=args.reuse_completed_run)
+               reuse_completed_run=args.reuse_completed_run, reuse_completed_campaigns=args.reuse_completed_campaign,
+               reuse_mmlu_baseline_arm=args.reuse_mmlu_baseline_arm)
 
 
 if __name__ == "__main__":

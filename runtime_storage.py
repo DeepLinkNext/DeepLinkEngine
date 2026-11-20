@@ -99,13 +99,30 @@ def audit(target, frozen):
     return receipt
 
 
-def ensure(logical, *, reuse=False):
+def ensure(logical, *, reuse=False, reuse_from=None):
     from vllm_hust_engine.cli import verify
     frozen = verify()
     logical = Path(os.path.abspath(Path(logical).expanduser()))
     logical = logical.parent.resolve() / logical.name
     logical.parent.mkdir(parents=True,exist_ok=True)
-    target = storage_target(logical,frozen)
+    source = Path(reuse_from).absolute() if reuse_from else None
+    if source is not None:
+        # A new output may retain an audited SDK's physical identity. Package,
+        # interpreter, all producer tools and all runtime bytes are checked by
+        # audit below; an old B1 release can never cross this boundary.
+        if os.path.lexists(logical):
+            raise ValueError('Runtime reuse requires a new logical installation')
+        saved = json.loads(marker(source).read_text())
+        target = source.resolve(strict=True)
+        if (saved.get('verified') is not True or saved.get('logical') != str(source)
+                or Path(saved.get('physical', '/missing')).resolve() != target
+                or saved.get('release') != frozen['release']
+                or saved.get('package_version') != frozen['version']
+                or saved.get('archives') != frozen['archives']
+                or saved.get('python') != sys.executable):
+            raise ValueError('Selected existing runtime storage identity differs')
+    else:
+        target = storage_target(logical,frozen)
     if os.path.lexists(logical) and not reuse:
         raise ValueError('Choose a new installation directory: '+str(logical))
     lease = logical.with_name(logical.name+'.storage.lock')
@@ -115,6 +132,8 @@ def ensure(logical, *, reuse=False):
         if target.is_symlink():
             raise ValueError('Physical runtime installation must not be a symlink')
         if target.exists() and not (target/'installation.json').is_file():
+            if source is not None:
+                raise ValueError('Selected existing runtime installation is incomplete')
             if target==logical:
                 raise ValueError('Incomplete direct installation requires a new output directory')
             target.rename(target.with_name('failed-installation-'+uuid.uuid4().hex))
@@ -137,6 +156,7 @@ def ensure(logical, *, reuse=False):
                     python=sys.executable,release=frozen['release'],package_version=frozen['version'],
                     archives=frozen['archives'],runtime_files=frozen['runtime_files'],
                     archived_previous=str(archived) if archived else None,
+                    reused_from=str(source) if source else None,
                     results_moved=False,verified=True)
         marker(logical).write_text(json.dumps(record,indent=2)+'\n')
         print('RUNTIME_STORAGE_VERIFIED', frozen['runtime_files'], logical, flush=True)
@@ -169,5 +189,6 @@ if __name__=='__main__':
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--out',required=True,type=Path)
     parser.add_argument('--reuse',action='store_true')
+    parser.add_argument('--reuse-from',type=Path,help='Audit and alias an existing identical frozen installation in a new output; never relabel it')
     args=parser.parse_args()
-    ensure(args.out,reuse=args.reuse)
+    ensure(args.out,reuse=args.reuse,reuse_from=args.reuse_from)
