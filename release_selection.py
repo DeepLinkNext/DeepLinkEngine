@@ -104,7 +104,12 @@ def runtime_artifacts(frozen):
     # time out. Resolve them anonymously, then bind name, size and digest to
     # the producer's frozen package identity before using either route.
     base = 'https://api.github.com/repos/vLLM-HUST/vllm-hust-website/'
-    release_index = read_json(base + 'releases/tags/' + tag)
+    try:
+        release_index = read_json(base + 'releases/tags/' + tag)
+    except OSError:
+        # Public API rate limits must not disable the package's already pinned
+        # browser route. Hash/size validation remains mandatory on its bytes.
+        return result
     if release_index.get('tag_name') != tag:
         raise ValueError('Public runtime mirror release differs')
     assets = release_index.get('assets', [])

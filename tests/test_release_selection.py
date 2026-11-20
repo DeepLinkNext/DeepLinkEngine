@@ -230,6 +230,10 @@ def test_public_runtime_api_mirror_is_anonymous_and_hash_bound():
         result=selection.runtime_artifacts(frozen)
         fetch.assert_called_once_with('https://api.github.com/repos/vLLM-HUST/vllm-hust-website/releases/tags/'+tag)
     assert all(r['api_url'].endswith('/'+str(10+i)) for i,r in enumerate(result))
+    with patch.object(selection,'read_json',side_effect=OSError('public API rate limit')):
+        fallback=selection.runtime_artifacts(frozen)
+    assert all('api_url' not in r for r in fallback)
+    assert [r['sha256'] for r in fallback]==[r['sha256'] for r in rows]
     for field,value in [('size',999),('digest','sha256:'+'0'*64),('browser_download_url','https://wrong.invalid/asset')]:
         bad=copy.deepcopy(assets);bad[0][field]=value
         with patch.object(selection,'read_json',return_value=dict(tag_name=tag,assets=bad)):
