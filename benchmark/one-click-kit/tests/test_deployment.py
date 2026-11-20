@@ -318,5 +318,104 @@ class DeploymentTests(unittest.TestCase):
                 )
 
 
+class PinnedHostPreparationTests(unittest.TestCase):
+    MOUNTS = ("1 0 0:1 / / rw - overlay overlay rw\n"
+              "2 1 0:2 / /network rw - nfs4 server:/volume rw\n"
+              "3 2 0:3 / /network/local rw - ext4 /dev/local rw\n"
+              "4 1 0:4 / /windows-share rw - cifs //server/share rw\n")
+
+    def test_network_imports_have_a_bounded_preparation_allowance(self):
+        from engine_entry import pinned_memory_preflight_timeout
+        for path in ("/network/python/bin/python3", "/windows-share/env/lib"):
+            self.assertEqual(pinned_memory_preflight_timeout([path], self.MOUNTS), 900)
+        self.assertEqual(pinned_memory_preflight_timeout(["/usr/bin/python3"], self.MOUNTS), 120)
+        self.assertEqual(pinned_memory_preflight_timeout(["/network/local/bin/python3"], self.MOUNTS), 120)
+        self.assertEqual(pinned_memory_preflight_timeout(["/network-archive/bin/python3"], self.MOUNTS), 120)
+
+    def test_mount_escaping_and_unknown_filesystem_remain_bounded(self):
+        from engine_entry import pinned_memory_preflight_timeout
+        mounts = self.MOUNTS + "5 1 0:5 / /slow" + chr(92) + "040store rw - nfs server:/slow rw\n"
+        self.assertEqual(pinned_memory_preflight_timeout(["/slow store/bin/python"], mounts), 900)
+        self.assertEqual(pinned_memory_preflight_timeout(["/anywhere"], "not a mount record"), 900)
+
+    def test_actual_gate_payload_and_wrapper_validate_two_admissions(self):
+        import types
+        import engine_entry
+        calls = []
+        current = [None]
+        dtype = object()
+
+        class Tensor:
+            def __init__(self, count, value=None):
+                self.count, self.value = count, value
+            def fill_(self, value):
+                self.value = value
+            def is_pinned(self):
+                return True
+            def numel(self):
+                return self.count
+            def to(self, device, non_blocking):
+                calls.append(("h2d", current[0], device, non_blocking, self.count))
+                return Tensor(self.count, self.value)
+            def cpu(self):
+                calls.append(("d2h", current[0], self.count))
+                return Tensor(self.count, self.value)
+
+        def empty(count, **options):
+            self.assertEqual(options, dict(dtype=dtype, device="cpu", pin_memory=True))
+            return Tensor(count)
+        def select(device):
+            current[0] = device
+            calls.append(("select", device))
+        fake_torch = types.SimpleNamespace(uint8=dtype, empty=empty,
+            equal=lambda a, b: a.count == b.count and a.value == b.value)
+        fake_npu = types.SimpleNamespace(npu=types.SimpleNamespace(set_device=select,
+            synchronize=lambda: calls.append(("synchronize", current[0]))))
+        with tempfile.TemporaryDirectory() as temp:
+            out = Path(temp)
+            def run(command, **options):
+                code = command[command.index("-c") + 1]
+                self.assertEqual(hashlib.sha256(code.encode()).hexdigest(), "8bdaea3ee965efa4795e64ad1fe09c91990594bd88d09b393fecd4dc58f0b9ed")
+                self.assertIn("-S", command)
+                self.assertEqual(options["timeout"], 900)
+                with patch.dict(sys.modules, {"torch": fake_torch, "torch_npu": fake_npu}), patch.object(sys, "argv", ["cpu-pin-fixture", command[-1]]):
+                    with contextlib.redirect_stdout(io.StringIO()):
+                        exec(compile(code, "<original-pin-code-cpu-fixture>", "exec"), {})
+                return types.SimpleNamespace(returncode=0, stdout="fixture complete\n", stderr="")
+            with patch.object(engine_entry, "pinned_memory_preflight_timeout", return_value=900), patch.object(engine_entry.subprocess, "run", side_effect=run):
+                engine_entry.check_pinned_host_memory(out, {"VLLMHUST_NO_SITE": "1"})
+            result = json.loads((out / "pinned-memory-preflight.json").read_bytes())
+            self.assertEqual([v["device"] for v in result["devices"]], [0, 1])
+            self.assertEqual([v for v in calls if v[0] == "h2d"], [("h2d", 0, "npu:0", True, 32 * 2**20), ("h2d", 1, "npu:1", True, 32 * 2**20)])
+            self.assertEqual([v for v in calls if v[0] == "d2h"], [("d2h", 0, 32 * 2**20), ("d2h", 1, 32 * 2**20)])
+            self.assertFalse(result["model_loaded"])
+
+    def test_timeout_preserves_partial_raw_log_and_previous_attempt(self):
+        import engine_entry
+        with tempfile.TemporaryDirectory() as temp:
+            out = Path(temp)
+            failure = subprocess.TimeoutExpired(["fixture"], 900, output=b"partial stdout\n", stderr=b"partial stderr\xff")
+            with patch.object(engine_entry, "pinned_memory_preflight_timeout", return_value=900), patch.object(engine_entry.subprocess, "run", side_effect=failure) as run:
+                with self.assertRaisesRegex(TimeoutError, "before model loading"):
+                    engine_entry.check_pinned_host_memory(out, {})
+                self.assertEqual((out / "pinned-memory-preflight.log").read_bytes(), b"partial stdout\npartial stderr\xff")
+                with self.assertRaises(FileExistsError):
+                    engine_entry.check_pinned_host_memory(out, {})
+                self.assertEqual(run.call_count, 1)
+
+    def test_a_failed_transfer_still_fails_admission(self):
+        import engine_entry
+        import types
+        with tempfile.TemporaryDirectory() as temp:
+            out = Path(temp)
+            def run(command, **options):
+                rows = [dict(device=i, bytes=32 * 2**20, pinned=True, h2d_d2h_equal=i == 0) for i in (0, 1)]
+                Path(command[-1]).write_text(json.dumps(dict(model_loaded=False, devices=rows)))
+                return types.SimpleNamespace(returncode=0, stdout="", stderr="")
+            with patch.object(engine_entry, "pinned_memory_preflight_timeout", return_value=120), patch.object(engine_entry.subprocess, "run", side_effect=run):
+                with self.assertRaisesRegex(ValueError, "does not cover both devices"):
+                    engine_entry.check_pinned_host_memory(out, {})
+
+
 if __name__ == "__main__":
     unittest.main()

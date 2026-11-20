@@ -6,13 +6,13 @@
     "upstream_repository": "vLLM-HUST/vllm-hust-engine",
     "upstream_commit": "57c9302ed4a1f45a814d0ae6f37f778af8f6c8aa",
     "files": 510,
-    "archive": "engine-tools-source-preparation-20261120-v3.tar.gz",
-    "sha256": "a5b8d141e089b42d96ca711365ee8b6aaa0e3d8838c761367627f78c3104de36",
-    "bytes": 1172413,
-    "manifest_sha256": "a3584798914609cbe378dacf6c95b391840c7a542c00b4aa5c7d1047164a69ab",
+    "archive": "engine-tools-host-pin-preflight-20261120-v1.tar.gz",
+    "sha256": "faf28e08cc2dd521d3f860b5be64d29216b0c4b787d2e5e5ca2d6a45712116c9",
+    "bytes": 1174790,
+    "manifest_sha256": "d33daf65c653454540119888be132c179a7d4130838bf4bc4d16b36343703983",
     "build_kind": "repository-source-with-local-patches",
     "public_source": "benchmark/one-click-kit",
-    "url": "https://github.com/DeepLinkNext/DeepLinkEngine/releases/download/r8-runtime-dependencies-20261119-v1/engine-tools-source-preparation-20261120-v3.tar.gz",
+    "url": "https://github.com/DeepLinkNext/DeepLinkEngine/releases/download/r8-runtime-dependencies-20261119-v1/engine-tools-host-pin-preflight-20261120-v1.tar.gz",
     "public_source_readback": "Original510-file inventory plus15 declared workflow, cache, memory, source-preparation and IPC patch hashes",
     "base_archive": {
       "archive": "engine-tools.tar.gz",
@@ -22,7 +22,7 @@
       "bytes": 1156695,
       "api_url": "https://api.github.com/repos/DeepLinkNext/DeepLinkEngine/releases/assets/768201047"
     },
-    "api_url": "https://api.github.com/repos/DeepLinkNext/DeepLinkEngine/releases/assets/771133362"
+    "api_url": "https://api.github.com/repos/DeepLinkNext/DeepLinkEngine/releases/assets/771459934"
   },
   "reference_evidence": {
     "upstream_commit": "53541118b3461705f1e61532710ff0a759d59af0",

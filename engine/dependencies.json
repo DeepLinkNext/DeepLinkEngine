@@ -134,11 +134,11 @@
     },
     {
       "kind": "tools",
-      "name": "engine-tools-source-preparation-20261120-v3.tar.gz",
-      "bytes": 1172413,
-      "sha256": "a5b8d141e089b42d96ca711365ee8b6aaa0e3d8838c761367627f78c3104de36",
-      "url": "https://github.com/DeepLinkNext/DeepLinkEngine/releases/download/r8-runtime-dependencies-20261119-v1/engine-tools-source-preparation-20261120-v3.tar.gz",
-      "api_url": "https://api.github.com/repos/DeepLinkNext/DeepLinkEngine/releases/assets/771133362"
+      "name": "engine-tools-host-pin-preflight-20261120-v1.tar.gz",
+      "bytes": 1174790,
+      "sha256": "faf28e08cc2dd521d3f860b5be64d29216b0c4b787d2e5e5ca2d6a45712116c9",
+      "url": "https://github.com/DeepLinkNext/DeepLinkEngine/releases/download/r8-runtime-dependencies-20261119-v1/engine-tools-host-pin-preflight-20261120-v1.tar.gz",
+      "api_url": "https://api.github.com/repos/DeepLinkNext/DeepLinkEngine/releases/assets/771459934"
     }
   ]
 }

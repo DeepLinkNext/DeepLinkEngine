@@ -91,3 +91,16 @@ def test_context_b1_reuse_still_requires_exact_optimized_deployment(tmp_path):
     module['load']=lambda p:({},None)
     with pytest.raises(ValueError,match='different deployment'):
         module['admit_reuse'](prior,'B1',SimpleNamespace(deployment=tmp_path/'new-r9'),tmp_path/'contract')
+
+
+def test_host_pin_preparation_review_does_not_allow_changed_device_recipe():
+    import evaluation_client as client
+    root = ROOT / 'benchmark/one-click-kit'
+    inventory = json.loads((root / 'DEPLOYMENT-TOOLS.json').read_bytes())['files']
+    original = {name: (root / name).read_bytes() for name in inventory}
+    provider = {k: v.encode() for k, v in json.loads((ROOT / 'tests/fixtures/producer-r9-adapter.json').read_bytes())['files'].items()}
+    source = original['scripts/engine_entry.py']
+    assert b'32*2**20' in source
+    original['scripts/engine_entry.py'] = source.replace(b'32*2**20', b'16*2**20')
+    with pytest.raises(ValueError, match='assessment-source compatibility requires review'):
+        client.bridge(original, provider)

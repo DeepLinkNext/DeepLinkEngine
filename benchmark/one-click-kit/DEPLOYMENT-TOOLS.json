@@ -190,7 +190,7 @@
     "scripts/dataset_client.py": "fe2f147b9da8c23f60984cee0a227f2032768b0298bd237db1a01696052196c9",
     "scripts/dataset_contract.py": "c19e2043c43a44cbce2d314dc60eb89477b6a587d6f2695a83d00daed2694de1",
     "scripts/dependency_admission.py": "ef04dccfee4dd68ff5fd1be480e86f63efae0d91b1ddac31a5b74cd733514d54",
-    "scripts/engine_entry.py": "5a3920c0a85436630687bd2ed1088c2ac8821ac37d174441cc50eabd4bc6895c",
+    "scripts/engine_entry.py": "e6e59f2b3f14c7148fc82a247c3bc60a61d777a073b3617dffa441cc66e8c84f",
     "scripts/fetch_b1_r4.py": "d172af65311c16e0f3ad2fb8102f6f0b1661692915070066f262d03b442a7b5f",
     "scripts/freeze_agent_traces.py": "c2921d3af480e917c720e812104d467c6d6014c1f11741ab4d0263571633b8ff",
     "scripts/full_reference_reuse.py": "4517c2d62b42325b3a5b51a5846aeebd47233723edd275bc90b25fbd630bd633",
@@ -280,7 +280,7 @@
     "tests/test_current_reference_report.py": "bf1f15d20b0e6529e2604e2db79339337b827275d4ad5506bec1734d489da92e",
     "tests/test_dense_task_warmup.py": "78bdbb2633458e91a6e980f5e1f6598348d281b4b4cd116816ce48da20760dc7",
     "tests/test_dependency_admission.py": "d688ef155852e21611af3b303928c0667011eda2388d9d745c8fea4af72f05a8",
-    "tests/test_deployment.py": "2d6c874f9228165d72e65b83178a945d9dfec6ca4c9ce30136f7e0182933bfec",
+    "tests/test_deployment.py": "5304607c2d80e9a5231712aac2c28837ede64a154884b0a2ce3126d092b8b4c7",
     "tests/test_download_entry.py": "19e191348159c91a4d9258b392caca020b8165aa8f1a367b4d4fc48e69d69501",
     "tests/test_draft_producer_geometry.py": "d3be8ad2e1b87a02ea904577cad67ca047dde3e14e3b865b85b82796670a7334",
     "tests/test_draft_raw_observer.py": "8408d525c8b5cc7f9f2c24e8cbbf37e2e1fd6531e4e94f9a2693239fa06b0864",
@@ -529,7 +529,7 @@
         "before_sha256": "cf295a7446843cecc53f3ebf189b38f16c49635e3c09c75bc4c93afb739160e7"
       },
       "scripts/engine_entry.py": {
-        "after_sha256": "5a3920c0a85436630687bd2ed1088c2ac8821ac37d174441cc50eabd4bc6895c",
+        "after_sha256": "e6e59f2b3f14c7148fc82a247c3bc60a61d777a073b3617dffa441cc66e8c84f",
         "before_sha256": "ab7be1d2a5ab52f06e46df3e7dbb0f1ff6dfa3d3eef9944040ff6261fea22c55"
       },
       "scripts/run_b1_r4.py": {
@@ -561,7 +561,7 @@
         "before_sha256": "0be7b76e7b7ea929ec2ff5139d85cd019bd5b8b0f01967f67f2cbc6d19c65e67"
       },
       "tests/test_deployment.py": {
-        "after_sha256": "2d6c874f9228165d72e65b83178a945d9dfec6ca4c9ce30136f7e0182933bfec",
+        "after_sha256": "5304607c2d80e9a5231712aac2c28837ede64a154884b0a2ce3126d092b8b4c7",
         "before_sha256": "8a2d6ad4f12435f20efe39421cf1ee7b3d420007ecaea8a343c76a75b59c839e"
       },
       "tests/test_native_checkpoint_reserve.py": {
@@ -577,10 +577,10 @@
         "before_sha256": "adba40759c3d852267e35831e8317e2c6f7c251a3c1069db91eca00bcabf3267"
       }
     },
-    "id": "deeplink-source-preparation-and-ipc-20261120-v3",
-    "parent_manifest_sha256": "d05d03ff5e95ff652fb8d645dc44ff43ac742a42314a4b72d2da028a1c21a0b7",
-    "parent_patchset": "deeplink-source-preparation-and-ipc-20261120-v2",
-    "scope": "Original SDK4GiB conservative working-set/OOM monitoring for serving and native reference after allocation; pre-service12GiB raw admission unchanged. No engine, workload, warmup budget, scoring or timer-definition changes. Validated inherited resource lease descriptors now survive owned subprocess boundaries; task, engine, warmup, scoring and timing definitions remain unchanged. Separate bounded B0 CPU source verification from the original device lease wait; use a private local tmpfs socket directory when /tmp is full. Engine bytes, populations, scoring, warmup and native arm clocks are unchanged. Separate bounded B0 CPU source verification from the original device lease wait; use a private local tmpfs socket directory when /tmp is full. Engine bytes, populations, scoring, warmup and native arm clocks are unchanged. Separate bounded B0 CPU source verification from the original device lease wait; use a private local tmpfs socket directory when /tmp is full. Engine bytes, populations, scoring, warmup and native arm clocks are unchanged."
+    "id": "deeplink-host-pin-preflight-20261120-v1",
+    "parent_manifest_sha256": "a3584798914609cbe378dacf6c95b391840c7a542c00b4aa5c7d1047164a69ab",
+    "parent_patchset": "deeplink-source-preparation-and-ipc-20261120-v3",
+    "scope": "Original SDK4GiB conservative working-set/OOM monitoring for serving and native reference after allocation; pre-service12GiB raw admission unchanged. No engine, workload, warmup budget, scoring or timer-definition changes. Validated inherited resource lease descriptors now survive owned subprocess boundaries; task, engine, warmup, scoring and timing definitions remain unchanged. Separate bounded B0 CPU source verification from the original device lease wait; use a private local tmpfs socket directory when /tmp is full. Engine bytes, populations, scoring, warmup and native arm clocks are unchanged. Separate bounded B0 CPU source verification from the original device lease wait; use a private local tmpfs socket directory when /tmp is full. Engine bytes, populations, scoring, warmup and native arm clocks are unchanged. Separate bounded B0 CPU source verification from the original device lease wait; use a private local tmpfs socket directory when /tmp is full. Engine bytes, populations, scoring, warmup and native arm clocks are unchanged. Allow900s for cold network-stored host-pin imports (local120s) and preserve partial timeout logs. The original dual32MiB pinned-copy payload remains byte-identical; engine, populations, scoring, warmup and native arm clocks are unchanged."
   },
   "repository": "vLLM-HUST/vllm-hust-engine"
 }

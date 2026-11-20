@@ -222,6 +222,8 @@ def context_baseline_bridge(result):
     reviewed_sources = {
         '378c81fc3b0d27ccbf0f9a78bbae401053a0a4d6b318d0bfa921669dd82fce0f',
         '67bf9560a03a0b24ce7d0678fb742aa3fe57c5276fe376c74918d1bcbdac96fb',
+        # Same pinned-copy payload and validators; only network import allowance/logs.
+        'ee46611022f688bb96adb5a7604bcfedc02888b416dfcc366e546c15182d082b',
     }
     if digest(scripts(result)) not in reviewed_sources:
         raise ValueError('B0 context assessment-source compatibility requires review')

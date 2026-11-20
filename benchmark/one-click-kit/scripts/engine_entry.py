@@ -103,9 +103,42 @@ print(json.dumps(record))
     write(out / "completion-socket-preflight.json", json.loads(result.stdout))
 
 
+def pinned_memory_preflight_timeout(paths=None, mountinfo=None):
+    """Allow cold network imports without changing any native arm deadline."""
+    if mountinfo is None:
+        try:
+            mountinfo = Path("/proc/self/mountinfo").read_text()
+        except OSError:
+            return 900
+    import re
+
+    mounts = []
+    for line in mountinfo.splitlines():
+        try:
+            fields, filesystem = line.split(" - ", 1)
+            point = re.sub(r"\\([0-7]{3})",
+                           lambda match: chr(int(match.group(1), 8)),
+                           fields.split()[4])
+            mounts.append((Path(point), filesystem.split()[0]))
+        except (ValueError, IndexError):
+            continue
+    roots = [sys.executable, sys.prefix, *sys.path] if paths is None else paths
+    for root in roots:
+        path = Path(root or ".").resolve()
+        matches = [(point, kind) for point, kind in mounts if path.is_relative_to(point)]
+        if not matches:
+            return 900
+        _, kind = max(matches, key=lambda item: len(item[0].parts))
+        if kind in {"nfs", "nfs4", "cifs", "smb3"}:
+            return 900
+    return 120
+
+
 def check_pinned_host_memory(out, env):
     result_file = out / "pinned-memory-preflight.json"
-    if result_file.exists():
+    log_file = out / "pinned-memory-preflight.log"
+    policy_file = out / "pinned-memory-preflight-policy.json"
+    if any(path.exists() for path in (result_file, log_file, policy_file)):
         raise FileExistsError("Preserve the previous pinned-memory admission receipt")
     code = """
 import json,resource,sys,torch,torch_npu
@@ -126,20 +159,39 @@ with open(sys.argv[1],'x') as stream:
     stream.write('\\n')
 print('HOST_PIN_ADMISSION_FILE '+sys.argv[1])
 """
-    result = subprocess.run(
-        [
-            sys.executable,
-            *(["-S"] if env.get("VLLMHUST_NO_SITE") == "1" else []),
-            "-c",
-            code,
-            str(result_file),
-        ],
-        env=env,
-        capture_output=True,
-        text=True,
-        timeout=120,
-    )
-    (out / "pinned-memory-preflight.log").write_text(result.stdout + result.stderr)
+    timeout = pinned_memory_preflight_timeout()
+    write(policy_file, {
+        "schema": "pinned-memory-preflight-policy/v1",
+        "timeout_seconds": timeout,
+        "scope": "Imports and the original two32MiB pinned H2D/D2H checks before model loading; native arm clocks remain unchanged",
+    })
+
+    def save_log(stdout, stderr):
+        def raw(value):
+            return value if isinstance(value, bytes) else (value or "").encode()
+        with log_file.open("xb") as stream:
+            stream.write(raw(stdout) + raw(stderr))
+
+    try:
+        result = subprocess.run(
+            [
+                sys.executable,
+                *(["-S"] if env.get("VLLMHUST_NO_SITE") == "1" else []),
+                "-c",
+                code,
+                str(result_file),
+            ],
+            env=env,
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+        )
+    except subprocess.TimeoutExpired as error:
+        save_log(error.stdout, error.stderr)
+        raise TimeoutError(
+            f"Pinned host preflight exceeded{timeout}s before model loading; see pinned-memory-preflight.log"
+        ) from error
+    save_log(result.stdout, result.stderr)
     if result.returncode:
         raise RuntimeError(
             "Pinned host memory/transfer admission failed before model loading; see pinned-memory-preflight.log"
