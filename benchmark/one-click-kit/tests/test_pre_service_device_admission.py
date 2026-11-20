@@ -47,32 +47,32 @@ def progress(path, **overrides):
 
 def test_slow_cpu_verification_is_not_a_device_queue_timeout(tmp_path):
     progress(tmp_path)
-    assert runner.service_admission_phase(tmp_path, "B0", 100, 2500, 1800) == "verifying-baseline"
+    assert runner.service_admission_phase(tmp_path, "B0", 100, 1800, clock=lambda: 2500) == "verifying-baseline"
 
 
 def test_source_verification_has_its_own_finite_bound(tmp_path):
     progress(tmp_path)
     with pytest.raises(TimeoutError, match="source verification exceeded7200s"):
-        runner.service_admission_phase(tmp_path, "B0", 100, 7302, 1800)
+        runner.service_admission_phase(tmp_path, "B0", 100, 1800, clock=lambda: 7302)
 
 
 def test_source_completion_starts_the_original_lease_wait(tmp_path):
     progress(tmp_path, status="completed", completed_monotonic=2500)
-    assert runner.service_admission_phase(tmp_path, "B0", 100, 4330, 1800) == "admitting"
+    assert runner.service_admission_phase(tmp_path, "B0", 100, 1800, clock=lambda: 4330) == "admitting"
     with pytest.raises(TimeoutError, match="Device admission wait expired"):
-        runner.service_admission_phase(tmp_path, "B0", 100, 4331, 1800)
+        runner.service_admission_phase(tmp_path, "B0", 100, 1800, clock=lambda: 4331)
 
 
 @pytest.mark.parametrize("role", ["B0", "B1"])
 def test_missing_progress_keeps_original_wait_timeout(tmp_path, role):
     with pytest.raises(TimeoutError, match="Device admission wait expired"):
-        runner.service_admission_phase(tmp_path, role, 100, 1931, 1800)
+        runner.service_admission_phase(tmp_path, role, 100, 1800, clock=lambda: 1931)
 
 
 def test_b1_cannot_use_a_baseline_progress_marker_to_extend_wait(tmp_path):
     progress(tmp_path)
     with pytest.raises(TimeoutError, match="Device admission wait expired"):
-        runner.service_admission_phase(tmp_path, "B1", 100, 2500, 1800)
+        runner.service_admission_phase(tmp_path, "B1", 100, 1800, clock=lambda: 2500)
 
 
 @pytest.mark.parametrize("invalid", [
@@ -86,4 +86,26 @@ def test_b1_cannot_use_a_baseline_progress_marker_to_extend_wait(tmp_path):
 def test_malformed_or_stale_preparation_progress_is_rejected(tmp_path, invalid):
     progress(tmp_path, **invalid)
     with pytest.raises(ValueError, match="baseline source preparation"):
-        runner.service_admission_phase(tmp_path, "B0", 100, 2500, 1800)
+        runner.service_admission_phase(tmp_path, "B0", 100, 1800, clock=lambda: 2500)
+
+
+def test_child_progress_is_observed_with_a_fresh_clock_after_read(tmp_path, monkeypatch):
+    import time
+    queue = time.monotonic()
+    parent_loop_time = time.monotonic()
+    started = time.monotonic()
+    progress(tmp_path, started_monotonic=started)
+    assert started >= parent_loop_time
+    # Exercise the production call with no injected clock or stale loop time.
+    assert runner.service_admission_phase(tmp_path, "B0", queue, 1800) == "verifying-baseline"
+    progress(tmp_path, status="completed", started_monotonic=started,
+             completed_monotonic=time.monotonic())
+    assert runner.service_admission_phase(tmp_path, "B0", queue, 1800) == "admitting"
+
+
+@pytest.mark.parametrize("value", [None, [], "not-a-progress-record"])
+def test_non_mapping_preparation_progress_fails_closed(tmp_path, value):
+    import json
+    (tmp_path / "source-preparation.json").write_text(json.dumps(value))
+    with pytest.raises(ValueError, match="Invalid baseline source preparation progress"):
+        runner.service_admission_phase(tmp_path, "B0", 100, 1800, clock=lambda: 150)

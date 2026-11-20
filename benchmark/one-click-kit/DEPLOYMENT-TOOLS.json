@@ -240,7 +240,7 @@
     "scripts/restore_b0_image.py": "cf35eff8d0d2dcb93f9946b44aeb18400125ac5ad160d072f35210206fc012d9",
     "scripts/restore_b1_r4.py": "b554079afc3289c7ee7e44f1a5067733238c1a6d6fe2a409586cf3428215bd56",
     "scripts/reuse_campaign.py": "5bd3d271568d05dfb4c95989e77e8f0aa58784b8cb5425cea1056bc56cff04cc",
-    "scripts/run_b1_r4.py": "0762eca3990aacd536656217c04d67445aa2b082f575b20690a139fc0e83e994",
+    "scripts/run_b1_r4.py": "77a8b1428bf69370a1145594742035b452886d16897ba1c440f8659b2c71c1e3",
     "scripts/run_canonical_reference.py": "cdc44427cd16331208f6463065485e1f5522062e5fda93ae08d55fe4896100e7",
     "scripts/run_native_reference.py": "25a1b0cfd94e4981346550eb5b00f81b4bc54a27f51ca35280d0acc4da7b78d4",
     "scripts/run_paired.py": "b038564f4911b2b05e7b9f37cfb6de1725456bbc41d675515c4fc73253db256b",
@@ -268,7 +268,7 @@
     "tests/test_audit_public_work_correspondence.py": "b35d461b39fc63e1d419f5fe1fb3dd16dce594538e03d1b6ea316c47193d5c72",
     "tests/test_automatic_reference.py": "0b3fe32b2dd3fd42ba176bab50669dce281249fb9fca128d87744122a316b2c5",
     "tests/test_baseline_capacity_bounds.py": "4a2fc3267a5e9332f9c992f243818d9743082fe41ada0f5366a5566afcf8b1da",
-    "tests/test_baseline_entry.py": "b331b242d1f576d93a9c3697816a712d44673bf9d1c77338eb2df698b656fa34",
+    "tests/test_baseline_entry.py": "fb97aff12d4197ebaf12cb9e111358b0bfaee4f74c75795d5fe37eb87b3a7204",
     "tests/test_canonical_protocol.py": "ca8bd737aee0c78fc635ef304890b5265a1d55b8d85f309b2e2ebb43cc7e7f49",
     "tests/test_canonical_results.py": "683e0dd1860bcba0dab72f323d7cb83796fbf21c0baf1cb166574cc619eadced",
     "tests/test_canonical_workgroups.py": "c9307e04932e78965e44dbf3ecf63a9bf581b78c02591d8a068e954c0687ea73",
@@ -312,7 +312,7 @@
     "tests/test_one_click.py": "500751f04d451f7f611637cfcf23850b06e039b7bc021cc3169ebe52861aab3e",
     "tests/test_pinned_memory_receipt.py": "c6118ea5e7cdc591137f514b93850fb403459839eafd543e4c84d4dc7625c463",
     "tests/test_plan_identity.py": "c61f236499dd4f402915cde5b7ac8d5563631bd80f06193bef127c371ac1b499",
-    "tests/test_pre_service_device_admission.py": "94d06693ff5c44e707f0fc10fe49f638d720d4dfdb1e50f82beb4d43e8dd8633",
+    "tests/test_pre_service_device_admission.py": "2aaba68d48b06c07bc5df96aaa2cd947c88795271683c971a4120f2098f532ce",
     "tests/test_project_evidence.py": "54bb8a6d6211ff001c5cb20607f3b443b6747493b1d65868c69295975ff121de",
     "tests/test_public_decode_tail.py": "78e2da4df5a215c30e6d1f60bf41c4596b2df66f01ec1a83ad4818129c42651d",
     "tests/test_public_output_binding.py": "d3d19b50ae45728c1846356ab612e357ed5c8c964d595e23cefc3eb888f1391a",
@@ -533,7 +533,7 @@
         "before_sha256": "ab7be1d2a5ab52f06e46df3e7dbb0f1ff6dfa3d3eef9944040ff6261fea22c55"
       },
       "scripts/run_b1_r4.py": {
-        "after_sha256": "0762eca3990aacd536656217c04d67445aa2b082f575b20690a139fc0e83e994",
+        "after_sha256": "77a8b1428bf69370a1145594742035b452886d16897ba1c440f8659b2c71c1e3",
         "before_sha256": "d5ebd1329b7f493423bd71a7832bb9a573ef03b7903c2cecc3c6f0b9ea1c531b"
       },
       "scripts/run_native_reference.py": {
@@ -549,7 +549,7 @@
         "before_sha256": "20087f84f551d8632d2ebf8033fedf4618e10a8af4051b5f7d7cbc7c5cc2e96e"
       },
       "tests/test_baseline_entry.py": {
-        "after_sha256": "b331b242d1f576d93a9c3697816a712d44673bf9d1c77338eb2df698b656fa34",
+        "after_sha256": "fb97aff12d4197ebaf12cb9e111358b0bfaee4f74c75795d5fe37eb87b3a7204",
         "before_sha256": "570b6f3aa05d71e76d79fc39878fc077677336125717d43e11004ef1116598b2"
       },
       "tests/test_checkpoint_cache.py": {
@@ -569,7 +569,7 @@
         "before_sha256": "52ee07eaf1338b7569dc5801292ff79bc81d01307cf45792c85d79eba30cab20"
       },
       "tests/test_pre_service_device_admission.py": {
-        "after_sha256": "94d06693ff5c44e707f0fc10fe49f638d720d4dfdb1e50f82beb4d43e8dd8633",
+        "after_sha256": "2aaba68d48b06c07bc5df96aaa2cd947c88795271683c971a4120f2098f532ce",
         "before_sha256": "a8e703ba8dc12cc92135c64680d0862b739193905352e93b4729c1ff2e8be0c8"
       },
       "tests/test_startup_cache_admission.py": {
@@ -577,10 +577,10 @@
         "before_sha256": "adba40759c3d852267e35831e8317e2c6f7c251a3c1069db91eca00bcabf3267"
       }
     },
-    "id": "deeplink-source-preparation-and-ipc-20261120-v2",
-    "parent_manifest_sha256": "589adc50e6dd3856dc1575707610fe83ab0d09789e021de18da49e3afde38fb4",
-    "parent_patchset": "deeplink-source-preparation-and-ipc-20261120-v1",
-    "scope": "Original SDK4GiB conservative working-set/OOM monitoring for serving and native reference after allocation; pre-service12GiB raw admission unchanged. No engine, workload, warmup budget, scoring or timer-definition changes. Validated inherited resource lease descriptors now survive owned subprocess boundaries; task, engine, warmup, scoring and timing definitions remain unchanged. Separate bounded B0 CPU source verification from the original device lease wait; use a private local tmpfs socket directory when /tmp is full. Engine bytes, populations, scoring, warmup and native arm clocks are unchanged. Separate bounded B0 CPU source verification from the original device lease wait; use a private local tmpfs socket directory when /tmp is full. Engine bytes, populations, scoring, warmup and native arm clocks are unchanged."
+    "id": "deeplink-source-preparation-and-ipc-20261120-v3",
+    "parent_manifest_sha256": "d05d03ff5e95ff652fb8d645dc44ff43ac742a42314a4b72d2da028a1c21a0b7",
+    "parent_patchset": "deeplink-source-preparation-and-ipc-20261120-v2",
+    "scope": "Original SDK4GiB conservative working-set/OOM monitoring for serving and native reference after allocation; pre-service12GiB raw admission unchanged. No engine, workload, warmup budget, scoring or timer-definition changes. Validated inherited resource lease descriptors now survive owned subprocess boundaries; task, engine, warmup, scoring and timing definitions remain unchanged. Separate bounded B0 CPU source verification from the original device lease wait; use a private local tmpfs socket directory when /tmp is full. Engine bytes, populations, scoring, warmup and native arm clocks are unchanged. Separate bounded B0 CPU source verification from the original device lease wait; use a private local tmpfs socket directory when /tmp is full. Engine bytes, populations, scoring, warmup and native arm clocks are unchanged. Separate bounded B0 CPU source verification from the original device lease wait; use a private local tmpfs socket directory when /tmp is full. Engine bytes, populations, scoring, warmup and native arm clocks are unchanged."
   },
   "repository": "vLLM-HUST/vllm-hust-engine"
 }

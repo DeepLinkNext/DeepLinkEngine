@@ -138,14 +138,14 @@ class BaselineSourcePreparationTests(unittest.TestCase):
             def verify(deployment, receipt, variant):
                 self.assertEqual(deployment, root / "baseline")
                 self.assertEqual(receipt, out / "baseline-source-admission.json")
-                self.assertEqual(service_admission_phase(out, "B0", 100, 2401, 1800),
+                self.assertEqual(service_admission_phase(out, "B0", 100, 1800, clock=lambda: 2401),
                                  "verifying-baseline")
                 self.assertFalse((out / "resource-admission.json").exists())
                 seen.append("full-source-verification")
                 return {"python": "/fixture/original-python"}
 
             def acquire(out, timeout):
-                self.assertEqual(service_admission_phase(out, "B0", 100, 2502, timeout),
+                self.assertEqual(service_admission_phase(out, "B0", 100, timeout, clock=lambda: 2502),
                                  "admitting")
                 seen.append("resource-acquisition")
 

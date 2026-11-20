@@ -212,13 +212,19 @@ def wait_before_service(root, timeout):
         time.sleep(5)
 
 
-def service_admission_phase(service_out, role, queue_start, now, lease_timeout):
+def service_admission_phase(service_out, role, queue_start, lease_timeout, *, clock=None):
     """Bound B0 file verification independently; retain the original lease wait."""
     path = service_out / "source-preparation.json"
-    if role == "B0" and path.exists():
+    # Read the child marker before sampling this observation's clock: the
+    # child may publish it after the parent loop captured its earlier `now`.
+    has_progress = role == "B0" and path.exists()
+    record = json.loads(path.read_bytes()) if has_progress else None
+    now = (clock or time.monotonic)()
+    if has_progress:
+        if not isinstance(record, dict):
+            raise ValueError("Invalid baseline source preparation progress")
         import math
 
-        record = json.loads(path.read_bytes())
         started = record.get("started_monotonic")
         ended = record.get("completed_monotonic")
         valid_number = lambda value: (type(value) in (int, float)
@@ -537,7 +543,7 @@ def admitted_run(args, root, cleanup):
                 receipt.update(status="starting-model", model_service_started=True)
             if admitted is None:
                 receipt["status"] = service_admission_phase(
-                    service_out, role, queue_start, now, args.lease_timeout)
+                    service_out, role, queue_start, args.lease_timeout)
             if args.kind == "dataset":
                 if admitted is not None and client is None and now - admitted > 3600:
                     raise TimeoutError(
