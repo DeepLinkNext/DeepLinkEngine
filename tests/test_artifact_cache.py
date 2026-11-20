@@ -72,6 +72,27 @@ class ArtifactCacheTests(unittest.TestCase):
                 self.run_hint()
         advise.assert_not_called()
 
+    def test_selected_release_overrides_legacy_same_name_artifact_size(self):
+        wheels=self.cache/'wheels';wheels.mkdir()
+        name='vllm-same-version.whl';wheel=wheels/name
+        with wheel.open('wb') as stream:stream.truncate(self.size+4)
+        shared=wheels/'evaluation.tar.gz'
+        with shared.open('wb') as stream:stream.truncate(self.size)
+        records=[dict(name=name,bytes=self.size,kind='engine'),
+                 dict(name=shared.name,bytes=self.size,kind='tools')]
+        with patch.object(artifact_cache,'ROOT',self.root), \
+             patch('baseline_bundle.inventory',return_value=dict(blobs=[])), \
+             patch('tools.verify_dependency_index.build_index',return_value=dict(artifacts=records)), \
+             patch('release_selection.active',return_value=dict(version='2026.11.19.9.post1')), \
+             patch('engine_install.sources',return_value=[dict(name=name,bytes=self.size+4)]), \
+             patch.object(artifact_cache.os,'posix_fadvise') as advise:
+            result=artifact_cache.release(self.cache)
+        self.assertEqual(advise.call_count,2)
+        self.assertEqual({Path(r['path']).name:r['bytes'] for r in result['files']},
+                         {name:self.size+4,shared.name:self.size})
+        self.assertFalse(result['file_content_written'])
+        self.assertEqual(wheel.stat().st_size,self.size+4)
+
     def test_symlink_target_is_never_advised(self):
         target = self.root / 'outside'
         self.path.rename(target)

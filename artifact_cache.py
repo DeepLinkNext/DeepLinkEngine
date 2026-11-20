@@ -40,7 +40,15 @@ def release(cache, baseline=None):
                 candidates[folder / part['name']] = part['bytes']
     runtime = json.loads((ROOT / 'engine/r8-lock.json').read_text())
     evaluation = json.loads((ROOT / 'benchmark/one-click-lock.json').read_text())
-    for row in build_index(runtime, evaluation)['artifacts']:
+    artifacts = build_index(runtime, evaluation)['artifacts']
+    from release_selection import active
+    if active() is not None:
+        from engine_install import sources
+        # Different stable releases may intentionally publish the same wheel
+        # filename with different bytes. Follow the already frozen selection,
+        # retaining shared evaluation/reference artifacts from the legacy lock.
+        artifacts = [r for r in artifacts if r.get('kind') != 'engine'] + sources()
+    for row in artifacts:
         candidates[cache / 'wheels' / row['name']] = row['bytes']
     before = memory()
     files, failures = [], []
