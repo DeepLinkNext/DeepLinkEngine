@@ -200,3 +200,20 @@ def test_vendor_file_probe_loads_release_contract_in_real_isolated_python(tmp_pa
         result = environment_setup.vendor_integrity(sys.executable, {'triton-ascend': '3.6.0'}, dict(os.environ))
         assert result['verified'] is False
         assert result['packages']['triton-ascend']['mismatches'] == [payload.name]
+
+
+def test_r9_baseline_reuse_bridge_is_pinned_and_preserves_argv_admission():
+    provider={k:v.encode() for k,v in json.loads((ROOT/'tests/fixtures/producer-r9-adapter.json').read_bytes())['files'].items()}
+    root=ROOT/'benchmark/one-click-kit'
+    manifest=json.loads((root/'DEPLOYMENT-TOOLS.json').read_bytes())
+    original={n:(root/n).read_bytes() for n in manifest['files']}
+    combined=client.bridge(original,provider)
+    compat=json.loads(combined['protocols/task-warmup-v3-c8-compatibility.json'])
+    assert client.sha(original['scripts/serving_warmup.py']) in compat['previous_sha256']
+    assert compat['current_sha256']==client.sha(combined['scripts/serving_warmup.py'])
+    baseline=compat['unchanged_continuous_source_adaptations']['scripts/baseline_entry.py']
+    assert client.sha(original['scripts/baseline_entry.py']) in baseline['previous_sha256']
+    assert baseline['current_sha256']==client.sha(combined['scripts/baseline_entry.py'])
+    assert combined['scripts/reuse_campaign.py']==original['scripts/reuse_campaign.py']
+    provider['scripts/serving_warmup.py']+=b'\n# unreviewed producer change\n'
+    with pytest.raises(ValueError,match='requires source review'):client.bridge(original,provider)

@@ -1,5 +1,5 @@
 from release_selection import kit_path, runtime_lock, profile as selected_profile
-"""Install frozen r8, run fixed-five and context/tenant tests, and retain reports."""
+"""Install a selected stable engine and run fixed-five and context/tenant tests."""
 import argparse
 import json
 import hashlib
@@ -242,14 +242,14 @@ def completed_run_source(data, source):
     if source == out or source.is_relative_to(out) or out.is_relative_to(source):
         raise ValueError("Reuse source and new output must be independent")
     prior = json.loads((source / "results.json").read_text())
-    comparable = lambda value: {k: v for k, v in value.items() if k != "out"}
+    comparable = lambda value: {k: v for k, v in value.items() if k not in ("out", "engine_version")}
     if comparable(prior.get("configuration", {})) != comparable(data):
         raise ValueError("Reuse model/device/cache configuration differs")
     if prior.get("status") not in ("failed", "completed"):
         raise ValueError("Reuse requires a stopped prior run")
     sys.path.insert(0, str(kit_path() / "scripts"))
     from reuse_campaign import source as audit_source, audit_stage
-    _, _, campaign, _ = audit_source(source / "fixed-five")
+    _, previous_plan, campaign, _ = audit_source(source / "fixed-five")
     if campaign.get("status") not in ("failed", "completed"):
         raise ValueError("Reuse campaign is not sealed and stopped")
     names = [row["name"] for row in campaign["stages"] if row["status"] == "completed"]
@@ -257,6 +257,21 @@ def completed_run_source(data, source):
         raise ValueError("No completed sealed stages are available to reuse")
     for name in names:
         audit_stage(source / "fixed-five", name)
+    from release_selection import active
+    selected = active()
+    previous_release = previous_plan.get("engine_release", "full-answer-b1-20261030-r4")
+    previous_selection = prior.get("engine_selection") or {}
+    if (source / "engine-selection.json").is_file():
+        previous_selection = json.loads((source / "engine-selection.json").read_bytes())
+    changed_target = selected and (selected["release"] != previous_release or
+        (previous_selection.get("version") and selected["version"] != previous_selection["version"]))
+    if changed_target:
+        # A judge labelled B0 still runs on B1. Only independently measured
+        # baseline services can survive an explicit optimized-engine change.
+        baseline_only = {"continuous-B0", "frontier-solver-B0", "hle-solver-B0",
+                         "swe-trace-B0", "terminal-trace-B0"}
+        if any(name not in baseline_only for name in names):
+            raise ValueError("Changing engine version requires baseline-only completed stages")
     return dict(root=str(source), completed_stages=names,
                 results_sha256=hashlib.sha256((source / "results.json").read_bytes()).hexdigest())
 
@@ -428,6 +443,26 @@ def run(data, *, resume_bootstrap=False, resume_before_model=False, resume_befor
         print("RESULTS", out / "results.json", flush=True)
 
 
+def select_run_engine(data, *, recovery=False, reuse_completed_run=None):
+    """Freeze a new target once; in-place recovery retains its original target."""
+    from release_selection import select, bind, active
+    saved = Path(data["out"]) / "engine-selection.json"
+    if recovery or (reuse_completed_run and not data.get("engine_version")):
+        if reuse_completed_run:
+            saved = Path(reuse_completed_run).resolve() / "engine-selection.json"
+        if saved.is_file():
+            record = bind(saved)
+        else:
+            record = active() or select(data["cache"], version="2026.11.17.8.post2")
+        if data.get("engine_version") and record["version"] != data["engine_version"]:
+            raise ValueError("In-place recovery cannot change the frozen engine version")
+        return record
+    # With a fresh output an explicit target may reuse sealed B0 only. The
+    # caller audits every completed stage before environment/model operations;
+    # the campaign additionally checks B0 source, argv, weights and warmup.
+    return select(data["cache"], version=data.get("engine_version"))
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--config", required=True, type=Path)
@@ -451,17 +486,8 @@ def main():
                 bind(out / 'engine-selection.json')
             destination = out / ("full-report-" + uuid.uuid4().hex)
             return subprocess.run(full_report_command(out,destination)).returncode
-        from release_selection import select, bind, active
-        saved = Path(data['out']) / 'engine-selection.json'
         recovery = args.resume_bootstrap or args.resume_before_model or args.resume_before_inference
-        if recovery or args.reuse_completed_run:
-            saved = (args.reuse_completed_run.resolve() / 'engine-selection.json') if args.reuse_completed_run else saved
-            if saved.is_file():
-                bind(saved)
-            elif not active():
-                select(data['cache'], version='2026.11.17.8.post2')
-        else:
-            select(data['cache'], version=data.get('engine_version'))
+        select_run_engine(data, recovery=recovery, reuse_completed_run=args.reuse_completed_run)
         if sum((args.resume_bootstrap,args.resume_before_model,args.resume_before_inference))>1:
             raise ValueError("Choose only one recovery mode")
         if args.reuse_completed_run and (args.resume_bootstrap or args.resume_before_model or args.resume_before_inference):
