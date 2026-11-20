@@ -94,9 +94,13 @@ def full_entry_policy(data, *, prior=None, context=None, compute=None, recovery=
     context = context or saved.get('context_baseline_arm')
     compute = compute or saved.get('compute_baseline_arm')
     if not context:
-        candidate = source / 'context-tenant/native/B0'
-        if candidate.is_dir():
-            context = candidate
+        # The public acceptance controller writes output/B0. Some older
+        # independently launched supplements had an extra native/ directory.
+        for name in ('context-tenant/B0', 'context-tenant/native/B0'):
+            candidate = source / name
+            if candidate.is_dir():
+                context = candidate
+                break
     if not compute:
         candidate = source / 'fixed-five/compute-reference/native-baseline-timing'
         if candidate.is_dir():

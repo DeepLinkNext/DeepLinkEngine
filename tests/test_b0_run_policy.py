@@ -93,10 +93,10 @@ def test_full_entry_requires_all_baseline_sources_before_environment_changes(tmp
     with pytest.raises(ValueError, match='默认不重跑'):
         policy.full_entry_policy({'out': str(tmp_path)})
     old = tmp_path / 'old'
-    (old / 'context-tenant/native/B0').mkdir(parents=True)
+    (old / 'context-tenant/B0').mkdir(parents=True)
     (old / 'fixed-five/compute-reference/native-baseline-timing').mkdir(parents=True)
     context, compute = policy.full_entry_policy({'out': '/new'}, prior=old)
-    assert context == old / 'context-tenant/native/B0'
+    assert context == old / 'context-tenant/B0'
     assert compute == old / 'fixed-five/compute-reference/native-baseline-timing'
     assert policy.full_entry_policy({'rerun_b0': True}) == (None, None)
 
