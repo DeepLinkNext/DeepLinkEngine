@@ -182,7 +182,7 @@
     "scripts/baseline_serve.py": "0e3961c06704066fb335f367eaf50bf085ccbced9253dc26a34278ac2d807942",
     "scripts/capacity_snapshot.py": "bbfd941fc3fce6b21121aed1c55b0f971086150ae41ff705c91a23cc12786c03",
     "scripts/checkpoint_cache.py": "1e980adb8087083f804dea2b8e3e3a2381ae7d9e3c68d4ba9f2b222453d6f9f1",
-    "scripts/child_runner.py": "cf295a7446843cecc53f3ebf189b38f16c49635e3c09c75bc4c93afb739160e7",
+    "scripts/child_runner.py": "9f7b13ec02d4a9b8aa9e3de63173f2d7a2e905fe609cd0cff028b30b5eba13a3",
     "scripts/compile_boundary.py": "be079beb88b23a452bd4f4b4d1c6d6c3cd2463d331eb8e95372d1d3fe48bf754",
     "scripts/completion_warmup.py": "c3b292de6297a448d9af89b21de22d7b8c57b516ee341d1ed751549545b3afa0",
     "scripts/compute_reference.py": "a83140187ef655073b60f78cb72da34cc99ca2b23060825f2f24f9173ea89e05",
@@ -273,7 +273,7 @@
     "tests/test_canonical_results.py": "683e0dd1860bcba0dab72f323d7cb83796fbf21c0baf1cb166574cc619eadced",
     "tests/test_canonical_workgroups.py": "c9307e04932e78965e44dbf3ecf63a9bf581b78c02591d8a068e954c0687ea73",
     "tests/test_checkpoint_cache.py": "e0a39c1a5c3d02e6eace109c5d3f91f9fadf90b35b41181c89019bed17541392",
-    "tests/test_child_runner.py": "0be7b76e7b7ea929ec2ff5139d85cd019bd5b8b0f01967f67f2cbc6d19c65e67",
+    "tests/test_child_runner.py": "b475af6d51a414c105c58e900c6a47ab72f7c735d27745335236cab0ad5488e9",
     "tests/test_compute_reference_integration.py": "6c67df157dc776be3ea9b74ac0aafe5c41878365c748c2f4d5e6fade37f3a53d",
     "tests/test_compute_reference_plot.py": "e3f1e4be4b30387e0c47f125d6cfe45bd1b74eb8052c0b2b64af2a415bdc76d3",
     "tests/test_continuous_input_result.py": "2888afaee2bc4a02432d9793592ae8158d4606987daf59f8db588ceebb515119",
@@ -513,43 +513,53 @@
     "validation/two-card-restart-20261113/sdk-local-recovery.json": "31e2ae6a777d37f932c7468b54a6211bb013089953eec1c6f38e99b0b80c4706"
   },
   "local_patchset": {
-    "id": "deeplink-working-memory-reserve-20261120-v8",
     "base_manifest_sha256": "b2dd50d83c6f081269bda8e94e4128741ac80f08b0cf71fdf5db983ca3a98762",
     "files": {
       "scripts/baseline_entry.py": {
-        "before_sha256": "021579736ac8d0821e2f742678c068a60d66d70362e97f6ffd616eec51533e51",
-        "after_sha256": "efa3fbb979eed315238c859a6d44459fb02838d3f35e6d33d107b8a3524348ee"
+        "after_sha256": "efa3fbb979eed315238c859a6d44459fb02838d3f35e6d33d107b8a3524348ee",
+        "before_sha256": "021579736ac8d0821e2f742678c068a60d66d70362e97f6ffd616eec51533e51"
       },
       "scripts/checkpoint_cache.py": {
-        "before_sha256": "c33bb2e9ad88e985205c6d9775d986933712de24660ac6a61e310b35ad02099d",
-        "after_sha256": "1e980adb8087083f804dea2b8e3e3a2381ae7d9e3c68d4ba9f2b222453d6f9f1"
+        "after_sha256": "1e980adb8087083f804dea2b8e3e3a2381ae7d9e3c68d4ba9f2b222453d6f9f1",
+        "before_sha256": "c33bb2e9ad88e985205c6d9775d986933712de24660ac6a61e310b35ad02099d"
+      },
+      "scripts/child_runner.py": {
+        "after_sha256": "9f7b13ec02d4a9b8aa9e3de63173f2d7a2e905fe609cd0cff028b30b5eba13a3",
+        "before_sha256": "cf295a7446843cecc53f3ebf189b38f16c49635e3c09c75bc4c93afb739160e7"
       },
       "scripts/engine_entry.py": {
-        "before_sha256": "ab7be1d2a5ab52f06e46df3e7dbb0f1ff6dfa3d3eef9944040ff6261fea22c55",
-        "after_sha256": "cca494006a84cec2167b3b3b86d4c28982554e580b0f8ccc34ea4dfc538be171"
+        "after_sha256": "cca494006a84cec2167b3b3b86d4c28982554e580b0f8ccc34ea4dfc538be171",
+        "before_sha256": "ab7be1d2a5ab52f06e46df3e7dbb0f1ff6dfa3d3eef9944040ff6261fea22c55"
       },
       "scripts/run_b1_r4.py": {
-        "before_sha256": "d5ebd1329b7f493423bd71a7832bb9a573ef03b7903c2cecc3c6f0b9ea1c531b",
-        "after_sha256": "fe671a23d6b5626d5f1d2f421997a76d8ae61d7abe8fa8b80707ff972bb82bd0"
+        "after_sha256": "fe671a23d6b5626d5f1d2f421997a76d8ae61d7abe8fa8b80707ff972bb82bd0",
+        "before_sha256": "d5ebd1329b7f493423bd71a7832bb9a573ef03b7903c2cecc3c6f0b9ea1c531b"
       },
       "scripts/run_native_reference.py": {
-        "before_sha256": "8a8235642e4980316fae2496f462eaa0b1ad49236464edbe8fc7e3d5e0daf7cb",
-        "after_sha256": "25a1b0cfd94e4981346550eb5b00f81b4bc54a27f51ca35280d0acc4da7b78d4"
+        "after_sha256": "25a1b0cfd94e4981346550eb5b00f81b4bc54a27f51ca35280d0acc4da7b78d4",
+        "before_sha256": "8a8235642e4980316fae2496f462eaa0b1ad49236464edbe8fc7e3d5e0daf7cb"
       },
       "scripts/run_paired.py": {
-        "before_sha256": "1319d03608e9d169d5bd92af9381f7301d2140fae70c72d940d5e41aeba6d42a",
-        "after_sha256": "b038564f4911b2b05e7b9f37cfb6de1725456bbc41d675515c4fc73253db256b"
+        "after_sha256": "b038564f4911b2b05e7b9f37cfb6de1725456bbc41d675515c4fc73253db256b",
+        "before_sha256": "1319d03608e9d169d5bd92af9381f7301d2140fae70c72d940d5e41aeba6d42a"
       },
       "tests/test_checkpoint_cache.py": {
-        "before_sha256": "1ff11a66582ea8067c39207db592ad7c294662f2f943b1cc3deb08d11211a364",
-        "after_sha256": "e0a39c1a5c3d02e6eace109c5d3f91f9fadf90b35b41181c89019bed17541392"
+        "after_sha256": "e0a39c1a5c3d02e6eace109c5d3f91f9fadf90b35b41181c89019bed17541392",
+        "before_sha256": "1ff11a66582ea8067c39207db592ad7c294662f2f943b1cc3deb08d11211a364"
+      },
+      "tests/test_child_runner.py": {
+        "after_sha256": "b475af6d51a414c105c58e900c6a47ab72f7c735d27745335236cab0ad5488e9",
+        "before_sha256": "0be7b76e7b7ea929ec2ff5139d85cd019bd5b8b0f01967f67f2cbc6d19c65e67"
       },
       "tests/test_native_checkpoint_reserve.py": {
-        "before_sha256": "52ee07eaf1338b7569dc5801292ff79bc81d01307cf45792c85d79eba30cab20",
-        "after_sha256": "b34d092190f211236bab12b69a15ecdbf9fd8f715518a3f29c80e6bd63a4b420"
+        "after_sha256": "b34d092190f211236bab12b69a15ecdbf9fd8f715518a3f29c80e6bd63a4b420",
+        "before_sha256": "52ee07eaf1338b7569dc5801292ff79bc81d01307cf45792c85d79eba30cab20"
       }
     },
-    "scope": "Original SDK4GiB conservative working-set/OOM monitoring for serving and native reference after allocation; pre-service12GiB raw admission unchanged. No engine, workload, warmup budget, scoring or timer-definition changes."
+    "id": "deeplink-memory-and-lease-forwarding-20261120-v1",
+    "parent_manifest_sha256": "163cd8cda56e194578735bb936cf654d78746c91750e3a882d1184a823b67264",
+    "parent_patchset": "deeplink-working-memory-reserve-20261120-v8",
+    "scope": "Original SDK4GiB conservative working-set/OOM monitoring for serving and native reference after allocation; pre-service12GiB raw admission unchanged. No engine, workload, warmup budget, scoring or timer-definition changes. Validated inherited resource lease descriptors now survive owned subprocess boundaries; task, engine, warmup, scoring and timing definitions remain unchanged."
   },
   "repository": "vLLM-HUST/vllm-hust-engine"
 }

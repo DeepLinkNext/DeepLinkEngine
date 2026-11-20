@@ -1,8 +1,23 @@
 """Wait for an owned stage's cleanup before allowing its parent to seal evidence."""
 
 from contextlib import contextmanager
+import os
 import signal
 import subprocess
+
+
+def _lease_descriptors(env):
+    environment = os.environ if env is None else env
+    raw = environment.get("VLLMHUST_ENGINE_LOCKS")
+    if not raw:
+        return ()
+    if (raw != os.environ.get("VLLMHUST_ENGINE_LOCKS")
+            or environment.get("VLLM_HUST_PHYSICAL_DEVICES", "5,6")
+            != os.environ.get("VLLM_HUST_PHYSICAL_DEVICES", "5,6")):
+        raise ValueError("Stage resource leases must match the validated parent leases")
+    from resource_guard import inherited
+    return tuple(entry["fd"] for entry in inherited())
+
 
 
 @contextmanager
@@ -36,7 +51,8 @@ def run_stage(command, *, env=None, stdout=None, stderr=None):
     child = None
     try:
         child = subprocess.Popen(
-            command, env=env, start_new_session=True, stdout=stdout, stderr=stderr
+            command, env=env, start_new_session=True, stdout=stdout, stderr=stderr,
+            pass_fds=_lease_descriptors(env),
         )
         while True:
             if cancelled:

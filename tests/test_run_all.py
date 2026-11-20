@@ -183,6 +183,7 @@ class WorkflowTests(unittest.TestCase):
         self.assertEqual(result, 1)
 
     def test_bootstrap_recovery_verifies_existing_installation_and_retains_original_failure(self):
+        self.data["environment"] = {"wheelhouse": str(self.root / "wheelhouse")}
         self.failed_preflight()
         before = (self.root / "result/results.json").read_bytes()
         self.calls.clear()
@@ -191,6 +192,8 @@ class WorkflowTests(unittest.TestCase):
             result = workflow.run(self.data, resume_bootstrap=True)
         self.assertEqual(result, 0)
         self.assertFalse(any("install" in args for args in self.calls))
+        repair = next(args for args in self.calls if "--repair-dependencies" in args)
+        self.assertEqual(repair[repair.index("--wheelhouse") + 1], self.data["environment"]["wheelhouse"])
         receipt = json.loads((self.root / "result/results.json").read_text())
         self.assertEqual(receipt["stages"][1]["mode"], "verify_existing")
         self.assertEqual(receipt["stages"][3]["mode"], "verify_existing")
@@ -240,6 +243,7 @@ class WorkflowTests(unittest.TestCase):
         self.invoke(fail)
 
     def test_pre_model_failure_can_be_archived_and_recovered_without_losing_evidence(self):
+        self.data["environment"] = {"wheelhouse": str(self.root / "wheelhouse")}
         self.before_model_failure()
         original = (self.root / "result/fixed-five/campaign.json").read_bytes()
         with patch("one_click.verify_kit"), patch("child_runner.run_stage", side_effect=self.execute), \
@@ -248,6 +252,8 @@ class WorkflowTests(unittest.TestCase):
         receipt = json.loads((self.root / "result/results.json").read_text())
         previous = self.root / "result" / receipt["previous_attempts"][-1]["campaign_directory"]
         self.assertEqual((previous / "fixed-five/campaign.json").read_bytes(), original)
+        repair = [args for args in self.calls if "--repair-dependencies" in args][-1]
+        self.assertEqual(repair[repair.index("--wheelhouse") + 1], self.data["environment"]["wheelhouse"])
         self.assertEqual(receipt["stages"][1]["mode"], "verify_existing")
 
     def startup_failure(self):

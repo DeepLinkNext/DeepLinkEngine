@@ -299,7 +299,7 @@ def run(data, *, resume_bootstrap=False, resume_before_model=False, resume_befor
         if data.get("environment", {}).get("wheelhouse"):
             install_command += ["--wheelhouse", data["environment"]["wheelhouse"]]
         if reuse_installation:
-            stage("install-package", [sys.executable, str(ROOT / "engine_install.py"), "--cache", data["cache"], "--repair-dependencies"],
+            stage("install-package", [*install_command, "--repair-dependencies"],
                   mode="verify_existing")
         else:
             stage("install-package", install_command)

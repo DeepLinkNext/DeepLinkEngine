@@ -134,11 +134,11 @@
     },
     {
       "kind": "tools",
-      "name": "engine-tools-memory-reserve-20261120-v8.tar.gz",
-      "bytes": 1162182,
-      "sha256": "0b0600b3cb4c6486986706ffbc14f6515805afdbf26a530be1ee00ab64c5db05",
-      "url": "https://github.com/DeepLinkNext/DeepLinkEngine/releases/download/r8-runtime-dependencies-20261119-v1/engine-tools-memory-reserve-20261120-v8.tar.gz",
-      "api_url": "https://api.github.com/repos/DeepLinkNext/DeepLinkEngine/releases/assets/769551950"
+      "name": "engine-tools-lease-forwarding-20261120-v1.tar.gz",
+      "bytes": 1163796,
+      "sha256": "32ac7a04b9661b6098deee71f51f464334d092ee31e920aad4ee527c90cb9a3c",
+      "url": "https://github.com/DeepLinkNext/DeepLinkEngine/releases/download/r8-runtime-dependencies-20261119-v1/engine-tools-lease-forwarding-20261120-v1.tar.gz",
+      "api_url": "https://api.github.com/repos/DeepLinkNext/DeepLinkEngine/releases/assets/769928893"
     }
   ]
 }
