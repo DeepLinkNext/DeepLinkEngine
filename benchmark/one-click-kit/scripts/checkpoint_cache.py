@@ -22,14 +22,14 @@ class StartupMemoryReserve:
         self.path, self.sample, self.check = path, sample, check
         self.buffers = []
         self.record = dict(schema="one-click-startup-memory-reserve/v1",
-            bytes=4 * GIB, before=sample(), model_started_at_allocation=False,
+            bytes=8 * GIB, before=sample(), model_started_at_allocation=False,
             global_drop_caches=False, memory_limit_changed=False, released=False)
         try:
-            if self.record["before"]["limit"] - self.record["before"]["current"] < 12 * GIB:
-                raise RuntimeError("Less than12GiB raw memory immediately before startup reserve allocation; model not started")
-            # Startup admission has already verified 12GiB raw headroom. This
-            # four-GiB reserve is included in the unchanged working-set guard.
-            for _ in range(64):
+            if self.record["before"]["limit"] - self.record["before"]["current"] < 32 * GIB:
+                raise RuntimeError("Less than32GiB raw memory immediately before startup reserve allocation; model not started")
+            # Startup admission has already verified 32GiB raw headroom. This
+            # eight-GiB reserve is included in the unchanged working-set guard.
+            for _ in range(128):
                 self.buffers.append(allocate_private_chunk(64 * 2**20))
                 check()
             self.record["held"] = sample()
@@ -77,7 +77,7 @@ def reclaim_plan(value, required):
     clean = max(0, fields["file"] - sum(fields[n] for n in (
         "shmem", "file_dirty", "file_writeback", "file_mapped", "unevictable")))
     working = current - min(current, clean)
-    budget = min(16 * GIB, clean - 4 * GIB, limit - working - 4 * GIB - 64 * 2**20)
+    budget = min(40 * GIB, clean - 8 * GIB, limit - working - 8 * GIB - 64 * 2**20)
     budget = max(0, budget // (64 * 2**20) * (64 * 2**20))
     return dict(eligible=limit - current < required and budget >= required + GIB,
                 reason="Pre-service allocation bounded by clean unmapped active/inactive file cache; original model gates rechecked after every temporary page is released",
@@ -204,9 +204,9 @@ def release_loaded_checkpoint_cache(model, weights, out, sample, *, before_servi
         "files": files,
         "before": before,
         "after": after,
-        "required_raw_headroom_bytes": 12 * 2**30 if before_service else 0,
-        "reserve_policy": "12GiB raw before model allocation; original 4GiB working-set/OOM guard after allocation",
-        "reason": "Before model creation reserve8GiB host State plus4GiB raw; after allocation clean inactive file cache is governed by the unchanged SDK working-set/OOM check",
+        "required_raw_headroom_bytes": 32 * 2**30 if before_service else 0,
+        "reserve_policy": "32GiB raw before model allocation; original 4GiB working-set/OOM guard after allocation",
+        "reason": "Before model creation clear unused clean cache and reserve8GiB controller-owned startup pages; all temporary reclaim pages released before model spawn; after allocation clean inactive file cache is governed by the unchanged SDK working-set/OOM check",
     }
     if before_service and after["limit"] - after["current"] < record["required_raw_headroom_bytes"]:
         # SDK hashing can refill cache even after installation archives were
