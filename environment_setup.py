@@ -306,7 +306,8 @@ def ensure_environment(data):
     env.setdefault("PIP_CACHE_DIR", str(Path(data["cache"]) / "pip"))
     env.setdefault("XDG_CACHE_HOME", str(Path(data["cache"]) / "xdg"))
     recipe = {"packages": required, "sources": lock.get("environment_sources", {}),
-              "python": "3.12", "abi": "linux_aarch64", "cann": cann}
+              "python": "3.12", "abi": "linux_aarch64", "cann": cann,
+              "system_site_packages": False}
     key = hashlib.sha256(json.dumps(recipe, sort_keys=True).encode()).hexdigest()[:16]
     # Separate run environments avoid repairing a runtime used by another campaign.
     run_key = hashlib.sha256(data["out"].encode()).hexdigest()[:12]
@@ -357,7 +358,7 @@ def ensure_environment(data):
                 restore_python(managed)
             python = str(managed / "bin/python")
             if not Path(python).is_file():
-                command([str(before["python"]), "-m", "venv", "--system-site-packages", str(managed)],
+                command([str(before["python"]), "-I", "-m", "venv", str(managed)],
                         env, directory, "create-venv", report, report_path)
             info = probe(python, required, env)
             if not compatible_python(info):
@@ -369,7 +370,8 @@ def ensure_environment(data):
             links = [str(Path(x)) for x in wheelhouses if x and Path(x).is_dir()]
             if options.get("wheelhouse") and not Path(options["wheelhouse"]).is_dir():
                 raise ValueError("environment.wheelhouse is not a directory")
-            install = [python, "-m", "pip", "install", "--disable-pip-version-check", "--only-binary=:all:", "--no-compile"]
+            # CANN exposes its tools through PYTHONPATH for runtime use. Keep them out of pip resolution.
+            install = [python, "-I", "-m", "pip", "install", "--disable-pip-version-check", "--only-binary=:all:", "--no-compile"]
             for folder in links:
                 install += ["--find-links", folder]
             qualified_imports = None
