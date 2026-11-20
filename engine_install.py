@@ -10,8 +10,9 @@ import sys
 
 ROOT = Path(__file__).resolve().parent
 RUNTIME_ROOTS = ("vllm", "vllm-ascend", "vllm-hust-engine", "torchvision")
-# The frozen runtime ships the manager as SDK source without distribution requirements.
-ADAPTER_REQUIREMENTS = ("platformdirs>=4", "jcs>=0.2.1", "packaging>=24", "cryptography>=3.4")
+# The frozen SDK imports these manager and FlashLB dependencies outside the wheel metadata.
+ADAPTER_REQUIREMENTS = ("platformdirs>=4", "jcs>=0.2.1", "packaging>=24", "cryptography>=3.4",
+                        "numba==0.67.0", "llvmlite==0.49.0")
 
 
 def dependency_audit():
@@ -123,14 +124,15 @@ def resolve_runtime_dependencies(cache, *, wheelhouse=None):
     if not after["verified"] or not integrity["verified"] or not all(r["verified"] for r in compatibility.values()):
         raise ValueError("Engine dependency/file verification failed: " + json.dumps(after["issues"]))
     # Metadata can match while inherited native extensions are ABI-incompatible.
-    # Probe the actual multimodal import and CPU image/NMS operators before any
-    # model service starts; this work is outside benchmark timing.
+    # Probe the FlashLB import and CPU execution as well as the multimodal path
+    # before starting a model service; this work is outside benchmark timing.
     smoke = folder / "runtime-import-smoke.json"
     probe = ROOT / "tools/runtime_import_smoke.py"
     completed = run_stage([sys.executable, "-I", "-B", str(probe), "--out", str(smoke)],
-                          env=dict(os.environ, TORCH_DEVICE_BACKEND_AUTOLOAD="0"))
+                          env=dict(os.environ, TORCH_DEVICE_BACKEND_AUTOLOAD="0", ASCEND_RT_VISIBLE_DEVICES="",
+                                   NUMBA_CACHE_DIR=str(folder / "numba")))
     if completed.returncode:
-        raise RuntimeError("Runtime native/processor import smoke failed; see " + str(smoke))
+        raise RuntimeError("Runtime import and CPU operator smoke failed; see " + str(smoke))
     manager_smoke = folder / "manager-import-smoke.json"
     completed = run_stage([sys.executable, "-I", "-B", str(ROOT / "tools/manager_import_smoke.py"),
                            "--out", str(manager_smoke)])

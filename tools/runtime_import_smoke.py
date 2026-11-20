@@ -1,4 +1,4 @@
-"""Exercise the native vision path used by the frozen multimodal processor."""
+"""Exercise the frozen multimodal processor and FlashLB without a model."""
 import argparse
 import json
 from pathlib import Path
@@ -12,6 +12,7 @@ def check():
     import torchvision
     from transformers import AutoProcessor
     from torchvision.io import decode_png, encode_png
+    from vllm_ascend.eplb.core.policy.policy_flashlb import min_max_replica
     image = np.arange(12 * 13 * 3, dtype=np.uint8).reshape(12, 13, 3)
     success, encoded = cv2.imencode(".png", image)
     if not success or not np.array_equal(cv2.imdecode(encoded, cv2.IMREAD_COLOR), image):
@@ -23,10 +24,14 @@ def check():
                                    torch.tensor([0.9, 0.8]), 0.5)
     if selected.tolist() != [0]:
         raise RuntimeError("TorchVision CPU NMS result differs")
+    replicas, history = min_max_replica(np.array([1., 3.]), np.zeros(2), 1, np.ones(2, dtype=np.int32), 0.)
+    if replicas.tolist() != [1, 2] or history.tolist() != [[1, 1], [1, 2]]:
+        raise RuntimeError("FlashLB CPU replica allocation differs")
     return dict(verified=True, model_loaded=False, numpy=np.__version__,
                 opencv=cv2.__version__, torch=torch.__version__,
                 torchvision=torchvision.__version__, processor=AutoProcessor.__name__,
-                checks=["opencv_png", "torchvision_png", "torchvision_nms", "auto_processor_import"])
+                checks=["opencv_png", "torchvision_png", "torchvision_nms", "auto_processor_import",
+                        "flashlb_replica_allocation"])
 
 
 if __name__ == "__main__":

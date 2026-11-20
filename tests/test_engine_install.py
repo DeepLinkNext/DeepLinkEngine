@@ -168,6 +168,47 @@ class RuntimeDependencyTests(unittest.TestCase):
                     self.assertEqual(result["issues"][0]["package"], "runtime-adapter")
                     self.assertEqual(result["issues"][0]["requires"], "platformdirs>=4")
 
+    def test_flashlb_dependency_repair_installs_pins_only_once(self):
+        with tempfile.TemporaryDirectory() as name:
+            cache = Path(name)
+            versions = {"platformdirs": "4.5", "jcs": "0.2.1", "packaging": "26.3",
+                        "cryptography": "50.0.2", "numpy": "1.26.4"}
+            pins = {"numba": "0.67.0", "llvmlite": "0.49.0"}
+            installs = []
+
+            def distribution(name):
+                if name not in versions:
+                    raise metadata.PackageNotFoundError(name)
+                requires = ["numpy>=1.22,<2.6", "llvmlite>=0.49.0dev0,<0.50"] if name == "numba" else []
+                return types.SimpleNamespace(version=versions[name], requires=requires)
+
+            def execute(args, **kwargs):
+                if args[1:5] == ["-I", "-m", "pip", "install"]:
+                    requirements = Path(args[args.index("-r") + 1]).read_text().splitlines()
+                    for package, version in pins.items():
+                        self.assertIn(f"{package}=={version}", requirements)
+                    installs.append(args)
+                    versions.update(pins)
+                else:
+                    Path(args[args.index("--out") + 1]).write_text('{"verified": true}')
+                return types.SimpleNamespace(returncode=0)
+
+            metadata = engine_install.metadata
+            with patch.object(engine_install, "runtime_lock", return_value={"required_python_packages": {}}), \
+                 patch.object(engine_install, "sources", return_value=[]), \
+                 patch.object(engine_install, "RUNTIME_ROOTS", ()), \
+                 patch.object(metadata, "version", side_effect=lambda name: distribution(name).version), \
+                 patch.object(metadata, "distribution", side_effect=distribution), \
+                 patch("one_click.verify_kit"), patch("child_runner.run_stage", side_effect=execute):
+                first = engine_install.resolve_runtime_dependencies(cache)
+                second = engine_install.resolve_runtime_dependencies(cache)
+
+            self.assertEqual(len(installs), 1)
+            self.assertTrue(second["before"]["verified"])
+            self.assertEqual(first["after"], second["after"])
+            for package, version in pins.items():
+                self.assertEqual(second["after"]["observed_versions"][package], version)
+
     def test_extras_and_transitive_requirements_are_checked_even_when_core_versions_match(self):
         distributions = {
             "vllm": types.SimpleNamespace(version="0.28", requires=["fastapi[standard]>=0.133"]),
