@@ -181,7 +181,7 @@
     "scripts/baseline_profile.py": "956a14275bb472af46a43b1b4f84653db82df214cdbb9c3b4c35dbd9cad2f71a",
     "scripts/baseline_serve.py": "0e3961c06704066fb335f367eaf50bf085ccbced9253dc26a34278ac2d807942",
     "scripts/capacity_snapshot.py": "bbfd941fc3fce6b21121aed1c55b0f971086150ae41ff705c91a23cc12786c03",
-    "scripts/checkpoint_cache.py": "57dfe010eaed4b46b28b6ba2f8e1b77cfcef1b0e5f4fcbba351e666843b61e11",
+    "scripts/checkpoint_cache.py": "761e7059ced4892703500ea5f5b74c8098fce9729dae2b1234475abdbac3d9f0",
     "scripts/child_runner.py": "9f7b13ec02d4a9b8aa9e3de63173f2d7a2e905fe609cd0cff028b30b5eba13a3",
     "scripts/compile_boundary.py": "be079beb88b23a452bd4f4b4d1c6d6c3cd2463d331eb8e95372d1d3fe48bf754",
     "scripts/completion_warmup.py": "c3b292de6297a448d9af89b21de22d7b8c57b516ee341d1ed751549545b3afa0",
@@ -240,7 +240,7 @@
     "scripts/restore_b0_image.py": "cf35eff8d0d2dcb93f9946b44aeb18400125ac5ad160d072f35210206fc012d9",
     "scripts/restore_b1_r4.py": "b554079afc3289c7ee7e44f1a5067733238c1a6d6fe2a409586cf3428215bd56",
     "scripts/reuse_campaign.py": "5bd3d271568d05dfb4c95989e77e8f0aa58784b8cb5425cea1056bc56cff04cc",
-    "scripts/run_b1_r4.py": "852880d40e20777c0d9cadaea7b495025440370062f425e257ee79155c9ac2c2",
+    "scripts/run_b1_r4.py": "b7f884332267bd447444eec2b6a4157a90f3937bcfbb317500337a195455a605",
     "scripts/run_canonical_reference.py": "cdc44427cd16331208f6463065485e1f5522062e5fda93ae08d55fe4896100e7",
     "scripts/run_native_reference.py": "25a1b0cfd94e4981346550eb5b00f81b4bc54a27f51ca35280d0acc4da7b78d4",
     "scripts/run_paired.py": "b038564f4911b2b05e7b9f37cfb6de1725456bbc41d675515c4fc73253db256b",
@@ -272,7 +272,7 @@
     "tests/test_canonical_protocol.py": "ca8bd737aee0c78fc635ef304890b5265a1d55b8d85f309b2e2ebb43cc7e7f49",
     "tests/test_canonical_results.py": "683e0dd1860bcba0dab72f323d7cb83796fbf21c0baf1cb166574cc619eadced",
     "tests/test_canonical_workgroups.py": "c9307e04932e78965e44dbf3ecf63a9bf581b78c02591d8a068e954c0687ea73",
-    "tests/test_checkpoint_cache.py": "f66d4a438e59f8e0f8bf4cf62f6020e6e21c65b3e012a54f4d62a316d6390690",
+    "tests/test_checkpoint_cache.py": "82afe424d15018ebf4549c7ce6161520f64aa422211487c2e53b24e1871d54b9",
     "tests/test_child_runner.py": "b475af6d51a414c105c58e900c6a47ab72f7c735d27745335236cab0ad5488e9",
     "tests/test_compute_reference_integration.py": "6c67df157dc776be3ea9b74ac0aafe5c41878365c748c2f4d5e6fade37f3a53d",
     "tests/test_compute_reference_plot.py": "e3f1e4be4b30387e0c47f125d6cfe45bd1b74eb8052c0b2b64af2a415bdc76d3",
@@ -514,14 +514,14 @@
   },
   "local_patchset": {
     "base_manifest_sha256": "b2dd50d83c6f081269bda8e94e4128741ac80f08b0cf71fdf5db983ca3a98762",
-    "description": "Final pre-spawn cache cleanup and12GiB raw admission after input preparation, held/released pre-warmup headroom, bounded invalid-counter observations and immediate OOM checks. Original engine, workloads, budgets, scoring and clocks unchanged.",
+    "description": "Final pre-spawn cache admission; optional startup buffer released on original working-set pressure and strictly resampled; warmup raw-headroom and OOM gates retained. No engine, requests, budgets, scoring or clock changes.",
     "files": {
       "scripts/baseline_entry.py": {
         "after_sha256": "efa3fbb979eed315238c859a6d44459fb02838d3f35e6d33d107b8a3524348ee",
         "before_sha256": "021579736ac8d0821e2f742678c068a60d66d70362e97f6ffd616eec51533e51"
       },
       "scripts/checkpoint_cache.py": {
-        "after_sha256": "57dfe010eaed4b46b28b6ba2f8e1b77cfcef1b0e5f4fcbba351e666843b61e11",
+        "after_sha256": "761e7059ced4892703500ea5f5b74c8098fce9729dae2b1234475abdbac3d9f0",
         "before_sha256": "c33bb2e9ad88e985205c6d9775d986933712de24660ac6a61e310b35ad02099d"
       },
       "scripts/child_runner.py": {
@@ -533,7 +533,7 @@
         "before_sha256": "ab7be1d2a5ab52f06e46df3e7dbb0f1ff6dfa3d3eef9944040ff6261fea22c55"
       },
       "scripts/run_b1_r4.py": {
-        "after_sha256": "852880d40e20777c0d9cadaea7b495025440370062f425e257ee79155c9ac2c2",
+        "after_sha256": "b7f884332267bd447444eec2b6a4157a90f3937bcfbb317500337a195455a605",
         "before_sha256": "d5ebd1329b7f493423bd71a7832bb9a573ef03b7903c2cecc3c6f0b9ea1c531b"
       },
       "scripts/run_native_reference.py": {
@@ -545,7 +545,7 @@
         "before_sha256": "1319d03608e9d169d5bd92af9381f7301d2140fae70c72d940d5e41aeba6d42a"
       },
       "tests/test_checkpoint_cache.py": {
-        "after_sha256": "f66d4a438e59f8e0f8bf4cf62f6020e6e21c65b3e012a54f4d62a316d6390690",
+        "after_sha256": "82afe424d15018ebf4549c7ce6161520f64aa422211487c2e53b24e1871d54b9",
         "before_sha256": "1ff11a66582ea8067c39207db592ad7c294662f2f943b1cc3deb08d11211a364"
       },
       "tests/test_child_runner.py": {
@@ -557,9 +557,9 @@
         "before_sha256": "52ee07eaf1338b7569dc5801292ff79bc81d01307cf45792c85d79eba30cab20"
       }
     },
-    "id": "deeplink-final-startup-admission-20261120-v5",
-    "parent_manifest_sha256": "b89d1984215657ab112866119005472d239771444cb0447fac8ea74fe9c351e4",
-    "parent_patchset": "deeplink-startup-counter-observation-20261120-v4",
+    "id": "deeplink-owned-startup-reserve-release-20261120-v6",
+    "parent_manifest_sha256": "91c7458a010c53a57d8a44c8c026edd9f4905f8341bc4101ff785c81d2e1981d",
+    "parent_patchset": "deeplink-final-startup-admission-20261120-v5",
     "scope": "Original SDK4GiB conservative working-set/OOM monitoring for serving and native reference after allocation; pre-service12GiB raw admission unchanged. No engine, workload, warmup budget, scoring or timer-definition changes. Validated inherited resource lease descriptors now survive owned subprocess boundaries; task, engine, warmup, scoring and timing definitions remain unchanged."
   },
   "repository": "vLLM-HUST/vllm-hust-engine"

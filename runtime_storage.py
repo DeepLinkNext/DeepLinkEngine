@@ -58,15 +58,42 @@ def marker(logical):
     return logical.with_name(logical.name+'.storage.json')
 
 
+
+SOURCE_AUDIT_CODE = """
+import json,sys
+from pathlib import Path
+sys.path.insert(0,str(Path(sys.argv[2])/'scripts'))
+from restore_b1_r4 import verify_installed_sources
+from dependency_admission import admit_dependencies
+root=Path(sys.argv[1])
+sources=verify_installed_sources(root)
+dependencies=admit_dependencies(root)
+assert not {'torch','torch_npu','vllm','vllm_ascend'} & set(sys.modules)
+print(json.dumps({'verified_runtime_files':len(sources),'dependencies':dependencies}))
+"""
+
+
+def audit_sources(sdk, tools):
+    remote = any(filesystem(path) in ('nfs', 'nfs4', 'cifs')
+                 for path in (sdk, tools, Path(sys.executable).parent))
+    timeout = 1800 if remote else 180
+    print('RUNTIME_AUDIT preparation_timeout_seconds', timeout, flush=True)
+    result = subprocess.run(
+        [sys.executable, '-B', '-c', SOURCE_AUDIT_CODE, str(sdk), str(tools)],
+        env=dict(os.environ, PYTHONDONTWRITEBYTECODE='1', PYTHONPATH=''),
+        capture_output=True, text=True, check=True, timeout=timeout)
+    return json.loads(result.stdout)
+
+
 def audit(target, frozen):
-    from vllm_hust_engine.cli import audit_install, verify_tools
+    from vllm_hust_engine.cli import verify_tools
     receipt = json.loads((target/'installation.json').read_text())
     if (receipt['release'] != frozen['release'] or receipt['package_version'] != frozen['version']
             or receipt['python'] != sys.executable
             or Path(receipt['deployment']).resolve() != (target/'sdk').resolve()):
         raise ValueError('Runtime installation identity differs')
     verify_tools(target/'tools')
-    result = audit_install(target/'sdk',target/'tools')
+    result = audit_sources(target/'sdk',target/'tools')
     if result['verified_runtime_files'] != frozen['runtime_files']:
         raise ValueError('Runtime file inventory differs')
     return receipt
