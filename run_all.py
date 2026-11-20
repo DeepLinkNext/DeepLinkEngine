@@ -268,6 +268,9 @@ def run(data, *, resume_bootstrap=False, resume_before_model=False, resume_befor
         raise ValueError("Completed-run reuse requires a new output directory")
     pre_inference = resume_before_model or resume_before_inference
     prior = before_model_resume(data, allow_model_startup=resume_before_inference) if pre_inference else bootstrap_resume(data) if resume_bootstrap else None
+    if reused_run is None and prior and prior.get("reused_run"):
+        # A failed preflight must not discard the explicit no-repeat choice.
+        reused_run = completed_run_source(data, prior["reused_run"]["root"])
     reuse_installation = resume_bootstrap or pre_inference or reused_run is not None
     out.mkdir(parents=True, exist_ok=reuse_installation)
     installation = out / "installation"

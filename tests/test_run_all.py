@@ -121,6 +121,21 @@ class WorkflowTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError,'modified raw stream'):
                 workflow.completed_run_source(self.data,source)
 
+    def test_bootstrap_retry_preserves_and_reaudits_prior_completed_stage_selection(self):
+        self.failed_preflight()
+        ledger=self.root/'result/results.json';prior=json.loads(ledger.read_text())
+        reused=dict(root=str(self.root/'previous'),completed_stages=['continuous-B0'])
+        prior['reused_run']=reused;ledger.write_text(json.dumps(prior))
+        def execute(args,**kwargs):
+            return self.execute([*args,'run'] if '--reuse-completed-campaign' in args else args,**kwargs)
+        with patch.object(workflow,'completed_run_source',return_value=reused) as audit, \
+             patch('one_click.configuration_arguments',return_value=['--datasets','mmlu,hle,frontier,swe,terminal']), \
+             patch('one_click.verify_kit'),patch('child_runner.run_stage',side_effect=execute), \
+             contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(workflow.run(self.data,resume_bootstrap=True),0)
+            audit.assert_called_once_with(self.data,reused['root'])
+        self.assertTrue(any('--reuse-completed-campaign' in a for a in self.calls))
+
     def test_zero_exit_without_all_four_binary_decisions_cannot_complete(self):
         def execute(args, **kwargs):
             result=self.execute(args, **kwargs)

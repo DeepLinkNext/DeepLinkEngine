@@ -161,7 +161,7 @@ def prepare(cache):
     return out
 
 
-def local_runtime_cache():
+def local_runtime_cache(key=None, *, bases=None):
     """Keep the many-file image tree on local disk, with raw inputs persistent."""
     explicit = os.environ.get("DEEPLINKENGINE_B0_RUNTIME_CACHE")
     if explicit:
@@ -175,18 +175,21 @@ def local_runtime_cache():
             mounts.append((Path(left.split()[4]), right.split()[0]))
     except OSError:
         return None
-    for base in (Path("/tmp"), Path("/var/tmp")):
+    for base in bases or (Path("/tmp"), Path("/var/tmp")):
         candidates = [(mount, kind) for mount, kind in mounts if base.resolve().is_relative_to(mount)]
         if not candidates:
             continue
         _, kind = max(candidates, key=lambda row: len(str(row[0])))
         if kind in ("tmpfs", "nfs", "nfs4", "cifs") or kind.startswith("fuse"):
             continue
-        if shutil.disk_usage(base).free < 40 * 1024**3:
-            continue
         path = base / ("deeplinkengine-b0-" + str(os.getuid()))
         if path.is_symlink():
             raise ValueError("Local B0 runtime cache must not be a symlink")
+        # The40GiB bound is for a NEW extraction. Reusing this exact SDK needs
+        # no second image tree; admission below still verifies its identity.
+        existing = key is not None and (path / key / "original018-sdk").is_dir()
+        if not existing and shutil.disk_usage(base).free < 40 * 1024**3:
+            continue
         path.mkdir(mode=0o700, exist_ok=True)
         return path
     return None
@@ -194,14 +197,14 @@ def local_runtime_cache():
 
 def ensure_deployment(cache):
     raw = prepare(cache)
-    local = local_runtime_cache()
-    if local is None:
-        # The frozen controller retains the original configured-cache fallback.
-        return None
     from restore_b0_image import MANIFEST, restore
     from restore_b0_018 import PATCHES, prepare as prepare_sdk
     from third_party import cached_runtime
     key = hashlib.sha256(json.dumps(dict(manifest=MANIFEST, patches=PATCHES), sort_keys=True).encode()).hexdigest()[:20]
+    local = local_runtime_cache(key)
+    if local is None:
+        # The frozen controller retains the original configured-cache fallback.
+        return None
     local = local / key
     local.mkdir(parents=True, exist_ok=True)
     print("B0_LOCAL_RUNTIME_STORAGE", local, flush=True)
