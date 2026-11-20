@@ -10,7 +10,7 @@ GIB = 2**30
 
 
 class StartupMemoryReserve:
-    """Hold real anonymous headroom through model loading; release before HTTP warmup.
+    """Hold real anonymous headroom until idle or the working-set gate needs it.
 
     Driver pinned allocations may fail before the kernel reclaims otherwise clean
     file cache. Reserve pages before starting a model, then release those pages

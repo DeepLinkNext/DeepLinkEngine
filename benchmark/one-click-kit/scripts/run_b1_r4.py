@@ -104,11 +104,26 @@ def check_memory(guard, initial, root):
     return value
 
 
-def monitor_loaded_memory(guard, initial, root, model, weights, checkpoint_cache_admitted):
-    # The SDK's conservative working-set reserve and every OOM event are checked
-    # on every iteration. Raw current also contains clean inactive page cache;
-    # requiring raw free4GiB after allocation would reject reclaimable cache.
-    check_memory(guard, initial, root)
+def monitor_loaded_memory(guard, initial, root, model, weights, checkpoint_cache_admitted,
+                          startup_reserve=None):
+    # The optional controller buffer must not take the model's original safety
+    # margin. Release only our pages if that exact SDK gate fires; immediately
+    # re-sample and enforce the same guard. OOM events are never retried.
+    try:
+        check_memory(guard, initial, root)
+    except RuntimeError as error:
+        if (str(error) != "4GiB conservative working-set memory reserve reached"
+                or startup_reserve is None or startup_reserve.record["released"]):
+            raise
+        pressure = json.loads((root / "memory-latest.json").read_bytes())
+        for name in ("oom", "oom_kill", "oom_group_kill"):
+            if pressure.get("events", {}).get(name, 0) > initial.get("events", {}).get(name, 0):
+                raise RuntimeError(f"New cgroup {name} event") from error
+        startup_reserve.record["working_set_guard_release"] = pressure
+        startup_reserve.close("release-owned-buffer-for-original-working-set-reserve")
+        check_memory(guard, initial, root)
+    # A later warmup still requires the original raw-headroom admission, even
+    # when the buffer was released early. Never allocate pressure pages here.
     if not checkpoint_cache_admitted:
         ranks = set(re.findall(
             r"Worker_TP([01]) pid=\d+.*(?:Model runner load_model total time:|Loading model weights took)",
@@ -467,7 +482,8 @@ def admitted_run(args, root, cleanup):
                             actual_headroom_gate_unchanged=True)) + "\n")
                 last_cache_sweep = now
             checkpoint_cache_admitted = monitor_loaded_memory(
-                memory_guard, initial_memory, root, args.model, weights, checkpoint_cache_admitted)
+                memory_guard, initial_memory, root, args.model, weights,
+                checkpoint_cache_admitted, startup_reserve=startup_reserve)
             if shutil.disk_usage(root).free < 2 * 2**30:
                 raise RuntimeError("2GiB disk reserve reached")
             if service.poll() is not None:
