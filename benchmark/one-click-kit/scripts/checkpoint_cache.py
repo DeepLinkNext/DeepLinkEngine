@@ -22,14 +22,14 @@ class StartupMemoryReserve:
         self.path, self.sample, self.check = path, sample, check
         self.buffers = []
         self.record = dict(schema="one-click-startup-memory-reserve/v1",
-            bytes=8 * GIB, before=sample(), model_started_at_allocation=False,
+            bytes=16 * GIB, before=sample(), model_started_at_allocation=False,
             global_drop_caches=False, memory_limit_changed=False, released=False)
         try:
-            if self.record["before"]["limit"] - self.record["before"]["current"] < 32 * GIB:
-                raise RuntimeError("Less than32GiB raw memory immediately before startup reserve allocation; model not started")
-            # Startup admission has already verified 32GiB raw headroom. This
-            # eight-GiB reserve is included in the unchanged working-set guard.
-            for _ in range(128):
+            if self.record["before"]["limit"] - self.record["before"]["current"] < 36 * GIB:
+                raise RuntimeError("Less than36GiB raw memory immediately before startup reserve allocation; model not started")
+            # Startup admission has already verified 36GiB raw headroom. This
+            # sixteen-GiB reserve is included in the unchanged working-set guard.
+            for _ in range(256):
                 self.buffers.append(allocate_private_chunk(64 * 2**20))
                 check()
             self.record["held"] = sample()
@@ -41,23 +41,38 @@ class StartupMemoryReserve:
     def save(self):
         self.path.write_text(json.dumps(self.record, indent=2) + "\n")
 
-    def close(self, reason):
-        if self.record["released"]:
+    def release_chunks(self, count, reason):
+        if self.record['released']:
             return
-        for chunk in self.buffers:
-            chunk.close()
-        self.buffers.clear()
-        self.record.update(released=True, release_reason=reason, after=self.sample())
+        count=min(count,len(self.buffers))
+        for _ in range(count):
+            self.buffers.pop().close()
+        self.record.update(released=not self.buffers, release_reason=reason,
+            remaining_bytes=len(self.buffers)*64*2**20, after=self.sample())
+        self.record.setdefault('releases',[]).append(dict(reason=reason,
+            released_bytes=count*64*2**20,remaining_bytes=self.record['remaining_bytes'],
+            after=self.record['after']))
         self.save()
 
+    def close(self, reason):
+        self.release_chunks(len(self.buffers),reason)
+
+    def release_for_working_set(self):
+        # Return only8GiB at a time to the unchanged SDK guard. Retain the other
+        # half for actual pinned State allocations at the healthy boundary.
+        # No new pages are allocated while a model exists.
+        self.release_chunks(128,'release-owned-buffer-for-original-working-set-reserve')
+
     def before_warmup(self):
-        self.close("healthy-idle-service-before-first-warmup")
+        self.close('healthy-idle-service-before-first-warmup')
         self.check()
-        value = self.sample()
-        self.record["warmup_admission"] = value
+        value=self.sample()
+        self.record['warmup_admission']=value
+        self.record['required_warmup_raw_bytes']=12*GIB
+        self.record['warmup_raw_basis']='two frozen4GiB/rank State budgets plus original4GiB raw reserve'
         self.save()
-        if value["limit"] - value["current"] < 4 * GIB:
-            raise RuntimeError("Less than4GiB raw memory before warmup after startup reserve release; no formal request submitted")
+        if value['limit']-value['current'] < 12*GIB:
+            raise RuntimeError('Less than12GiB raw memory before warmup after startup reserve release; no formal request submitted')
 
 
 def reclaim_plan(value, required):
@@ -76,8 +91,11 @@ def reclaim_plan(value, required):
     # shared memory and all dirty/writeback bytes, even where those overlap.
     clean = max(0, fields["file"] - sum(fields[n] for n in (
         "shmem", "file_dirty", "file_writeback", "file_mapped", "unevictable")))
+    # Existing raw free bytes are available too. Bound the combined raw+clean
+    # capacity, preserving the original4GiB safety; subtracting it once again
+    # from file cache discards usable raw memory before the model even exists.
     working = current - min(current, clean)
-    budget = min(40 * GIB, clean - 8 * GIB, limit - working - 8 * GIB - 64 * 2**20)
+    budget = min(40 * GIB, limit - working - 4 * GIB - 64 * 2**20)
     budget = max(0, budget // (64 * 2**20) * (64 * 2**20))
     return dict(eligible=limit - current < required and budget >= required + GIB,
                 reason="Pre-service allocation bounded by clean unmapped active/inactive file cache; original model gates rechecked after every temporary page is released",
@@ -204,9 +222,9 @@ def release_loaded_checkpoint_cache(model, weights, out, sample, *, before_servi
         "files": files,
         "before": before,
         "after": after,
-        "required_raw_headroom_bytes": 32 * 2**30 if before_service else 0,
-        "reserve_policy": "32GiB raw before model allocation; original 4GiB working-set/OOM guard after allocation",
-        "reason": "Before model creation clear unused clean cache and reserve8GiB controller-owned startup pages; all temporary reclaim pages released before model spawn; after allocation clean inactive file cache is governed by the unchanged SDK working-set/OOM check",
+        "required_raw_headroom_bytes": 36 * 2**30 if before_service else 0,
+        "reserve_policy": "36GiB raw before model allocation; original 4GiB working-set/OOM guard after allocation",
+        "reason": "Before model creation clear unused clean cache and reserve16GiB controller-owned startup pages; all temporary reclaim pages released before model spawn; after allocation clean inactive file cache is governed by the unchanged SDK working-set/OOM check",
     }
     if before_service and after["limit"] - after["current"] < record["required_raw_headroom_bytes"]:
         # SDK hashing can refill cache even after installation archives were

@@ -90,7 +90,7 @@ class CheckpointCacheTests(unittest.TestCase):
 class StartupReserveTests(unittest.TestCase):
     def test_real_pages_are_held_until_healthy_idle_boundary_and_released_once(self):
         from checkpoint_cache import StartupMemoryReserve
-        chunks = [SimpleNamespace(close=__import__('unittest.mock', fromlist=['Mock']).Mock()) for _ in range(128)]
+        chunks = [SimpleNamespace(close=__import__('unittest.mock', fromlist=['Mock']).Mock()) for _ in range(256)]
         value = dict(limit=64*2**30, current=28*2**30)
         checks = []
         with tempfile.TemporaryDirectory() as temp, patch('checkpoint_cache.allocate_private_chunk', side_effect=chunks):
@@ -98,8 +98,34 @@ class StartupReserveTests(unittest.TestCase):
             self.assertFalse(any(c.close.called for c in chunks))
             reserve.before_warmup();reserve.close('cleanup')
             self.assertTrue(all(c.close.call_count == 1 for c in chunks))
-            self.assertEqual(len(checks),129)
+            self.assertEqual(len(checks),257)
             self.assertEqual(reserve.record['release_reason'],'healthy-idle-service-before-first-warmup')
+
+    def test_partial_pressure_release_preserves_eight_gib_until_health(self):
+        from checkpoint_cache import StartupMemoryReserve
+        from unittest.mock import Mock
+        chunks=[SimpleNamespace(close=Mock()) for _ in range(256)]
+        value=dict(limit=64*2**30,current=24*2**30)
+        with tempfile.TemporaryDirectory() as temp,patch('checkpoint_cache.allocate_private_chunk',side_effect=chunks):
+            reserve=StartupMemoryReserve(Path(temp)/'reserve.json',lambda:value,lambda:None)
+            reserve.release_for_working_set()
+            self.assertFalse(reserve.record['released'])
+            self.assertEqual(reserve.record['remaining_bytes'],8*2**30)
+            self.assertEqual(sum(c.close.called for c in chunks),128)
+            reserve.before_warmup();reserve.close('cleanup')
+            self.assertTrue(all(c.close.call_count==1 for c in chunks))
+            self.assertTrue(reserve.record['released'])
+            self.assertEqual(reserve.record['required_warmup_raw_bytes'],12*2**30)
+
+    def test_eight_raw_gib_is_insufficient_for_both_state_budgets_and_reserve(self):
+        from checkpoint_cache import StartupMemoryReserve
+        with tempfile.TemporaryDirectory() as temp,patch('checkpoint_cache.allocate_private_chunk',return_value=SimpleNamespace(close=lambda:None)):
+            value=dict(limit=64*2**30,current=24*2**30)
+            reserve=StartupMemoryReserve(Path(temp)/'reserve.json',lambda:value,lambda:None)
+            value['current']=56*2**30
+            with self.assertRaisesRegex(RuntimeError,'Less than12GiB raw memory before warmup'):
+                reserve.before_warmup()
+            self.assertTrue(reserve.record['released'])
 
     def test_guard_failure_releases_every_allocated_page_before_model_start(self):
         from checkpoint_cache import StartupMemoryReserve
@@ -124,7 +150,7 @@ class StartupReserveTests(unittest.TestCase):
     def test_input_cache_refill_cannot_fill_reserve_against_a_live_startup(self):
         from checkpoint_cache import StartupMemoryReserve
         with tempfile.TemporaryDirectory() as temp, patch('checkpoint_cache.allocate_private_chunk') as allocate:
-            with self.assertRaisesRegex(RuntimeError,'32GiB raw memory immediately before'):
+            with self.assertRaisesRegex(RuntimeError,'36GiB raw memory immediately before'):
                 StartupMemoryReserve(Path(temp)/'reserve.json',lambda:dict(limit=64*2**30,current=60*2**30),lambda:None)
             allocate.assert_not_called()
             record=json.loads((Path(temp)/'reserve.json').read_text())
@@ -211,10 +237,10 @@ class RuntimeMemoryReserveTests(unittest.TestCase):
             checks.append(value['working_estimate'])
             if value['working_estimate'] >= value['limit']-4*2**30:
                 raise RuntimeError('4GiB conservative working-set memory reserve reached')
-        def close(reason):
+        def close():
             state['current']-=4*2**30;state['working_estimate']-=4*2**30
-            reserve.record.update(released=True,release_reason=reason)
-        reserve=SimpleNamespace(record={'released':False},close=close)
+            reserve.record.update(released=True,release_reason="release-owned-buffer-for-original-working-set-reserve")
+        reserve=SimpleNamespace(record={'released':False},release_for_working_set=close)
         with tempfile.TemporaryDirectory() as temp, patch('checkpoint_cache.allocate_private_chunk',side_effect=AssertionError('live model')):
             result=monitor_loaded_memory(SimpleNamespace(sample=lambda:state,check=check),{},Path(temp),Path(temp),{},True,startup_reserve=reserve)
         self.assertTrue(result)
@@ -226,23 +252,23 @@ class RuntimeMemoryReserveTests(unittest.TestCase):
         from run_b1_r4 import monitor_loaded_memory
         from unittest.mock import Mock
         guard=SimpleNamespace(sample=lambda:self.state(63),check=Mock(side_effect=RuntimeError('4GiB conservative working-set memory reserve reached')))
-        reserve=SimpleNamespace(record={'released':False},close=Mock())
+        reserve=SimpleNamespace(record={'released':False},release_for_working_set=Mock())
         with tempfile.TemporaryDirectory() as temp:
             with self.assertRaisesRegex(RuntimeError,'4GiB conservative'):
                 monitor_loaded_memory(guard,{},Path(temp),Path(temp),{},True,startup_reserve=reserve)
-        reserve.close.assert_called_once()
+        reserve.release_for_working_set.assert_called_once()
         self.assertEqual(guard.check.call_count,2)
 
     def test_optional_buffer_is_not_retried_on_oom_or_after_its_release(self):
         from run_b1_r4 import monitor_loaded_memory
         from unittest.mock import Mock
         for released,reason in [(False,'New cgroup oom event'),(True,'4GiB conservative working-set memory reserve reached')]:
-            reserve=SimpleNamespace(record={'released':released},close=Mock())
+            reserve=SimpleNamespace(record={'released':released},release_for_working_set=Mock())
             guard=SimpleNamespace(sample=self.state,check=Mock(side_effect=RuntimeError(reason)))
             with tempfile.TemporaryDirectory() as temp:
                 with self.assertRaisesRegex(RuntimeError,reason):
                     monitor_loaded_memory(guard,{},Path(temp),Path(temp),{},True,startup_reserve=reserve)
-            reserve.close.assert_not_called()
+            reserve.release_for_working_set.assert_not_called()
             self.assertEqual(guard.check.call_count,1)
 
     def test_simultaneous_pressure_and_oom_never_retries_by_releasing_buffer(self):
@@ -250,11 +276,11 @@ class RuntimeMemoryReserveTests(unittest.TestCase):
         from unittest.mock import Mock
         state=self.state(61);state['events']['oom']=1
         guard=SimpleNamespace(sample=lambda:state,check=Mock(side_effect=RuntimeError('4GiB conservative working-set memory reserve reached')))
-        reserve=SimpleNamespace(record={'released':False},close=Mock())
+        reserve=SimpleNamespace(record={'released':False},release_for_working_set=Mock())
         with tempfile.TemporaryDirectory() as temp:
             with self.assertRaisesRegex(RuntimeError,'New cgroup oom event'):
                 monitor_loaded_memory(guard,{'events':{'oom':0}},Path(temp),Path(temp),{},True,startup_reserve=reserve)
-        reserve.close.assert_not_called()
+        reserve.release_for_working_set.assert_not_called()
         self.assertEqual(guard.check.call_count,1)
 
     def test_underflow_longer_than_three_reads_recovers_without_zeroing_counters(self):
@@ -307,16 +333,25 @@ class BoundedPreServiceReclaimTests(unittest.TestCase):
         plan = reclaim_plan(value, 12*2**30)
         self.assertTrue(plan["eligible"])
         self.assertLessEqual(plan["temporary_bytes"], 40*2**30)
-        self.assertLess(plan["non_file_estimate"] + plan["temporary_bytes"], value["limit"] - 8*2**30)
+        self.assertLess(plan["non_file_estimate"] + plan["temporary_bytes"], value["limit"] - 4*2**30)
 
     def test_full_startup_preparation_covers_raw_admission_and_retains_extra_safety(self):
         value=self.state()
         plan=reclaim_plan(value,32*2**30)
         self.assertTrue(plan['eligible'])
         self.assertGreaterEqual(plan['temporary_bytes'],33*2**30)
-        self.assertLess(plan['non_file_estimate']+plan['temporary_bytes'],value['limit']-8*2**30)
+        self.assertLess(plan['non_file_estimate']+plan['temporary_bytes'],value['limit']-4*2**30)
         value['stat']['file_mapped']=20*2**30
         self.assertFalse(reclaim_plan(value,32*2**30)['eligible'])
+
+    def test_existing_raw_headroom_counts_toward_safe_temporary_capacity(self):
+        value=self.state(44)
+        value['stat']['file']=28*2**30
+        value['stat']['inactive_file']=10*2**30
+        plan=reclaim_plan(value,36*2**30)
+        self.assertTrue(plan['eligible'])
+        self.assertLessEqual(plan['temporary_bytes'],value['limit']-value['current']+plan['clean_unmapped_file_cache_bytes']-4*2**30)
+        self.assertGreaterEqual(plan['temporary_bytes'],37*2**30)
 
     def test_repeated_hashing_active_cache_is_reclaimed_before_model_creation(self):
         value=self.state();value["stat"]["inactive_file"]=6*2**30

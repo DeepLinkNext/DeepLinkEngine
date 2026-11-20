@@ -120,7 +120,7 @@ def monitor_loaded_memory(guard, initial, root, model, weights, checkpoint_cache
             if pressure.get("events", {}).get(name, 0) > initial.get("events", {}).get(name, 0):
                 raise RuntimeError(f"New cgroup {name} event") from error
         startup_reserve.record["working_set_guard_release"] = pressure
-        startup_reserve.close("release-owned-buffer-for-original-working-set-reserve")
+        startup_reserve.release_for_working_set()
         check_memory(guard, initial, root)
     # A later warmup still requires the original raw-headroom admission, even
     # when the buffer was released early. Never allocate pressure pages here.
@@ -141,7 +141,7 @@ def admit_startup_memory(guard, model, weights, root):
     save(root / "memory-initial.json", initial)
     # Hashing the checkpoint can fill the active file cache. Do not fail the
     # working-set gate before the existing read-only checkpoint hint can run.
-    # Credit only actual raw headroom after the hint, retaining the12GiB gate.
+    # Credit only actual raw headroom after the hint, retaining the36GiB gate.
     release_loaded_checkpoint_cache(
         model, weights, root / "checkpoint-cache-startup.json", guard.sample, before_service=True
     )

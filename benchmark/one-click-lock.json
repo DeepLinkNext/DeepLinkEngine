@@ -1,18 +1,18 @@
 {
   "schema": "deeplinkengine-public-one-click/v1",
-  "version": "r8-evaluation-startup-headroom-20261120-v8",
+  "version": "r8-evaluation-startup-headroom-20261120-v9",
   "engine_release": "r8-frozen-20261117",
   "tools": {
     "upstream_repository": "vLLM-HUST/vllm-hust-engine",
     "upstream_commit": "57c9302ed4a1f45a814d0ae6f37f778af8f6c8aa",
     "files": 510,
-    "archive": "engine-tools-startup-headroom-20261120-v8.tar.gz",
-    "sha256": "a2cd6a8a3ad21a84198c78201aaf62aca09a5fe3617125e7843095a7079ec27f",
-    "bytes": 1167956,
-    "manifest_sha256": "80557c5d135e323635727c61bfbf8d53e9837bc630fb9399a276c68c5be24103",
+    "archive": "engine-tools-startup-headroom-20261120-v9.tar.gz",
+    "sha256": "d707b4a8dd71762525c322f0c732b94d42f31b492ebb3601555a952b02f63b22",
+    "bytes": 1168796,
+    "manifest_sha256": "c7cfa6a0861d4106c1d24250945facd57170da11c41c03f31cce7b350dee3395",
     "build_kind": "repository-source-with-local-patches",
     "public_source": "benchmark/one-click-kit",
-    "url": "https://github.com/DeepLinkNext/DeepLinkEngine/releases/download/r8-runtime-dependencies-20261119-v1/engine-tools-startup-headroom-20261120-v8.tar.gz",
+    "url": "https://github.com/DeepLinkNext/DeepLinkEngine/releases/download/r8-runtime-dependencies-20261119-v1/engine-tools-startup-headroom-20261120-v9.tar.gz",
     "public_source_readback": "Frozen510-file inventory and twelve declared workflow patches, including bounded invalid-counter observation; original four-GiB/OOM guard retained",
     "base_archive": {
       "archive": "engine-tools.tar.gz",
@@ -22,7 +22,7 @@
       "bytes": 1156695,
       "api_url": "https://api.github.com/repos/DeepLinkNext/DeepLinkEngine/releases/assets/768201047"
     },
-    "api_url": "https://api.github.com/repos/DeepLinkNext/DeepLinkEngine/releases/assets/770585085"
+    "api_url": "https://api.github.com/repos/DeepLinkNext/DeepLinkEngine/releases/assets/770709009"
   },
   "reference_evidence": {
     "upstream_commit": "53541118b3461705f1e61532710ff0a759d59af0",
