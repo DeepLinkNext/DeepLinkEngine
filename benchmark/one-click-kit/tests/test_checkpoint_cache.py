@@ -177,6 +177,43 @@ class RuntimeMemoryReserveTests(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError,'raw fallback'):
                 monitor_loaded_memory(SimpleNamespace(sample=state,check=check),{},Path(temp),Path(temp),{},True)
 
+    def test_underflow_longer_than_three_reads_recovers_without_zeroing_counters(self):
+        from run_b1_r4 import check_memory
+        bad=self.state();bad['stat']['file_writeback']=2**64-28672
+        good=self.state();checks=[]
+        with tempfile.TemporaryDirectory() as temp, patch('run_b1_r4.time.sleep'):
+            guard=SimpleNamespace(sample=__import__('unittest.mock',fromlist=['Mock']).Mock(side_effect=[bad,bad,bad,good]),check=lambda value,initial:checks.append(value))
+            value=check_memory(guard,{},Path(temp))
+            rows=[json.loads(x) for x in (Path(temp)/'memory-samples.jsonl').read_text().splitlines()]
+        self.assertEqual(value['counter_validation']['attempt'],4)
+        self.assertEqual(len(checks),1)
+        self.assertEqual(rows[0]['stat']['file_writeback'],2**64-28672)
+        self.assertEqual(checks[0]['working_estimate'],good['working_estimate'])
+
+    def test_oom_during_invalid_sample_aborts_without_waiting_for_valid_counters(self):
+        from run_b1_r4 import check_memory
+        from unittest.mock import Mock
+        for name in ('oom','oom_kill','oom_group_kill'):
+            value=self.state();value['stat']['file_writeback']=2**64-1;value['events'][name]=1
+            guard=SimpleNamespace(sample=Mock(return_value=value),check=Mock())
+            with tempfile.TemporaryDirectory() as temp, patch('run_b1_r4.time.sleep') as sleep:
+                with self.assertRaisesRegex(RuntimeError,'New cgroup '+name):check_memory(guard,{'events':{name:0}},Path(temp))
+                self.assertEqual(guard.sample.call_count,1)
+                sleep.assert_not_called();guard.check.assert_not_called()
+
+    def test_persistent_invalid_counters_have_bounded_wait_and_keep_raw_guard(self):
+        from run_b1_r4 import check_memory
+        from unittest.mock import Mock
+        value=self.state();value['stat']['file_writeback']=2**64-1
+        guard=SimpleNamespace(sample=Mock(side_effect=lambda:json.loads(json.dumps(value))),check=Mock())
+        with tempfile.TemporaryDirectory() as temp, patch('run_b1_r4.time.sleep') as sleep:
+            result=check_memory(guard,{},Path(temp))
+        self.assertEqual(guard.sample.call_count,20)
+        self.assertEqual(sleep.call_count,19)
+        self.assertEqual(result['working_estimate'],result['current'])
+        self.assertEqual(result['counter_validation']['fallback'],'raw_current_no_cache_credit')
+        guard.check.assert_called_once()
+
 
 class BoundedPreServiceReclaimTests(unittest.TestCase):
     def state(self, current=63):
