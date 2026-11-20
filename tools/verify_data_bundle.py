@@ -32,6 +32,15 @@ def verify(cache, archives=None):
                     raise ValueError('Frozen request population changed: ' + name)
                 result[name] = dict(requests=len(tasks), network_requests=0,
                     contract_sha256=prepared['contract_sha256'])
+            # The supplementary context freezer consumes cache_key relative
+            # to cache, not the five-profile assets/public-agent-traces view.
+            from agent_trace import fetch, protocol
+            sources = [source for name in ('swe', 'terminal')
+                       for source in protocol()['datasets'][name]['sources']]
+            if len(sources) != 64:
+                raise ValueError('Frozen context source population changed')
+            for source in sources:
+                fetch(source, cache)
             # Re-read cached data under the same network ban.
             prepare(cache, ['mmlu', 'hle', 'frontier', 'swe', 'terminal'], archives=archives, context=True)
     mmlu = json.loads((ROOT / 'datasets/mmlu-fixed200.json').read_bytes())
@@ -41,7 +50,7 @@ def verify(cache, archives=None):
             if digest(assets / 'mmlu' / name) != expected:
                 raise ValueError('MMLU original differs: ' + name)
     result['mmlu'] = dict(requests=200, original_input_files_verified=True)
-    print(json.dumps(dict(passed=True, datasets=result), ensure_ascii=False, indent=2))
+    print(json.dumps(dict(passed=True, datasets=result, context_sources=dict(sources=len(sources), network_requests=0, original_hashes_verified=True)), ensure_ascii=False, indent=2))
     return result
 
 if __name__ == '__main__':

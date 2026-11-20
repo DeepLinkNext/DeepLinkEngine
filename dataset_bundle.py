@@ -206,7 +206,15 @@ def prepare(cache, datasets, *, archives=None, assets=None, context=False, deplo
             else:
                 verify_files(asset_root,record)
             if context and name in ('swe', 'terminal'):
-                install_files(source, cache, record)
+                # Agent replay receives assets/public-agent-traces, while the
+                # context freezer receives cache itself. Its frozen cache_key
+                # is swe/... or terminal/..., without the assets prefix.
+                prefix = 'public-agent-traces/'
+                if any(not relative.startswith(prefix) for relative in record['files']):
+                    raise ValueError('Context trajectory archive prefix changed')
+                aliases = dict(files={relative.removeprefix(prefix): item
+                                      for relative, item in record['files'].items()})
+                install_files(source / 'public-agent-traces', cache, aliases)
         if notice:
             install_files(ROOT / 'data', asset_root, dict(files={notice['name']: notice}))
     print('DATA_READY', ','.join(sorted(selected)), str(asset_root), flush=True)

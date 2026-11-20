@@ -118,6 +118,38 @@ class DataBundleTests(unittest.TestCase):
         self.assertTrue(prepare.call_args.kwargs['context'])
         self.assertNotIn('--dataset-assets',args)
 
+    def test_context_uses_the_actual_cache_keys_with_network_disabled(self):
+        sys.path.insert(0, str(ROOT / 'benchmark/one-click-kit/scripts'))
+        from agent_trace import fetch
+        assets = self.root / 'complete-sources'
+        sdk = self.root / 'sdk'
+        (sdk / 'inputs').mkdir(parents=True)
+        (sdk / 'inputs/example.json').write_bytes(self.body)
+        item = dict(bytes=len(self.body), sha256=hashlib.sha256(self.body).hexdigest())
+        self.manifest['components']['mmlu'] = dict(self.component, files={'mmlu/inputs/example.json':item})
+        sources = []
+        for name in ('swe', 'terminal'):
+            key = name + '/original.trace'
+            relative = 'public-agent-traces/' + key
+            path = assets / relative
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(self.body)
+            self.manifest['components'][name] = dict(self.component, files={relative:item})
+            sources.append(dict(cache_key=key, sha256=item['sha256'], url='https://must-not-fetch.invalid/source'))
+        with patch.object(bundle,'manifest',return_value=self.manifest), \
+             patch.object(bundle,'component',side_effect=AssertionError('archive fetch')), \
+             patch.object(bundle.urllib.request,'urlopen',side_effect=AssertionError('upstream network')):
+            view=bundle.prepare(self.cache,[],assets=assets,context=True,deployment=sdk)
+            for source in sources:
+                path=fetch(source,self.cache)
+                self.assertEqual(path,self.cache/source['cache_key'])
+                self.assertEqual(path.read_bytes(),self.body)
+                self.assertEqual((view/'public-agent-traces'/source['cache_key']).read_bytes(),self.body)
+            (self.cache/sources[0]['cache_key']).write_bytes(b'corrupt original')
+            with self.assertRaisesRegex(ValueError,'original retained'):
+                bundle.prepare(self.cache,[],assets=assets,context=True,deployment=sdk)
+            self.assertEqual((self.cache/sources[0]['cache_key']).read_bytes(),b'corrupt original')
+
     def test_old_engine_release_is_rejected_before_any_large_input_download(self):
         import one_click
         sdk = self.root / 'old-sdk'

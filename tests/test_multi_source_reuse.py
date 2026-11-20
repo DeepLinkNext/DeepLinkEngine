@@ -87,18 +87,21 @@ def test_new_root_forwards_all_explicit_sources_and_retains_full_scope():
         (source/'installation/installation.json').write_text(json.dumps(dict(package_version='9')))
         aux=[case.root/'historical',case.root/'current-baseline']
         baseline=case.root/'mmlu-original200/B0'
+        context=case.root/'context-original/B0'
         def execute(argv,**kwargs):
             return case.execute([*argv,'run'] if '--reuse-completed-campaign' in argv else argv,**kwargs)
         with patch.object(workflow,'completed_run_source',return_value=dict(root=str(source),completed_stages=['continuous-B1'])),patch('release_selection.active',return_value=dict(version='9',client=None,engine_profile='r9')),patch('release_selection.save'),patch('one_click.configuration_arguments',return_value=['--datasets','mmlu,hle,frontier,swe,terminal']),patch('one_click.verify_kit'),patch('child_runner.run_stage',side_effect=execute),contextlib.redirect_stdout(io.StringIO()):
-            assert workflow.run(case.data,reuse_completed_run=source,reuse_completed_campaigns=aux,reuse_mmlu_baseline_arm=baseline)==0
+            assert workflow.run(case.data,reuse_completed_run=source,reuse_completed_campaigns=aux,reuse_mmlu_baseline_arm=baseline,reuse_context_baseline_arm=context)==0
         argv=next(c for c in case.calls if '--reuse-completed-campaign' in c)
         assert [argv[i+1] for i,x in enumerate(argv) if x=='--reuse-completed-campaign']==[str(source/'fixed-five'),*[str(p) for p in aux]]
         assert argv[argv.index('--reuse-mmlu-baseline-arm')+1]==str(baseline)
         assert argv[argv.index('--datasets')+1]=='mmlu,hle,frontier,swe,terminal'
+        supplement=next(c for c in case.calls if '--context-tenant-only' in c)
+        assert supplement[supplement.index('--reuse-b0')+1]==str(context)
         install=next(c for c in case.calls if len(c)>1 and Path(c[1]).name=='runtime_storage.py')
         assert install[install.index('--reuse-from')+1]==str(source/'installation')
         result=json.loads((Path(case.data['out'])/'results.json').read_text())
-        assert result['reuse_selection']==dict(campaigns=[str(p) for p in aux],mmlu_baseline_arm=str(baseline))
+        assert result['reuse_selection']==dict(campaigns=[str(p) for p in aux],mmlu_baseline_arm=str(baseline),context_baseline_arm=str(context))
     finally:case.doCleanups()
 
 
@@ -125,7 +128,7 @@ def test_bootstrap_recovery_keeps_multi_source_and_original200_selection():
             return case.execute([*argv,'run'] if '--reuse-completed-campaign' in argv else argv,**kwargs)
         with patch.object(workflow,'completed_run_source',return_value=reused),patch('one_click.configuration_arguments',return_value=['--datasets','mmlu,hle,frontier,swe,terminal']),patch('one_click.verify_kit'),patch('child_runner.run_stage',side_effect=execute),contextlib.redirect_stdout(io.StringIO()):
             assert workflow.run(case.data,resume_bootstrap=True)==0
-        result=json.loads(ledger.read_text());assert result['reuse_selection']==selection
+        result=json.loads(ledger.read_text());assert result['reuse_selection']==dict(selection,context_baseline_arm=None)
         argv=next(c for c in case.calls if '--reuse-completed-campaign' in c)
         assert selection['campaigns'][0] in argv
         assert argv[argv.index('--reuse-mmlu-baseline-arm')+1]==selection['mmlu_baseline_arm']
