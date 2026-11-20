@@ -216,7 +216,14 @@ def context_baseline_bridge(result):
                 if name.startswith('scripts/') and '/' not in name[len('scripts/'): ]}
     def digest(value):
         return sha(json.dumps(value, sort_keys=True, separators=(',', ':')).encode())
-    if digest(scripts(result)) != '378c81fc3b0d27ccbf0f9a78bbae401053a0a4d6b318d0bfa921669dd82fce0f':
+    # The second inventory changes only run_b1_r4.service_admission_phase:
+    # read the child's source-preparation marker before sampling its clock.
+    # Formal requests, warmup and all measurement clocks are unchanged.
+    reviewed_sources = {
+        '378c81fc3b0d27ccbf0f9a78bbae401053a0a4d6b318d0bfa921669dd82fce0f',
+        '67bf9560a03a0b24ce7d0678fb742aa3fe57c5276fe376c74918d1bcbdac96fb',
+    }
+    if digest(scripts(result)) not in reviewed_sources:
         raise ValueError('B0 context assessment-source compatibility requires review')
     key = 'scripts/acceptance_suite.py'
     text = result[key].decode()
