@@ -104,4 +104,30 @@ class RuntimeStorageTests(unittest.TestCase):
         run.assert_not_called()
 
 
+    def test_nfs_verification_can_complete_after_the_old_preparation_deadline(self):
+        self.build(['install',str(self.fast)])
+        self.cli.verify_tools=lambda tools:None
+        def slow(command,**kwargs):
+            if kwargs.get('timeout',0)<=180:raise storage.subprocess.TimeoutExpired(command,180)
+            self.assertTrue(kwargs['check'])
+            self.assertIn('verify_installed_sources',command[3])
+            self.assertIn('admit_dependencies',command[3])
+            return types.SimpleNamespace(stdout=json.dumps(dict(verified_runtime_files=9235)))
+        self.cli.audit_install=lambda sdk,tools:slow(['old-audit'],timeout=180)
+        with patch.dict(sys.modules,self.modules),patch.object(storage,'filesystem',return_value='nfs4'), \
+             patch.object(storage.subprocess,'run',side_effect=slow):
+            self.assertEqual(storage.audit(self.fast,self.frozen)['release'],self.frozen['release'])
+
+    def test_source_verification_failure_is_never_retried_or_accepted(self):
+        self.build(['install',str(self.fast)])
+        self.cli.verify_tools=lambda tools:None
+        def reject(*args,**kwargs):raise storage.subprocess.CalledProcessError(1,['verify-sources'])
+        self.cli.audit_install=reject
+        with patch.dict(sys.modules,self.modules),patch.object(storage,'filesystem',return_value='nfs4'), \
+             patch.object(storage.subprocess,'run',side_effect=reject) as run:
+            with self.assertRaises(storage.subprocess.CalledProcessError):storage.audit(self.fast,self.frozen)
+        self.assertFalse(storage.marker(self.logical).exists())
+
+
+
 if __name__=='__main__':unittest.main()
