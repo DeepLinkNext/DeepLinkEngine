@@ -212,6 +212,37 @@ def wait_before_service(root, timeout):
         time.sleep(5)
 
 
+def service_admission_phase(service_out, role, queue_start, now, lease_timeout):
+    """Bound B0 file verification independently; retain the original lease wait."""
+    path = service_out / "source-preparation.json"
+    if role == "B0" and path.exists():
+        import math
+
+        record = json.loads(path.read_bytes())
+        started = record.get("started_monotonic")
+        ended = record.get("completed_monotonic")
+        valid_number = lambda value: (type(value) in (int, float)
+                                      and math.isfinite(value))
+        if (record.get("schema") != "baseline-source-preparation/v1"
+                or record.get("status") not in ("verifying", "completed")
+                or not valid_number(started) or not queue_start <= started <= now
+                or record.get("model_service_started") is not False):
+            raise ValueError("Invalid baseline source preparation progress")
+        # This is a CPU/NFS preparation bound, before resource admission and
+        # every original model, warmup, client and arm clock below.
+        preparation_end = now if record["status"] == "verifying" else ended
+        if not valid_number(preparation_end) or not started <= preparation_end <= now:
+            raise ValueError("Invalid baseline source preparation completion")
+        if preparation_end - started > 7200:
+            raise TimeoutError("Baseline source verification exceeded7200s; no model started")
+        if record["status"] == "verifying":
+            return "verifying-baseline"
+        queue_start = ended
+    if now - queue_start > lease_timeout + 30:
+        raise TimeoutError("Device admission wait expired")
+    return "admitting"
+
+
 def admitted_run(args, root, cleanup):
     role = getattr(args, "role", "B1")
     deployment = args.deployment.resolve()
@@ -504,8 +535,9 @@ def admitted_run(args, root, cleanup):
             if admitted is None and (service_out / "resource-admission.json").exists():
                 admitted = now
                 receipt.update(status="starting-model", model_service_started=True)
-            if admitted is None and now - queue_start > args.lease_timeout + 30:
-                raise TimeoutError("Device admission wait expired")
+            if admitted is None:
+                receipt["status"] = service_admission_phase(
+                    service_out, role, queue_start, now, args.lease_timeout)
             if args.kind == "dataset":
                 if admitted is not None and client is None and now - admitted > 3600:
                     raise TimeoutError(

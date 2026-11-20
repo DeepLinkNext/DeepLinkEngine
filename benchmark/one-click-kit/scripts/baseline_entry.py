@@ -8,6 +8,7 @@ import json
 import os
 from pathlib import Path
 import sys
+import time
 
 from baseline_admission import admit
 from baseline_image_sdk import environment
@@ -131,6 +132,28 @@ def model_view(model, cache, out, multimodal):
     return view
 
 
+def prepare_baseline_source(deployment, out, variant):
+    """Expose CPU source verification separately from waiting for device leases."""
+    path = out / "source-preparation.json"
+    record = {
+        "schema": "baseline-source-preparation/v1",
+        "status": "verifying",
+        "started_monotonic": time.monotonic(),
+        "model_service_started": False,
+    }
+
+    def save_progress():
+        temporary = path.with_suffix(".json.tmp")
+        temporary.write_text(json.dumps(record, indent=2) + "\n")
+        temporary.replace(path)
+
+    save_progress()
+    result = admit(deployment, out / "baseline-source-admission.json", variant)
+    record.update(status="completed", completed_monotonic=time.monotonic())
+    save_progress()
+    return result
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     for name in ("deployment", "out", "cache", "baseline-deployment", "model"):
@@ -171,9 +194,7 @@ def main():
         verify_installed_sources(root)
         out.mkdir(parents=True, exist_ok=False)
         cache.mkdir(parents=True, exist_ok=False)
-        receipt = admit(
-            args.baseline_deployment, out / "baseline-source-admission.json", variant
-        )
+        receipt = prepare_baseline_source(args.baseline_deployment, out, variant)
         acquire(out, args.lease_timeout)
         env = baseline_environment(
             args.baseline_deployment, out, cache, args.devices, variant

@@ -32,6 +32,8 @@ jobs:
       - run: python -B benchmark/one-click-kit/tests/test_checkpoint_cache.py
       - run: python -B benchmark/one-click-kit/tests/test_startup_cache_admission.py
       - run: python -B benchmark/one-click-kit/tests/test_child_runner.py
+      - name: Verify source preparation, device waits and real local socket fallback
+        run: python -B -m pytest -q benchmark/one-click-kit/tests/test_baseline_entry.py benchmark/one-click-kit/tests/test_pre_service_device_admission.py benchmark/one-click-kit/tests/test_deployment.py
       - name: Verify native memory monitoring against the actual controller statements
         env:
           PYTEST_DISABLE_PLUGIN_AUTOLOAD: '1'

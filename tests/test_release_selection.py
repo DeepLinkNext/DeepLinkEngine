@@ -266,3 +266,46 @@ def test_native_reference_entry_reaches_bootstrap_admission_for_r9(tmp_path,entr
     normalized=combined['scripts/'+entry].decode().replace('not in ("full-answer-b1-20261117-r8", "full-answer-b1-20261119-r9"):', '!= "full-answer-b1-20261117-r8":')
     normalized=normalized.replace('requires an admitted frozen Qwen capacity-36 configuration','requires the frozen r8 configuration').replace('requires an admitted frozen Qwen capacity-36 campaign','requires the frozen r8 campaign')
     assert normalized==old
+
+
+def test_selected_client_keeps_actual_ipc_fallback_and_explicit_storage_choice(tmp_path, monkeypatch):
+    import errno
+    import socket
+    import shutil
+
+    provider = {k: v.encode() for k, v in json.loads((ROOT / 'tests/fixtures/producer-r9-adapter.json').read_bytes())['files'].items()}
+    root = ROOT / 'benchmark/one-click-kit'
+    manifest = json.loads((root / 'DEPLOYMENT-TOOLS.json').read_bytes())
+    original = {n: (root / n).read_bytes() for n in manifest['files']}
+    combined = client.bridge(original, provider)
+    names = {'local_runtime_root', 'ipc_directory', 'temporary_directory'}
+    def functions(raw):
+        return {n.name: n for n in ast.parse(raw).body if isinstance(n, ast.FunctionDef) and n.name in names}
+    before, after = functions(original['scripts/engine_entry.py']), functions(combined['scripts/engine_entry.py'])
+    assert set(after) == names
+    for name in names:
+        assert ast.dump(before[name]) == ast.dump(after[name])
+    namespace = dict(Path=Path, os=os, errno=errno, json=json, tempfile=tempfile,
+                     write=lambda p, value: p.write_text(json.dumps(value)))
+    exec(compile(ast.Module(body=list(after.values()), type_ignores=[]), '<selected-client-storage-fixture>', 'exec'), namespace)
+    allocate = tempfile.mkdtemp
+    def full_root(*args, **kwargs):
+        if kwargs.get('dir') == '/tmp':
+            raise OSError(errno.ENOSPC, 'fixture full root')
+        return allocate(*args, **kwargs)
+    monkeypatch.delenv('VLLM_HUST_LOCAL_RUNTIME_ROOT', raising=False)
+    monkeypatch.setattr(tempfile, 'mkdtemp', full_root)
+    folder = namespace['ipc_directory'](tmp_path)
+    try:
+        assert folder.parent == Path('/dev/shm')
+        with socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM) as channel:
+            channel.bind(str(folder / 'bridge-fixture.sock'))
+    finally:
+        shutil.rmtree(folder)
+    other = tmp_path / 'explicit'; other.mkdir()
+    monkeypatch.setenv('VLLM_HUST_LOCAL_RUNTIME_ROOT', '/tmp')
+    with pytest.raises(OSError, match='fixture full root'):
+        namespace['ipc_directory'](other)
+    monkeypatch.setenv('VLLM_HUST_LOCAL_RUNTIME_ROOT', '/invalid')
+    with pytest.raises(ValueError, match='must be /tmp or /dev/shm'):
+        namespace['ipc_directory'](other)

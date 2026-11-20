@@ -17,9 +17,12 @@ PATCH_FILES = {
     'scripts/run_native_reference.py',
     'scripts/run_paired.py',
     'scripts/third_party_report.py',
+    'tests/test_baseline_entry.py',
     'tests/test_checkpoint_cache.py',
     'tests/test_child_runner.py',
+    'tests/test_deployment.py',
     'tests/test_native_checkpoint_reserve.py',
+    'tests/test_pre_service_device_admission.py',
     'tests/test_startup_cache_admission.py',
 }
 

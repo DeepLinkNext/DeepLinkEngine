@@ -27,6 +27,50 @@ from qualification import sealed_files
 
 
 class DeploymentTests(unittest.TestCase):
+    def test_full_tmp_uses_private_tmpfs_and_binds_a_real_socket(self):
+        import errno
+        original = tempfile.mkdtemp
+
+        def allocate(*args, **kwargs):
+            if kwargs.get("dir") == "/tmp":
+                raise OSError(errno.ENOSPC, "fixture root volume full")
+            return original(*args, **kwargs)
+
+        with tempfile.TemporaryDirectory() as temp:
+            out = Path(temp)
+            with patch("engine_entry.tempfile.mkdtemp", side_effect=allocate):
+                path = ipc_directory(out)
+            try:
+                self.assertEqual(path.parent, Path("/dev/shm"))
+                with socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM) as channel:
+                    channel.bind(str(path / "fixture.sock"))
+                self.assertEqual(ipc_directory(out), path)
+                self.assertEqual(json.loads((out / "ipc-directory.json").read_bytes())["storage_fallback"]["errno"], errno.ENOSPC)
+            finally:
+                shutil.rmtree(path)
+
+    def test_ipc_permission_errors_are_not_hidden_by_storage_fallback(self):
+        import errno
+        with tempfile.TemporaryDirectory() as temp:
+            with patch("engine_entry.tempfile.mkdtemp", side_effect=OSError(errno.EACCES, "fixture denied")) as allocate:
+                with self.assertRaises(PermissionError):
+                    ipc_directory(Path(temp))
+            self.assertEqual(allocate.call_count, 1)
+
+    def test_recorded_ipc_path_cannot_redirect_to_a_symlink(self):
+        with tempfile.TemporaryDirectory() as temp:
+            out = Path(temp)
+            target = Path(tempfile.mkdtemp(prefix="vhe-ipc-", dir="/dev/shm"))
+            alias = target.with_name(target.name + "-alias")
+            alias.symlink_to(target)
+            try:
+                (out / "ipc-directory.json").write_text(json.dumps({"path": str(alias)}))
+                with self.assertRaisesRegex(ValueError, "Unexpected private IPC"):
+                    ipc_directory(out)
+            finally:
+                alias.unlink()
+                shutil.rmtree(target)
+
     def test_deep_tempdir_can_bind_datagram_after_private_temp_relocation(self):
         with tempfile.TemporaryDirectory() as temp:
             out = Path(temp) / ("deep-output-" * 12)

@@ -62,16 +62,16 @@ def once(text, old, new):
     return text.replace(old, new)
 
 
-# Reviewed R9 changes only broaden the release predicate and route the unchanged
-# R8/R9 capacity-36 policy through runtime_geometry.capacity36. Pin both sides;
+# Reviewed source-progress additions leave argv/warmup/clocks unchanged. R9
+# then broadens the release predicate and routes the unchanged capacity-36 policy through runtime_geometry.capacity36. Pin both sides;
 # a future warmup/argv change requires review instead of inheriting permission.
 BASELINE_COMPATIBILITY = {
     "scripts/serving_warmup.py": (
         "fc2bcb64dbdb8780d5cf0add7d26adecd64043326263d7da7be241954db173ba",
         "37cc6f16fc16b33d04eaa9c45a68576d250c534eff5b1d8f372138ae992c5c3f"),
     "scripts/baseline_entry.py": (
-        "efa3fbb979eed315238c859a6d44459fb02838d3f35e6d33d107b8a3524348ee",
-        "860ebda40197fa05f43d28c6cb5748d677a42a01d379564f8beaebebab7ee3a1"),
+        "184fc9efff9461dc801c1aaf783eaeb3bf6efc872ef5deb1872c65cdd24a7477",
+        "8d81ec530a05ac4d3ed28bd51423f514c2f3f99fb591ebabd6c6f661f6f4f739"),
 }
 
 
@@ -88,7 +88,7 @@ def baseline_reuse_compatibility(client, combined):
                   compat["unchanged_continuous_source_adaptations"][name])
         target["previous_sha256"] = sorted(set(target["previous_sha256"] + [before]))
         target["current_sha256"] = after
-    compat["r9_change"] = ("Reviewed release-predicate/capacity36 routing only; "
+    compat["r9_change"] = ("Reviewed source-preparation progress and release-predicate/capacity36 routing; "
         "Qwen R8/R9 share the same cohorts, budgets and continuous protocol. "
         "B0 reuse still audits effective serve argv, recipe, source and weights.")
     combined[key] = (json.dumps(compat, indent=2) + "\n").encode()
@@ -124,11 +124,12 @@ def bridge(client, provider):
                  if isinstance(n, ast.FunctionDef)}
     target = ast.parse(text)
     for node in reversed(target.body):
-        if isinstance(node, ast.FunctionDef) and node.name in ('ipc_directory', 'temporary_directory', 'environment'):
+        if isinstance(node, ast.FunctionDef) and node.name == 'environment' :
             start = sum(len(x) for x in text.splitlines(keepends=True)[:node.lineno-1])
             end = sum(len(x) for x in text.splitlines(keepends=True)[:node.end_lineno])
             text = text[:start] + functions[node.name] + '\n' + text[end:]
-    text = functions['local_runtime_root'] + '\n\n' + text
+    # Preserve the assessment client's reviewed local storage repair, including
+    # its explicit producer-compatible /tmp or /dev/shm selection.
     text = once(text, '    geometry = apply_geometry(profile, command, env)',
                 '    geometry = apply_geometry(profile, command, env)\n'
                 '    from model_adapter import configure as select_model\n'

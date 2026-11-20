@@ -115,5 +115,75 @@ class BaselineEnvironmentTests(unittest.TestCase):
                 )
 
 
+class BaselineSourcePreparationTests(unittest.TestCase):
+    def _arguments(self, root):
+        return ["baseline_entry.py", "--deployment", str(root / "sdk"),
+                "--out", str(root / "service"), "--cache", str(root / "cache"),
+                "--devices", "0,1", "--model", str(root / "model"),
+                "--baseline-deployment", str(root / "baseline"),
+                "--phase", "serve", "--kind", "continuous"]
+
+    def test_real_entry_keeps_slow_verification_before_lease_and_model_exec(self):
+        import json
+        import os
+        import baseline_entry
+        from run_b1_r4 import service_admission_phase
+        from contextlib import ExitStack
+
+        with tempfile.TemporaryDirectory() as temp, ExitStack() as stack:
+            root = Path(temp)
+            out = root / "service"
+            seen = []
+
+            def verify(deployment, receipt, variant):
+                self.assertEqual(deployment, root / "baseline")
+                self.assertEqual(receipt, out / "baseline-source-admission.json")
+                self.assertEqual(service_admission_phase(out, "B0", 100, 2401, 1800),
+                                 "verifying-baseline")
+                self.assertFalse((out / "resource-admission.json").exists())
+                seen.append("full-source-verification")
+                return {"python": "/fixture/original-python"}
+
+            def acquire(out, timeout):
+                self.assertEqual(service_admission_phase(out, "B0", 100, 2502, timeout),
+                                 "admitting")
+                seen.append("resource-acquisition")
+
+            stack.enter_context(patch.object(sys, "argv", self._arguments(root)))
+            stack.enter_context(patch.dict(os.environ, {"VLLMHUST_BASELINE_BOOTSTRAPPED": ""}))
+            stack.enter_context(patch("baseline_entry.time.monotonic", side_effect=[101, 2501]))
+            stack.enter_context(patch("baseline_entry.verify_installed_sources"))
+            stack.enter_context(patch("baseline_entry.admit", side_effect=verify))
+            stack.enter_context(patch("baseline_entry.acquire", side_effect=acquire))
+            stack.enter_context(patch("baseline_entry.baseline_environment", return_value={}))
+            execute = stack.enter_context(patch("baseline_entry.os.execve", side_effect=RuntimeError("fixture-exec-boundary")))
+            with self.assertRaisesRegex(RuntimeError, "fixture-exec-boundary"):
+                baseline_entry.main()
+            self.assertEqual(seen, ["full-source-verification", "resource-acquisition"])
+            self.assertEqual(execute.call_args.args[0], "/fixture/original-python")
+            progress = json.loads((out / "source-preparation.json").read_bytes())
+            self.assertEqual(progress["status"], "completed")
+            self.assertEqual(progress["completed_monotonic"], 2501)
+            self.assertFalse((out / "source-preparation.json.tmp").exists())
+
+    def test_source_mismatch_still_prevents_resource_acquisition_and_exec(self):
+        import os
+        import baseline_entry
+        from contextlib import ExitStack
+
+        with tempfile.TemporaryDirectory() as temp, ExitStack() as stack:
+            root = Path(temp)
+            stack.enter_context(patch.object(sys, "argv", self._arguments(root)))
+            stack.enter_context(patch.dict(os.environ, {"VLLMHUST_BASELINE_BOOTSTRAPPED": ""}))
+            stack.enter_context(patch("baseline_entry.verify_installed_sources"))
+            stack.enter_context(patch("baseline_entry.admit", side_effect=ValueError("Original018 SDK source changed")))
+            acquire = stack.enter_context(patch("baseline_entry.acquire"))
+            execute = stack.enter_context(patch("baseline_entry.os.execve"))
+            with self.assertRaisesRegex(ValueError, "SDK source changed"):
+                baseline_entry.main()
+            acquire.assert_not_called()
+            execute.assert_not_called()
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -3,6 +3,7 @@
 
 import argparse
 import asyncio
+import errno
 import hashlib
 import importlib.util
 import json
@@ -13,23 +14,47 @@ import sys
 import tempfile
 
 
+def local_runtime_root():
+    """Honor a selected short local directory for private socket paths."""
+    path = Path(os.environ.get("VLLM_HUST_LOCAL_RUNTIME_ROOT", "/tmp"))
+    if path not in (Path("/tmp"), Path("/dev/shm")):
+        raise ValueError("VLLM_HUST_LOCAL_RUNTIME_ROOT must be /tmp or /dev/shm")
+    return path
+
+
 def ipc_directory(out):
+    base = local_runtime_root()
     record = out / "ipc-directory.json"
     if record.exists():
         path = Path(json.loads(record.read_text())["path"])
         if (
-            path.parent != Path("/tmp")
+            path.parent not in ((base,) if os.environ.get("VLLM_HUST_LOCAL_RUNTIME_ROOT")
+                                 else (Path("/tmp"), Path("/dev/shm")))
             or not path.name.startswith("vhe-ipc-")
+            or path.is_symlink()
             or not path.is_dir()
         ):
             raise ValueError("Unexpected private IPC directory")
         return path
-    path = Path(tempfile.mkdtemp(prefix="vhe-ipc-", dir="/tmp"))
+    fallback = None
+    try:
+        path = Path(tempfile.mkdtemp(prefix="vhe-ipc-", dir=str(base)))
+    except OSError as error:
+        if (error.errno not in (errno.ENOSPC, errno.EDQUOT)
+                or base != Path("/tmp")
+                or os.environ.get("VLLM_HUST_LOCAL_RUNTIME_ROOT")):
+            raise
+        # AF_UNIX sockets need a short local path; configured NFS caches cannot
+        # host them. Use a private tmpfs directory without deleting other jobs.
+        fallback = {"from": "/tmp", "errno": error.errno}
+        path = Path(tempfile.mkdtemp(prefix="vhe-ipc-", dir="/dev/shm"))
     write(
         record,
         {
             "path": str(path),
             "purpose": "Short per-run ZMQ socket paths; separate from compiler caches",
+            "storage_fallback": fallback,
+            "local_runtime_root": str(path.parent),
         },
     )
     return path
