@@ -376,6 +376,7 @@ class WorkflowTests(unittest.TestCase):
                         selected.append(report_environment.report_python()[0])
                     return None
                 with patch.object(workflow,'configuration',return_value=self.data),patch.object(workflow,'preflight'), \
+                     patch('release_selection.select',return_value=None), \
                      patch('environment_setup.ensure_environment',side_effect=prepare), \
                      patch.object(sys,'argv',['run_all.py','--config','unused.json','--prepare-environment']), \
                      contextlib.redirect_stdout(io.StringIO()):

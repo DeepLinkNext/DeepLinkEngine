@@ -181,7 +181,7 @@
     "scripts/baseline_profile.py": "956a14275bb472af46a43b1b4f84653db82df214cdbb9c3b4c35dbd9cad2f71a",
     "scripts/baseline_serve.py": "0e3961c06704066fb335f367eaf50bf085ccbced9253dc26a34278ac2d807942",
     "scripts/capacity_snapshot.py": "bbfd941fc3fce6b21121aed1c55b0f971086150ae41ff705c91a23cc12786c03",
-    "scripts/checkpoint_cache.py": "5be9bed4b864bdeb1ab947019c2c154528228e66b938845c0b3f509738c3ca69",
+    "scripts/checkpoint_cache.py": "e1631fa6d1a4553169ec1fae51acb1e276cc0251b96b08c4e55c27009505c502",
     "scripts/child_runner.py": "9f7b13ec02d4a9b8aa9e3de63173f2d7a2e905fe609cd0cff028b30b5eba13a3",
     "scripts/compile_boundary.py": "be079beb88b23a452bd4f4b4d1c6d6c3cd2463d331eb8e95372d1d3fe48bf754",
     "scripts/completion_warmup.py": "c3b292de6297a448d9af89b21de22d7b8c57b516ee341d1ed751549545b3afa0",
@@ -240,7 +240,7 @@
     "scripts/restore_b0_image.py": "cf35eff8d0d2dcb93f9946b44aeb18400125ac5ad160d072f35210206fc012d9",
     "scripts/restore_b1_r4.py": "b554079afc3289c7ee7e44f1a5067733238c1a6d6fe2a409586cf3428215bd56",
     "scripts/reuse_campaign.py": "5bd3d271568d05dfb4c95989e77e8f0aa58784b8cb5425cea1056bc56cff04cc",
-    "scripts/run_b1_r4.py": "b7f884332267bd447444eec2b6a4157a90f3937bcfbb317500337a195455a605",
+    "scripts/run_b1_r4.py": "4d763bfdd07deeb385c0c9731e13ec6873a34ee2a2bfd4d83fb8220f8b2c192e",
     "scripts/run_canonical_reference.py": "cdc44427cd16331208f6463065485e1f5522062e5fda93ae08d55fe4896100e7",
     "scripts/run_native_reference.py": "25a1b0cfd94e4981346550eb5b00f81b4bc54a27f51ca35280d0acc4da7b78d4",
     "scripts/run_paired.py": "b038564f4911b2b05e7b9f37cfb6de1725456bbc41d675515c4fc73253db256b",
@@ -272,7 +272,7 @@
     "tests/test_canonical_protocol.py": "ca8bd737aee0c78fc635ef304890b5265a1d55b8d85f309b2e2ebb43cc7e7f49",
     "tests/test_canonical_results.py": "683e0dd1860bcba0dab72f323d7cb83796fbf21c0baf1cb166574cc619eadced",
     "tests/test_canonical_workgroups.py": "c9307e04932e78965e44dbf3ecf63a9bf581b78c02591d8a068e954c0687ea73",
-    "tests/test_checkpoint_cache.py": "41066c8f1bdda0b6189fd2b6978ad81a8100a14e961b4c4b73c030a97c26c3c6",
+    "tests/test_checkpoint_cache.py": "2f91303abd717852fa1573d93d3a83b9e7f7a133e7c8a42704a0e5f349b0b078",
     "tests/test_child_runner.py": "b475af6d51a414c105c58e900c6a47ab72f7c735d27745335236cab0ad5488e9",
     "tests/test_compute_reference_integration.py": "6c67df157dc776be3ea9b74ac0aafe5c41878365c748c2f4d5e6fade37f3a53d",
     "tests/test_compute_reference_plot.py": "e3f1e4be4b30387e0c47f125d6cfe45bd1b74eb8052c0b2b64af2a415bdc76d3",
@@ -514,14 +514,14 @@
   },
   "local_patchset": {
     "base_manifest_sha256": "b2dd50d83c6f081269bda8e94e4128741ac80f08b0cf71fdf5db983ca3a98762",
-    "description": "Preserve v7 pre-service memory preparation and protections; detailed report shows actual selected fixed-five execution completion separately from official quality scope. Frozen engine, workloads, scoring and clocks unchanged.",
+    "description": "Require36GiB actual pre-service raw headroom; hold16GiB startup pages and return8GiB per original working-set pressure event. Before warmup require12GiB raw for two4GiB State budgets plus original4GiB reserve. Temporary pre-service allocation credits existing raw plus clean cache and retains original4GiB safety; no live-model pressure allocation, no engine/protocol/scoring changes. Preserve v8 report fixes.",
     "files": {
       "scripts/baseline_entry.py": {
         "after_sha256": "efa3fbb979eed315238c859a6d44459fb02838d3f35e6d33d107b8a3524348ee",
         "before_sha256": "021579736ac8d0821e2f742678c068a60d66d70362e97f6ffd616eec51533e51"
       },
       "scripts/checkpoint_cache.py": {
-        "after_sha256": "5be9bed4b864bdeb1ab947019c2c154528228e66b938845c0b3f509738c3ca69",
+        "after_sha256": "e1631fa6d1a4553169ec1fae51acb1e276cc0251b96b08c4e55c27009505c502",
         "before_sha256": "c33bb2e9ad88e985205c6d9775d986933712de24660ac6a61e310b35ad02099d"
       },
       "scripts/child_runner.py": {
@@ -533,7 +533,7 @@
         "before_sha256": "ab7be1d2a5ab52f06e46df3e7dbb0f1ff6dfa3d3eef9944040ff6261fea22c55"
       },
       "scripts/run_b1_r4.py": {
-        "after_sha256": "b7f884332267bd447444eec2b6a4157a90f3937bcfbb317500337a195455a605",
+        "after_sha256": "4d763bfdd07deeb385c0c9731e13ec6873a34ee2a2bfd4d83fb8220f8b2c192e",
         "before_sha256": "d5ebd1329b7f493423bd71a7832bb9a573ef03b7903c2cecc3c6f0b9ea1c531b"
       },
       "scripts/run_native_reference.py": {
@@ -549,7 +549,7 @@
         "before_sha256": "20087f84f551d8632d2ebf8033fedf4618e10a8af4051b5f7d7cbc7c5cc2e96e"
       },
       "tests/test_checkpoint_cache.py": {
-        "after_sha256": "41066c8f1bdda0b6189fd2b6978ad81a8100a14e961b4c4b73c030a97c26c3c6",
+        "after_sha256": "2f91303abd717852fa1573d93d3a83b9e7f7a133e7c8a42704a0e5f349b0b078",
         "before_sha256": "1ff11a66582ea8067c39207db592ad7c294662f2f943b1cc3deb08d11211a364"
       },
       "tests/test_child_runner.py": {
@@ -565,9 +565,9 @@
         "before_sha256": "adba40759c3d852267e35831e8317e2c6f7c251a3c1069db91eca00bcabf3267"
       }
     },
-    "id": "deeplink-report-selected-execution-20261120-v8",
-    "parent_manifest_sha256": "e61cef441f1ff4067b2ac5d317e93d7c59057deb5bd6a43d05b84f3f11f34d5b",
-    "parent_patchset": "deeplink-owned-startup-capacity-20261120-v7",
+    "id": "deeplink-pinned-state-capacity-20261120-v9",
+    "parent_manifest_sha256": "80557c5d135e323635727c61bfbf8d53e9837bc630fb9399a276c68c5be24103",
+    "parent_patchset": "deeplink-report-selected-execution-20261120-v8",
     "scope": "Original SDK4GiB conservative working-set/OOM monitoring for serving and native reference after allocation; pre-service12GiB raw admission unchanged. No engine, workload, warmup budget, scoring or timer-definition changes. Validated inherited resource lease descriptors now survive owned subprocess boundaries; task, engine, warmup, scoring and timing definitions remain unchanged."
   },
   "repository": "vLLM-HUST/vllm-hust-engine"
