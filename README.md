@@ -29,8 +29,10 @@ python examples/chat.py "你好，请介绍一下自己"
 需要完整配对测试时，填写[示例配置](benchmark/run-all.example.json)后执行：
 
 ```sh
-python run_all.py --config evaluation.json
+python run_all.py --config evaluation.json --rerun-b0
 ```
+
+是否重跑 B0 默认选择“否”（`rerun_b0: false`）。上例用于首次测量，显式 `--rerun-b0` 才启动固定 B0。后续省略该开关，并用 `--reuse-completed-run` 指定旧结果；已保存的 B0 上下文和原生计时来源随恢复记录沿用，也可分别用 `--reuse-context-baseline-arm`、`--reuse-compute-baseline-arm` 指定。缺少匹配原件时在模型启动前报错，不自动退回重跑。`--no-rerun-b0` 可覆盖配置中的 `true`；重跑选项不与复用来源并用。
 
 不填写 `engine_version` 时使用最新稳定版；指定版本可复现历史运行。恢复、复算及跨版本结果复用见[测试指南](benchmark/README.md#恢复与结果复用)。
 

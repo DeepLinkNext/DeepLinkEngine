@@ -322,6 +322,33 @@ def campaign_pair_weights_bridge(result):
     result[key] = text.encode()
 
 
+def b0_run_policy_bridge(result):
+    """Default to sealed fixed-B0 reuse at every model-launch boundary."""
+    result['scripts/b0_run_policy.py'] = (ROOT / 'b0_run_policy.py').read_bytes()
+    key = 'scripts/third_party.py'
+    text = result[key].decode()
+    text = once(text, '        composed_pairs = [stage for stage in stages if stage["name"] == "mmlu-pair"',
+        '        if not args.prepare_only:\n'
+        '            from b0_run_policy import require_campaign_reuse\n'
+        '            require_campaign_reuse(stages, locals().get("reused", {}), out, frozen)\n'
+        '        composed_pairs = [stage for stage in stages if stage["name"] == "mmlu-pair"')
+    result[key] = text.encode()
+    key = 'scripts/automatic_reference.py'
+    text = result[key].decode()
+    text = once(text, '        plan = json.loads(path.read_bytes())',
+        '        plan = json.loads(path.read_bytes())\n'
+        '        from b0_run_policy import require_reference_reuse\n'
+        '        require_reference_reuse(plan)')
+    result[key] = text.encode()
+    key = 'scripts/acceptance_suite.py'
+    text = result[key].decode()
+    text = once(text, 'def run(args, checkpoint=None):\n',
+        'def run(args, checkpoint=None):\n'
+        '    from b0_run_policy import require_context_reuse\n'
+        '    require_context_reuse(args)\n')
+    result[key] = text.encode()
+
+
 def context_baseline_bridge(result):
     """Preserve completed fixed-B0 context phases across a B1-only change."""
     def scripts(files):
@@ -343,6 +370,7 @@ def context_baseline_bridge(result):
     native_baseline_bridge(result)
     warmup_memory_bridge(result)
     campaign_pair_weights_bridge(result)
+    b0_run_policy_bridge(result)
     key = 'scripts/acceptance_suite.py'
     text = result[key].decode()
     old = ('    if admission["deployment"] != str(args.deployment.resolve()):\n'

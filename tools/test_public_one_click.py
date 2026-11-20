@@ -56,7 +56,7 @@ class PublicEntryTests(unittest.TestCase):
                 patch.object(entry.os, "execve", side_effect=execute), \
                 patch.object(sys, "argv", list(sys.argv)):
             with self.assertRaises(SystemExit) as exited:
-                entry.main(["--context-tenant-only", "--no-follow", "--deployment", "/sdk",
+                entry.main(["--context-tenant-only", "--rerun-b0", "--no-follow", "--deployment", "/sdk",
                     "--baseline-deployment", "/b0", "--b1-python", sys.executable,
                     "--model", "/model", "--cache", temp, "--out", str(Path(temp) / "new-run"),
                     "--physical-devices", "1,6", "--devices", "0,1"])

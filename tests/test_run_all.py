@@ -27,7 +27,7 @@ class WorkflowTests(unittest.TestCase):
         self.root = Path(self.temp.name)
         (self.root / "model").mkdir()
         self.data = dict(model=str(self.root / "model"), physical_devices=[0, 7],
-                         cache=str(self.root / "cache"), out=str(self.root / "result"))
+                         cache=str(self.root / "cache"), out=str(self.root / "result"), rerun_b0=True)
         self.calls = []
         self.incomplete = False
 
@@ -83,6 +83,7 @@ class WorkflowTests(unittest.TestCase):
         self.assertLess(names.index("verify-installed-tools"), names.index("run-context-tenant"))
 
     def test_sealed_stage_reuse_is_forwarded_and_failure_originals_are_untouched(self):
+        self.data["rerun_b0"] = False
         source=self.root/'previous';source.mkdir();original=b'original failed ledger\n'
         (source/'results.json').write_bytes(original)
         (source/'installation').mkdir();(source/'installation/installation.json').write_text(json.dumps(dict(package_version='previous')))

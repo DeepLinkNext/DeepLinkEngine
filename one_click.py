@@ -165,7 +165,18 @@ def configuration_arguments(subcommand, arguments):
     module = importlib.util.module_from_spec(spec)
     sys.path.insert(0, str(KIT / "scripts"))
     spec.loader.exec_module(module)
-    return module.configuration(subcommand, arguments)
+    module.CONFIG_FIELDS = tuple(module.CONFIG_FIELDS) + ("rerun_b0",)
+    config_name = option(arguments, '--config')
+    data = json.loads(Path(config_name).read_bytes()) if config_name else {}
+    from b0_run_policy import boolean
+    rerun = boolean(data.get('rerun_b0', False))
+    flags = [x for x in arguments if x in ('--rerun-b0', '--no-rerun-b0')]
+    if len(flags) > 1:
+        raise ValueError('只指定一次 --rerun-b0 或 --no-rerun-b0')
+    if flags:
+        rerun = flags == ['--rerun-b0']
+    configured = module.configuration(subcommand, [x for x in arguments if x not in flags])
+    return configured + ['--rerun-b0'] if configured is not None and rerun else configured
 
 
 def prepare_data(arguments):
@@ -240,7 +251,7 @@ def main(arguments=None):
         spec.loader.exec_module(module)
         effective = arguments
         if arguments[0] in ("prepare", "run"):
-            effective = module.configuration(arguments[0], arguments[1:])
+            effective = configuration_arguments(arguments[0], arguments[1:])
         if "--context-tenant-only" in effective:
             if option(effective, "--engine-profile") is not None:
                 raise ValueError("The context/tenant controller reads the SDK identity; omit --engine-profile")
@@ -251,10 +262,15 @@ def main(arguments=None):
                 raise ValueError("The requested profile differs from the selected engine release")
         if option(effective, "--deployment") is None:
             raise ValueError("Provide deployment: /path/to/installation/sdk from the selected stable installation; see engine/README.md")
+        from b0_run_policy import public_arguments, enabled
+        effective = public_arguments(effective, prepare_only=arguments[0] == 'prepare' or '--prepare-only' in effective)
+        print('是否重跑 B0：' + ('是' if enabled() else '否（复用已封存记录）'), flush=True)
         effective = prepare_data(effective)
         effective = prepare_baseline(effective)
         os.environ["VLLM_HUST_PROJECT_EVIDENCE"] = str(reference_evidence(lock))
         arguments = effective
+    if help_only:
+        print("B0 选项：--rerun-b0 显式重跑；--no-rerun-b0 默认复用旧记录。配置项 rerun_b0 默认 false。", flush=True)
     sys.dont_write_bytecode = True
     sys.argv = [str(KIT / "one_click.py"), *arguments]
     runpy.run_path(str(KIT / "one_click.py"), run_name="__main__")
