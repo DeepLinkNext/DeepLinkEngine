@@ -7,6 +7,7 @@ from pathlib import Path
 import sys
 import tempfile
 import unittest
+from types import SimpleNamespace
 from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -44,6 +45,14 @@ class BaselineBundleTests(unittest.TestCase):
              patch.dict(os.environ, environment, clear=True), \
              patch("urllib.request.urlopen", side_effect=AssertionError("network forbidden")):
             return bundle.prepare(self.cache)
+
+    def test_existing_exact_sdk_is_reused_when_new_extraction_space_is_unavailable(self):
+        base=self.root/'disk';sdk=base/('deeplinkengine-b0-'+str(os.getuid()))/'fixed-key'/'original018-sdk';sdk.mkdir(parents=True)
+        with patch.dict(os.environ,{},clear=True), \
+             patch.object(Path,'read_text',return_value='42 1 0:7 / / rw - ext4 /dev/root rw'), \
+             patch.object(bundle.shutil,'disk_usage',return_value=SimpleNamespace(free=2**30)):
+            self.assertEqual(bundle.local_runtime_cache('fixed-key',bases=(base,)),sdk.parent.parent)
+            self.assertIsNone(bundle.local_runtime_cache('different-key',bases=(base,)))
 
     def test_successful_restore_removes_only_local_staging_and_retains_all_originals(self):
         sys.path.insert(0, str(ROOT / "benchmark/one-click-kit/scripts"))
