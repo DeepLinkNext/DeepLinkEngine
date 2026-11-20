@@ -15,6 +15,7 @@ import urllib.request
 import urllib.error
 
 ROOT = Path(__file__).resolve().parent
+sys.path.insert(0, str(ROOT))
 from release_selection import kit_path, runtime_lock, profile as selected_profile
 KIT = kit_path()
 LOCK = ROOT / "benchmark/one-click-lock.json"
