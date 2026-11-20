@@ -100,6 +100,30 @@ def runtime_artifacts(frozen):
         raise ValueError('Expected all three frozen runtime wheels')
     if frozen.get('native_abi') != dict(python='cp312', platform='linux_aarch64', cann='9.1.0', hardware='TP2 Ascend910B2'):
         raise ValueError('Selected stable engine requires a new vendor environment adapter')
+    # API asset URLs are usable from hosts where github.com release redirects
+    # time out. Resolve them anonymously, then bind name, size and digest to
+    # the producer's frozen package identity before using either route.
+    base = 'https://api.github.com/repos/vLLM-HUST/vllm-hust-website/'
+    try:
+        release_index = read_json(base + 'releases/tags/' + tag)
+    except OSError:
+        # Public API rate limits must not disable the package's already pinned
+        # browser route. Hash/size validation remains mandatory on its bytes.
+        return result
+    if release_index.get('tag_name') != tag:
+        raise ValueError('Public runtime mirror release differs')
+    assets = release_index.get('assets', [])
+    for record in result:
+        matches = [a for a in assets if a.get('name') == record['name']]
+        if len(matches) != 1:
+            raise ValueError('Public runtime mirror lacks a unique frozen asset')
+        asset = matches[0]
+        if (type(asset.get('id')) is not int or asset['id'] <= 0
+                or asset.get('size') != record['bytes']
+                or asset.get('digest') != 'sha256:' + record['sha256']
+                or asset.get('browser_download_url') != record['url']):
+            raise ValueError('Public runtime mirror asset identity differs')
+        record['api_url'] = base + 'releases/assets/' + str(asset['id'])
     return result
 
 

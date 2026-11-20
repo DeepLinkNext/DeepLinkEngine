@@ -217,3 +217,24 @@ def test_r9_baseline_reuse_bridge_is_pinned_and_preserves_argv_admission():
     assert combined['scripts/reuse_campaign.py']==original['scripts/reuse_campaign.py']
     provider['scripts/serving_warmup.py']+=b'\n# unreviewed producer change\n'
     with pytest.raises(ValueError,match='requires source review'):client.bridge(original,provider)
+
+
+def test_public_runtime_api_mirror_is_anonymous_and_hash_bound():
+    release='full-answer-b1-20261119-r9';tag='engine-wheels-r9-v1'
+    prefix='https://github.com/vLLM-HUST/vllm-hust-website/releases/download/'+tag+'/'
+    rows=[dict(name=n+'-1-cp312-cp312-linux_aarch64.whl',bytes=100+i,sha256=str(i+1)*64) for i,n in enumerate(('vllm','vllm_ascend','vllm_hust_runtime'))]
+    for row in rows:row['url']=prefix+row['name']
+    frozen=dict(release=release,native_abi=dict(python='cp312',platform='linux_aarch64',cann='9.1.0',hardware='TP2 Ascend910B2'),public_runtime=dict(schema='vllm-hust-public-runtime-artifacts/v1',release=release,mirror_repository='vLLM-HUST/vllm-hust-website',mirror_release=tag,artifacts=rows))
+    assets=[dict(id=10+i,name=r['name'],size=r['bytes'],digest='sha256:'+r['sha256'],browser_download_url=r['url']) for i,r in enumerate(rows)]
+    with patch.object(selection,'read_json',return_value=dict(tag_name=tag,assets=assets)) as fetch:
+        result=selection.runtime_artifacts(frozen)
+        fetch.assert_called_once_with('https://api.github.com/repos/vLLM-HUST/vllm-hust-website/releases/tags/'+tag)
+    assert all(r['api_url'].endswith('/'+str(10+i)) for i,r in enumerate(result))
+    with patch.object(selection,'read_json',side_effect=OSError('public API rate limit')):
+        fallback=selection.runtime_artifacts(frozen)
+    assert all('api_url' not in r for r in fallback)
+    assert [r['sha256'] for r in fallback]==[r['sha256'] for r in rows]
+    for field,value in [('size',999),('digest','sha256:'+'0'*64),('browser_download_url','https://wrong.invalid/asset')]:
+        bad=copy.deepcopy(assets);bad[0][field]=value
+        with patch.object(selection,'read_json',return_value=dict(tag_name=tag,assets=bad)):
+            with pytest.raises(ValueError,match='identity differs'):selection.runtime_artifacts(frozen)
