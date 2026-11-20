@@ -88,10 +88,81 @@ def baseline_reuse_compatibility(client, combined):
                   compat["unchanged_continuous_source_adaptations"][name])
         target["previous_sha256"] = sorted(set(target["previous_sha256"] + [before]))
         target["current_sha256"] = after
+    baseline = compat["unchanged_continuous_source_adaptations"]["scripts/baseline_entry.py"]
+    if baseline["current_sha256"] != "8d81ec530a05ac4d3ed28bd51423f514c2f3f99fb591ebabd6c6f661f6f4f739":
+        raise ValueError("Baseline source-progress compatibility requires source review")
+    baseline["previous_sha256"] = sorted(set(baseline["previous_sha256"] + [
+        "efa3fbb979eed315238c859a6d44459fb02838d3f35e6d33d107b8a3524348ee",
+        "860ebda40197fa05f43d28c6cb5748d677a42a01d379564f8beaebebab7ee3a1"]))
     compat["r9_change"] = ("Reviewed source-preparation progress and release-predicate/capacity36 routing; "
         "Qwen R8/R9 share the same cohorts, budgets and continuous protocol. "
         "B0 reuse still audits effective serve argv, recipe, source and weights.")
     combined[key] = (json.dumps(compat, indent=2) + "\n").encode()
+
+
+BASELINE_LOCATION_HELPER = '''"""Allow a fixed B0 installation to move without changing its observed identity."""
+import hashlib
+import json
+from pathlib import Path
+
+
+def verify(recorded, deployment):
+    from baseline_admission import PINNED_SOURCE_MAP_SHA256
+    digest = lambda value: hashlib.sha256(json.dumps(value, sort_keys=True,
+        separators=(",", ":")).encode()).hexdigest()
+    # Controllers run baseline_admission.admit (full actual-file and package
+    # verification) before calling reuse. This additionally binds the old full
+    # inventory to the currently admitted fixed image, never to a B1 companion.
+    current = json.loads((Path(deployment) / 'sdk-files.json').read_bytes())
+    if (recorded.get('source_map_sha256') != PINNED_SOURCE_MAP_SHA256
+            or digest(recorded['files']) != PINNED_SOURCE_MAP_SHA256
+            or digest(current) != PINNED_SOURCE_MAP_SHA256
+            or current != recorded['files']):
+        raise ValueError('Reused B0 relocated fixed image/source inventory differs')
+    return dict(observed_deployment=recorded['deployment'],
+        requested_deployment=str(Path(deployment).resolve()),
+        source_map_sha256=PINNED_SOURCE_MAP_SHA256,
+        scope='Same pinned fixed B0 bytes; original execution path and dates retained.')
+'''
+
+
+def baseline_location_bridge(result):
+    """Use full pinned-image identity rather than an SDK's installation path."""
+    result['scripts/baseline_relocation.py'] = BASELINE_LOCATION_HELPER.encode()
+    key = 'scripts/reuse_campaign.py'
+    text = result[key].decode()
+    text = once(text, '        keys = ("model", "physical_cards", "logical_devices", "baseline_deployment",',
+        '        if previous.get("baseline_deployment") != current.get("baseline_deployment"):\n'
+        '            from baseline_relocation import verify as verify_relocation\n'
+        '            from baseline_admission import PINNED_SOURCE_MAP_SHA256\n'
+        '            if previous.get("baseline_source_map_sha256") != PINNED_SOURCE_MAP_SHA256 or current.get("baseline_source_map_sha256") != PINNED_SOURCE_MAP_SHA256:\n'
+        '                raise ValueError("Reuse baseline fixed source pin differs")\n'
+        '            verify_relocation(read(root / stage / "baseline-source-admission.json"), current["baseline_deployment"])\n'
+        '        keys = ("model", "physical_cards", "logical_devices",')
+    text = once(text, '            "parent_status": receipt["status"],',
+        '            "parent_status": receipt["status"],\n'
+        '            "original_baseline_deployment": previous["baseline_deployment"],\n'
+        '            "requested_baseline_deployment": plan["baseline_deployment"],\n'
+        '            "baseline_source_map_sha256": previous["baseline_source_map_sha256"],')
+    result[key] = text.encode()
+    key = 'scripts/arm_reuse.py'
+    text = result[key].decode()
+    text = once(text, "                or str(Path(baseline['deployment']).resolve()) != conditions['baseline_deployment']):",
+                '                ):')
+    text = once(text, "            raise ValueError('Reused B0 actual pinned image/source identity differs')",
+        "            raise ValueError('Reused B0 actual pinned image/source identity differs')\n"
+        "        if str(Path(baseline['deployment']).resolve()) != conditions['baseline_deployment']:\n"
+        "            from baseline_relocation import verify as verify_relocation\n"
+        "            verify_relocation(baseline, conditions['baseline_deployment'])")
+    text = once(text, '    return binding\n',
+        "    if role == 'B0' and str(Path(read(root / 'baseline-source-admission.json')['deployment']).resolve()) != conditions['baseline_deployment']:\n"
+        "        from baseline_relocation import verify as verify_relocation\n"
+        "        binding['baseline_location'] = verify_relocation(read(root / 'baseline-source-admission.json'), conditions['baseline_deployment'])\n"
+        '    return binding\n')
+    text = once(text, "for key in ('original_started', 'original_release', 'weights', 'original_quality'):",
+        "for key in ('original_started', 'original_release', 'weights', 'original_quality', 'baseline_location'):")
+    text = once(text, "        if current[key] != binding[key]:", "        if current.get(key) != binding.get(key):")
+    result[key] = text.encode()
 
 
 def bridge(client, provider):
@@ -157,6 +228,17 @@ def bridge(client, provider):
         text = text.replace('requires the frozen r8 campaign', 'requires an admitted frozen Qwen capacity-36 campaign')
         result[key] = text.encode()
     baseline_reuse_compatibility(client, result)
+    key = 'protocols/task-warmup-v3-c8-compatibility.json'
+    compat = json.loads(result[key])
+    current_inputs = sha(result['scripts/continuous_inputs.py'])
+    if current_inputs != '8bef6275f3bc75cfbb8f49333b7c64060da683ca961d24435d22783e09160562':
+        raise ValueError('Baseline input CLI compatibility requires source review')
+    compat['unchanged_continuous_source_adaptations']['scripts/continuous_inputs.py'] = dict(
+        previous_sha256=['f9787d060f4740b21d570a077652c0e7eaac7bd08b3d8882f5214e118fc6f186'],
+        current_sha256=current_inputs,
+        scope='Only imports and a CLI result-file channel were added; prepare() and original input recipe are byte-identical. All frozen dataset/task/budget/source checks remain required.')
+    result[key] = (json.dumps(compat, indent=2) + '\n').encode()
+    baseline_location_bridge(result)
     return result
 
 

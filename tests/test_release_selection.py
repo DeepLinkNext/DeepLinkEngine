@@ -214,7 +214,8 @@ def test_r9_baseline_reuse_bridge_is_pinned_and_preserves_argv_admission():
     baseline=compat['unchanged_continuous_source_adaptations']['scripts/baseline_entry.py']
     assert client.sha(original['scripts/baseline_entry.py']) in baseline['previous_sha256']
     assert baseline['current_sha256']==client.sha(combined['scripts/baseline_entry.py'])
-    assert combined['scripts/reuse_campaign.py']==original['scripts/reuse_campaign.py']
+    assert b'verify_baseline_serve_args(stage, root / stage / "service/plan.json")' in combined['scripts/reuse_campaign.py']
+    assert b'verify_relocation' in combined['scripts/reuse_campaign.py']
     provider['scripts/serving_warmup.py']+=b'\n# unreviewed producer change\n'
     with pytest.raises(ValueError,match='requires source review'):client.bridge(original,provider)
 
