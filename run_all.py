@@ -280,7 +280,7 @@ def completed_run_source(data, source):
 
 
 def run(data, *, resume_bootstrap=False, resume_before_model=False, resume_before_inference=False,
-        reuse_completed_run=None, reuse_completed_campaigns=(), reuse_mmlu_baseline_arm=None, reuse_context_baseline_arm=None):
+        reuse_completed_run=None, reuse_completed_campaigns=(), reuse_mmlu_baseline_arm=None, reuse_context_baseline_arm=None, reuse_compute_baseline_arm=None):
     out = Path(data["out"])
     reused_run = completed_run_source(data, reuse_completed_run) if reuse_completed_run else None
     if reused_run and os.path.lexists(out):
@@ -292,10 +292,12 @@ def run(data, *, resume_bootstrap=False, resume_before_model=False, resume_befor
         reused_run = completed_run_source(data, prior["reused_run"]["root"])
     reuse_selection = dict(campaigns=[str(Path(p).resolve()) for p in reuse_completed_campaigns],
                            mmlu_baseline_arm=str(Path(reuse_mmlu_baseline_arm).resolve()) if reuse_mmlu_baseline_arm else None,
-                           context_baseline_arm=str(Path(reuse_context_baseline_arm).resolve()) if reuse_context_baseline_arm else None)
+                           context_baseline_arm=str(Path(reuse_context_baseline_arm).resolve()) if reuse_context_baseline_arm else None,
+                           compute_baseline_arm=str(Path(reuse_compute_baseline_arm).resolve()) if reuse_compute_baseline_arm else None)
     if prior and prior.get('reuse_selection'):
         previous_selection = dict(prior['reuse_selection'])
         previous_selection.setdefault('context_baseline_arm', None)
+        previous_selection.setdefault('compute_baseline_arm', None)
         if any(reuse_selection.values()) and reuse_selection != previous_selection:
             raise ValueError('Recovery reuse selection differs from the original invocation')
         reuse_selection = previous_selection
@@ -421,6 +423,8 @@ def run(data, *, resume_bootstrap=False, resume_before_model=False, resume_befor
                 run_command += ['--reuse-completed-campaign', campaign]
             if reuse_selection['mmlu_baseline_arm']:
                 run_command += ['--reuse-mmlu-baseline-arm', reuse_selection['mmlu_baseline_arm']]
+        if reuse_selection.get("compute_baseline_arm"):
+            run_command += ["--reference-baseline-source", reuse_selection["compute_baseline_arm"]]
         stage("run-fixed-five", run_command)
         current = json.loads((out / "fixed-five/campaign.json").read_text())
         reference_target = qualified_reference(current)
@@ -502,13 +506,14 @@ def main():
     parser.add_argument('--reuse-completed-campaign', type=Path, action='append', default=[], help='Additional explicitly selected sealed campaign; all scope, runtime, raw and provenance checks remain required')
     parser.add_argument('--reuse-mmlu-baseline-arm', type=Path, help='Explicit sealed fixed-B0 original200 arm; retain its original answers, dates and identity')
     parser.add_argument('--reuse-context-baseline-arm', type=Path, help='Explicit sealed fixed-B0 context/four-tenant arm; verify identical inputs, budgets, warmup, model, image, devices and reviewed controller sources')
+    parser.add_argument("--reuse-compute-baseline-arm", type=Path, help="Reuse sealed fixed-B0 native timing repetitions; retain original clocks and sources instead of starting B0")
     args = parser.parse_args()
     try:
         data = configuration(args.config, allow_existing=args.resume_bootstrap or args.resume_before_model or args.resume_before_inference or args.report_only)
         os.environ["XDG_CACHE_HOME"] = os.environ.get("XDG_CACHE_HOME") or str(Path(data["cache"]) / "xdg")
         os.environ["MPLCONFIGDIR"] = os.environ.get("MPLCONFIGDIR") or str(Path(os.environ["XDG_CACHE_HOME"]) / "matplotlib")
         if args.report_only:
-            if args.resume_bootstrap or args.resume_before_model or args.resume_before_inference or args.prepare_environment or args.reuse_completed_run or args.reuse_completed_campaign or args.reuse_mmlu_baseline_arm or args.reuse_context_baseline_arm:
+            if args.resume_bootstrap or args.resume_before_model or args.resume_before_inference or args.prepare_environment or args.reuse_completed_run or args.reuse_completed_campaign or args.reuse_mmlu_baseline_arm or args.reuse_context_baseline_arm or args.reuse_compute_baseline_arm:
                 raise ValueError("Report-only cannot be combined with execution or recovery modes")
             out = Path(data["out"])
             from release_selection import bind
@@ -517,7 +522,7 @@ def main():
             destination = out / ("full-report-" + uuid.uuid4().hex)
             return subprocess.run(full_report_command(out,destination)).returncode
         recovery = args.resume_bootstrap or args.resume_before_model or args.resume_before_inference
-        if (args.reuse_completed_campaign or args.reuse_mmlu_baseline_arm or args.reuse_context_baseline_arm) and not (args.reuse_completed_run or recovery):
+        if (args.reuse_completed_campaign or args.reuse_mmlu_baseline_arm or args.reuse_context_baseline_arm or args.reuse_compute_baseline_arm) and not (args.reuse_completed_run or recovery):
             raise ValueError('Additional sealed sources require explicit completed-run recovery')
         select_run_engine(data, recovery=recovery, reuse_completed_run=args.reuse_completed_run)
         if sum((args.resume_bootstrap,args.resume_before_model,args.resume_before_inference))>1:
@@ -544,7 +549,7 @@ def main():
         return 0
     return run(data, resume_bootstrap=args.resume_bootstrap, resume_before_model=args.resume_before_model, resume_before_inference=args.resume_before_inference,
                reuse_completed_run=args.reuse_completed_run, reuse_completed_campaigns=args.reuse_completed_campaign,
-               reuse_mmlu_baseline_arm=args.reuse_mmlu_baseline_arm, reuse_context_baseline_arm=args.reuse_context_baseline_arm)
+               reuse_mmlu_baseline_arm=args.reuse_mmlu_baseline_arm, reuse_context_baseline_arm=args.reuse_context_baseline_arm, reuse_compute_baseline_arm=args.reuse_compute_baseline_arm)
 
 
 if __name__ == "__main__":
