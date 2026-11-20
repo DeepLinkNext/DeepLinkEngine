@@ -84,6 +84,8 @@ class FullSuiteEntryTests(unittest.TestCase):
             self.assertTrue(all(args[:2] == [sys.executable, str(ROOT / "one_click.py")] for args in entry_calls))
             config = json.loads((out / "evaluation.json").read_text())
             self.assertEqual(config["reference_profile"], "submission-v2")
+            self.assertNotIn("rerun_b0", config)
+            self.assertTrue(all("--rerun-b0" in args for args in entry_calls))
             self.assertTrue(receipt["compute_reference_target"]["accepted"])
             self.assertEqual(receipt["automated_acceptance_complete"], True)
 

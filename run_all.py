@@ -59,7 +59,7 @@ def configuration(path, *, allow_existing=False):
 
 
 def evaluation_configuration(data, installation):
-    return dict({k: v for k, v in data.items() if k not in ("environment", "engine_version")}, engine_profile=selected_profile(), test_mode="full",
+    return dict({k: v for k, v in data.items() if k not in ("environment", "engine_version", "rerun_b0")}, engine_profile=selected_profile(), test_mode="full",
                 reference_profile="submission-v2", deployment=str(installation / "sdk"),
                 out=str(Path(data["out"]) / "fixed-five"))
 
@@ -407,6 +407,8 @@ def run(data, *, resume_bootstrap=False, resume_before_model=False, resume_befor
         config.write_text(json.dumps(evaluation, indent=2) + "\n")
         evaluate = [sys.executable, str(ROOT / "one_click.py")]
         prepare_command = [*evaluate, "prepare", "--config", str(config)]
+        if data.get("rerun_b0", False):
+            prepare_command += ["--rerun-b0"]
         if reuse_installation:
             prepare_command += ["--out", str(out / ("preflight-" + uuid.uuid4().hex))]
         if pre_inference:
@@ -428,6 +430,8 @@ def run(data, *, resume_bootstrap=False, resume_before_model=False, resume_befor
                 run_command += ['--reuse-mmlu-baseline-arm', reuse_selection['mmlu_baseline_arm']]
         if reuse_selection.get("compute_baseline_arm"):
             run_command += ["--reference-baseline-source", reuse_selection["compute_baseline_arm"]]
+        if data.get("rerun_b0", False):
+            run_command += ["--rerun-b0"]
         stage("run-fixed-five", run_command)
         current = json.loads((out / "fixed-five/campaign.json").read_text())
         reference_target = qualified_reference(current)

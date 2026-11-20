@@ -135,3 +135,10 @@ def test_generated_guards_precede_each_model_launch_boundary():
     function = next(x for x in tree.body if isinstance(x, ast.FunctionDef) and x.name == 'run')
     assert ast.unparse(function.body[1]) == 'require_context_reuse(args)'
     assert files['scripts/b0_run_policy.py'] == (ROOT / 'b0_run_policy.py').read_bytes()
+
+
+def test_public_policy_stays_out_of_the_original_frozen_config_schema(tmp_path):
+    data = dict(model='/model', physical_devices=[1, 6], cache='/cache', out='/out', rerun_b0=True)
+    result = run_all.evaluation_configuration(data, tmp_path/'installation')
+    assert 'rerun_b0' not in result
+    assert result['test_mode'] == 'full'
