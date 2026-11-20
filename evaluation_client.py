@@ -145,6 +145,16 @@ def bridge(client, provider):
                           '__import__("runtime_geometry").capacity36(' + expression + ')', text)
         ast.parse(text)
         result[key] = text.encode()
+    # These clients keep the same Qwen MMLU200 native work/clock protocol.
+    # R9 inherits its Qwen worker and capacity-36 geometry; do not treat the
+    # producer's additional Intern adapter as a new reference workload.
+    for key in ('scripts/native_timing_prepare.py', 'scripts/baseline_native_prepare.py'):
+        text = result[key].decode()
+        text = once(text, '!= "full-answer-b1-20261117-r8":',
+                    'not in ("full-answer-b1-20261117-r8", "full-answer-b1-20261119-r9"):')
+        text = text.replace('requires the frozen r8 configuration', 'requires an admitted frozen Qwen capacity-36 configuration')
+        text = text.replace('requires the frozen r8 campaign', 'requires an admitted frozen Qwen capacity-36 campaign')
+        result[key] = text.encode()
     baseline_reuse_compatibility(client, result)
     return result
 

@@ -238,3 +238,31 @@ def test_public_runtime_api_mirror_is_anonymous_and_hash_bound():
         bad=copy.deepcopy(assets);bad[0][field]=value
         with patch.object(selection,'read_json',return_value=dict(tag_name=tag,assets=bad)):
             with pytest.raises(ValueError,match='identity differs'):selection.runtime_artifacts(frozen)
+
+
+@pytest.mark.parametrize('entry',['native_timing_prepare.py','baseline_native_prepare.py'])
+@pytest.mark.parametrize('release,allowed',[('full-answer-b1-20261117-r8',True),('full-answer-b1-20261119-r9',True),('full-answer-b1-20261121-r10',False)])
+def test_native_reference_entry_reaches_bootstrap_admission_for_r9(tmp_path,entry,release,allowed):
+    import types
+    provider={k:v.encode() for k,v in json.loads((ROOT/'tests/fixtures/producer-r9-adapter.json').read_bytes())['files'].items()}
+    root=ROOT/'benchmark/one-click-kit';manifest=json.loads((root/'DEPLOYMENT-TOOLS.json').read_bytes())
+    original={n:(root/n).read_bytes() for n in manifest['files']};combined=client.bridge(original,provider)
+    scripts=str(root/'scripts')
+    deployment=tmp_path/'sdk';deployment.mkdir();(deployment/'deployment.json').write_text(json.dumps(dict(release=release)))
+    argv=[entry,'--deployment',str(deployment),'--model',str(tmp_path/'model'),'--out',str(tmp_path/'out'),
+          '--cache',str(tmp_path/'cache'),'--qualified-continuous',str(tmp_path/'qualified'),'--devices','0,1',
+          '--reference-profile','submission-v2','--formal-repetitions','3','--preflight']
+    if entry.startswith('baseline_'):argv+=['--baseline-deployment',str(tmp_path/'b0')]
+    sys.path.insert(0,scripts)
+    try:
+        module=types.ModuleType('entry_under_test')
+        exec(compile(combined['scripts/'+entry],entry,'exec'),module.__dict__)
+        with patch.object(sys,'argv',argv),patch.dict(os.environ,{'VLLMHUST_ENGINE_BOOTSTRAPPED':'','VLLMHUST_BASELINE_BOOTSTRAPPED':''}):
+            with pytest.raises(ValueError,match=('admitted' if allowed else 'capacity-36')):module.main()
+    finally:sys.path.remove(scripts)
+    # Only the target admission and its error text changed; all actual launch,
+    # warmup, work counting, sampling, timing and source checks remain original.
+    old=original['scripts/'+entry].decode()
+    normalized=combined['scripts/'+entry].decode().replace('not in ("full-answer-b1-20261117-r8", "full-answer-b1-20261119-r9"):', '!= "full-answer-b1-20261117-r8":')
+    normalized=normalized.replace('requires an admitted frozen Qwen capacity-36 configuration','requires the frozen r8 configuration').replace('requires an admitted frozen Qwen capacity-36 campaign','requires the frozen r8 campaign')
+    assert normalized==old
