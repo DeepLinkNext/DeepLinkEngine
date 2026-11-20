@@ -182,7 +182,8 @@ def validate(prior, args, current):
     read = lambda path: json.loads(Path(path).read_bytes())
     previous = read(prior / 'controller-source.json')
     # Old66-file source inventory was checked against its complete original
-    # candidate-v12 source. Only the reviewed94-file R9 client may adapt it.
+    # candidate-v12 source. Only the reviewed R9 controller and its declared
+    # fixed-B0 reference reuse bridge may adapt it.
     # Current inventory excludes this generated verifier to avoid a self hash.
     adapted = previous != current
     observed = {n: h for n, h in current.items() if n != 'scripts/context_baseline_reuse.py'}
@@ -209,6 +210,60 @@ def validate(prior, args, current):
 '''
 
 
+def native_baseline_bridge(result):
+    """Keep the original B0 native clocks when only the optimized arm changes."""
+    result['scripts/reference_baseline_reuse.py'] = (ROOT / 'reference_baseline_reuse.py').read_bytes()
+    key = 'scripts/third_party.py'
+    text = result[key].decode()
+    text = once(text, '    parser.add_argument("--reference-qualification-source", type=Path,',
+        '    parser.add_argument("--reference-baseline-source", type=Path, help="Reuse a complete sealed fixed-B0 native arm; invalid evidence fails without launching B0")\n'
+        '    parser.add_argument("--reference-qualification-source", type=Path,')
+    result[key] = text.encode()
+    key = 'scripts/automatic_reference.py'
+    text = result[key].decode()
+    text = once(text, '        resume_source = getattr(args, "reference_resume_source", None)',
+        '        baseline_source = getattr(args, "reference_baseline_source", None)\n'
+        '        if baseline_source:\n'
+        '            from reference_baseline_reuse import inspect as inspect_baseline\n'
+        '            baseline_source = Path(baseline_source).resolve()\n'
+        '            identity = dict(source=str(baseline_source), checksums_sha256=sha(baseline_source / "checksums.json"))\n'
+        '            inspect_baseline(identity["source"], identity["checksums_sha256"], plan)\n'
+        '            plan["baseline_reuse"] = identity\n'
+        '        resume_source = getattr(args, "reference_resume_source", None)\n'
+        '        if baseline_source and resume_source:\n'
+        '            raise ValueError("Choose fixed-B0 reuse or complete model-stage continuation")')
+    text = once(text, '            if resumed_models and stage["id"] in resumed_models["stages"]:',
+        '            if stage["id"] == "baseline-native-synchronized-timing" and plan.get("baseline_reuse"):\n'
+        '                row["status"] = "running"\n'
+        '                save(folder / "status.json", result)\n'
+        '                from reference_baseline_reuse import inspect as inspect_baseline\n'
+        '                identity = plan["baseline_reuse"]\n'
+        '                proof = inspect_baseline(identity["source"], identity["checksums_sha256"], plan)\n'
+        '                save(folder / "baseline-native-reuse.json", proof)\n'
+        '                row.update(status="completed", returncode=0, reused_model_stage=True,\n'
+        '                    original_stage_source=proof["source"], receipt_sha256=proof["receipt_sha256"],\n'
+        '                    full_model_certificate=False, model_inference_rerun=False)\n'
+        '                save(folder / "status.json", result)\n'
+        '                print("THIRD_PARTY_REFERENCE_FIXED_B0_REUSED", proof["source"], flush=True)\n'
+        '                continue\n'
+        '            if resumed_models and stage["id"] in resumed_models["stages"]:')
+    result[key] = text.encode()
+    key = 'scripts/reference_final_stages.py'
+    text = result[key].decode()
+    text = once(text, '    return dict(B0=Path(folder) / "native-baseline-timing", B1=Path(folder) / "native-current-timing")',
+        '    from reference_baseline_reuse import resolve\n'
+        '    proof = resolve(folder)\n'
+        '    return dict(B0=Path(proof["source"]) if proof else Path(folder) / "native-baseline-timing",\n'
+        '                B1=Path(folder) / "native-current-timing")')
+    text = once(text, '        keywords = dict(baseline_deployment=plan["baseline_deployment"]) if role == "B0" else {}',
+        '        baseline = plan["baseline_deployment"]\n'
+        '        if role == "B0" and (origin / "baseline-native-reuse.json").exists():\n'
+        '            from reference_baseline_reuse import resolve\n'
+        '            baseline = resolve(origin)["original_baseline_deployment"]\n'
+        '        keywords = dict(baseline_deployment=baseline) if role == "B0" else {}')
+    result[key] = text.encode()
+
+
 def context_baseline_bridge(result):
     """Preserve completed fixed-B0 context phases across a B1-only change."""
     def scripts(files):
@@ -227,6 +282,7 @@ def context_baseline_bridge(result):
     }
     if digest(scripts(result)) not in reviewed_sources:
         raise ValueError('B0 context assessment-source compatibility requires review')
+    native_baseline_bridge(result)
     key = 'scripts/acceptance_suite.py'
     text = result[key].decode()
     old = ('    if admission["deployment"] != str(args.deployment.resolve()):\n'
