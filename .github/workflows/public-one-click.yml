@@ -67,10 +67,8 @@ jobs:
         with:
           path: ${{ runner.temp }}/deeplink-engine/wheels
           key: engine-assets-${{ hashFiles('engine/r8-lock.json') }}
-      - name: Download and verify all four real installation inputs
-        run: python -B engine_install.py --download-only --cache "${RUNNER_TEMP}/deeplink-engine"
-      - name: Verify default install and test routes select the same current stable release
-        run: python -B tools/verify_stable_default.py --cache "${RUNNER_TEMP}/deeplink-engine"
+      - name: Verify four real installation inputs and test routes share one latest stable selection
+        run: python -B tools/verify_stable_default.py --download --cache "${RUNNER_TEMP}/deeplink-engine"
       - name: Verify compatibility metadata and unchanged official native payload
         run: python -B tools/verify_runtime_compatibility.py --cache "${RUNNER_TEMP}/deeplink-engine"
       - name: Cache fixed dataset originals

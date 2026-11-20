@@ -12,6 +12,7 @@ sys.path.insert(0,str(ROOT))
 def main():
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument('--cache',type=Path,required=True)
+    p.add_argument('--download',action='store_true',help='Download all four installation inputs using this same selection')
     args=p.parse_args()
     from release_selection import select,save,kit_path
     selected=select(args.cache)
@@ -22,6 +23,9 @@ def main():
     actual=sources()
     if actual!=[selected['sdist'],*selected['runtime_artifacts']]:
         raise ValueError('Default installation inputs differ from selected stable source')
+    if args.download:
+        from engine_install import install
+        install(args.cache,download_only=True)
     from one_click import verify_kit,configuration_arguments
     verify_kit()
     with tempfile.TemporaryDirectory(prefix='stable-client-contract-') as folder:
