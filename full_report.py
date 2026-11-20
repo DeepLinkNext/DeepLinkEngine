@@ -270,6 +270,42 @@ def targets(fixed, context, audits):
 LABELS={'4.1':'有效算力','4.2':'吞吐与时延','4.3':'上下文稳定性','4.4':'产能与成本'}
 
 
+def context_sources(folder, stored):
+    """Resolve original context arms from their completed execution bindings."""
+    folder = Path(folder).resolve()
+    execution = json.loads((folder / 'execution.json').read_text())
+    rows = execution.get('stages', [])
+    if (execution.get('schema') != 'vllm-hust-acceptance-supplement-execution/v1'
+            or stored.get('schema') != 'vllm-hust-paired-context-tenant-supplement/v1'
+            or len(rows) != 2 or [row.get('role') for row in rows] != ['B0', 'B1']
+            or set(stored.get('arms', {})) != {'B0', 'B1'}
+            or set(stored.get('arm_seals', {})) != {'B0', 'B1'}):
+        raise ValueError('Context execution does not bind exactly one B0 and B1 arm')
+    result = {}
+    for row in rows:
+        role = row['role']
+        name = row.get('run')
+        if (row.get('status') != 'completed' or type(row.get('returncode')) is not int
+                or row['returncode'] != 0 or type(row.get('reused')) is not bool
+                or not isinstance(name, str) or not name or not Path(name).is_absolute()
+                or stored['arms'][role] != name):
+            raise ValueError('Context arm execution or paired source differs: ' + role)
+        path = Path(name)
+        if not row['reused'] and path.resolve() != (folder / role).resolve():
+            raise ValueError('A fresh context arm points outside its owned output: ' + role)
+        seal = hashlib.sha256((path / 'checksums.json').read_bytes()).hexdigest()
+        if row.get('seal_sha256') != seal or stored['arm_seals'][role] != seal:
+            raise ValueError('Context arm seal differs from its execution binding: ' + role)
+        receipt = json.loads((path / 'receipt.json').read_text())
+        if (receipt.get('role') != role or receipt.get('completed') is not True
+                or receipt.get('quiescent') is not True):
+            raise ValueError('Context arm is not completed and released: ' + role)
+        result[role] = path
+    # paired() still independently replays sealed inputs/SSE, checks weights,
+    # devices and the measured B1 plan's exact admitted B0 path.
+    return result
+
+
 def collect(root):
     from release_selection import bind
     saved = Path(root) / 'engine-selection.json'
@@ -286,8 +322,18 @@ def collect(root):
     if fixed['plan']['datasets']!=list(DATASETS):
         raise ValueError('Full report requires all five frozen datasets')
     attach_dataset_costs(fixed,root/'fixed-five')
-    context=paired({r:root/'context-tenant'/r for r in ('B0','B1')})
     stored=json.loads((root/'context-tenant/paired-summary.json').read_text())
+    arms=context_sources(root/'context-tenant',stored)
+    identity=json.loads((arms['B1']/'source-admission.json').read_text())
+    if identity.get('release')!=fixed['plan']['engine_release']:
+        raise ValueError('Context B1 release differs from the fixed-five candidate')
+    mmlu_root=Path(fixed['current_mmlu_pair']['arms']['B1']['run'])
+    def weights(path):
+        value=json.loads((path/'model-weights.json').read_text())
+        return {name:{key:row[key] for key in ('bytes','sha256')} for name,row in value.items()}
+    if weights(arms['B1'])!=weights(mmlu_root):
+        raise ValueError('Context model weight bytes differ from the fixed-five candidate')
+    context=paired(arms)
     if stored!=context:
         raise ValueError('Context summary differs from independently re-audited originals')
     stack_path=kit_path()/'mods'/('active-stack-'+fixed['plan']['engine_release'].rsplit('-',1)[1]+'.json')
@@ -304,23 +350,27 @@ def collect(root):
             raise ValueError('Selected MOD registry is incomplete')
     if stack['release']!=fixed['plan']['engine_release']:
         raise ValueError('MOD catalog release differs from the measured engine')
-    audits={r:audit_context(root/'context-tenant'/r) for r in ('B0','B1')}
+    audits={r:audit_context(arms[r]) for r in ('B0','B1')}
     for row in context['comparison']:
         for r in ('B0','B1'):
             if not coverage(row[r].get('utilization',{})):
                 audits[r]['errors'].append(row['phase']+': 利用率采样未覆盖完整窗口')
                 audits[r]['clean']=False
     hashes={}
-    for name in ('fixed-five/campaign-checksums.json','fixed-five/frozen-execution-plan.json',
-                 'context-tenant/B0/checksums.json','context-tenant/B1/checksums.json'):
-        with (root/name).open('rb') as stream:hashes[name]=hashlib.file_digest(stream,'sha256').hexdigest()
+    sources=[root/name for name in ('fixed-five/campaign-checksums.json',
+        'fixed-five/frozen-execution-plan.json','context-tenant/execution.json',
+        'context-tenant/paired-summary.json')]
+    sources.extend(arms[r]/'checksums.json' for r in ('B0','B1'))
+    for path in sources:
+        name=str(path.resolve().relative_to(root)) if path.resolve().is_relative_to(root) else str(path)
+        with path.open('rb') as stream:hashes[name]=hashlib.file_digest(stream,'sha256').hexdigest()
     return dict(schema='deeplinkengine-full-acceptance-report/v1',run=str(root),
                 execution_complete=fixed['receipt'].get('selected_execution_complete') is True and context['execution_complete'],
                 engine_release=fixed['plan']['engine_release'],
                 frozen_mods=[{k:m[k] for k in ('id','name','version')} for m in stack['enabled_mods']],
                 mod_catalog_sha256=hashlib.sha256(stack_path.read_bytes()).hexdigest(),
                 targets=targets(fixed,context,audits),workloads=workload_pairs(fixed),
-                context_audit=audits,evidence_sha256=hashes,
+                context_audit=audits,context_arm_sources={r:str(arms[r]) for r in ('B0','B1')},evidence_sha256=hashes,
                 source_sha256=hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
                 scoring='MMLU规则评分；HLE/Frontier使用同一模型辅助评分，未决计入固定分母；SWE/Terminal为公开轨迹性能。',
                 reference_method='本轮必要F及原生同步T，除以经核验复用的原同工况参考算力上界；不复用旧效率。')
