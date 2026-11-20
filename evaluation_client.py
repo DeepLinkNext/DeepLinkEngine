@@ -296,6 +296,32 @@ def warmup_memory_bridge(result):
     result[key] = text.encode()
 
 
+def campaign_pair_weights_bridge(result):
+    """Resolve prospectively bound pair arms before reading their weight records."""
+    key = 'scripts/reuse_campaign.py'
+    text = result[key].decode()
+    old = ('        for child in (\n'
+           '            [stage / "B0", stage / "B1"] if entry["stage"] == "mmlu-pair" else [stage]\n'
+           '        ):')
+    new = ('        if entry["stage"] == "mmlu-pair":\n'
+           '            from arm_reuse import resolve\n'
+           '            pair_plan = read(stage / "frozen-pair-plan.json")\n'
+           '            children = [resolve(stage, role, pair_plan) for role in ("B0", "B1")]\n'
+           '        elif entry["stage"] in ("mmlu-pair/B0", "mmlu-pair/B1"):\n'
+           '            from arm_reuse import resolve\n'
+           '            pair = stage.parent\n'
+           '            children = [resolve(pair, stage.name, read(pair / "frozen-pair-plan.json"))]\n'
+           '        else:\n'
+           '            children = [stage]\n'
+           '        for child in children:')
+    text = once(text, old, new)
+    text = once(text, '                    arm = root / "mmlu-pair/B0"',
+        '                    from arm_reuse import resolve as resolve_pair_arm\n'
+        '                    arm = resolve_pair_arm(root / "mmlu-pair", "B0",\n'
+        '                        read(root / "mmlu-pair/frozen-pair-plan.json"))')
+    result[key] = text.encode()
+
+
 def context_baseline_bridge(result):
     """Preserve completed fixed-B0 context phases across a B1-only change."""
     def scripts(files):
@@ -316,6 +342,7 @@ def context_baseline_bridge(result):
         raise ValueError('B0 context assessment-source compatibility requires review')
     native_baseline_bridge(result)
     warmup_memory_bridge(result)
+    campaign_pair_weights_bridge(result)
     key = 'scripts/acceptance_suite.py'
     text = result[key].decode()
     old = ('    if admission["deployment"] != str(args.deployment.resolve()):\n'
