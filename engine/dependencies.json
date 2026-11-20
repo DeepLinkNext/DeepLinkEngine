@@ -134,11 +134,11 @@
     },
     {
       "kind": "tools",
-      "name": "engine-tools-lease-forwarding-20261120-v1.tar.gz",
-      "bytes": 1163796,
-      "sha256": "32ac7a04b9661b6098deee71f51f464334d092ee31e920aad4ee527c90cb9a3c",
-      "url": "https://github.com/DeepLinkNext/DeepLinkEngine/releases/download/r8-runtime-dependencies-20261119-v1/engine-tools-lease-forwarding-20261120-v1.tar.gz",
-      "api_url": "https://api.github.com/repos/DeepLinkNext/DeepLinkEngine/releases/assets/769928893"
+      "name": "engine-tools-startup-headroom-20261120-v2.tar.gz",
+      "bytes": 1165346,
+      "sha256": "34ac2eb67e0dd5fa24cfcb7f908c9717e91c0658266ef531ce070b6b44485aa2",
+      "url": "https://github.com/DeepLinkNext/DeepLinkEngine/releases/download/r8-runtime-dependencies-20261119-v1/engine-tools-startup-headroom-20261120-v2.tar.gz",
+      "api_url": "https://api.github.com/repos/DeepLinkNext/DeepLinkEngine/releases/assets/769971314"
     }
   ]
 }

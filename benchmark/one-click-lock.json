@@ -1,19 +1,19 @@
 {
   "schema": "deeplinkengine-public-one-click/v1",
-  "version": "r8-evaluation-memory-reserve-20261120-v8",
+  "version": "r8-evaluation-startup-headroom-20261120-v2",
   "engine_release": "r8-frozen-20261117",
   "tools": {
     "upstream_repository": "vLLM-HUST/vllm-hust-engine",
     "upstream_commit": "57c9302ed4a1f45a814d0ae6f37f778af8f6c8aa",
     "files": 510,
-    "archive": "engine-tools-lease-forwarding-20261120-v1.tar.gz",
-    "sha256": "32ac7a04b9661b6098deee71f51f464334d092ee31e920aad4ee527c90cb9a3c",
-    "bytes": 1163796,
-    "manifest_sha256": "2991c7692bc6bff5da35837778f454c4cf528f1869ca0b55bcea29b16a83dea7",
+    "archive": "engine-tools-startup-headroom-20261120-v2.tar.gz",
+    "sha256": "34ac2eb67e0dd5fa24cfcb7f908c9717e91c0658266ef531ce070b6b44485aa2",
+    "bytes": 1165346,
+    "manifest_sha256": "cd33d523c4f39978c1f305e9f6662486331a97665f1cccac7f131aa35f0c3852",
     "build_kind": "repository-source-with-local-patches",
     "public_source": "benchmark/one-click-kit",
-    "url": "https://github.com/DeepLinkNext/DeepLinkEngine/releases/download/r8-runtime-dependencies-20261119-v1/engine-tools-lease-forwarding-20261120-v1.tar.gz",
-    "public_source_readback": "Frozen upstream510-file inventory plus ten explicit startup, memory-reserve and lease-forwarding patch hashes in DEPLOYMENT-TOOLS.json",
+    "url": "https://github.com/DeepLinkNext/DeepLinkEngine/releases/download/r8-runtime-dependencies-20261119-v1/engine-tools-startup-headroom-20261120-v2.tar.gz",
+    "public_source_readback": "Frozen510-file inventory plus ten declared startup/cache/reserve/lease patch hashes; buffer released before first warmup",
     "base_archive": {
       "archive": "engine-tools.tar.gz",
       "sha256": "a04a63d4f015b8d49409be1b5ba056fd1bb45dfc98e83dbed1a5ac37e808a51b",
@@ -22,7 +22,7 @@
       "bytes": 1156695,
       "api_url": "https://api.github.com/repos/DeepLinkNext/DeepLinkEngine/releases/assets/768201047"
     },
-    "api_url": "https://api.github.com/repos/DeepLinkNext/DeepLinkEngine/releases/assets/769928893"
+    "api_url": "https://api.github.com/repos/DeepLinkNext/DeepLinkEngine/releases/assets/769971314"
   },
   "reference_evidence": {
     "upstream_commit": "53541118b3461705f1e61532710ff0a759d59af0",

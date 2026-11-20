@@ -407,8 +407,14 @@ def admitted_run(args, root, cleanup):
     checkpoint_cache_admitted = False
     queue_start = time.monotonic()
     handles = []
+    startup_reserve = None
     try:
         wait_before_service(root, args.lease_timeout)
+        from checkpoint_cache import StartupMemoryReserve
+
+        startup_reserve = StartupMemoryReserve(
+            root / "startup-memory-reserve.json", memory_guard.sample,
+            lambda: check_memory(memory_guard, initial_memory, root))
         log = (root / "service.log").open("xb")
         handles.append(log)
         service = subprocess.Popen(
@@ -548,6 +554,7 @@ def admitted_run(args, root, cleanup):
                     receipt["http_clients_reuse_admitted_sdk_environment"] = True
                     index = client_command.index("--phase")
                     if observed_warmup and warmup is None:
+                        startup_reserve.before_warmup()
                         warmup_command = list(client_command)
                         warmup_command[index + 1] = "warmup"
                         warmup_log = (root / "warmup.log").open("xb")
@@ -578,6 +585,8 @@ def admitted_run(args, root, cleanup):
                             )
                         receipt["measurement_ready"] = time.time()
                     client_command[index + 1] = "client"
+                    if not observed_warmup:
+                        startup_reserve.before_warmup()
                     if observation:
                         from reference_observation import boundary
 
@@ -622,6 +631,8 @@ def admitted_run(args, root, cleanup):
         print("ARM_FAILED", receipt["failure"], flush=True)
     finally:
         actions = owned.stop()
+        if startup_reserve is not None:
+            startup_reserve.close("service-ended-before-warmup")
         for child in children:
             child.wait(timeout=10)
         for handle in handles:

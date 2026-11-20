@@ -9,6 +9,55 @@ import stat
 GIB = 2**30
 
 
+class StartupMemoryReserve:
+    """Hold real anonymous headroom through model loading; release before HTTP warmup.
+
+    Driver pinned allocations may fail before the kernel reclaims otherwise clean
+    file cache. Reserve pages before starting a model, then release those pages
+    at the healthy, idle service boundary. No pressure allocation runs against a
+    live model and no buffer survives into warmup or a measured request.
+    """
+
+    def __init__(self, path, sample, check):
+        self.path, self.sample, self.check = path, sample, check
+        self.buffers = []
+        self.record = dict(schema="one-click-startup-memory-reserve/v1",
+            bytes=4 * GIB, before=sample(), model_started_at_allocation=False,
+            global_drop_caches=False, memory_limit_changed=False, released=False)
+        try:
+            # Startup admission has already verified 12GiB raw headroom. This
+            # four-GiB reserve is included in the unchanged working-set guard.
+            for _ in range(64):
+                self.buffers.append(allocate_private_chunk(64 * 2**20))
+                check()
+            self.record["held"] = sample()
+            self.save()
+        except BaseException:
+            self.close("allocation-failed")
+            raise
+
+    def save(self):
+        self.path.write_text(json.dumps(self.record, indent=2) + "\n")
+
+    def close(self, reason):
+        if self.record["released"]:
+            return
+        for chunk in self.buffers:
+            chunk.close()
+        self.buffers.clear()
+        self.record.update(released=True, release_reason=reason, after=self.sample())
+        self.save()
+
+    def before_warmup(self):
+        self.close("healthy-idle-service-before-first-warmup")
+        self.check()
+        value = self.sample()
+        self.record["warmup_admission"] = value
+        self.save()
+        if value["limit"] - value["current"] < 4 * GIB:
+            raise RuntimeError("Less than4GiB raw memory before warmup after startup reserve release; no formal request submitted")
+
+
 def reclaim_plan(value, required):
     """Bound temporary anonymous memory by conservatively reclaimable cache."""
     current, limit = value.get("current"), value.get("limit")

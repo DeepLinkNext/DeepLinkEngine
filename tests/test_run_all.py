@@ -82,6 +82,45 @@ class WorkflowTests(unittest.TestCase):
         names = [row["name"] for row in receipt["stages"]]
         self.assertLess(names.index("verify-installed-tools"), names.index("run-context-tenant"))
 
+    def test_sealed_stage_reuse_is_forwarded_and_failure_originals_are_untouched(self):
+        source=self.root/'previous';source.mkdir();original=b'original failed ledger\n'
+        (source/'results.json').write_bytes(original)
+        def execute(args,**kwargs):
+            if '--reuse-completed-campaign' in args:
+                self.assertEqual(args[args.index('--reuse-completed-campaign')+1],str(source/'fixed-five'))
+                self.assertIn('--datasets',args)
+                self.assertEqual(args[args.index('--datasets')+1],'mmlu,hle,frontier,swe,terminal')
+                return self.execute([*args,'run'],**kwargs)
+            return self.execute(args,**kwargs)
+        with patch.object(workflow,'completed_run_source',return_value=dict(root=str(source),completed_stages=['continuous-B0'])), \
+             patch('one_click.configuration_arguments',return_value=['--datasets','mmlu,hle,frontier,swe,terminal']), \
+             patch('one_click.verify_kit'),patch('child_runner.run_stage',side_effect=execute), \
+             contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(workflow.run(self.data,reuse_completed_run=source),0)
+        self.assertEqual((source/'results.json').read_bytes(),original)
+        receipt=json.loads((self.root/'result/results.json').read_text())
+        self.assertEqual(receipt['reused_run']['completed_stages'],['continuous-B0'])
+
+    def test_reuse_rejects_changed_configuration_before_auditing_or_execution(self):
+        source=self.root/'previous';source.mkdir()
+        (source/'results.json').write_text(json.dumps(dict(status='failed',configuration=dict(self.data,physical_devices=[2,3]))))
+        with patch('reuse_campaign.source') as audit:
+            with self.assertRaisesRegex(ValueError,'configuration differs'):
+                workflow.completed_run_source(self.data,source)
+            audit.assert_not_called()
+
+    def test_reuse_source_cannot_overlap_new_output(self):
+        with self.assertRaisesRegex(ValueError,'independent'):
+            workflow.completed_run_source(self.data,Path(self.data['out'])/'nested')
+
+    def test_claimed_completed_stage_must_pass_independent_raw_audit(self):
+        source=self.root/'previous';source.mkdir()
+        (source/'results.json').write_text(json.dumps(dict(status='failed',configuration=self.data)))
+        with patch('reuse_campaign.source',return_value=(source,{},dict(status='failed',stages=[dict(name='continuous-B0',status='completed')]),{})), \
+             patch('reuse_campaign.audit_stage',side_effect=ValueError('modified raw stream')):
+            with self.assertRaisesRegex(ValueError,'modified raw stream'):
+                workflow.completed_run_source(self.data,source)
+
     def test_zero_exit_without_all_four_binary_decisions_cannot_complete(self):
         def execute(args, **kwargs):
             result=self.execute(args, **kwargs)
