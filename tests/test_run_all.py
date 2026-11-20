@@ -363,5 +363,27 @@ class WorkflowTests(unittest.TestCase):
             workflow.bootstrap_resume(self.data)
 
 
+    def test_cli_report_environment_uses_configured_cache_and_preserves_overrides(self):
+        import report_environment
+        for explicit in (False,True):
+            with self.subTest(explicit=explicit),patch.dict(workflow.os.environ,{},clear=True):
+                expected=self.root/('explicit-cache' if explicit else 'cache/xdg')
+                if explicit:workflow.os.environ['XDG_CACHE_HOME']=str(expected)
+                selected=[]
+                def prepare(data):
+                    with patch.object(report_environment.Path,'home',return_value=self.root/'unused-home'), \
+                         patch.object(report_environment.subprocess,'run',return_value=types.SimpleNamespace(returncode=0)):
+                        selected.append(report_environment.report_python()[0])
+                    return None
+                with patch.object(workflow,'configuration',return_value=self.data),patch.object(workflow,'preflight'), \
+                     patch('environment_setup.ensure_environment',side_effect=prepare), \
+                     patch.object(sys,'argv',['run_all.py','--config','unused.json','--prepare-environment']), \
+                     contextlib.redirect_stdout(io.StringIO()):
+                    self.assertEqual(workflow.main(),0)
+                self.assertTrue(selected[0].is_relative_to(expected),selected[0])
+                self.assertEqual(workflow.os.environ['MPLCONFIGDIR'],str(expected/'matplotlib'))
+
+
+
 if __name__ == "__main__":
     unittest.main()

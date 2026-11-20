@@ -435,6 +435,8 @@ def main():
     args = parser.parse_args()
     try:
         data = configuration(args.config, allow_existing=args.resume_bootstrap or args.resume_before_model or args.resume_before_inference or args.report_only)
+        os.environ["XDG_CACHE_HOME"] = os.environ.get("XDG_CACHE_HOME") or str(Path(data["cache"]) / "xdg")
+        os.environ["MPLCONFIGDIR"] = os.environ.get("MPLCONFIGDIR") or str(Path(os.environ["XDG_CACHE_HOME"]) / "matplotlib")
         if args.report_only:
             if args.resume_bootstrap or args.resume_before_model or args.resume_before_inference or args.prepare_environment or args.reuse_completed_run:
                 raise ValueError("Report-only cannot be combined with execution or recovery modes")
