@@ -1,18 +1,18 @@
 {
   "schema": "deeplinkengine-public-one-click/v1",
-  "version": "r8-evaluation-startup-headroom-20261120-v4",
+  "version": "r8-evaluation-startup-headroom-20261120-v5",
   "engine_release": "r8-frozen-20261117",
   "tools": {
     "upstream_repository": "vLLM-HUST/vllm-hust-engine",
     "upstream_commit": "57c9302ed4a1f45a814d0ae6f37f778af8f6c8aa",
     "files": 510,
-    "archive": "engine-tools-startup-headroom-20261120-v4.tar.gz",
-    "sha256": "0ec6024990fd6d47b18d3bae21f58fa34693a6188ee4bf5888a95060a34f90cf",
-    "bytes": 1165989,
-    "manifest_sha256": "b89d1984215657ab112866119005472d239771444cb0447fac8ea74fe9c351e4",
+    "archive": "engine-tools-startup-headroom-20261120-v5.tar.gz",
+    "sha256": "d3d8666ef2e6251f1ba9fb4edb4cd2c0d3f9a5eb45a9da05e6760808eed131a8",
+    "bytes": 1166640,
+    "manifest_sha256": "91c7458a010c53a57d8a44c8c026edd9f4905f8341bc4101ff785c81d2e1981d",
     "build_kind": "repository-source-with-local-patches",
     "public_source": "benchmark/one-click-kit",
-    "url": "https://github.com/DeepLinkNext/DeepLinkEngine/releases/download/r8-runtime-dependencies-20261119-v1/engine-tools-startup-headroom-20261120-v4.tar.gz",
+    "url": "https://github.com/DeepLinkNext/DeepLinkEngine/releases/download/r8-runtime-dependencies-20261119-v1/engine-tools-startup-headroom-20261120-v5.tar.gz",
     "public_source_readback": "Frozen510-file inventory and ten declared workflow patches, including bounded invalid-counter observation; original four-GiB/OOM guard retained",
     "base_archive": {
       "archive": "engine-tools.tar.gz",
@@ -22,7 +22,7 @@
       "bytes": 1156695,
       "api_url": "https://api.github.com/repos/DeepLinkNext/DeepLinkEngine/releases/assets/768201047"
     },
-    "api_url": "https://api.github.com/repos/DeepLinkNext/DeepLinkEngine/releases/assets/770163400"
+    "api_url": "https://api.github.com/repos/DeepLinkNext/DeepLinkEngine/releases/assets/770243987"
   },
   "reference_evidence": {
     "upstream_commit": "53541118b3461705f1e61532710ff0a759d59af0",

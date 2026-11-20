@@ -134,11 +134,11 @@
     },
     {
       "kind": "tools",
-      "name": "engine-tools-startup-headroom-20261120-v4.tar.gz",
-      "bytes": 1165989,
-      "sha256": "0ec6024990fd6d47b18d3bae21f58fa34693a6188ee4bf5888a95060a34f90cf",
-      "url": "https://github.com/DeepLinkNext/DeepLinkEngine/releases/download/r8-runtime-dependencies-20261119-v1/engine-tools-startup-headroom-20261120-v4.tar.gz",
-      "api_url": "https://api.github.com/repos/DeepLinkNext/DeepLinkEngine/releases/assets/770163400"
+      "name": "engine-tools-startup-headroom-20261120-v5.tar.gz",
+      "bytes": 1166640,
+      "sha256": "d3d8666ef2e6251f1ba9fb4edb4cd2c0d3f9a5eb45a9da05e6760808eed131a8",
+      "url": "https://github.com/DeepLinkNext/DeepLinkEngine/releases/download/r8-runtime-dependencies-20261119-v1/engine-tools-startup-headroom-20261120-v5.tar.gz",
+      "api_url": "https://api.github.com/repos/DeepLinkNext/DeepLinkEngine/releases/assets/770243987"
     }
   ]
 }
