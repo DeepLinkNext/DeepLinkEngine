@@ -85,15 +85,35 @@ class EnvironmentTests(unittest.TestCase):
         result, execute = self.prepare(before=info("1"))
         commands = [call.args[0] for call in execute.call_args_list]
         self.assertEqual(len(commands), 3)
-        self.assertIn("venv", commands[0])
-        self.assertIn("--system-site-packages", commands[0])
+        self.assertEqual(commands[0][1:4], ["-I", "-m", "venv"])
+        self.assertNotIn("--system-site-packages", commands[0])
         for args in commands[1:]:
             self.assertTrue(args[0].startswith(self.data["cache"]))
             self.assertNotEqual(args[0], sys.executable)
+            self.assertEqual(args[1:5], ["-I", "-m", "pip", "install"])
         self.assertIn("--ignore-installed", commands[1])
         self.assertNotIn("--ignore-installed", commands[2])
         report = json.loads(Path(result["report"]).read_text())
         self.assertEqual(report["after"]["packages"], {"vendor": "2"})
+
+    def test_legacy_inherited_environment_is_not_reused(self):
+        legacy_recipe = {"packages": {"vendor": "2"}, "sources": {}, "python": "3.12",
+                         "abi": "linux_aarch64", "cann": {"version": "9.1.0"}}
+        legacy_key = hashlib.sha256(json.dumps(legacy_recipe, sort_keys=True).encode()).hexdigest()[:16]
+        run_key = hashlib.sha256(self.data["out"].encode()).hexdigest()[:12]
+        legacy = Path(self.data["cache"]) / "environments" / (legacy_key + "-" + run_key)
+        python = legacy / "venv/bin/python"
+        python.parent.mkdir(parents=True)
+        python.touch()
+        receipt = legacy / "environment.json"
+        old_report = json.dumps({"status": "ready", "recipe_sha256": legacy_key})
+        receipt.write_text(old_report)
+
+        result, execute = self.prepare()
+
+        self.assertNotEqual(Path(result["report"]), receipt)
+        self.assertEqual(receipt.read_text(), old_report)
+        self.assertEqual(execute.call_args_list[0].args[3], "create-venv")
 
     def test_cached_matching_venv_skips_all_package_installs(self):
         first, _ = self.prepare(before=info("1"))
