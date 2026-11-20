@@ -139,3 +139,12 @@ def test_post_revision_is_stable_and_keeps_frozen_release(tmp_path):
         member.size = len(raw)
         stream.addfile(member, io.BytesIO(raw))
     assert selection.metadata(path, version) == frozen
+
+
+def test_vendor_file_probe_loads_release_contract_in_real_isolated_python():
+    import environment_setup
+    result = environment_setup.vendor_integrity(
+        sys.executable, {'triton-ascend': '3.6.0'}, dict(os.environ)
+    )
+    assert isinstance(result['verified'], bool)
+    assert set(result['packages']) == {'triton-ascend'}

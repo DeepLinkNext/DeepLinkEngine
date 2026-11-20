@@ -256,6 +256,8 @@ def vendor_integrity(python, required, env):
     if "triton-ascend" not in required:
         return dict(verified=True, packages={})
     code = """import importlib.util,json,sys
+from pathlib import Path
+sys.path.insert(0,str(Path(sys.argv[1]).resolve().parent))
 spec=importlib.util.spec_from_file_location('environment_setup',sys.argv[1])
 module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
 print(json.dumps(module.distribution_integrity('triton-ascend')))
