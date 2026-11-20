@@ -262,8 +262,8 @@ spec=importlib.util.spec_from_file_location('environment_setup',sys.argv[1])
 module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
 print(json.dumps(module.distribution_integrity('triton-ascend')))
 """
-    observed = subprocess.run([str(python), "-I", "-c", code, str(ROOT / "environment_setup.py")],
-                              env=env, capture_output=True, text=True, check=True, timeout=180)
+    observed = subprocess.run([str(python), "-I", "-X", "utf8", "-c", code, str(ROOT / "environment_setup.py")],
+                              env=env, capture_output=True, text=True, encoding="utf-8", check=True, timeout=180)
     result = json.loads(observed.stdout)
     return dict(verified=result["verified"], packages={"triton-ascend": result})
 

@@ -141,10 +141,26 @@ def test_post_revision_is_stable_and_keeps_frozen_release(tmp_path):
     assert selection.metadata(path, version) == frozen
 
 
-def test_vendor_file_probe_loads_release_contract_in_real_isolated_python():
+def test_vendor_file_probe_loads_release_contract_in_real_isolated_python(tmp_path):
+    import base64
+    import shutil
     import environment_setup
-    result = environment_setup.vendor_integrity(
-        sys.executable, {'triton-ascend': '3.6.0'}, dict(os.environ)
-    )
-    assert isinstance(result['verified'], bool)
-    assert set(result['packages']) == {'triton-ascend'}
+    # A real RECORD in a private fixture exercises the isolated import and hashing
+    # on CPU-only test hosts; it does not install or import a vendor backend.
+    for name in ('environment_setup.py', 'release_selection.py'):
+        shutil.copyfile(ROOT / name, tmp_path / name)
+    payload = tmp_path / 'probe-payload.bin'
+    payload.write_bytes(b'CPU metadata probe fixture\n')
+    info = tmp_path / 'triton_ascend-3.6.0.dist-info'
+    info.mkdir()
+    (info / 'METADATA').write_text('Metadata-Version: 2.1\nName: triton-ascend\nVersion: 3.6.0\n')
+    checksum = base64.urlsafe_b64encode(hashlib.sha256(payload.read_bytes()).digest()).rstrip(b'=').decode()
+    (info / 'RECORD').write_text(f'{payload.name},sha256={checksum},{payload.stat().st_size}\n')
+    with patch.object(environment_setup, 'ROOT', tmp_path):
+        result = environment_setup.vendor_integrity(sys.executable, {'triton-ascend': '3.6.0'}, dict(os.environ))
+        assert result['verified'] is True
+        assert result['packages']['triton-ascend']['checked_files'] == 1
+        payload.write_bytes(b'tampered')
+        result = environment_setup.vendor_integrity(sys.executable, {'triton-ascend': '3.6.0'}, dict(os.environ))
+        assert result['verified'] is False
+        assert result['packages']['triton-ascend']['mismatches'] == [payload.name]
