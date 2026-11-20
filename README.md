@@ -4,7 +4,7 @@
 
 ## 安装与使用
 
-当前支持 Linux aarch64、双昇腾 910B2、CANN 9.1.0 和 Qwen3.5-35B-A3B。准备模型权重及系统运行环境后执行；无法克隆时可[下载源码归档](https://api.github.com/repos/DeepLinkNext/DeepLinkEngine/tarball/main)：
+默认安装和测试 [vLLM-HUST-Engine](https://pypi.org/project/vllm-hust-engine/) 最新稳定发行版，跳过预览版、开发版和已撤回文件。R9 支持 Linux aarch64、双昇腾 910B2、CANN 9.1.0，推理服务支持 Qwen3.5-35B-A3B 和书生 Intern-S2。准备模型权重及系统环境后执行；无法克隆时可[下载源码归档](https://api.github.com/repos/DeepLinkNext/DeepLinkEngine/tarball/main)：
 
 ```sh
 git clone https://github.com/DeepLinkNext/DeepLinkEngine.git
@@ -14,7 +14,9 @@ python deeplink.py serve --installation /workspace/deeplink-install \
   --model /models/Qwen3.5-35B-A3B --physical-devices 0,7
 ```
 
-安装会自动准备独立 Python 环境，按锁定索引下载并校验本仓库 Release 附件，再从本地文件安装。除版本号外，还校验 Ascend Triton 的 565 个已登记文件，依赖解析覆盖厂商文件时自动恢复。卡号填写实际分配的两张物理卡，逻辑卡号自动探测。服务默认监听 `127.0.0.1:8000`，提供 OpenAI 兼容接口：
+每次新安装或新测试开始时解析一次稳定版本，校验官方 PyPI 源码包及其绑定的三份原生运行包，再从本地文件安装。整轮流程保存 `engine-selection.json`，环境切换、子进程、失败恢复和报告复算沿用同一份版本及哈希；中途发布新版本不会改变正在运行的测试。下载或校验失败会明确退出，不自动降回 R8。需要复现历史安装时可指定 `--engine-version 2026.11.17.8.post2`。
+
+安装自动准备独立 Python 环境，同时校验 Ascend Triton 的 565 个已登记文件，依赖解析覆盖厂商文件时自动恢复。卡号填写实际分配的两张物理卡，逻辑卡号自动探测。服务默认监听 `127.0.0.1:8000`，提供 OpenAI 兼容接口：
 
 ```sh
 python examples/chat.py "你好，请介绍一下自己"
@@ -29,6 +31,8 @@ python examples/chat.py "你好，请介绍一下自己"
 ```sh
 python run_all.py --config evaluation.json
 ```
+
+不填写版本即使用最新稳定版；配置中的 `engine_version` 可锁定历史稳定版。测试客户端保留已有的固定数据、参考算力、启动内存保护和恢复流程，按本轮发行包绑定模型适配器、运行几何和 MOD 清单；原有 R8 工具原件和历史结果保持封存。R9 的书生单模型验证见[版本说明](engine/versions/2026.11.19.9.md)，不作为完整五项 B0/B1 或项目最终验收结果。
 
 入口自动完成环境准备、缓存回收、双臂预热、五项配对、有效算力参考、上下文与四租户测试，并生成 `full-report/report.html` 及 PNG/SVG 对比图。终端持续显示原始日志和阶段进度。
 

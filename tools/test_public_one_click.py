@@ -24,6 +24,11 @@ from compute_reference import target
 
 
 class PublicEntryTests(unittest.TestCase):
+    def setUp(self):
+        selected=patch('release_selection.select',return_value=None)
+        selected.start()
+        self.addCleanup(selected.stop)
+
     def test_reference_accepts_selected_pair_on_eight_card_host(self):
         qualify_mapping(dict(physical_cards=[2, 7], logical_cards=[2, 7],
             npu_smi_mapping="\n".join(f"{card} 0 {card} Ascend 910B2" for card in range(8))), "910B2")

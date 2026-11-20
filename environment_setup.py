@@ -1,3 +1,4 @@
+from release_selection import kit_path, runtime_lock, profile as selected_profile
 """Repair Python dependencies in a private cache; load an installed CANN toolkit."""
 import hashlib
 import http.client
@@ -93,7 +94,7 @@ def save(path, value):
 def run_repair_stage(args, env, log):
     from one_click import verify_kit
     verify_kit()
-    sys.path.insert(0, str(ROOT / "benchmark/one-click-kit/scripts"))
+    sys.path.insert(0, str(kit_path() / "scripts"))
     from child_runner import run_stage
     return run_stage(args, env=env, stdout=log, stderr=subprocess.STDOUT)
 
@@ -293,7 +294,7 @@ def ensure_environment(data):
     if platform.system() != "Linux" or platform.machine() != "aarch64":
         raise ValueError("The frozen engine requires Linux aarch64; an OS/architecture mismatch cannot be repaired with pip")
     options = data.get("environment", {})
-    lock = json.loads((ROOT / "engine/r8-lock.json").read_text())
+    lock = runtime_lock(ROOT)
     required = lock["required_python_packages"]
     env, cann = cann_environment(options)
     selection = dict(options)

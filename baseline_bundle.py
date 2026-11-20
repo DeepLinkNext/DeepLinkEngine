@@ -1,3 +1,4 @@
+from release_selection import kit_path, runtime_lock, profile as selected_profile
 """Restore byte-identical B0 OCI blobs from repository assets or verified local cache."""
 import fcntl
 import hashlib
@@ -21,7 +22,7 @@ def digest(path):
 def inventory():
     from one_click import verify_kit
     verify_kit()
-    sys.path.insert(0, str(ROOT / "benchmark/one-click-kit/scripts"))
+    sys.path.insert(0, str(kit_path() / "scripts"))
     from restore_b0_image import MANIFEST
     data = json.loads(INDEX.read_bytes())
     if (data["schema"] != "deeplinkengine-original018-oci/v1"

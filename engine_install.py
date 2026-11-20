@@ -1,3 +1,4 @@
+from release_selection import kit_path, runtime_lock, profile as selected_profile
 """Install the four frozen distributions from verified repository release assets."""
 import argparse
 import hashlib
@@ -63,11 +64,11 @@ def resolve_runtime_dependencies(cache, *, wheelhouse=None):
     from packaging.requirements import Requirement
     from environment_setup import vendor_integrity, cached_wheel, distribution_integrity
     import os
-    sys.path.insert(0, str(ROOT / "benchmark/one-click-kit/scripts"))
+    sys.path.insert(0, str(kit_path() / "scripts"))
     from child_runner import run_stage
     from one_click import verify_kit
     verify_kit()
-    lock = json.loads((ROOT / "engine/r8-lock.json").read_bytes())
+    lock = runtime_lock(ROOT)
     expected = dict(lock["required_python_packages"])
     for row in sources():
         stem = row["filename"].removesuffix(".tar.gz")
@@ -145,8 +146,12 @@ def resolve_runtime_dependencies(cache, *, wheelhouse=None):
 
 
 def sources():
+    from release_selection import active
+    selected = active()
+    if selected and not selected["legacy"]:
+        return [selected["sdist"], *selected["runtime_artifacts"]]
     from tools.verify_dependency_index import build_index
-    runtime = json.loads((ROOT / "engine/r8-lock.json").read_bytes())
+    runtime = runtime_lock(ROOT)
     evaluation = json.loads((ROOT / "benchmark/one-click-lock.json").read_bytes())
     index = build_index(runtime, evaluation)
     if index != json.loads((ROOT / "engine/dependencies.json").read_bytes()):
@@ -184,10 +189,10 @@ def install(cache, *, wheelhouse=None, download_only=False):
     result = dict(status="downloaded", artifacts=artifacts, requirements=str(requirements))
     receipt.write_text(json.dumps(result, indent=2) + "\n")
     if not download_only:
-        sys.path.insert(0, str(ROOT / "benchmark/one-click-kit/scripts"))
+        sys.path.insert(0, str(kit_path() / "scripts"))
         from child_runner import run_stage
         command = [sys.executable, "-m", "pip", "install", "--disable-pip-version-check",
-                   "--no-deps", "--no-compile"]
+                   "--no-deps", "--no-compile", "--force-reinstall"]
         # pip also needs this local source when resolving isolated sdist build requirements.
         for wheel_directory in links:
             command += ["--find-links", wheel_directory]
@@ -217,8 +222,15 @@ def main():
     parser.add_argument("--wheelhouse", type=Path)
     parser.add_argument("--download-only", action="store_true")
     parser.add_argument("--repair-dependencies", action="store_true", help="Verify/repair dependencies of the already installed frozen runtime")
+    parser.add_argument("--engine-version", help="Explicit historical stable version; default follows latest stable")
     args = parser.parse_args()
     try:
+        from release_selection import select, active
+        if not active():
+            version = args.engine_version
+            if args.repair_dependencies and version is None:
+                version = metadata.version("vllm-hust-engine")
+            select(args.cache, version=version)
         if args.repair_dependencies:
             resolve_runtime_dependencies(args.cache, wheelhouse=args.wheelhouse)
         else:

@@ -97,6 +97,34 @@ def main():
     args = parser().parse_args()
     from deeplink import installation
     installed, receipt = installation(args.installation)
+    if receipt['release'] != 'full-answer-b1-20261117-r8':
+        # The installed producer owns model admission, worker selection and
+        # geometry. Keep the original adapter for explicit historical R8 SDKs.
+        if args.devices:
+            logical = ','.join(map(str, pair(args.devices)))
+        else:
+            sample = subprocess.run(['npu-smi', 'info', '-m'], capture_output=True,
+                                    text=True, check=True, timeout=20).stdout
+            mapping = {}
+            for line in sample.splitlines():
+                words = line.split()
+                if len(words) >= 3 and words[0].isdigit() and words[1] == '0' and words[2].isdigit():
+                    mapping[int(words[0])] = int(words[2])
+            logical = ','.join(str(mapping[x]) for x in pair(args.physical_devices))
+        out = args.work_dir or args.cache / ('service-' + uuid.uuid4().hex)
+        if os.path.lexists(out):
+            raise ValueError('Choose a new service work directory')
+        forwarded = ['--model', str(args.model.resolve()), '--out', str(out.absolute()),
+                     '--cache', str(args.cache.resolve()), '--devices', logical,
+                     '--physical-devices', args.physical_devices, '--host', args.host,
+                     '--port', str(args.port), '--served-model-name', args.served_model_name,
+                     '--lease-timeout', str(args.lease_timeout)]
+        if args.dry_run:
+            forwarded.append('--dry-run')
+        python = receipt['python']
+        os.execve(python, [python, '-m', 'vllm_hust_engine.cli', 'serve',
+                          '--installation', str(installed), '--', *forwarded], dict(os.environ))
+        raise RuntimeError('Producer service handoff returned unexpectedly')
     root = installed / "sdk"
     model = args.model.resolve()
     if not 1 <= args.port <= 65535 or not args.host or not args.served_model_name or not math.isfinite(args.lease_timeout) or args.lease_timeout < 0:

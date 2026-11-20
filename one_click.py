@@ -15,7 +15,8 @@ import urllib.request
 import urllib.error
 
 ROOT = Path(__file__).resolve().parent
-KIT = ROOT / "benchmark/one-click-kit"
+from release_selection import kit_path, runtime_lock, profile as selected_profile
+KIT = kit_path()
 LOCK = ROOT / "benchmark/one-click-lock.json"
 
 
@@ -24,22 +25,34 @@ def digest(path):
         return hashlib.file_digest(stream, "sha256").hexdigest()
 
 
-def verify_kit():
+def verify_kit(*, legacy=False):
+    global KIT
+    from release_selection import active
+    selected = None if legacy else active()
+    if selected and selected.get('client'):
+        from evaluation_client import verify
+        data = verify(selected['client'])
+        KIT = kit_path()
+        lock = json.loads(LOCK.read_bytes())
+        lock['selected_client'] = selected['client']
+        lock['tools']['files'] = len(data['files'])
+        return lock
+    source_kit = ROOT / 'benchmark/one-click-kit' if legacy else KIT
     lock = json.loads(LOCK.read_bytes())
-    manifest = KIT / "DEPLOYMENT-TOOLS.json"
+    manifest = source_kit / "DEPLOYMENT-TOOLS.json"
     if manifest.is_symlink() or digest(manifest) != lock["tools"]["manifest_sha256"]:
         raise ValueError("One-click source manifest differs from the public lock")
     data = json.loads(manifest.read_bytes())
     if data["commit"] != lock["tools"]["upstream_commit"]:
         raise ValueError("One-click source revision differs")
     expected = set(data["files"]) | {"DEPLOYMENT-TOOLS.json"}
-    actual = {str(p.relative_to(KIT)) for p in KIT.rglob("*")
+    actual = {str(p.relative_to(source_kit)) for p in source_kit.rglob("*")
               if (p.is_file() or p.is_symlink()) and "__pycache__" not in p.parts}
     if actual != expected:
         raise ValueError("One-click source inventory differs")
     for name, value in data["files"].items():
-        path = KIT / name
-        if path.is_symlink() or not path.resolve().is_relative_to(KIT.resolve()) or digest(path) != value:
+        path = source_kit / name
+        if path.is_symlink() or not path.resolve().is_relative_to(source_kit.resolve()) or digest(path) != value:
             raise ValueError("One-click source changed: " + name)
     return lock
 
@@ -139,9 +152,9 @@ def reference_evidence(lock):
 def validate_deployment(arguments):
     path = Path(option(arguments, "--deployment"))
     profile = path / "deployment.json"
-    lock = json.loads((ROOT / "engine/r8-lock.json").read_bytes())
+    lock = runtime_lock(ROOT)
     if not profile.is_file() or json.loads(profile.read_bytes()).get("release") != lock["upstream_release"]:
-        raise ValueError("Provide an installed frozen r8 SDK before downloading test inputs: " + str(path))
+        raise ValueError("Provide the selected stable SDK before downloading test inputs: " + str(path))
 
 
 def configuration_arguments(subcommand, arguments):
@@ -196,6 +209,18 @@ def prepare_baseline(arguments):
 
 def main(arguments=None):
     arguments = list(sys.argv[1:] if arguments is None else arguments)
+    read_only = not arguments or any(x in ('--help','-h') for x in arguments) or arguments[0] in ('verify','fetch-reference','status','dashboard')
+    if not read_only:
+        from release_selection import active, select, bind
+        if not active():
+            config_name = option(arguments, '--config')
+            config = json.loads(Path(config_name).read_bytes()) if config_name else {}
+            deployment = option(arguments, '--deployment') or config.get('deployment')
+            saved = Path(deployment).resolve().parent / 'engine-selection.json' if deployment else None
+            if saved is not None and saved.is_file():
+                bind(saved)
+            else:
+                select(option(arguments, '--cache') or config.get('cache') or Path.home()/'.cache/deeplinkengine')
     lock = verify_kit()
     if arguments == ["verify"]:
         print("PASS: public one-click source inventory and SHA-256 (" + str(lock["tools"]["files"]) + " files)")
@@ -220,11 +245,11 @@ def main(arguments=None):
                 raise ValueError("The context/tenant controller reads the SDK identity; omit --engine-profile")
         else:
             if option(effective, "--engine-profile") is None:
-                effective += ["--engine-profile", "r8"]
-            if option(effective, "--engine-profile") != "r8":
-                raise ValueError("This public entry requires engine_profile r8")
+                effective += ["--engine-profile", selected_profile()]
+            if option(effective, "--engine-profile") != selected_profile():
+                raise ValueError("The requested profile differs from the selected engine release")
         if option(effective, "--deployment") is None:
-            raise ValueError("Provide deployment: /path/to/r8-installation/sdk from the public r8 installation; see engine/README.md")
+            raise ValueError("Provide deployment: /path/to/installation/sdk from the selected stable installation; see engine/README.md")
         effective = prepare_data(effective)
         effective = prepare_baseline(effective)
         os.environ["VLLM_HUST_PROJECT_EVIDENCE"] = str(reference_evidence(lock))
