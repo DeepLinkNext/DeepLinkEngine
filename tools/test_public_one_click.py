@@ -1,5 +1,6 @@
 """CPU regressions for the public entry and reference acceptance boundaries."""
 
+from contextlib import redirect_stderr, redirect_stdout
 from decimal import Decimal
 import hashlib
 import importlib.util
@@ -21,6 +22,7 @@ spec.loader.exec_module(entry)
 sys.path.insert(0, str(entry.KIT / "scripts"))
 from full_reference_reuse import arm_statistics, qualify_mapping
 from compute_reference import target
+import run_status
 
 
 class PublicEntryTests(unittest.TestCase):
@@ -171,6 +173,132 @@ class PublicEntryTests(unittest.TestCase):
             certificate_kind="qualified_full_reference_denominator_reuse/v1"))
         self.assertFalse(result["accepted"])
         self.assertIsNone(result["measured_value"])
+
+
+class RunStatusTests(unittest.TestCase):
+    STAGES = (
+        "continuous-B0", "continuous-B1", "mmlu-pair",
+        "frontier-solver-B0", "frontier-solver-B1", "frontier-judge-B0", "frontier-judge-B1",
+        "hle-solver-B0", "hle-solver-B1", "hle-judge-B0", "hle-judge-B1",
+        "swe-trace-B0", "swe-trace-B1", "terminal-trace-B0", "terminal-trace-B1",
+    )
+
+    def setUp(self):
+        temp = tempfile.TemporaryDirectory()
+        self.addCleanup(temp.cleanup)
+        self.run = Path(temp.name) / "run"
+        self.logs = self.run.with_name(self.run.name + "-logs")
+
+    def write(self, name, data):
+        path = self.run / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(data), encoding="utf-8")
+
+    def plan(self, statuses, names=STAGES):
+        self.write("frozen-stages.json", [dict(name=name) for name in names])
+        self.write("execution-checklist.json", dict(status="preparing", stages=[
+            dict(name=name, status=statuses.get(name, "planned")) for name in names
+        ]))
+
+    def invoke(self, *args):
+        output, errors = io.StringIO(), io.StringIO()
+        with redirect_stdout(output), redirect_stderr(errors), \
+                patch.object(entry, "prepare_data", side_effect=AssertionError("status started preparation")):
+            code = entry.main(["status", "--run", str(self.run), *args])
+        return code, output.getvalue(), errors.getvalue()
+
+    def test_historical_failure_lists_all_fifteen_stages_in_plan_order(self):
+        self.plan({"continuous-B0": "completed", "continuous-B1": "failed"})
+        self.write("continuous-B1/receipt.json", dict(status="failed", failure="Missing numba"))
+        self.write("campaign.json", dict(status="failed", failure="Stage failed"))
+        self.logs.mkdir()
+        (self.logs / "exit.json").write_text('{"returncode": 2}', encoding="utf-8")
+        files = {path: path.read_bytes() for path in self.run.rglob("*.json")}
+
+        code, output, errors = self.invoke("--json")
+
+        self.assertEqual((code, errors), (0, ""))
+        value = json.loads(output)
+        self.assertEqual((value["state"], value["stages_done"], value["stages_total"]), ("failed", 1, 15))
+        self.assertEqual((value["stage"], value["returncode"], value["failure"]), ("continuous-B1", 2, "Missing numba"))
+        self.assertEqual([row["name"] for row in value["stages"]], list(self.STAGES))
+        self.assertEqual([row["status"] for row in value["stages"]], ["completed", "failed"] + ["not_run"] * 13)
+        self.assertEqual(value["stages"][1]["failure"], "Missing numba")
+        self.assertEqual({path: path.read_bytes() for path in self.run.rglob("*.json")}, files)
+
+    def test_mmlu_reports_active_arm_and_request_count_with_reused_stage(self):
+        self.plan({"continuous-B0": "reused_verified", "continuous-B1": "completed", "mmlu-pair": "running"})
+        self.write("mmlu-pair/B0/receipt.json", dict(status="completed"))
+        self.write("mmlu-pair/B1/receipt.json", dict(status="running-client"))
+        self.write("mmlu-pair/B1/service/case-001.json", {})
+
+        code, output, errors = self.invoke("--json")
+
+        self.assertEqual((code, errors), (0, ""))
+        value = json.loads(output)
+        self.assertEqual((value["stage"], value["phase"], value["responses"], value["planned"]),
+                         ("mmlu-pair/B1", "running-client", 1, 200))
+        self.assertEqual((value["state"], value["stages_done"], value["stages"][2]["active_arm"]), ("running", 2, "B1"))
+
+    def test_reference_progress_keeps_fixed_five_stage_count(self):
+        self.plan(dict.fromkeys(self.STAGES, "completed"))
+        self.write("compute-reference/automatic-plan.json", dict(stages=[
+            dict(id="gdn-decode-independent-reference"), dict(id="current-native-synchronized-timing")
+        ]))
+        self.write("compute-reference/status.json", dict(status="running", stages=[
+            dict(id="gdn-decode-independent-reference", status="completed"),
+            dict(id="current-native-synchronized-timing", status="running"),
+        ]))
+
+        code, output, errors = self.invoke("--json")
+
+        self.assertEqual((code, errors), (0, ""))
+        value = json.loads(output)
+        self.assertEqual((value["stages_done"], value["stages_total"]), (15, 15))
+        self.assertEqual((value["reference"]["stages_done"], value["reference"]["stages_total"]), (1, 2))
+        self.assertEqual(value["reference"]["stage"], "compute-reference/current-native-synchronized-timing")
+
+    def test_watch_handles_partial_records_and_stops_at_final_snapshot(self):
+        self.logs.mkdir()
+        names = ("continuous-B0", "continuous-B1")
+
+        def warming():
+            self.plan({"continuous-B0": "running"}, names)
+            self.write("continuous-B0/receipt.json", dict(status="warming-service"))
+
+        def partial():
+            (self.run / "execution-checklist.json").write_text('{"stages": [', encoding="utf-8")
+
+        def running():
+            self.plan({"continuous-B0": "running"}, names)
+            self.write("continuous-B0/receipt.json", dict(status="running-client"))
+
+        def complete():
+            self.plan(dict.fromkeys(names, "completed"), names)
+            self.write("continuous-B1/receipt.json", dict(status="completed"))
+            self.write("campaign.json", dict(status="completed"))
+            (self.logs / "exit.json").write_text('{"returncode": 0}', encoding="utf-8")
+
+        actions = iter((warming, partial, running, complete))
+        with patch.object(run_status.time, "sleep", side_effect=lambda _: next(actions)()):
+            code, output, errors = self.invoke("--watch")
+
+        self.assertEqual((code, errors), (0, ""))
+        self.assertLess(output.index("准备中"), output.index("warming-service"))
+        self.assertLess(output.index("warming-service"), output.index("running-client"))
+        self.assertIn("阶段 2/2", output)
+        self.assertIn("退出码 0", output)
+        _, once, _ = self.invoke()
+        self.assertIn(once.splitlines()[0], output)
+
+    def test_watch_interrupt_does_not_change_run(self):
+        self.plan({"continuous-B0": "running"}, ("continuous-B0",))
+        path = self.run / "execution-checklist.json"
+        before = path.read_bytes()
+        with patch.object(run_status.time, "sleep", side_effect=KeyboardInterrupt):
+            code, _, errors = self.invoke("--watch")
+        self.assertEqual((code, errors), (130, ""))
+        self.assertEqual(path.read_bytes(), before)
 
 
 if __name__ == "__main__":

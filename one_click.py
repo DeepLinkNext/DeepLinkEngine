@@ -240,6 +240,12 @@ def main(arguments=None):
     if arguments == ["fetch-reference"]:
         print("REFERENCE_EVIDENCE", reference_evidence(lock))
         return 0
+    if arguments[:1] == ["status"]:
+        sys.dont_write_bytecode = True
+        sys.path.insert(0, str(KIT / "scripts"))
+        from run_status import main as run_status
+
+        return run_status(arguments[1:])
     help_only = not arguments or any(arg in ("--help", "-h") for arg in arguments)
     read_only = arguments and arguments[0] in ("status", "dashboard")
     if not help_only and not read_only:
