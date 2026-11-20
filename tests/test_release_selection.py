@@ -122,3 +122,20 @@ def test_new_service_delegates_intern_and_qwen_to_installed_producer(tmp_path):
         command=handoff.call_args.args[1]
         assert command[:4]==['/private/bin/python','-m','vllm_hust_engine.cli','serve']
         assert '--dry-run' in command and str(tmp_path/model) in command
+
+
+def test_post_revision_is_stable_and_keeps_frozen_release(tmp_path):
+    version = '2026.11.19.9.post1'
+    filename = 'vllm_hust_engine-' + version + '.tar.gz'
+    row = dict(packagetype='sdist', yanked=False, filename=filename,
+               url='https://files.pythonhosted.org/packages/' + filename,
+               digests={'sha256': 'a' * 64}, size=1024)
+    assert selection.stable_sdist({'releases': {version: [row]}})[0] == version
+    frozen = dict(version=version, release='full-answer-b1-20261119-r9')
+    raw = json.dumps(frozen).encode()
+    path = tmp_path / filename
+    with tarfile.open(path, 'w:gz') as stream:
+        member = tarfile.TarInfo('vllm_hust_engine-' + version + '/src/vllm_hust_engine/payload/frozen.json')
+        member.size = len(raw)
+        stream.addfile(member, io.BytesIO(raw))
+    assert selection.metadata(path, version) == frozen
