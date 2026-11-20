@@ -47,7 +47,7 @@ class StartupCacheAdmissionTests(unittest.TestCase):
             binary = sdk / "original-library.so"
             binary.write_bytes(b"unchanged pinned SDK")
             weights = self.fixture(root)
-            guard = Guard(50)
+            guard = Guard(24)
             original_digest = hashlib.file_digest
 
             def digest(stream, algorithm):
@@ -58,7 +58,7 @@ class StartupCacheAdmissionTests(unittest.TestCase):
                 import os
 
                 if Path(os.readlink(f"/proc/self/fd/{fd}")) == binary:
-                    guard.current = 50
+                    guard.current = 24
 
             with (
                 patch("baseline_image_sdk.hashlib.file_digest", side_effect=digest),
