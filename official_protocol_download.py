@@ -15,6 +15,8 @@ def artifacts():
             rows.append(dict(part,filename=part['name'],cache_subdirectory='b0-parts',role='original018-protocol-dependency'))
     for source in lock['environment_sources'].values():
         rows.append(dict(source,cache_subdirectory='wheels',role='common-protocol-environment'))
+    for source in lock.get('runtime_compatibility_sources',{}).values():
+        rows.append(dict(source,cache_subdirectory='wheels',role='common-protocol-runtime-compatibility'))
     for source in lock['assets']:
         if source.get('deepengine_url'):
             rows.append(dict(source,filename=source['name'],url=source['deepengine_url'],cache_subdirectory='wheels',role='common-protocol-engine-package'))
