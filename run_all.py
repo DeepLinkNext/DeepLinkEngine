@@ -17,7 +17,7 @@ PATH_FIELDS = {"model", "cache", "out", "baseline_deployment", "dataset_assets",
 FIELDS = PATH_FIELDS | {"physical_devices", "devices", "environment", "engine_version", "rerun_b0", "allow_device_change"}
 
 
-def configuration(path, *, allow_existing=False):
+def configuration(path, *, allow_existing=False, report_only=False):
     path = Path(path).resolve()
     data = json.loads(path.read_text())
     if not isinstance(data, dict) or set(data) - FIELDS:
@@ -53,7 +53,7 @@ def configuration(path, *, allow_existing=False):
         boolean(data["rerun_b0"])
     if "allow_device_change" in data and type(data["allow_device_change"]) is not bool:
         raise ValueError("allow_device_change requires a boolean")
-    if not Path(data["model"]).is_dir():
+    if not report_only and not Path(data["model"]).is_dir():
         raise ValueError("Model directory does not exist: " + data["model"])
     if os.path.lexists(data["out"]) and not allow_existing:
         raise ValueError("Choose a new output directory: " + data["out"])
@@ -229,15 +229,18 @@ def qualified_reference(campaign):
     return result
 
 
-def full_report_command(out, destination=None):
+def full_report_command(out, destination=None, actual_cost=None):
     command="""import subprocess,sys
 from pathlib import Path
 root=Path(sys.argv[1]);sys.path.insert(0,str(__import__('release_selection').kit_path()/'scripts'))
 from report_environment import report_python
 python,env=report_python()
-raise SystemExit(subprocess.run([str(python),'-B',str(root/'full_report.py'),'--run',sys.argv[2],'--out',sys.argv[3]],env=env).returncode)
+raise SystemExit(subprocess.run([str(python),'-B',str(root/'full_report.py'),'--run',sys.argv[2],'--out',sys.argv[3],*sys.argv[4:]],env=env).returncode)
 """
-    return [sys.executable,'-c',command,str(ROOT),str(out),str(destination or out/'full-report')]
+    args = [sys.executable, '-c', command, str(ROOT), str(out), str(destination or out/'full-report')]
+    if actual_cost is not None:
+        args.extend(['--actual-cost', str(Path(actual_cost).resolve())])
+    return args
 
 
 def completed_run_source(data, source):
@@ -307,7 +310,8 @@ def completed_run_source(data, source):
 
 
 def run(data, *, resume_bootstrap=False, resume_before_model=False, resume_before_inference=False,
-        reuse_completed_run=None, reuse_completed_campaigns=(), reuse_mmlu_baseline_arm=None, reuse_context_baseline_arm=None, reuse_compute_baseline_arm=None):
+        reuse_completed_run=None, reuse_completed_campaigns=(), reuse_mmlu_baseline_arm=None, reuse_context_baseline_arm=None, reuse_compute_baseline_arm=None,
+        actual_cost=None):
     out = Path(data["out"])
     reused_run = completed_run_source(data, reuse_completed_run) if reuse_completed_run else None
     if reused_run and os.path.lexists(out):
@@ -492,9 +496,9 @@ def run(data, *, resume_bootstrap=False, resume_before_model=False, resume_befor
         stage("run-context-tenant", supplement)
         campaign, reports, hashes = completed_evidence(out)
         reference_target = qualified_reference(campaign)
-        stage("render-full-report", full_report_command(out))
+        stage("render-full-report", full_report_command(out, actual_cost=actual_cost))
         summary_path = out / "full-report/summary.json"
-        overview = json.loads(summary_path.read_text())
+        overview = json.loads(summary_path.read_bytes())
         if (overview.get("schema") != "deeplinkengine-full-acceptance-report/v1"
             or overview.get("execution_complete") is not True
             or set(overview.get("targets", {})) != {"4.1", "4.2", "4.3", "4.4"}
@@ -506,7 +510,10 @@ def run(data, *, resume_bootstrap=False, resume_before_model=False, resume_befor
         for name in ("full-report/summary.json", "full-report/report.html", "full-report/fixed-five.svg", "full-report/fixed-five.png"):
             with (out/name).open("rb") as stream:
                 hashes[name] = hashlib.file_digest(stream,"sha256").hexdigest()
-        receipt.update(status="completed", automated_acceptance_complete=True, targets=overview["targets"], reports=reports, evidence_sha256=hashes,
+        cost = overview["targets"]["4.4"]
+        cost_complete = all(cost[level].get("evidence_status") == "verified" for level in ("milestone", "final"))
+        receipt.update(status="completed", automated_acceptance_complete=cost_complete,
+                       targets=overview["targets"], reports=reports, evidence_sha256=hashes,
                        fixed_five_execution=campaign["selected_execution_complete"],
                        compute_reference=campaign["compute_reference"], compute_reference_target=reference_target)
         return 0
@@ -552,6 +559,7 @@ def main():
     parser.add_argument("--resume-before-model", action="store_true", help="Recover a sealed first-stage failure only when no service or inference ever started")
     parser.add_argument("--resume-before-inference", action="store_true", help="Recover a sealed failed model startup only if no formal client ever started; preserves startup originals")
     parser.add_argument("--report-only", action="store_true", help="Re-audit completed originals and regenerate all four decisions without repeating inference")
+    parser.add_argument("--actual-cost", type=Path, help="V2 actual card cost manifest for the full report")
     parser.add_argument("--reuse-completed-run", type=Path, help="Continue in a NEW output directory; audit and reuse completed sealed stages from this prior run, retaining all failed originals")
     parser.add_argument('--reuse-completed-campaign', type=Path, action='append', default=[], help='Additional explicitly selected sealed campaign; all scope, runtime, raw and provenance checks remain required')
     parser.add_argument('--reuse-mmlu-baseline-arm', type=Path, help='Explicit sealed fixed-B0 original200 arm; retain its original answers, dates and identity')
@@ -560,7 +568,9 @@ def main():
     parser.add_argument("--rerun-b0", action=argparse.BooleanOptionalAction, default=None, help="是否重跑固定 B0；默认否，复用已封存结果；首次测量显式开启")
     args = parser.parse_args()
     try:
-        data = configuration(args.config, allow_existing=args.resume_bootstrap or args.resume_before_model or args.resume_before_inference or args.report_only)
+        data = configuration(args.config,
+                             allow_existing=args.resume_bootstrap or args.resume_before_model or args.resume_before_inference or args.report_only,
+                             report_only=args.report_only)
         if args.rerun_b0 is not None:
             data["rerun_b0"] = args.rerun_b0
         os.environ["XDG_CACHE_HOME"] = os.environ.get("XDG_CACHE_HOME") or str(Path(data["cache"]) / "xdg")
@@ -573,7 +583,7 @@ def main():
             if (out / 'engine-selection.json').is_file():
                 bind(out / 'engine-selection.json')
             destination = out / ("full-report-" + uuid.uuid4().hex)
-            return subprocess.run(full_report_command(out,destination)).returncode
+            return subprocess.run(full_report_command(out, destination, actual_cost=args.actual_cost)).returncode
         recovery = args.resume_bootstrap or args.resume_before_model or args.resume_before_inference
         if (args.reuse_completed_campaign or args.reuse_mmlu_baseline_arm or args.reuse_context_baseline_arm or args.reuse_compute_baseline_arm) and not (args.reuse_completed_run or recovery):
             raise ValueError('Additional sealed sources require explicit completed-run recovery')
@@ -609,7 +619,7 @@ def main():
         return 0
     return run(data, resume_bootstrap=args.resume_bootstrap, resume_before_model=args.resume_before_model, resume_before_inference=args.resume_before_inference,
                reuse_completed_run=args.reuse_completed_run, reuse_completed_campaigns=args.reuse_completed_campaign,
-               reuse_mmlu_baseline_arm=args.reuse_mmlu_baseline_arm, reuse_context_baseline_arm=args.reuse_context_baseline_arm, reuse_compute_baseline_arm=args.reuse_compute_baseline_arm)
+               reuse_mmlu_baseline_arm=args.reuse_mmlu_baseline_arm, reuse_context_baseline_arm=args.reuse_context_baseline_arm, reuse_compute_baseline_arm=args.reuse_compute_baseline_arm, actual_cost=args.actual_cost)
 
 
 if __name__ == "__main__":

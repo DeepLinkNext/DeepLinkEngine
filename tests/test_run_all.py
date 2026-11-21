@@ -60,7 +60,7 @@ class WorkflowTests(unittest.TestCase):
                        ["4096-formal", "16384-formal", "32768-formal", "multi-tenant-formal"]]))
             self.write("context-tenant/paired-report/report.html", "fixture report")
         if len(args)>2 and "report_python" in args[2]:
-            self.write("full-report/summary.json",dict(schema="deeplinkengine-full-acceptance-report/v1",execution_complete=True,targets={k:dict(milestone=dict(met=True,status="达成目标"),final=dict(met=False,status="未达成目标")) for k in ("4.1","4.2","4.3","4.4")}))
+            self.write("full-report/summary.json",dict(schema="deeplinkengine-full-acceptance-report/v1",execution_complete=True,targets={k:dict(milestone=dict(met=True,status="达成目标",evidence_status="verified"),final=dict(met=False,status="未达成目标",evidence_status="verified")) for k in ("4.1","4.2","4.3","4.4")}))
             for name in ("report.html","fixed-five.svg","fixed-five.png"):
                 self.write("full-report/"+name,"fixture only")
         return types.SimpleNamespace(returncode=0)
@@ -81,6 +81,36 @@ class WorkflowTests(unittest.TestCase):
         self.assertEqual(len(receipt["evidence_sha256"]), 11)
         names = [row["name"] for row in receipt["stages"]]
         self.assertLess(names.index("verify-installed-tools"), names.index("run-context-tenant"))
+
+    def test_completed_measurements_keep_report_when_actual_cost_is_missing(self):
+        def execute(args, **kwargs):
+            result = self.execute(args, **kwargs)
+            if len(args) > 2 and 'report_python' in args[2]:
+                path = self.root / 'result/full-report/summary.json'
+                data = json.loads(path.read_bytes())
+                data['targets']['4.4']['milestone'] = dict(met=False, status='未达成目标', evidence_status='missing')
+                self.write('full-report/summary.json', data)
+            return result
+
+        code, receipt = self.invoke(execute)
+        self.assertEqual(code, 0)
+        self.assertEqual(receipt['status'], 'completed')
+        self.assertFalse(receipt['automated_acceptance_complete'])
+        self.assertEqual(receipt['targets']['4.4']['milestone']['evidence_status'], 'missing')
+
+    def test_report_only_passes_cost_manifest_without_model_directory(self):
+        self.data['model'] = str(self.root / 'no-model')
+        config = self.root / 'evaluation.json'
+        config.write_text(json.dumps(self.data))
+        expense = self.root / 'cost with spaces.json'
+        command = ['run_all.py', '--config', str(config), '--report-only', '--actual-cost', str(expense)]
+        with patch.object(sys, 'argv', command), patch.dict(workflow.os.environ, {}), \
+             patch.object(workflow.subprocess, 'run', return_value=types.SimpleNamespace(returncode=0)) as runner:
+            self.assertEqual(workflow.main(), 0)
+        runner.assert_called_once()
+        args = runner.call_args.args[0]
+        self.assertEqual(args[-2:], ['--actual-cost', str(expense)])
+        self.assertIn('full-report-', args[-3])
 
     def test_sealed_stage_reuse_is_forwarded_and_failure_originals_are_untouched(self):
         self.data["rerun_b0"] = False
