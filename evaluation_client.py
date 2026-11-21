@@ -529,12 +529,11 @@ def device_change_bridge(result):
          '                    command.append("--allow-device-change")\n'
          '                if baseline_native:\n                    command +='),
     ])
-    # The generated context-only verifier changes whenever the selected
-    # scripts inventory changes. It is outside both reference launch paths.
+    # Context verification and plotting do not contribute to reference measurements.
     for name in ('reference_model_reuse', 'reference_qualification_reuse'):
         edit(name, [
             ('"scripts/live_console.py",',
-             '"scripts/live_console.py", "scripts/context_baseline_reuse.py",'),
+             '"scripts/live_console.py", "scripts/context_baseline_reuse.py", "scripts/acceptance_report.py",'),
         ])
     edit('reference_model_reuse', [
         ('        path = source / directory / "receipt.json"',
@@ -606,6 +605,11 @@ def device_change_bridge(result):
          '        if device_change:\n'
          '            state["device_change"] = device_change\n'
          '        save(output / "paired-summary.json", paired(arms, device_change=device_change) if device_change else paired(arms))'),
+    ])
+    edit('acceptance_report', [
+        ('    checked = paired({role: Path(path) for role, path in data["arms"].items()})',
+         '    arms = {role: Path(path) for role, path in data["arms"].items()}\n'
+         '    checked = paired(arms, device_change=data.get("device_change"))'),
     ])
     edit('third_party_report', [
         ('        "current_mmlu_pair": pair,',
@@ -692,7 +696,7 @@ def http_replay_bridge(result):
     text = result[key].decode()
     text = once(text, '    "scripts/reference_qualification_reuse.py", "scripts/run_native_reference.py", "scripts/third_party.py",',
         '    "scripts/reference_qualification_reuse.py", "scripts/run_native_reference.py", "scripts/third_party.py",\n'
-        '    "scripts/reference_observation_reuse.py", "scripts/context_baseline_reuse.py",')
+        '    "scripts/reference_observation_reuse.py", "scripts/context_baseline_reuse.py", "scripts/acceptance_report.py",')
     result[key] = text.encode()
 
     key = 'scripts/automatic_reference.py'
