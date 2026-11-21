@@ -50,9 +50,15 @@ def main(arguments=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--config', type=Path, required=True)
     parser.add_argument('--prepare-environment', action='store_true')
+    parser.add_argument('--reuse-completed-continuous', type=Path,
+                        help='In a new output, retain sealed C8 after a later pre-model failure; preserve original clocks')
     args = parser.parse_args(arguments)
     try:
         config = configuration(args.config)
+        if args.reuse_completed_continuous:
+            if args.prepare_environment or len(config['versions']) != 1:
+                raise ValueError('Completed C8 recovery requires one explicit full-suite version')
+            config['reuse_completed_continuous'] = str(args.reuse_completed_continuous.resolve())
         if platform.system() != 'Linux' or platform.machine() != 'aarch64':
             raise ValueError('Official Ascend baselines require Linux aarch64')
         from official_storage import prefer

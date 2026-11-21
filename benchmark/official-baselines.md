@@ -19,3 +19,5 @@ python run_all.py --official-baselines --config evaluation.json
 完整题单为 MMLU 200、HLE 200、Frontier 160、SWE 64、Terminal 48，另测连续负载、4K/16K/32K、四租户及原生计时。HLE/Frontier 共用已安装的同一裁判，裁判流量不计入求解性能。源码计量适用性和新 F/T 未核验完成时，报告仍为未完成，不填效率或达标结论。失败不自动重试、不更改生成预算、不回退 eager。
 
 每个版本保存独立 `campaign.json`、原始输出、日志、`report.json` 和 `report.html`。本入口及其 CPU 检查不构成完整实机验收或独立第三方认证。
+
+连续负载已完成、随后 MMLU 在模型启动前失败时，可选择新输出目录和单个版本，增加 `--reuse-completed-continuous /原输出/版本/continuous`。入口核验完整封存、官方镜像、模型、输入、物理卡映射及源码适用性；原连续结果保留原时间，不重测或改写。已启动模型的后续失败不适用此恢复入口。

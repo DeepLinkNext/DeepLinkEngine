@@ -6,7 +6,6 @@ import os
 from pathlib import Path
 import signal
 import shutil
-import socket
 import subprocess
 import sys
 import time
@@ -228,8 +227,8 @@ def phase(config, image, phase_name, output, tools, sdk, sources, leases, contin
     save(output / 'receipt.json', receipt)
     processes = []
     try:
-        with socket.socket() as probe:
-            probe.bind(('127.0.0.1', 18390))
+        from official_endpoint import available
+        available()
         command = [str(python), '-S', str(ROOT / 'official_serve.py'), str(service / 'plan.json')]
         with (output / 'service.log').open('xb') as log:
             server = subprocess.Popen(command, env=env, stdout=log, stderr=subprocess.STDOUT,
@@ -310,7 +309,7 @@ def run(config, image, output):
     sources.update({str(ROOT / name): digest(ROOT / name) for name in
                     ('official_suite.py', 'official_http.py', 'official_serve.py', 'official_worker.py',
                      'official_judge.py', 'official_native.py', 'official_native_entry.py', 'official_report.py', 'official_plots.py',
-                     'official_kernel_preparation.py')})
+                     'official_kernel_preparation.py', 'official_endpoint.py', 'official_reuse.py')})
     frozen = dict(schema='deeplinkengine-official-full-suite/v1', baseline_image=json.loads((image / 'image-lock.json').read_bytes()),
                   status='preparing', prepared_before_model_start=True, started=time.time(),
                   sources=sources, physical_mapping=mapping,
@@ -334,6 +333,15 @@ def run(config, image, output):
         if len(weights) != 14 or sum(v['bytes'] for v in weights.values()) != 71903878016:
             raise ValueError('Fixed BF16 14-shard Qwen3.5-35B-A3B checkpoint required')
         save(output / 'model-weights.json', weights)
+        if config.get('reuse_completed_continuous'):
+            from official_reuse import admit
+            retained = admit(config['reuse_completed_continuous'], output / 'continuous',
+                             config=config, image_lock=frozen['baseline_image'], sources=sources,
+                             weights=weights, mapping=mapping, inputs=continuous,
+                             current_root=ROOT, arguments=public_arguments('continuous'))
+            save(output / 'continuous-reuse.json', retained)
+            frozen['stages'][0].update(status='reused', reuse=retained)
+            save(output / 'campaign.json', frozen)
         if config.get('context_contract'):
             raise ValueError('Explicit external context contracts require a dedicated identity adapter')
         preparation = output / 'input-preparation'
@@ -353,6 +361,8 @@ def run(config, image, output):
         frozen['status'] = 'running'
         save(output / 'campaign.json', frozen)
         for row in frozen['stages']:
+            if row['status'] == 'reused':
+                continue
             row.update(status='running', started=time.time())
             save(output / 'campaign.json', frozen)
             try:
