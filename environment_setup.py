@@ -189,48 +189,107 @@ def cached_wheel(source, links, cache):
                 raise ValueError("Cached wheel must not be a symlink")
             target.rename(target.with_name(filename + ".invalid-" + wheel_digest(target)[:12]))
         urls = list(dict.fromkeys([source.get("api_url", source["url"]), source["url"]]))
-        last_error = None
+        return _download_dependency(source,target,urls,valid)
+
+
+def _download_dependency(source,target,urls,valid):
+    """Resume only the pinned artifact; partials remain unqualified until full SHA."""
+    import re
+    filename=source['filename'];size=source.get('bytes')
+    partial=target.with_name(filename+'.download.partial')
+    provenance=target.with_name(filename+'.download.json')
+    if partial.is_symlink() or provenance.is_symlink():
+        raise ValueError('Dependency partial paths must not be links')
+    pin=dict(filename=filename,sha256=source['sha256'],bytes=size)
+    if provenance.exists():
+        journal=json.loads(provenance.read_bytes())
+        if journal.get('schema')!='deeplinkengine-dependency-download/v1' or journal.get('artifact')!=pin:
+            raise ValueError('Dependency partial has a different pinned source; preserve '+str(provenance))
+        if partial.exists():
+            if (partial.stat().st_size!=journal.get('partial_bytes')
+                    or wheel_digest(partial)!=journal.get('partial_sha256')):
+                raise ValueError('Dependency partial changed outside its recorded transfer; preserve '+str(partial))
+    else:
+        if partial.exists():raise ValueError('Unowned dependency partial retained: '+str(partial))
+        journal=dict(schema='deeplinkengine-dependency-download/v1',artifact=pin,started=time.time(),attempts=[])
+    if journal.get('error'):
+        journal.setdefault('previous_failures',[]).append(dict(error=journal.pop('error'),ended=journal.get('ended')))
+    journal.pop('ended',None)
+    journal.update(status='running',last_invocation_started=time.time())
+    journal.pop('completed_file',None)
+    def checkpoint():
+        journal.update(partial_path=str(partial),partial_bytes=partial.stat().st_size if partial.exists() else 0,
+                       partial_sha256=wheel_digest(partial) if partial.exists() else hashlib.sha256(b'').hexdigest(),
+                       updated=time.time(),partial_qualified=False)
+        save(provenance,journal)
+    checkpoint();last_error=None
+    try:
+        if valid(partial):
+            partial.replace(target);journal.update(status='completed',completed_file=dict(path=str(target),bytes=target.stat().st_size,sha256=source['sha256']))
+            return target.resolve()
+        if partial.exists() and size is not None and partial.stat().st_size>=size:
+            raise ValueError('Dependency partial fails its pinned whole SHA; preserve '+str(partial))
         for attempt in range(2):
             for url in urls:
-                print("ENVIRONMENT downloading", filename, flush=True)
-                temporary = None
-                try:
-                    request = urllib.request.Request(url, headers={"User-Agent": "DeepLinkEngine-environment", "Accept": "application/octet-stream"})
-                    with tempfile.NamedTemporaryFile(dir=cache, prefix="wheel-", delete=False) as stream:
-                        temporary = Path(stream.name)
-                        with urllib.request.urlopen(request, timeout=45) as raw:
-                            read=getattr(raw,'read1',raw.read)
-                            checked=time.monotonic();checked_bytes=0
-                            while block := read(64 * 1024):
-                                stream.write(block)
-                                if stream.tell() > source.get("bytes", 2 * 1024**3):
-                                    raise ValueError("Dependency download exceeds its fixed size")
-                                now=time.monotonic()
-                                if now-checked>=45:
-                                    received=stream.tell()
-                                    print('ENVIRONMENT progress',filename,received,source.get('bytes'),flush=True)
-                                    if (received-checked_bytes)/(now-checked)<1024:
-                                        raise OSError('Dependency transfer remains below 1 KiB/s: '+filename)
-                                    checked,checked_bytes=now,received
-                    observed_bytes = temporary.stat().st_size
-                    if "bytes" in source and observed_bytes < source["bytes"]:
-                        # read(size) may return EOF without raising IncompleteRead.
-                        # Retry a truncated transfer, but never admit its bytes.
-                        raise OSError(f"Truncated dependency download: {filename}: "
-                                      f"received {observed_bytes}, expected {source['bytes']} bytes")
-                    if not valid(temporary):
-                        raise ValueError("Dependency wheel size or SHA-256 mismatch: " + filename
-                                         + "; bytes=" + str(observed_bytes)
-                                         + "; sha256=" + wheel_digest(temporary))
-                    temporary.replace(target)
-                    return target.resolve()
-                except (urllib.error.URLError, TimeoutError, OSError, http.client.IncompleteRead) as error:
-                    last_error = error
-                    print("ENVIRONMENT download retry:", str(error), flush=True)
-                finally:
-                    if temporary is not None:
-                        temporary.unlink(missing_ok=True)
-        raise OSError("Dependency download failed: " + filename + ": " + str(last_error))
+                while True:
+                    offset=partial.stat().st_size if partial.exists() else 0
+                    event=dict(url=url,offset=offset,started=time.time());journal['attempts'].append(event);checkpoint()
+                    try:
+                        if offset and size is None:raise ValueError('Cannot resume a dependency without a pinned byte count')
+                        headers={'User-Agent':'DeepLinkEngine-environment','Accept':'application/octet-stream'}
+                        if offset:headers['Range']='bytes='+str(offset)+'-'
+                        print('ENVIRONMENT downloading',filename,'offset',offset,flush=True)
+                        request=urllib.request.Request(url,headers=headers)
+                        with urllib.request.urlopen(request,timeout=45) as raw:
+                            status=getattr(raw,'status',200);header=raw.headers.get('Content-Range') if hasattr(raw,'headers') else None
+                            event.update(response_status=status,content_range=header)
+                            if offset or status==206:
+                                match=re.fullmatch(r'bytes (\d+)-(\d+)/(\d+)',header or '')
+                                if (status!=206 or not match or size is None or int(match[1])!=offset
+                                        or int(match[3])!=size or not offset<=int(match[2])<size):
+                                    raise OSError('Dependency resume requires exact206/Content-Range/total bytes')
+                                response_bytes=int(match[2])-offset+1
+                            else:
+                                if status!=200:raise OSError('Unexpected dependency HTTP status')
+                                response_bytes=None
+                            read=getattr(raw,'read1',raw.read);checked=time.monotonic();checked_bytes=offset
+                            with partial.open('ab') as stream:
+                                while block:=read(64*1024):
+                                    if (stream.tell()+len(block)>source.get('bytes',2*1024**3)
+                                            or response_bytes is not None and stream.tell()+len(block)-offset>response_bytes):
+                                        raise ValueError('Dependency download exceeds its fixed size or declared range')
+                                    stream.write(block);now=time.monotonic()
+                                    if now-checked>=45:
+                                        received=stream.tell();print('ENVIRONMENT progress',filename,received,size,flush=True)
+                                        if (size is None or received<size) and (received-checked_bytes)/(now-checked)<1024:
+                                            raise OSError('Dependency transfer remains below 1 KiB/s: '+filename)
+                                        checked,checked_bytes=now,received
+                        observed=partial.stat().st_size
+                        if size is not None and observed<size:
+                            message=f'Truncated dependency download: {filename}: received {observed}, expected {size}'
+                            event.update(status='truncated',error=message)
+                            # Large useful fragments do not consume the network-error
+                            # retry budget. Every continuation advances at least1MiB.
+                            if observed-offset>=1024**2:continue
+                            raise OSError(message)
+                        if not valid(partial):raise ValueError('Dependency wheel size or SHA-256 mismatch: '+filename)
+                        partial.replace(target);event.update(status='completed',received_bytes=observed-offset)
+                        journal.update(status='completed',completed_file=dict(path=str(target),bytes=observed,sha256=source['sha256']))
+                        return target.resolve()
+                    except (urllib.error.URLError,TimeoutError,OSError,http.client.IncompleteRead) as error:
+                        last_error=error;event.update(status='retry',error=type(error).__name__+': '+str(error))
+                        if isinstance(error,urllib.error.HTTPError):error.close()
+                        print('ENVIRONMENT download retry:',str(error),flush=True);break
+                    except BaseException as error:
+                        event.update(status='failed',error=type(error).__name__+': '+str(error));raise
+                    finally:
+                        event.update(ended=time.time(),partial_bytes=partial.stat().st_size if partial.exists() else 0)
+                        checkpoint()
+        raise OSError('Dependency download failed: '+filename+': '+str(last_error)+'; preserve '+str(partial))
+    except BaseException as error:
+        journal.update(status='interrupted' if isinstance(error,KeyboardInterrupt) else 'failed',error=type(error).__name__+': '+str(error));raise
+    finally:
+        journal['ended']=time.time();checkpoint()
 
 
 def report_state(path):

@@ -66,10 +66,12 @@ class ProtocolDownload(unittest.TestCase):
             self.assertEqual(self.invoke(),0)
 
     def test_continued_trickle_is_bounded_and_never_admitted(self):
-        with patch('urllib.request.urlopen',side_effect=lambda *a,**k:io.BytesIO(self.raw)), \
+        with patch('urllib.request.urlopen',side_effect=lambda *a,**k:io.BytesIO(self.raw[:1])), \
              patch('environment_setup.time.monotonic',side_effect=itertools.count(0,46)):
-            with self.assertRaisesRegex(OSError,'below 1 KiB/s'):self.invoke()
+            with self.assertRaisesRegex(OSError,'Dependency download failed'):self.invoke()
         self.assertFalse((self.root/'cache/b0-parts/fixture.part-001').exists())
+        journal=json.loads((self.root/'cache/b0-parts/fixture.part-001.download.json').read_bytes())
+        self.assertIn('below 1 KiB/s',journal['attempts'][0]['error'])
 
 
 if __name__=='__main__':unittest.main()
