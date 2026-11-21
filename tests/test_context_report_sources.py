@@ -126,7 +126,8 @@ def collect_fixture(tmp_path, changed=None, actual_cost=None):
             patch('third_party_report.inspect', return_value=observed), \
             patch('acceptance_suite.paired', side_effect=paired), \
             patch.object(report, 'audit_context', side_effect=audit), \
-            patch.object(report, 'targets', return_value={}) as targets, patch.object(report, 'workload_pairs', return_value={}):
+            patch.object(report, 'targets', return_value={}) as targets, patch.object(report, 'workload_pairs', return_value={}), \
+            patch.object(report, 'workload_sources', return_value={}):
         result = report.collect(run, cost_path)
         expected = (cost_path or default) if actual_cost else None
         assert targets.call_args.args[-1] == expected
@@ -152,3 +153,34 @@ def test_other_candidate_or_model_cannot_supply_context_results(tmp_path,changed
 @pytest.mark.parametrize('mode', ['default', 'override'])
 def test_sealed_report_picks_up_fee_file_and_respects_an_explicit_override(tmp_path, mode):
     collect_fixture(tmp_path, actual_cost=mode)
+
+
+def test_dataset_source_is_taken_from_the_audited_cohort(tmp_path):
+    base = tmp_path / 'acceptance-inputs'
+    base.mkdir()
+    def case(task_id, tokens):
+        return dict(task_id=task_id, input_tokens=tokens, source_index=7, source_sha256='a'*64,
+                    source_body_sha256='b'*64, token_ids_sha256='c'*64, request={'secret': 'unpublished body'})
+    inputs = {'4096': [case('terminal:dna-insert', 7366)], '16384': [case('swe:repo-issue', 19500)]}
+    path = base / 'acceptance-inputs.json'
+    path.write_bytes(json.dumps(inputs).encode())
+    contract = dict(input_sha256=hashlib.sha256(path.read_bytes()).hexdigest(), source_protocol_sha256='d'*64,
+                    output_tokens=256,
+                    cohorts=[dict(min_tokens=4096, max_tokens_exclusive=8192),
+                             dict(min_tokens=16384, max_tokens_exclusive=24576)],
+                    phases=[dict(id='multi-tenant', cohort='4096', tenants=4, concurrency=24,
+                                 warmup_seconds=60, formal_seconds=300)])
+    sources = report.workload_sources(dict(plan={}), dict(contract=contract), tmp_path)
+    phases = sources['context']['phases']
+    assert phases['multi-tenant-formal']['cohort'] == '4096'
+    cohorts = sources['context']['cohorts']
+    assert cohorts['4096']['datasets'] == ['Terminal-Bench 2.1']
+    assert cohorts['16384']['datasets'] == ['SWE-bench Pro']
+    assert cohorts['4096']['cases'][0]['task_id'] == 'terminal:dna-insert'
+    assert 'unpublished body' not in json.dumps(sources)
+    table = report.workload_source_table(sources)
+    assert '四租户 C24</th><td>Terminal-Bench 2.1' in table
+    assert 'terminal:dna-insert' in table
+    path.write_bytes(path.read_bytes()+b' ')
+    with pytest.raises(ValueError, match='audited input digest'):
+        report.workload_sources(dict(plan={}), dict(contract=contract), tmp_path)
