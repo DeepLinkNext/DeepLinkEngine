@@ -32,9 +32,29 @@ SOURCES = {
 TORCH_BUILD_WHEEL = dict(filename='torch-2.13.0+cpu-cp312-cp312-manylinux_2_28_aarch64.whl',
     bytes=155005253,sha256='6f307c2c32d764ffc6ff6893b801fad6d4752f3e67966cb8abf1843427c02604',
     upstream_url='https://download-r2.pytorch.org/whl/cpu/torch-2.13.0%2Bcpu-cp312-cp312-manylinux_2_28_aarch64.whl')
+ASCEND_BUILD_WHEELS = {
+    'torch': dict(filename='torch-2.10.0+cpu-cp312-cp312-manylinux_2_28_aarch64.whl',bytes=146526037,
+        sha256='179451716487f8cb09b56459667fa1f5c4c0946c1e75fbeae77cfc40a5768d87',
+        url='https://download-r2.pytorch.org/whl/cpu/torch-2.10.0%2Bcpu-cp312-cp312-manylinux_2_28_aarch64.whl',
+        requirement='torch==2.10.0'),
+    'torch-npu': dict(filename='torch_npu-2.10.0.post4-cp312-cp312-manylinux_2_28_aarch64.whl',bytes=36263525,
+        sha256='5cee8b07d98b2188297916342fc587228bfca5703ffa8f48be1a69373414aa44',
+        url='https://files.pythonhosted.org/packages/64/8d/3d10b7852b4e7f1392d6b68457537d3e4cdd8be04dcdaae83c14344b571b/torch_npu-2.10.0.post4-cp312-cp312-manylinux_2_28_aarch64.whl',
+        requirement='torch-npu==2.10.0.post4'),
+}
 
 
-def torch_build_constraint(python, core, cache, build, env, *, sdk):
+def build_dependency_artifacts():
+    catalog=Path(__file__).parent/'engine/r8-lock.json'
+    source=json.loads(catalog.read_bytes())['environment_sources']['torch']
+    if any(source.get(k)!=v for k,v in TORCH_BUILD_WHEEL.items()):
+        raise ValueError('Shared Torch artifact differs from the official isolated build wheel')
+    rows=[dict(source,stage='01-core',package='torch',requirement='torch==2.13.0')]
+    rows += [dict(row,stage='03-ascend',package=name,upstream_url=row['url']) for name,row in ASCEND_BUILD_WHEELS.items()]
+    return {'sha256:'+row['sha256']:row for row in rows}
+
+
+def primary_build_constraint(python, core, cache, build, env, *, sdk, stage='01-core'):
     """Bind only isolated build Torch to the same official wheel in shared cache."""
     import tomllib
     from official_execution import sdk_run
@@ -42,18 +62,26 @@ def torch_build_constraint(python, core, cache, build, env, *, sdk):
     from environment_setup import cached_wheel
     pyproject=core/'pyproject.toml'
     requirements=tomllib.loads(pyproject.read_text())['build-system']['requires']
-    torch=[r for r in requirements if re.match(r'^torch(?:\s|[=<>!~\[])',r)]
-    if len(torch)!=1 or re.sub(r'\s+','',torch[0])!='torch==2.13.0':
-        raise ValueError('Official core isolated Torch build requirement changed')
+    selected=[row for row in build_dependency_artifacts().values() if row['stage']==stage]
+    if not selected or stage not in ('01-core','03-ascend'):
+        raise ValueError('Unknown isolated source-build dependency stage')
+    normalized=[re.sub(r'\s+','',r) for r in requirements]
+    for row in selected:
+        package=re.escape(row['package']).replace(r'\-',r'[-_]')
+        matches=[r for r in normalized if re.match('^'+package+r'(?:[=<>!~;\[]|$)',r)]
+        if matches!=[row['requirement']]:
+            raise ValueError('Official isolated Torch build requirement changed')
     catalog=Path(__file__).parent/'engine/r8-lock.json'
-    source=json.loads(catalog.read_bytes())['environment_sources']['torch']
-    if any(source.get(k)!=v for k,v in TORCH_BUILD_WHEEL.items()):
-        raise ValueError('Shared Torch artifact differs from the official isolated build wheel')
-    wheel=cached_wheel(source,[],cache/'wheels')
-    if wheel.stat().st_size!=TORCH_BUILD_WHEEL['bytes'] or digest(wheel)!=TORCH_BUILD_WHEEL['sha256']:
-        raise ValueError('Isolated Torch build cache failed fresh whole SHA verification')
-    constraint=build/'isolated-build-constraints.txt'
-    constraint.write_text('torch @ '+wheel.as_uri()+'#sha256='+TORCH_BUILD_WHEEL['sha256']+'\n')
+    wheels=[];lines=[]
+    for row in selected:
+        wheel=cached_wheel(row,[],cache/'wheels')
+        if wheel.stat().st_size!=row['bytes'] or digest(wheel)!=row['sha256']:
+            raise ValueError('Isolated Torch build cache failed fresh whole SHA verification')
+        lines.append(row['package']+' @ '+wheel.as_uri()+'#sha256='+row['sha256'])
+        wheels.append(dict(package=row['package'],path=str(wheel),bytes=wheel.stat().st_size,
+                           sha256=digest(wheel),upstream_url=row['upstream_url']))
+    constraint=build/(stage+'-isolated-build-constraints.txt')
+    constraint.write_text('\n'.join(lines)+'\n')
     # Parse through this actual private pip, rather than infer support from a
     # version string. No install or framework import is performed by this probe.
     probe_env=dict(env,PIP_BUILD_CONSTRAINT=str(constraint))
@@ -65,13 +93,17 @@ def torch_build_constraint(python, core, cache, build, env, *, sdk):
     capability=json.loads(observed.stdout)
     if capability.get('build_constraints')!=[str(constraint)]:
         raise ValueError('Private pip does not support isolated PIP_BUILD_CONSTRAINT')
-    return constraint,dict(scope='01-core-isolated-build-only',requirement=torch[0],
-        pyproject_sha256=digest(pyproject),wheel=str(wheel),wheel_bytes=wheel.stat().st_size,
-        wheel_sha256=digest(wheel),upstream_index='https://download.pytorch.org/whl/cpu/torch/',
+    return constraint,dict(scope=stage+'-isolated-build-only',requirements=[r['requirement'] for r in selected],
+        pyproject_sha256=digest(pyproject),wheels=wheels,upstream_index='https://download.pytorch.org/whl/cpu/torch/',
         upstream_index_observed_sha256='0261c242ed4b430439d719acf44c0c418c145594222eb850a4b37140792d0d25',
-        upstream_wheel_url=TORCH_BUILD_WHEEL['upstream_url'],shared_catalog=str(catalog),
+        torch_npu_origin_metadata_sha256='8c9dcee6f4dd51b1e91e717dc7c671408e6b40bc27e31f584172806ae22f0c69' if stage=='03-ascend' else None,shared_catalog=str(catalog),
         shared_catalog_sha256=digest(catalog),constraint=str(constraint),constraint_sha256=digest(constraint),
         pip_capability=capability,runtime_constraint_added=False,upstream_source_modified=False)
+
+
+def torch_build_constraint(python, core, cache, build, env, *, sdk, stage='01-core'):
+    from official_build_assets import prepare_stage
+    return prepare_stage(python,core,cache,build,env,sdk=sdk,stage=stage)
 
 
 def identity():
@@ -434,10 +466,13 @@ def prepare(base_lock_path, cache, output):
         command([str(python), '-S', '-m', 'pip', 'install', '-e', str(core) + '[audio]',
                  '--extra-index-url', 'https://download.pytorch.org/whl/cpu/'], core_env, core, build, '01-core')
         command([str(python), '-S', '-m', 'pip', 'uninstall', '-y', 'triton'], env, core, build, '02-remove-base-triton')
+        ascend_constraint,receipt['ascend_isolated_build_cache']=torch_build_constraint(python,ascend,cache,build,env,sdk=output,stage='03-ascend')
+        ascend_build_env=dict(ascend_env,PIP_BUILD_CONSTRAINT=str(ascend_constraint))
+        save(build/'receipt.json',receipt)
         command([str(python), '-S', '-m', 'pip', 'install', '-e', str(ascend),
                  '--extra-index-url', 'https://download.pytorch.org/whl/cpu/',
                  '--extra-index-url', 'https://mirrors.huaweicloud.com/ascend/repos/pypi'],
-                ascend_env, ascend, build, '03-ascend')
+                ascend_build_env, ascend, build, '03-ascend')
         command([str(python), '-S', '-m', 'pip', 'uninstall', '-y', 'triton', 'triton-ascend'], ascend_env, core, build, '04-remove-triton-overlap')
         command([str(python), '-S', '-m', 'pip', 'install', 'triton-ascend==3.2.2',
                  '--extra-index-url', 'https://mirrors.huaweicloud.com/ascend/repos/pypi'], ascend_env, core, build, '05-ascend-triton')

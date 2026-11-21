@@ -79,6 +79,9 @@ jobs:
       - run: python -B tests/test_official_runtime_identity.py
       - run: python -B tests/test_official_build_context.py
       - run: python -B tests/test_official_source_candidate.py
+      - run: python -B tests/test_official_build_assets.py
+      - run: python -B tests/test_official_source_download.py
+      - run: python -B tests/test_transport_trust.py
       - run: python -B tests/test_run_all.py
       - run: python -B tests/test_environment_setup.py
       - run: python -B tests/test_dependency_resume.py
@@ -128,3 +131,16 @@ jobs:
         env:
           XDG_CACHE_HOME: ${{ runner.temp }}/deeplink-public-evidence
         run: python -B benchmark/reports/r8-compute-reference-20261119-v1/recompute.py
+
+  source-build-download-windows:
+    runs-on: windows-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -B tests/test_official_build_assets.py
+      - run: python -B tests/test_official_source_download.py
