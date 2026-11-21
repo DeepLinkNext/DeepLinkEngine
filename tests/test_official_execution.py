@@ -13,6 +13,45 @@ import official_execution as execution
 
 
 class ExecutionContextTests(unittest.TestCase):
+    def test_real_bootstrap_pipe_accepts_binary_text_encoding_and_universal_newlines(self):
+        with tempfile.TemporaryDirectory() as directory:
+            bootstrap=Path(directory)/'bootstrap.py'
+            bootstrap.write_text('import sys,json\nvalue=json.load(sys.stdin)\nassert value["wire"]=="中文"\nprint("stdin-closed="+str(sys.stdin.read()==""))\n',encoding='utf-8')
+            for options in [{},dict(text=True),dict(encoding='utf-8'),dict(universal_newlines=True)]:
+                with self.subTest(options=options),patch.object(execution,'request_for',return_value={'wire':'中文'}),patch.object(execution,'__file__',str(bootstrap)):
+                    process=execution.popen_in_context(['cpu-child'],Path(directory),env={},stdout=subprocess.PIPE,stderr=subprocess.PIPE,**options)
+                    stdout,stderr=process.communicate(timeout=10)
+                    self.assertEqual(process.returncode,0,stderr)
+                    self.assertIsNone(process.stdin)
+                    self.assertIn('stdin-closed=True',stdout.decode() if isinstance(stdout,bytes) else stdout)
+                    result=execution.run_in_context(['cpu-child'],Path(directory),env={},capture_output=True,timeout=10,**options)
+                    self.assertEqual(result.returncode,0,result.stderr)
+
+    def test_early_closed_bootstrap_pipe_preserves_child_exit(self):
+        with tempfile.TemporaryDirectory() as directory:
+            bootstrap=Path(directory)/'bootstrap.py';bootstrap.write_text('raise SystemExit(23)\n')
+            with patch.object(execution,'request_for',return_value={'large':'x'*2**22}),patch.object(execution,'__file__',str(bootstrap)):
+                process=execution.popen_in_context(['cpu-child'],Path(directory),env={},text=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+                process.communicate(timeout=10)
+            self.assertEqual(process.returncode,23);self.assertIsNone(process.stdin)
+
+    def test_bootstrap_write_exception_closes_pipe_and_reaps_actual_child(self):
+        with tempfile.TemporaryDirectory() as directory:
+            bootstrap=Path(directory)/'bootstrap.py';bootstrap.write_text('import sys,time\nsys.stdin.read()\ntime.sleep(60)\n')
+            original=execution.subprocess.Popen;children=[];pipes=[]
+            class FailedWrite:
+                def __init__(self,pipe):self.pipe=pipe
+                def __enter__(self):return self
+                def __exit__(self,*args):self.pipe.close()
+                def write(self,value):raise OSError('injected bootstrap write failure')
+            def start(*args,**kwargs):
+                process=original(*args,**kwargs);children.append(process);pipes.append(process.stdin)
+                process.stdin=FailedWrite(process.stdin);return process
+            with patch.object(execution,'request_for',return_value={}),patch.object(execution,'__file__',str(bootstrap)),patch.object(execution.subprocess,'Popen',side_effect=start):
+                with self.assertRaisesRegex(OSError,'injected bootstrap write failure'):
+                    execution.popen_in_context(['cpu-child'],Path(directory),env={})
+            self.assertIsNotNone(children[0].poll());self.assertIsNone(children[0].stdin);self.assertTrue(pipes[0].closed)
+
     def test_configuration_binds_declared_workspace_parents(self):
         with tempfile.TemporaryDirectory() as directory:
             root=Path(directory);configuration=root/'config/evaluation.json'
