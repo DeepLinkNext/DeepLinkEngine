@@ -66,6 +66,11 @@ def transports(row):
         try:
             found,record=matching_links(index,row);urls+=found;proof.append(record)
         except (OSError,ValueError) as error:proof.append(dict(index=index,error=type(error).__name__+': '+str(error)))
+    original=urllib.parse.urlsplit(row.get('upstream_url',row['url']))
+    if (original.scheme=='https' and original.hostname=='download-r2.pytorch.org'
+            and original.path.startswith('/whl/cpu/') and not original.query and not original.fragment
+            and original.username is None and original.password is None):
+        urls.append(urllib.parse.urlunsplit(original._replace(netloc='download.pytorch.org')))
     urls+= [row.get('api_url',row['url']),row['url']]
     return list(dict.fromkeys(urls)),proof
 
@@ -84,11 +89,19 @@ def fetch(row,cache):
         if shutil.disk_usage(cache).free<row['bytes']+2*1024**3:
             raise OSError('Build artifact prefetch requires one whole artifact plus 2 GiB free')
         urls,proof=transports(row)
+        range_error=None
         if row['bytes']>=16*1024**2 and shutil.which('curl'):
-            return fetch_ranges(row,cache,target,urls,proof)
+            try:return fetch_ranges(row,cache,target,urls,proof)
+            except OSError as error:
+                range_error=type(error).__name__+': '+str(error)
+                from official_baselines import save
+                save(target.with_name(row['filename']+'.range-fallback.json'),
+                     dict(status='bounded-range-failed',error=range_error,sequential_pinned_resume_selected=True,
+                          sha256=row['sha256'],bytes=row['bytes'],url_candidates=urls))
         path=_download_dependency(row,target,urls,valid)
         if not valid(path):raise ValueError('Build artifact failed fresh whole SHA admission')
-        return path,dict(cached=False,filename=row['filename'],sha256=row['sha256'],mirror_indexes=proof)
+        return path,dict(cached=False,filename=row['filename'],sha256=row['sha256'],mirror_indexes=proof,
+                         bounded_range_error=range_error)
 
 
 def fetch_ranges(row,cache,target,urls,index_proof):
@@ -262,36 +275,8 @@ def _run(argv,*,sdk,env,cwd,folder):
 
 
 def prepare_stage(python,core,cache,build,env,*,sdk,stage):
-    import tomllib
-    from official_baselines import save
-    from official_source_candidate import primary_build_constraint,build_dependency_artifacts
-    from transport_trust import configure
-    cache=Path(cache);base=cache/'official-sdks/0.23.0-4ee78def8f33d59d'
-    tls=configure(cache,base);child=dict(env);configure(cache,base,env=child)
-    # The primary wheels are fetched through the same advertised-hash mirrors.
-    primary={r['filename']:r for r in build_dependency_artifacts().values() if r['stage']==stage}
-    for row in primary.values():fetch(row,cache/'wheels')
-    primary_constraint,primary_proof=primary_build_constraint(python,core,cache,build,child,sdk=sdk,stage=stage)
-    original=tomllib.loads((core/'pyproject.toml').read_text())['build-system']['requires']
-    folder=build/(stage+'-dependency-plan');folder.mkdir();report=folder/'pip-report.json'
-    child.update(PIP_CONFIG_FILE=os.devnull,PIP_CACHE_DIR=str(cache/'source-build-downloads/verified-metadata-pip'),PIP_BUILD_CONSTRAINT=str(primary_constraint))
-    child.setdefault('PIP_DEFAULT_TIMEOUT','120');child.setdefault('PIP_RETRIES','3')
-    argv=[str(python),'-S','-m','pip','install','--dry-run','--ignore-installed','--report',str(report),'--constraint',str(primary_constraint),'--index-url',PYPI_MIRRORS[0],'--extra-index-url',CPU_MIRROR]
-    if stage=='03-ascend':argv+=['--extra-index-url',ASCEND_ORIGIN]
-    argv+=original
-    _run(argv,sdk=sdk,env=child,cwd=core,folder=folder)
-    resolved=json.loads(report.read_bytes());rows=[];lines=[]
-    for install in resolved['install']:
-        row=authority(install,primary)
-        admitted=admit_pip_cache(row,cache/'wheels',pip_cache=Path(child['PIP_CACHE_DIR']),report_url=install['download_info']['url'])
-        path,transport=admitted if admitted is not None else fetch(row,cache/'wheels')
-        binding=verify_wheel_metadata(path,install['metadata']);rows.append(dict(row,path=str(path),transport=transport,metadata=install['metadata'],metadata_binding=binding))
-        lines.append(row['package']+' @ '+path.as_uri()+'#sha256='+row['sha256'])
-    closure=verify_closure(original,rows,resolved.get('environment',{}))
-    constraint=build/(stage+'-verified-closure-constraints.txt');constraint.write_text('\n'.join(lines)+'\n')
-    lock=dict(schema='deeplinkengine-isolated-build-dependency-closure/v1',stage=stage,original_requirements=original,pyproject_sha256=sha(core/'pyproject.toml'),resolver_report_sha256=sha(report),tls=tls,primary=primary_proof,closure=closure,artifacts=rows,constraint_sha256=sha(constraint),sdk_runtime_constraints_added=False,temporary_metadata_build_environments_possible=True,model_started=False)
-    save(folder/'lock.json',lock)
-    return constraint,dict(stage=stage,lock=str(folder/'lock.json'),lock_sha256=sha(folder/'lock.json'),constraint=str(constraint),constraint_sha256=sha(constraint),artifacts=len(rows),runtime_constraint_added=False)
+    from official_source_build_graph import prepare
+    return prepare(python,core,cache,build,env,sdk=sdk,stage=stage)
 
 
 def prefetch_all(config,arguments):

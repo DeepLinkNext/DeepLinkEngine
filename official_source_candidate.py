@@ -71,50 +71,12 @@ def build_dependency_artifacts():
 
 
 def primary_build_constraint(python, core, cache, build, env, *, sdk, stage='01-core'):
-    """Bind only isolated build Torch to the same official wheel in shared cache."""
-    import tomllib
-    from official_execution import sdk_run
-    from official_image import digest
-    from environment_setup import cached_wheel
-    pyproject=core/'pyproject.toml'
-    requirements=tomllib.loads(pyproject.read_text())['build-system']['requires']
-    selected=[row for row in build_dependency_artifacts().values() if row['stage']==stage]
-    if not selected or stage not in ('01-core','03-ascend'):
-        raise ValueError('Unknown isolated source-build dependency stage')
-    normalized=[re.sub(r'\s+','',r) for r in requirements]
-    for row in selected:
-        package=re.escape(row['package']).replace(r'\-',r'[-_]')
-        matches=[r for r in normalized if re.match('^'+package+r'(?:[=<>!~;\[]|$)',r)]
-        if matches!=[row['requirement']]:
-            raise ValueError('Official isolated Torch build requirement changed')
-    catalog=Path(__file__).parent/'engine/r8-lock.json'
-    wheels=[];lines=[]
-    for row in selected:
-        wheel=cached_wheel(row,[],cache/'wheels')
-        if wheel.stat().st_size!=row['bytes'] or digest(wheel)!=row['sha256']:
-            raise ValueError('Isolated Torch build cache failed fresh whole SHA verification')
-        lines.append(row['package']+' @ '+wheel.as_uri()+'#sha256='+row['sha256'])
-        wheels.append(dict(package=row['package'],path=str(wheel),bytes=wheel.stat().st_size,
-                           sha256=digest(wheel),upstream_url=row['upstream_url']))
-    constraint=build/(stage+'-isolated-build-constraints.txt')
-    constraint.write_text('\n'.join(lines)+'\n')
-    # Parse through this actual private pip, rather than infer support from a
-    # version string. No install or framework import is performed by this probe.
-    probe_env=dict(env,PIP_BUILD_CONSTRAINT=str(constraint))
-    code="from pip._internal.commands import create_command; import json,pip; o,_=create_command('install').parse_args([]); print(json.dumps(dict(pip_version=pip.__version__,build_constraints=getattr(o,'build_constraints',None),runtime_constraints=o.constraints)))"
-    observed=sdk_run([str(python),'-S','-c',code],sdk=sdk,env=probe_env,
-                     capture_output=True,text=True,timeout=30)
-    if observed.returncode:
-        raise ValueError('Private pip build-constraint capability probe failed: '+observed.stderr)
-    capability=json.loads(observed.stdout)
-    if capability.get('build_constraints')!=[str(constraint)]:
-        raise ValueError('Private pip does not support isolated PIP_BUILD_CONSTRAINT')
-    return constraint,dict(scope=stage+'-isolated-build-only',requirements=[r['requirement'] for r in selected],
-        pyproject_sha256=digest(pyproject),wheels=wheels,upstream_index='https://download.pytorch.org/whl/cpu/torch/',
-        upstream_index_observed_sha256='0261c242ed4b430439d719acf44c0c418c145594222eb850a4b37140792d0d25',
-        torch_npu_origin_metadata_sha256='8c9dcee6f4dd51b1e91e717dc7c671408e6b40bc27e31f584172806ae22f0c69' if stage=='03-ascend' else None,shared_catalog=str(catalog),
-        shared_catalog_sha256=digest(catalog),constraint=str(constraint),constraint_sha256=digest(constraint),
-        pip_capability=capability,runtime_constraint_added=False,upstream_source_modified=False)
+    """Create constraints only for a metadata root, never nested build environments."""
+    from official_source_build_graph import primary_inputs,requirements
+    original=requirements(core/'pyproject.toml')
+    path,rows=primary_inputs(original,cache,build,stage,required_stage=stage)
+    return path,dict(scope='metadata-root-only',wheels=rows,runtime_constraint_added=False,
+                     global_build_constraint_added=False,upstream_source_modified=False)
 
 
 def torch_build_constraint(python, core, cache, build, env, *, sdk, stage='01-core'):
@@ -130,7 +92,7 @@ def identity():
                 preparation_sources={name: hashlib.sha256(Path(__file__).with_name(name).read_bytes()).hexdigest()
                                      for name in ('official_execution.py','official_build_context.py',
                                                   'official_build_assets.py','transport_trust.py',
-                                                  'official_range_download.py')},
+                                                  'official_range_download.py','official_source_build_graph.py')},
                 soc_version='ascend910b1', sources=SOURCES,
                 recipe='vllm-project/vllm-ascend@96df623103f921df1a4488170d106f36689acb59/Dockerfile',
                 published_sdists=True, upstream_source_patched=False,
@@ -257,7 +219,7 @@ def build_console_launchers(python, directory):
         if header not in accepted:
             raise ValueError('Unexpected upstream CMake console interpreter: '+str(script))
         launcher=directory/name
-        launcher.write_text('#!/bin/sh\nexec '+shlex.quote(str(python))+' -S '+shlex.quote(str(script))+' "$@"\n')
+        launcher.write_text('#!/bin/sh\nexec '+shlex.quote(str(python))+' -B -S '+shlex.quote(str(script))+' "$@"\n')
         launcher.chmod(0o755)
         bindings[name]=dict(original_script=str(script),original_script_sha256=digest(script),
             original_shebang=header.decode(),launcher=str(launcher),launcher_sha256=digest(launcher),
@@ -455,6 +417,8 @@ def prepare(base_lock_path, cache, output):
         env['LD_LIBRARY_PATH'] = ':'.join(part for part in libraries if part not in excluded)
         receipt['build_loader_environment'] = dict(excluded_sdk_torch_libraries=excluded,
             upstream_pip_build_isolation_retained=True,serving_environment_unchanged=True)
+        env.pop('PIP_BUILD_CONSTRAINT',None)
+        env.pop('PIP_CONSTRAINT',None)
         env.pop('VLLM_TARGET_DEVICE', None)
         env.pop('VLLM_BATCH_INVARIANT', None)
         env.update(SOC_VERSION='ascend910b1', ASCEND_RT_VISIBLE_DEVICES='',
@@ -471,7 +435,7 @@ def prepare(base_lock_path, cache, output):
         ascend = output / 'rootfs/vllm-workspace/vllm-ascend'
         core_env = dict(env, VLLM_TARGET_DEVICE='empty')
         build_constraint,receipt['isolated_torch_build_cache']=torch_build_constraint(python,core,cache,build,env,sdk=output)
-        core_env['PIP_BUILD_CONSTRAINT']=str(build_constraint)
+        core_env['PIP_FIND_LINKS']=str(build_constraint)
         ascend_env = dict(env, VLLM_BATCH_INVARIANT='1')
         receipt['official_build_only_environment'] = dict(
             values=dict(VLLM_TARGET_DEVICE='empty',VLLM_BATCH_INVARIANT='1'),
@@ -481,22 +445,22 @@ def prepare(base_lock_path, cache, output):
             serving_environment_inherits_build_overrides=False)
         receipt['toolchain'] = toolchain_evidence(output, env, (core,ascend), build)
         save(build/'receipt.json', receipt)
-        command([str(python), '-S', '-m', 'pip', 'install', '-e', str(core) + '[audio]',
+        command([str(python), '-B', '-S', '-m', 'pip', 'install', '-e', str(core) + '[audio]',
                  '--extra-index-url', 'https://download.pytorch.org/whl/cpu/'], core_env, core, build, '01-core')
-        command([str(python), '-S', '-m', 'pip', 'uninstall', '-y', 'triton'], env, core, build, '02-remove-base-triton')
+        command([str(python), '-B', '-S', '-m', 'pip', 'uninstall', '-y', 'triton'], env, core, build, '02-remove-base-triton')
         ascend_constraint,receipt['ascend_isolated_build_cache']=torch_build_constraint(python,ascend,cache,build,env,sdk=output,stage='03-ascend')
-        ascend_build_env=dict(ascend_env,PIP_BUILD_CONSTRAINT=str(ascend_constraint))
+        ascend_build_env=dict(ascend_env,PIP_FIND_LINKS=str(ascend_constraint))
         save(build/'receipt.json',receipt)
-        command([str(python), '-S', '-m', 'pip', 'install', '-e', str(ascend),
+        command([str(python), '-B', '-S', '-m', 'pip', 'install', '-e', str(ascend),
                  '--extra-index-url', 'https://download.pytorch.org/whl/cpu/',
                  '--extra-index-url', 'https://mirrors.huaweicloud.com/ascend/repos/pypi'],
                 ascend_build_env, ascend, build, '03-ascend')
-        command([str(python), '-S', '-m', 'pip', 'uninstall', '-y', 'triton', 'triton-ascend'], ascend_env, core, build, '04-remove-triton-overlap')
-        command([str(python), '-S', '-m', 'pip', 'install', 'triton-ascend==3.2.2',
+        command([str(python), '-B', '-S', '-m', 'pip', 'uninstall', '-y', 'triton', 'triton-ascend'], ascend_env, core, build, '04-remove-triton-overlap')
+        command([str(python), '-B', '-S', '-m', 'pip', 'install', 'triton-ascend==3.2.2',
                  '--extra-index-url', 'https://mirrors.huaweicloud.com/ascend/repos/pypi'], ascend_env, core, build, '05-ascend-triton')
-        command([str(python), '-S', '-m', 'pip', 'install', 'concurrent-log-handler'],
+        command([str(python), '-B', '-S', '-m', 'pip', 'install', 'concurrent-log-handler'],
                 ascend_env, core, build, '06-concurrent-log-handler')
-        command([str(python), '-S', '-m', 'pip', 'install', 'setuptools-rust'],
+        command([str(python), '-B', '-S', '-m', 'pip', 'install', 'setuptools-rust'],
                 env, core, build, '06-rust-build-tools')
         # The upstream script bootstraps rustup. Keep its HOME unchanged; set
         # private Rust directories and preinstall before its HOME/.cargo/env
@@ -512,7 +476,7 @@ def prepare(base_lock_path, cache, output):
         # Preserve dependency inconsistencies produced by the original ordered
         # recipe. Their exact diagnostics must remain visible to reviewers.
         from official_execution import sdk_run
-        result = sdk_run([str(python), '-S', '-m', 'pip', 'check'], sdk=output, env=env,
+        result = sdk_run([str(python), '-B', '-S', '-m', 'pip', 'check'], sdk=output, env=env,
                          capture_output=True, text=True, timeout=120)
         (build / 'dependency-check.log').write_text(result.stdout + result.stderr)
         receipt['dependency_check_returncode'] = result.returncode

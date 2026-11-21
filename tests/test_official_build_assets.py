@@ -30,6 +30,15 @@ class BuildAssetsTests(unittest.TestCase):
         self.assertEqual(links,['https://mirror.invalid/simple/packages/target.whl'])
         self.assertEqual(proof['index_sha256'],hashlib.sha256(page).hexdigest())
 
+    def test_cpu_publisher_cloudfront_alias_is_limited_to_its_original_path(self):
+        row=dict(package='torch',filename='torch.whl',sha256='a'*64,url='https://download-r2.pytorch.org/whl/cpu/torch.whl')
+        with patch.object(assets,'matching_links',return_value=([],dict(cpu_fixture=True))):
+            urls,_=assets.transports(row)
+        self.assertEqual(urls,['https://download.pytorch.org/whl/cpu/torch.whl',row['url']])
+        with patch.object(assets,'matching_links',return_value=([],dict(cpu_fixture=True))):
+            urls,_=assets.transports(dict(row,url='https://other.invalid/whl/cpu/torch.whl'))
+        self.assertEqual(urls,['https://other.invalid/whl/cpu/torch.whl'])
+
     def test_publisher_metadata_must_match_report_whole_hash(self):
         item=dict(metadata=dict(name='sample',version='1.0'),download_info=dict(url='https://mirror.invalid/sample.whl',archive_info=dict(hashes=dict(sha256='a'*64))))
         raw=json.dumps(dict(urls=[dict(filename='sample.whl',size=12,url='https://files.pythonhosted.org/sample.whl',digests=dict(sha256='b'*64))])).encode()
@@ -105,6 +114,23 @@ class BuildAssetsTests(unittest.TestCase):
             self.assertEqual(ranged.call_args.kwargs['workers'],4);self.assertEqual(ranged.call_args.kwargs['source_url'],row['url']);self.assertEqual(proof['kind'],'verified-public-four-worker-ranges')
             self.assertTrue(target.with_name('large.whl.source-ranges.json').is_file())
 
+    def test_bounded_range_failure_falls_back_to_real_whole_verified_http(self):
+        body=b'y'*(16*1024**2)
+        class Handler(http.server.BaseHTTPRequestHandler):
+            def do_GET(self):
+                self.send_response(200);self.send_header('Content-Length',str(len(body)));self.end_headers();self.wfile.write(body)
+            def log_message(self,*args):pass
+        server=http.server.ThreadingHTTPServer(('127.0.0.1',0),Handler);thread=threading.Thread(target=server.serve_forever,daemon=True);thread.start()
+        try:
+            with tempfile.TemporaryDirectory() as directory:
+                root=Path(directory);url=f'http://127.0.0.1:{server.server_port}/asset'
+                row=dict(filename='large.whl',bytes=len(body),sha256=hashlib.sha256(body).hexdigest(),url=url,package='fixture')
+                with patch.object(assets,'transports',return_value=([url],[])),patch.object(assets.shutil,'which',return_value='/usr/bin/curl'),patch('official_range_download.fetch',side_effect=OSError('controlled range refusal')):
+                    path,proof=assets.fetch(row,root)
+                self.assertEqual(path.read_bytes(),body);self.assertIn('controlled range refusal',proof['bounded_range_error'])
+                self.assertTrue((root/'large.whl.range-fallback.json').is_file())
+        finally:server.shutdown();server.server_close();thread.join(timeout=5)
+
     def test_full_plan_preserves_original_requirements_and_only_creates_build_constraint(self):
         with tempfile.TemporaryDirectory() as directory:
             root=Path(directory);core=root/'core';core.mkdir();build=root/'build';build.mkdir()
@@ -117,13 +143,13 @@ class BuildAssetsTests(unittest.TestCase):
             primary_constraint=root/'primary.txt';primary_constraint.write_text('fixture')
             official=json.dumps(dict(urls=[dict(filename=sympy.name,size=sympy.stat().st_size,url='https://files.pythonhosted.org/'+sympy.name,digests=dict(sha256=rows[1]['download_info']['archive_info']['hashes']['sha256']))])).encode()
             def resolve(argv,**kwargs):
-                self.assertIn('--dry-run',argv);self.assertIn('torch == 2.13.0',argv);self.assertNotIn('--only-binary',argv);self.assertNotIn('PIP_CONSTRAINT',kwargs['env'])
+                self.assertIn('--dry-run',argv);self.assertIn('torch == 2.13.0',argv);self.assertNotIn('--only-binary',argv);self.assertNotIn('PIP_CONSTRAINT',kwargs['env']);self.assertNotIn('PIP_BUILD_CONSTRAINT',kwargs['env'])
                 report=Path(argv[argv.index('--report')+1]);report.write_text(json.dumps(dict(install=rows,environment={})))
             def fetch(row,cache):return (torch if row['package']=='torch' else sympy),dict(cpu_fixture=True)
             with patch.object(candidate,'build_dependency_artifacts',return_value={'sha256:'+primary['sha256']:primary}),patch.object(candidate,'primary_build_constraint',return_value=(primary_constraint,dict(cpu_fixture=True))), \
                  patch.object(transport_trust,'configure',return_value=dict(cpu_fixture=True)),patch.object(assets,'_run',side_effect=resolve),patch.object(assets,'fetch',side_effect=fetch),patch.object(assets,'admit_pip_cache',return_value=None),patch.object(assets,'_read',return_value=official):
                 path,proof=assets.prepare_stage(Path(sys.executable),core,root/'cache',build,{},sdk=root/'sdk',stage='01-core')
-            text=path.read_text();self.assertIn('torch @ file:',text);self.assertIn('sympy @ file:',text);self.assertFalse(proof['runtime_constraint_added']);self.assertEqual((core/'pyproject.toml').read_bytes(),original)
+            self.assertEqual({item.name for item in path.iterdir()},{torch.name,sympy.name});self.assertFalse(proof['runtime_constraint_added']);self.assertFalse(proof['global_build_constraint_added']);self.assertEqual((core/'pyproject.toml').read_bytes(),original)
 
 
 if __name__=='__main__':unittest.main()

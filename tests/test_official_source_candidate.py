@@ -40,21 +40,20 @@ class CandidateTests(unittest.TestCase):
                 fetch.assert_not_called()
 
     def test_build_torch_cache_binds_only_exact_requirement_and_fresh_bytes(self):
-        import official_execution,environment_setup
+        import official_build_assets
         with tempfile.TemporaryDirectory() as directory:
             root=Path(directory);core=root/'core';core.mkdir();build=root/'build';build.mkdir();(root/'engine').mkdir()
             pyproject=core/'pyproject.toml';pyproject.write_text('[build-system]\nrequires=["torch == 2.13.0"]\n')
             wheel=root/'cached.whl';wheel.write_bytes(b'cpu-wheel-fixture')
             item=dict(candidate.TORCH_BUILD_WHEEL,bytes=wheel.stat().st_size,sha256=hashlib.sha256(wheel.read_bytes()).hexdigest())
             (root/'engine/r8-lock.json').write_text(json.dumps(dict(environment_sources=dict(torch=item))))
-            constraint=build/'01-core-isolated-build-constraints.txt';capability=dict(pip_version='fixture',build_constraints=[str(constraint)],runtime_constraints=[])
+            constraint=build/'01-core-metadata-root-constraints.txt'
             with patch.object(candidate,'__file__',str(root/'controller.py')),patch.object(candidate,'TORCH_BUILD_WHEEL',item), \
-                 patch.object(environment_setup,'cached_wheel',return_value=wheel) as fetch, \
-                 patch.object(official_execution,'sdk_run',return_value=subprocess.CompletedProcess([],0,stdout=json.dumps(capability))) as probe:
+                 patch.object(official_build_assets,'fetch',return_value=(wheel,dict(cpu_fixture=True))) as fetch:
                 path,proof=candidate.primary_build_constraint(Path(sys.executable),core,root/'cache',build,{},sdk=root/'sdk')
                 self.assertEqual(path,constraint);self.assertIn('torch @ '+wheel.as_uri(),path.read_text())
                 self.assertFalse(proof['runtime_constraint_added'])
-                self.assertEqual(probe.call_args.kwargs['env'],{'PIP_BUILD_CONSTRAINT':str(constraint)})
+                self.assertEqual(proof['scope'],'metadata-root-only');self.assertFalse(proof['global_build_constraint_added'])
                 wheel.write_bytes(b'bad-bytes')
                 with self.assertRaisesRegex(ValueError,'fresh whole SHA'):candidate.primary_build_constraint(Path(sys.executable),core,root/'cache',build,{},sdk=root/'sdk')
                 pyproject.write_text('[build-system]\nrequires=["torch == 2.10.0"]\n');fetch.reset_mock()
@@ -75,7 +74,7 @@ class CandidateTests(unittest.TestCase):
             for name,row in records.items():
                 self.assertEqual((root/name).read_bytes(),originals[name])
                 self.assertEqual(row['original_script_sha256'],hashlib.sha256(originals[name]).hexdigest())
-                self.assertEqual(shlex.split((out/name).read_text().splitlines()[1])[:4],['exec',str(python.resolve()),'-S',str(root/name)])
+                self.assertEqual(shlex.split((out/name).read_text().splitlines()[1])[:5],['exec',str(python.resolve()),'-B','-S',str(root/name)])
                 self.assertTrue(row['build_only']);self.assertFalse(row['original_script_modified'])
 
     def test_unknown_cmake_shebang_refused_without_sdk_changes(self):
@@ -236,9 +235,9 @@ class CandidateTests(unittest.TestCase):
                 self.assertFalse(Path(env['PIP_CACHE_DIR']).is_relative_to(output.resolve()))
                 steps={call.args[4]:call.args[1] for call in commands.call_args_list}
                 self.assertEqual(steps['01-core']['LD_LIBRARY_PATH'],'/private/python/lib:/private/cann/lib64')
-                self.assertEqual(steps['01-core']['PIP_BUILD_CONSTRAINT'],str(root/'01-core-isolated-build-only.txt'))
-                self.assertEqual(steps['03-ascend']['PIP_BUILD_CONSTRAINT'],str(root/'03-ascend-isolated-build-only.txt'))
-                self.assertTrue(all('PIP_BUILD_CONSTRAINT' not in value for name,value in steps.items() if name not in ('01-core','03-ascend')))
+                self.assertEqual(steps['01-core']['PIP_FIND_LINKS'],str(root/'01-core-isolated-build-only.txt'))
+                self.assertEqual(steps['03-ascend']['PIP_FIND_LINKS'],str(root/'03-ascend-isolated-build-only.txt'))
+                self.assertTrue(all('PIP_BUILD_CONSTRAINT' not in value for value in steps.values()))
                 self.assertTrue(all('PIP_CONSTRAINT' not in value for value in steps.values()))
                 self.assertEqual(steps['03-ascend']['LD_LIBRARY_PATH'],'/private/python/lib:/private/cann/lib64')
                 self.assertEqual(steps['01-core']['VLLM_TARGET_DEVICE'],'empty')
