@@ -43,6 +43,9 @@ def main():
     args.disable_log_stats = True
     output = Path(config['output'])
     output.mkdir(exist_ok=False)
+    import os
+    from engine_entry import check_pinned_host_memory
+    check_pinned_host_memory(output, dict(os.environ))
     save(output / 'effective-engine-args.json', encode({field.name: getattr(args, field.name) for field in dataclasses.fields(args)}))
     save(output / 'actual-identity.json', dict(versions=actual, python=sys.executable,
          baseline_id=config['baseline_id'], official_sources_patched=False,

@@ -151,9 +151,9 @@ def environment(root, cache, *, devices=None):
     libs = [home / 'lib', *[p / name / 'lib' for p in sites for name in ('torch', 'torch_npu')],
             rootfs / 'lib/aarch64-linux-gnu', rootfs / 'usr/lib/aarch64-linux-gnu']
     env.update(PYTHONHOME=str(home), PYTHONNOUSERSITE='1', PYTHONDONTWRITEBYTECODE='1',
+               VLLMHUST_NO_SITE='1',
                PYTHONPATH=':'.join(map(str, sources + sites)) + ':' + env.get('PYTHONPATH', ''),
                LD_LIBRARY_PATH=env.get('LD_LIBRARY_PATH', '') + ':' + ':'.join(map(str, libs)),
-               VLLM_PLUGINS='ascend,ascend_model_loader,ascend_kv_connector',
                HF_HUB_OFFLINE='1', TRANSFORMERS_OFFLINE='1', VLLM_WORKER_MULTIPROC_METHOD='spawn',
                OMP_NUM_THREADS='4', OPENBLAS_NUM_THREADS='1')
     for key, name in [('XDG_CACHE_HOME', 'xdg'), ('ASCEND_CACHE_PATH', 'ascend'), ('TRITON_CACHE_DIR', 'triton'),
@@ -172,19 +172,63 @@ def probe(root, cache, lock):
     python, env = environment(root, cache)
     code = """import importlib.metadata as m,importlib.util as u,json,sys
 names=('vllm','vllm-ascend','torch','torch-npu','transformers','triton-ascend')
-print(json.dumps(dict(python=sys.executable,prefix=sys.prefix,no_site=sys.flags.no_site,versions={n:m.version(n) for n in names},origins={n:u.find_spec(n).origin for n in ('torch','torch_npu','vllm','vllm_ascend')})))"""
+plugins=[dict(group=g,name=p.name,value=p.value) for g in ('vllm.general_plugins','vllm.platform_plugins') for p in m.entry_points(group=g)]
+print(json.dumps(dict(python=sys.executable,prefix=sys.prefix,no_site=sys.flags.no_site,versions={n:m.version(n) for n in names},origins={n:u.find_spec(n).origin for n in ('torch','torch_npu','vllm','vllm_ascend')},plugins=plugins)))"""
     result = subprocess.run([str(python), '-S', '-c', code], env=env, capture_output=True, text=True, timeout=120)
     if result.returncode:
         raise ValueError('Official image metadata probe failed: ' + result.stderr[-2000:])
     observed = json.loads(result.stdout)
-    if (observed['versions']['vllm'] != lock['upstream_version']
-            or observed['versions']['vllm-ascend'] != lock['ascend_version']
+    if (not matches_version('vllm', observed['versions']['vllm'], lock['upstream_version'])
+            or not matches_version('vllm-ascend', observed['versions']['vllm-ascend'], lock['ascend_version'])
             or not Path(observed['prefix']).is_relative_to(Path(root).resolve())):
         raise ValueError('Actual official package identities differ from image selection')
     for origin in observed['origins'].values():
         if not Path(origin).resolve().is_relative_to(Path(root).resolve()):
             raise ValueError('Official package resolves outside the private image')
     return observed
+
+
+def matches_version(distribution, actual, requested):
+    # The digest-pinned upstream Ascend image ships vLLM's CUDA-less backend
+    # build as +empty. Preserve that exact identity; accept no arbitrary local
+    # fork/dev marker and never rewrite the installed package metadata.
+    return actual == requested or (distribution == 'vllm' and actual == requested + '+empty')
+
+
+def installation_record(out, lock, raw, files, observed):
+    result = dict(schema='deeplinkengine-official-sdk/v1', baseline_id=lock['id'],
+                  image_manifest=lock['manifest_digest'], installed_files_sha256=hashlib.sha256(raw).hexdigest(),
+                  files=len(files), metadata=observed, host_driver_retained=True, native_packages_imported=False,
+                  model_started=False, source_code_patched=False,
+                  distribution_versions_retained_exactly=True)
+    path = out / 'installation.json'
+    if path.exists():
+        raise ValueError('Do not overwrite an existing installation receipt')
+    path.write_text(json.dumps(result, indent=2) + '\n')
+    return result
+
+
+def finish_restoration(lock_path, out):
+    """Recover a fully extracted image after a metadata-only setup failure."""
+    out = Path(out).resolve()
+    lock = read_lock(lock_path)
+    if (out / 'image-lock.json').read_bytes() != Path(lock_path).read_bytes():
+        raise ValueError('Restored image belongs to another immutable selection')
+    if digest(out / 'image-manifest.json') != lock['manifest_digest'].split(':')[1]:
+        raise ValueError('Restored official image manifest differs')
+    if digest(out / 'image-config.json') != lock['config']['digest'].split(':')[1]:
+        raise ValueError('Restored official image configuration differs')
+    raw = (out / 'installed-files.json').read_bytes()
+    files = json.loads(raw)
+    if file_map(out) != files:
+        raise ValueError('Restored image files differ from the original extraction map')
+    observed = probe(out, out / 'recovery-probe-cache', lock)
+    result = installation_record(out, lock, raw, files, observed)
+    (out / 'restoration-recovery.json').write_text(json.dumps(dict(
+        reason='Complete original image extraction retained; metadata qualification repaired',
+        all_original_extracted_files_reverified=True, source_code_patched=False,
+        model_started=False, installed_files_sha256=result['installed_files_sha256']), indent=2) + '\n')
+    return result
 
 
 def prepare(lock_path, cache, out):
@@ -216,9 +260,4 @@ def prepare(lock_path, cache, out):
     raw = (json.dumps(files, sort_keys=True, indent=2) + '\n').encode()
     (out / 'installed-files.json').write_bytes(raw)
     observed = probe(out, out / 'probe-cache', lock)
-    result = dict(schema='deeplinkengine-official-sdk/v1', baseline_id=lock['id'],
-                  image_manifest=lock['manifest_digest'], installed_files_sha256=hashlib.sha256(raw).hexdigest(),
-                  files=len(files), metadata=observed, host_driver_retained=True, native_packages_imported=False,
-                  model_started=False, source_code_patched=False)
-    (out / 'installation.json').write_text(json.dumps(result, indent=2) + '\n')
-    return result
+    return installation_record(out, lock, raw, files, observed)

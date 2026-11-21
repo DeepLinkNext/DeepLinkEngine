@@ -1,9 +1,11 @@
 """Supervise official services through the existing frozen evaluation clients."""
 import importlib.util
+import hashlib
 import json
 import os
 from pathlib import Path
 import signal
+import shutil
 import socket
 import subprocess
 import sys
@@ -70,6 +72,7 @@ def public_arguments(kind):
 
 def source_bindings(tools, sdk):
     files = {str(p.resolve()): digest(p) for p in (tools / 'scripts').glob('*.py')}
+    files.update({str(p.resolve()): digest(p) for p in (tools / 'third-party-test-kit').rglob('*.py')})
     admitted = json.loads((sdk / 'provenance/installed-files.json').read_bytes())
     for name in ('mods/packed-host/joint_client.py', 'runtime/entrypoints/continuous_client.py',
                  'mods/packed-host/memory_guard.py'):
@@ -100,13 +103,39 @@ def monitor(process, owned, guard, initial, out, deadline, *, server=None):
             raise TimeoutError('Predeclared official phase deadline reached')
         check_memory(guard, initial, out)
         if time.monotonic() >= next_sample:
+            before_sample = time.monotonic()
             sample = subprocess.run(['npu-smi', 'info'], capture_output=True, text=True, timeout=15)
-            with (out / 'utilization.jsonl').open('a') as stream:
-                stream.write(json.dumps(dict(at=time.time(), raw=sample.stdout, returncode=sample.returncode)) + '\n')
+            with (out / 'device-samples.jsonl').open('a') as stream:
+                stream.write(json.dumps(dict(at=time.time(), monotonic_start=before_sample,
+                    monotonic_end=time.monotonic(), raw=sample.stdout, returncode=sample.returncode)) + '\n')
             next_sample = time.monotonic() + 5
         time.sleep(2)
     if process.returncode:
         raise RuntimeError('Official ' + str(out.name) + ' client exited ' + str(process.returncode))
+
+
+def service_cache(config, output):
+    identity = hashlib.sha256(str(output.resolve()).encode()).hexdigest()[:20]
+    return Path(config['cache']) / 'official-services' / identity
+
+
+def derive_metrics(config, service_plan):
+    plan = Path(service_plan)
+    root = plan.parent.parent
+    execution_seal = (root / 'checksums.json').read_bytes()
+    result = subprocess.run([config['protocol_python'], '-B', str(ROOT / 'official_http.py'),
+                             '--config', str(plan), '--phase', 'metrics'],
+                            env=clean_client_environment(), capture_output=True, text=True, timeout=600)
+    (root / 'execution-checksums.json').write_bytes(execution_seal)
+    (root / 'metric-reconstruction.log').write_text(result.stdout + result.stderr)
+    lines = [line.removeprefix('OFFICIAL_METRICS_JSON ') for line in result.stdout.splitlines() if line.startswith('OFFICIAL_METRICS_JSON ')]
+    if result.returncode or len(lines) != 1:
+        raise ValueError('Independent original-client SSE reconstruction failed; preserve metric-reconstruction.log')
+    value = json.loads(lines[0])
+    save(root / 'performance-summary.json', value)
+    from official_report import seal
+    seal(root)
+    return value
 
 
 def phase(config, image, phase_name, output, tools, sdk, sources, leases, continuous, weights):
@@ -115,13 +144,16 @@ def phase(config, image, phase_name, output, tools, sdk, sources, leases, contin
     output.mkdir(exist_ok=False)
     service = output / 'service'
     service.mkdir()
-    cache = output / 'cache'
+    cache = service_cache(config, output)
     guard = load(sdk / 'mods/packed-host/memory_guard.py', 'official_memory_guard')
     save(output / 'model-weights.json', weights)
     initial = admit_startup_memory(guard, Path(config['model']), weights, output)
     kind = 'dataset' if phase_name in ('frontier', 'hle', 'swe', 'terminal') else 'context' if phase_name == 'context' else 'continuous' if phase_name == 'continuous' else 'joint'
     installed = json.loads((image / 'installation.json').read_bytes())
     lock = json.loads((image / 'image-lock.json').read_bytes())
+    save(output / 'deployment.json', dict(release=lock['id'], official_image_manifest=lock['manifest_digest'],
+                                         official_runtime=True, source_code_patched=False))
+    shutil.copyfile(output.parent / 'resource-admission.json', output / 'resource-admission.json')
     plan = dict(schema='deeplinkengine-official-service-plan/v1', baseline_id=lock['id'], role='B0',
                 kind=kind, sdk=str(image), model=config['model'], output=str(service),
                 protocol_deployment=str(sdk), client_tools=str(tools), client_sources=sources,
@@ -133,9 +165,11 @@ def phase(config, image, phase_name, output, tools, sdk, sources, leases, contin
                 scorer=str(sdk / 'scorers/mmlu_pro_pyramidkv.py'),
                 serve_arguments=public_arguments(kind), engine_release=lock['id'],
                 original_baseline_018_relabelled=False, necessary_work_certified=False)
+    plan['worker_sources'][str(ROOT / 'official_worker.py')] = sources[str(ROOT / 'official_worker.py')]
     if kind == 'dataset':
         suffix = 'trace' if phase_name in ('swe', 'terminal') else 'solver'
         plan['dataset_spec'] = str(Path(config['protocol_run']) / 'plans' / (phase_name + '-' + suffix + '-B0.json'))
+        shutil.copyfile(plan['dataset_spec'], output / 'dataset-spec.json')
     if kind == 'context':
         plan['acceptance_contract'] = str(output.parent / 'context-inputs/contract.json')
         plan['acceptance_suite'] = dict(baseline_run=None)
@@ -158,8 +192,11 @@ def phase(config, image, phase_name, output, tools, sdk, sources, leases, contin
     env['ASCEND_PROCESS_LOG_PATH'] = str(logs)
     owned = Owned(service)
     receipt = dict(schema='deeplinkengine-official-arm/v1', baseline_id=lock['id'], phase=phase_name,
-                   status='starting', started=time.time(), model_started=False, client_started=False,
+                   role='B0', kind='continuous' if kind == 'context' else kind,
+                   status='starting', started=time.time(), model_service_started=False, model_ready=False, client_started=False,
                    completed=False, input_plan_sha256=digest(Path(config['protocol_run']) / 'frozen-execution-plan.json'))
+    if kind == 'context':
+        receipt['acceptance_suite'] = dict(contract_sha256=digest(Path(plan['acceptance_contract'])))
     save(output / 'receipt.json', receipt)
     processes = []
     try:
@@ -171,7 +208,7 @@ def phase(config, image, phase_name, output, tools, sdk, sources, leases, contin
                                       pass_fds=tuple(v['fd'] for v in leases), start_new_session=True)
         processes.append(server)
         owned.add(server.pid)
-        receipt.update(model_started=True, server_pid=server.pid, command=command)
+        receipt.update(model_service_started=True, server_pid=server.pid, command=command)
         save(output / 'receipt.json', receipt)
         deadline = time.monotonic() + 2400
         opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
@@ -186,6 +223,8 @@ def phase(config, image, phase_name, output, tools, sdk, sources, leases, contin
                         models = json.load(response)
                     if any(row.get('id') == 'qwen3.5-35b' for row in models.get('data', [])):
                         save(service / 'ready-models.json', models)
+                        receipt.update(model_ready=True, ready_at=time.time())
+                        save(output / 'receipt.json', receipt)
                         break
             except (OSError, ValueError):
                 pass
@@ -217,6 +256,10 @@ def phase(config, image, phase_name, output, tools, sdk, sources, leases, contin
         finally:
             receipt['ended'] = time.time()
             save(output / 'receipt.json', receipt)
+            from official_report import seal
+            seal(output)
+    if kind in ('dataset', 'context'):
+        derive_metrics(config, service / 'plan.json')
     return receipt
 
 
@@ -233,7 +276,7 @@ def run(config, image, output):
     mapping = verify_mapping('0,1')
     sources.update({str(ROOT / name): digest(ROOT / name) for name in
                     ('official_suite.py', 'official_http.py', 'official_serve.py', 'official_worker.py',
-                     'official_judge.py', 'official_native.py', 'official_native_entry.py', 'official_report.py')})
+                     'official_judge.py', 'official_native.py', 'official_native_entry.py', 'official_report.py', 'official_plots.py')})
     frozen = dict(schema='deeplinkengine-official-full-suite/v1', baseline_image=json.loads((image / 'image-lock.json').read_bytes()),
                   status='preparing', prepared_before_model_start=True, started=time.time(),
                   sources=sources, physical_mapping=mapping,
@@ -297,7 +340,7 @@ def run(config, image, output):
             finally:
                 save(output / 'campaign.json', frozen)
         frozen['status'] = 'measurements_collected'
-        return dict(status='incomplete', reason='Native F counting and fixed-judge verification must be qualified before full completion', campaign=str(output / 'campaign.json'))
+        return dict(status='incomplete', reason='Execution and fixed-judge outputs collected; complete F/T source applicability remains unqualified', campaign=str(output / 'campaign.json'))
     except BaseException as error:
         frozen.update(status='failed', error=type(error).__name__ + ': ' + str(error))
         raise
@@ -308,4 +351,4 @@ def run(config, image, output):
         frozen['ended'] = time.time()
         save(output / 'campaign.json', frozen)
         from official_report import report
-        report(output)
+        report(output, config)

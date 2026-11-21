@@ -9,7 +9,7 @@ import urllib.request
 
 from official_baselines import save
 from official_image import digest
-from official_suite import ROOT, clean_client_environment, load, monitor, run_client
+from official_suite import ROOT, clean_client_environment, load, monitor, run_client, service_cache
 
 
 def run(config, dataset, output, tools, sdk, sources, leases, weights):
@@ -42,7 +42,7 @@ def run(config, dataset, output, tools, sdk, sources, leases, weights):
                '--installation', str(installation), '--model', config['model'],
                '--physical-devices', ','.join(map(str, config['physical_devices'])), '--devices', '0,1',
                '--host', '127.0.0.1', '--port', '18390', '--served-model-name', 'qwen3.5-35b',
-               '--cache', str(output / 'cache'), '--work-dir', str(runtime), '--lease-timeout', '0']
+               '--cache', str(service_cache(config, output)), '--work-dir', str(runtime), '--lease-timeout', '0']
     owned = Owned(runtime)
     processes = []
     receipt = dict(schema='deeplinkengine-official-fixed-judge/v1', dataset=dataset,
@@ -81,6 +81,10 @@ def run(config, dataset, output, tools, sdk, sources, leases, weights):
         processes.append(client_process)
         owned.add(client_process.pid)
         monitor(client_process, owned, guard, initial, output, time.monotonic() + 14400, server=process)
+        summary = run_client(config, client / 'plan.json', 'summarize', leases, timeout=600)
+        processes.append(summary)
+        owned.add(summary.pid)
+        monitor(summary, owned, guard, initial, output, time.monotonic() + 600, server=process)
         receipt.update(status='completed', completed=True)
     except BaseException as error:
         receipt.update(status='failed', error=type(error).__name__ + ': ' + str(error))
@@ -94,4 +98,6 @@ def run(config, dataset, output, tools, sdk, sources, leases, weights):
         finally:
             receipt['ended'] = time.time()
             save(output / 'receipt.json', receipt)
+            from official_report import seal
+            seal(output)
     return receipt

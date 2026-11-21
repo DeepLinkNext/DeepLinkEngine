@@ -6,7 +6,7 @@ import time
 
 from official_baselines import save
 from official_image import digest, environment
-from official_suite import ROOT, clean_client_environment, load, public_arguments
+from official_suite import ROOT, clean_client_environment, load, public_arguments, service_cache
 
 
 def run(config, image, output, tools, sdk, sources, leases, continuous):
@@ -46,8 +46,8 @@ def run(config, image, output, tools, sdk, sources, leases, continuous):
     weights = json.loads((output.parent / 'model-weights.json').read_bytes())
     guard = load(sdk / 'mods/packed-host/memory_guard.py', 'official_native_memory_guard')
     initial = admit_startup_memory(guard, Path(config['model']), weights, output)
-    python, env = environment(image, output / 'cache', devices='0,1')
-    env.update(PYTHONPATH=str(ROOT) + ':' + str(tools / 'scripts') + ':' + env['PYTHONPATH'],
+    python, env = environment(image, service_cache(config, output), devices='0,1')
+    env.update(PYTHONPATH=str(ROOT) + ':' + str(tools / 'scripts') + ':' + str(tools / 'third-party-test-kit/proc_capture') + ':' + env['PYTHONPATH'],
                VLLM_HUST_TEST_OUTPUT=str(output), VLLM_ENABLE_V1_MULTIPROCESSING='1',
                VLLM_DISABLE_REQUEST_ID_RANDOMIZATION='1')
     from engine_entry import ipc_directory, temporary_directory
@@ -58,7 +58,7 @@ def run(config, image, output, tools, sdk, sources, leases, continuous):
     env['ASCEND_PROCESS_LOG_PATH'] = str(logs)
     owned = Owned(output)
     receipt = dict(schema='deeplinkengine-official-native-arm/v1', baseline_id=lock['id'], started=time.time(),
-                   status='starting', completed=False, necessary_work_certified=False, efficiency_percent=None)
+                   status='starting', completed=False, model_ready=False, necessary_work_certified=False, efficiency_percent=None)
     save(output / 'receipt.json', receipt)
     process = None
     try:
@@ -67,7 +67,7 @@ def run(config, image, output, tools, sdk, sources, leases, continuous):
                                        env=env, stdout=stream, stderr=subprocess.STDOUT,
                                        pass_fds=tuple(v['fd'] for v in leases), start_new_session=True)
         owned.add(process.pid)
-        deadline, cache_released = time.monotonic() + 14400, False
+        deadline, cache_released, next_sample = time.monotonic() + 14400, False, 0
         while process.poll() is None:
             owned.scan()
             check_memory(guard, initial, output)
@@ -75,7 +75,13 @@ def run(config, image, output, tools, sdk, sources, leases, continuous):
                 release_loaded_checkpoint_cache(Path(config['model']), weights, output / 'checkpoint-cache-after-load.json', guard.sample)
                 cache_released = True
                 receipt['status'] = 'native-warmup-and-timing'
+                receipt['model_ready'] = True
                 save(output / 'receipt.json', receipt)
+            if time.monotonic() >= next_sample:
+                sample = subprocess.run(['npu-smi', 'info'], capture_output=True, text=True, timeout=15)
+                with (output / 'utilization.jsonl').open('a') as stream:
+                    stream.write(json.dumps(dict(at=time.time(), monotonic=time.monotonic(), raw=sample.stdout, returncode=sample.returncode)) + '\n')
+                next_sample = time.monotonic() + 5
             if time.monotonic() > deadline:
                 raise TimeoutError('Official native timing phase exceeded 14400 seconds')
             time.sleep(2)
@@ -97,4 +103,6 @@ def run(config, image, output, tools, sdk, sources, leases, continuous):
         finally:
             receipt['ended'] = time.time()
             save(output / 'receipt.json', receipt)
+            from official_report import seal
+            seal(output)
     return receipt

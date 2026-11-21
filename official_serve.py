@@ -35,6 +35,8 @@ def main():
         python=sys.executable, prefix=sys.prefix, no_site=bool(sys.flags.no_site),
         versions=actual, modules=origins, official_baseline=plan['baseline_id'],
         source_patched=False, optimized_mods_enabled=False), indent=2) + '\n')
+    from engine_entry import check_pinned_host_memory
+    check_pinned_host_memory(output, dict(os.environ))
     # Use only the vendor-supported log option when present in this release.
     ascend_config = Path(vllm_ascend.__file__).resolve().parent / 'ascend_config.py'
     if ascend_config.is_file() and 'ascend_log_path' in ascend_config.read_text():

@@ -91,19 +91,24 @@ def main(arguments=None):
                 failed = True
                 save(out / 'results.json', record)
                 continue
-            from official_image import prepare, read_lock, digest, file_map, probe
+            from official_image import prepare, read_lock, digest, file_map, probe, finish_restoration
             identity = read_lock(lock)
             sdk = cache / 'official-sdks' / (version + '-' + identity['manifest_digest'].split(':')[1][:16])
             try:
                 if sdk.exists():
-                    installed = json.loads((sdk / 'installation.json').read_bytes())
+                    was_complete = (sdk / 'installation.json').is_file()
+                    if not was_complete:
+                        installed = finish_restoration(lock, sdk)
+                    else:
+                        installed = json.loads((sdk / 'installation.json').read_bytes())
                     if installed['image_manifest'] != identity['manifest_digest'] or (sdk / 'image-lock.json').read_bytes() != lock.read_bytes():
                         raise ValueError('Cached official SDK selection differs')
                     if digest(sdk / 'installed-files.json') != installed['installed_files_sha256']:
                         raise ValueError('Cached official SDK file manifest differs')
-                    if file_map(sdk) != json.loads((sdk / 'installed-files.json').read_bytes()):
-                        raise ValueError('Cached official SDK files differ')
-                    installed['metadata'] = probe(sdk, out / (version + '-probe-cache'), identity)
+                    if was_complete:
+                        if file_map(sdk) != json.loads((sdk / 'installed-files.json').read_bytes()):
+                            raise ValueError('Cached official SDK files differ')
+                        installed['metadata'] = probe(sdk, out / (version + '-probe-cache'), identity)
                 else:
                     installed = prepare(lock, cache / 'official-oci', sdk)
                 row.update(installation=str(sdk), installation_receipt=installed,

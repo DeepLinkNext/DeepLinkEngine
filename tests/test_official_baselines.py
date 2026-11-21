@@ -11,7 +11,7 @@ from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from official_baselines import configuration
-from official_image import destination, extract, read_lock, environment
+from official_image import destination, extract, read_lock, environment, matches_version
 from official_storage import mounts, candidates
 
 
@@ -39,6 +39,14 @@ class OfficialBaselines(unittest.TestCase):
         for value in [['0.18.0'], ['0.23.0', '0.23.0'], ['latest'], ['0.23']]:
             with self.subTest(value=value), self.assertRaises(ValueError):
                 configuration(self.config(versions=value))
+
+    def test_exact_official_empty_build_marker_without_fork_relabelling(self):
+        self.assertTrue(matches_version('vllm', '0.23.0+empty', '0.23.0'))
+        self.assertTrue(matches_version('vllm-ascend', '0.23.0', '0.23.0'))
+        for distribution, version in [('vllm', '0.23.0+custom'), ('vllm', '0.23.0.dev1+empty'),
+                                      ('vllm', '0.30.0+empty'), ('vllm-ascend', '0.23.0+empty')]:
+            with self.subTest(version=version):
+                self.assertFalse(matches_version(distribution, version, '0.23.0'))
 
     def test_reject_existing_or_dangling_output(self):
         (self.root / 'new').symlink_to(self.root / 'missing')
@@ -108,7 +116,7 @@ class OfficialBaselines(unittest.TestCase):
         self.assertNotIn('GITHUB_TOKEN', env)
         self.assertNotIn('BETTERSCALE_EXPERIMENT', env)
         self.assertNotIn('HUST_TEST', env)
-        self.assertEqual(env['VLLM_PLUGINS'], 'ascend,ascend_model_loader,ascend_kv_connector')
+        self.assertNotIn('VLLM_PLUGINS', env)
         self.assertIn('/usr/local/Ascend/driver/lib64', env['LD_LIBRARY_PATH'])
         self.assertEqual(env['ASCEND_HOME_PATH'], str(image / 'rootfs/usr/local/Ascend/cann-9.1.0'))
         self.assertEqual(env['TMPDIR'], str(self.root / 'cache/tmp'))
@@ -121,6 +129,28 @@ class OfficialBaselines(unittest.TestCase):
         self.assertEqual(found[0]['preferred'], '/fast/task/cache')
         self.assertEqual(found[0]['exact_remote_path'], '/data/workspace-a/task/cache')
         self.assertEqual(candidates(Path('/fast/task/cache'), records), [])
+
+    def test_failed_results_remain_failed_and_sealed_without_efficiency(self):
+        from official_report import report
+        phase = self.root / 'mmlu'
+        (phase / 'service').mkdir(parents=True)
+        (phase / 'cache').mkdir()
+        raw = phase / 'service/case-000.json'
+        raw.write_text(json.dumps(dict(success=False, error='preserved timeout')))
+        (phase / 'cache/jit-binary').write_bytes(b'unscored cache')
+        (phase / 'receipt.json').write_text(json.dumps(dict(completed=False)))
+        (self.root / 'campaign.json').write_text(json.dumps(dict(
+            baseline_image=dict(id='official-vllm-0.23.0'), status='failed',
+            fixed_five_denominators=dict(mmlu=200, hle=200, frontier=160, swe=64, terminal=48),
+            stages=[dict(name='mmlu', status='failed')])) )
+        result = report(self.root)
+        self.assertEqual(result['status'], 'failed')
+        self.assertEqual(result['phases']['mmlu']['status'], 'failed')
+        self.assertIsNone(result['qualified_efficiency_percent'])
+        checksums = json.loads((self.root / 'checksums.json').read_bytes())
+        self.assertIn('mmlu/service/case-000.json', checksums)
+        self.assertNotIn('mmlu/cache/jit-binary', checksums)
+        self.assertEqual(json.loads(raw.read_bytes())['error'], 'preserved timeout')
 
 
 if __name__ == '__main__':
