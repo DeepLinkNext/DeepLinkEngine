@@ -37,7 +37,7 @@ def configuration(path, *, download_only=False):
     if not isinstance(cards, list) or len(cards) != 2 or any(type(x) is not int or x < 0 for x in cards) or cards[0] == cards[1]:
         raise ValueError('Two distinct physical NPU indices are required')
     versions = value['versions']
-    if not isinstance(versions, list) or not versions or any(v not in ('0.23.0', '0.28.0', '0.30.0') for v in versions) or len(set(versions)) != len(versions):
+    if not isinstance(versions, list) or not versions or any(v not in ('0.23.0', '0.28.0', '0.30.0', '0.28.0rc1-source') for v in versions) or len(set(versions)) != len(versions):
         raise ValueError('Select unique explicitly supported upstream versions')
     if not download_only and not Path(value['model']).is_dir() and 'model_manifest' not in value:
         raise ValueError('Model directory does not exist')
@@ -60,6 +60,8 @@ def main(arguments=None):
     try:
         config = configuration(args.config, download_only=args.download_only)
         if args.download_only:
+            if '0.28.0rc1-source' in config['versions']:
+                raise ValueError('Source candidates require environment preparation; download-only selects official OCI images')
             from official_download import run
             return run(config, artifact=args.artifact_digest)
         if args.reuse_completed_continuous:
@@ -103,6 +105,31 @@ def main(arguments=None):
                        status='preparing', started=time.time(), model_started=False)
             record['stages'].append(row)
             save(out / 'results.json', record)
+            if version == '0.28.0rc1-source':
+                from official_source_candidate import prepare as prepare_candidate, reuse as reuse_candidate, ID, key
+                row['baseline_id'] = ID
+                row['official_release_image'] = False
+                row['candidate'] = True
+                save(out / 'results.json', record)
+                sdk = cache / 'source-candidate-sdks' / (ID + '-' + key()[:16])
+                try:
+                    base_lock = ROOT / 'engine/official-baselines/0.23.0.json'
+                    installed = reuse_candidate(sdk) if sdk.exists() else prepare_candidate(base_lock, cache, sdk)
+                    row.update(installation=str(sdk), installation_receipt=installed,
+                               status='prepared' if args.prepare_environment else 'running',
+                               model_started=False if args.prepare_environment else None)
+                    save(out / 'results.json', record)
+                    if not args.prepare_environment:
+                        from official_suite import run
+                        row.update(run(config, sdk, out / version))
+                        failed |= row['status'] != 'completed'
+                except Exception as error:
+                    row.update(status='failed', error=type(error).__name__ + ': ' + str(error))
+                    failed = True
+                    print('OFFICIAL_SOURCE_CANDIDATE_FAILED', version, row['error'], flush=True)
+                row['ended'] = time.time()
+                save(out / 'results.json', record)
+                continue
             lock = ROOT / 'engine/official-baselines' / (version + '.json')
             if not lock.is_file():
                 row.update(status='blocked', reason='No pinned supported ARM64 official release image. Ascend v0.28.0.rc1 is a candidate source tag, not a verified stable image.', ended=time.time())

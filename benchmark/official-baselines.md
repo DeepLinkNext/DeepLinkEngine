@@ -21,3 +21,5 @@ python run_all.py --official-baselines --config evaluation.json
 每个版本保存独立 `campaign.json`、原始输出、日志、`report.json` 和 `report.html`。本入口及其 CPU 检查不构成完整实机验收或独立第三方认证。
 
 连续负载已完成、随后 MMLU 在模型启动前失败时，可选择新输出目录和单个版本，增加 `--reuse-completed-continuous /原输出/版本/continuous`。入口核验完整封存、官方镜像、模型、输入、物理卡映射及源码适用性；原连续结果保留原时间，不重测或改写。已启动模型的后续失败不适用此恢复入口。
+
+需要源码候选版时，将 `versions` 明确设为 `["0.28.0rc1-source"]`。一键入口以固定 0.23 镜像的 CANN 9.1 环境和官方 PyPI 源码包，按上游顺序隔离构建 vLLM 0.28.0 / Ascend 0.28.0rc1；它单列为候选，不代表正式镜像。构建日志、实际依赖检查及失败原件保留；稳定 `0.28.0` 项仍须有可核验正式镜像才启用。

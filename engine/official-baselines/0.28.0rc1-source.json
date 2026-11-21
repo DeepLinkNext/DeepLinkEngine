@@ -1,0 +1,36 @@
+{
+  "schema": "deeplinkengine-upstream-source-candidate/v1",
+  "id": "upstream-vllm-0.28.0-ascend-0.28.0rc1-source",
+  "version": "0.28.0rc1-source",
+  "upstream_version": "0.28.0",
+  "ascend_version": "0.28.0rc1",
+  "candidate": true,
+  "official_release_image": false,
+  "base_image_manifest": "sha256:4ee78def8f33d59d48f116d1dfa793332c23c99ecab4f0d7dd5cd62d0fb4e6c1",
+  "controller_sha256": "bb2302e499ccabfd3b33050cf5c9101e94e620b5673702d955527cad395f15ee",
+  "soc_version": "ascend910b1",
+  "sources": {
+    "vllm": {
+      "version": "0.28.0",
+      "filename": "vllm-0.28.0.tar.gz",
+      "bytes": 39991441,
+      "sha256": "ac96dd0ec5be9c13f2aa4bfb50498c4727110406f6e4980b58a4097e4d18634a",
+      "url": "https://files.pythonhosted.org/packages/22/39/096d88cfe34ee43a8b6e7c957d1ad6338fa5256474d6ff9a32008c6f8cd6/vllm-0.28.0.tar.gz"
+    },
+    "vllm-ascend": {
+      "version": "0.28.0rc1",
+      "filename": "vllm_ascend-0.28.0rc1.tar.gz",
+      "bytes": 19632653,
+      "sha256": "bde8bf4207d225df86d8f3b7d9b2bd89ff5e5e56af0cbe4bf8b5b691b98bbe95",
+      "url": "https://files.pythonhosted.org/packages/b0/bc/afe9b8d66680ff14d04b15b18f13cd7dea601c583a8d1514792448a7a75c/vllm_ascend-0.28.0rc1.tar.gz"
+    }
+  },
+  "recipe": "vllm-project/vllm-ascend@96df623103f921df1a4488170d106f36689acb59/Dockerfile",
+  "published_sdists": true,
+  "upstream_source_patched": false,
+  "git_tag_references": {
+    "vllm": "2cf0a6915ce544dc493a0990f2ea38d81601128a",
+    "vllm_ascend": "96df623103f921df1a4488170d106f36689acb59"
+  },
+  "sdist_git_file_equivalence_certified": false
+}
