@@ -259,11 +259,19 @@ Path(sys.argv[3]).write_text(json.dumps(result))
 ''')
         return script
 
+    def sdk_fixture_environment(self):
+        # Match environment(base)'s explicit SDK site path under -S. CI's
+        # ordinary parent environment need not already contain PYTHONPATH.
+        import pip
+        env=os.environ.copy();site=str(Path(pip.__file__).resolve().parent.parent)
+        env['PYTHONPATH']=site+(os.pathsep+env['PYTHONPATH'] if env.get('PYTHONPATH') else '')
+        return env
+
     def test_collection_executes_sdk_child_and_never_uses_parent_runtime(self):
         import official_source_prefetch as prefetch
         script=self.collector_script();out=self.root/'collection'
         with patch.object(delivery,'__file__',str(script)),patch.object(prefetch,'runtime',side_effect=AssertionError('Host runtime must never be used')):
-            rows=delivery.invoke_collection(sys.executable,os.environ.copy(),self.root/'fixture-sdk',self.cache,out,timeout=30)
+            rows=delivery.invoke_collection(sys.executable,self.sdk_fixture_environment(),self.root/'fixture-sdk',self.cache,out,timeout=30)
         self.assertEqual(rows,[])
         actual=json.loads((out/'results.json').read_bytes())['runtime']
         self.assertEqual(Path(actual['python']).resolve(),Path(sys.executable).resolve())
@@ -273,7 +281,7 @@ Path(sys.argv[3]).write_text(json.dumps(result))
         script=self.collector_script('wrong')
         with patch.object(delivery,'__file__',str(script)):
             with self.assertRaisesRegex(ValueError,'differs from the selected SDK'):
-                delivery.invoke_collection(sys.executable,os.environ.copy(),self.root/'fixture-sdk',self.cache,self.root/'wrong-collection',timeout=30)
+                delivery.invoke_collection(sys.executable,self.sdk_fixture_environment(),self.root/'fixture-sdk',self.cache,self.root/'wrong-collection',timeout=30)
 
     @unittest.skipUnless(sys.platform=='linux','Actual owned Linux collector process group')
     def test_collection_budget_cleans_its_actual_child_group(self):
@@ -281,7 +289,7 @@ Path(sys.argv[3]).write_text(json.dumps(result))
         script=self.collector_script('sleep');out=self.root/'sleep-collection'
         with patch.object(delivery,'__file__',str(script)):
             with self.assertRaises(subprocess.TimeoutExpired):
-                delivery.invoke_collection(sys.executable,os.environ.copy(),self.root/'fixture-sdk',self.cache,out,timeout=2)
+                delivery.invoke_collection(sys.executable,self.sdk_fixture_environment(),self.root/'fixture-sdk',self.cache,out,timeout=2)
         pid=int(Path(str(out)+'.child-pid').read_text());proc=Path('/proc',str(pid),'stat')
         self.assertTrue(not proc.exists() or proc.read_text().rsplit(')',1)[1].split()[0]=='Z')
 
