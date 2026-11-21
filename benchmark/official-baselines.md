@@ -20,6 +20,14 @@ python run_all.py --official-baselines --config evaluation.json
 
 每个版本保存独立 `campaign.json`、原始输出、日志、`report.json` 和 `report.html`。本入口及其 CPU 检查不构成完整实机验收或独立第三方认证。
 
+原生计时后，入口自动运行计时之外的独立算术观察，核对实际源码、加载模型和缓存容量，分别重建三次本轮 F/T，再按公开固定来源复算原完整参考分母。已有封存原生计时只需续补时，使用新的输出目录：
+
+```sh
+python run_all.py --official-baselines --config evaluation.json --complete-ft 原版本目录 --source-version-seal-sha256 原checksums摘要
+```
+
+原三次计时和数据集结果保持不动。已有完整独立观察可加 `--reuse-ft-companion 观察目录 --companion-seal-sha256 观察checksums摘要`，仅做 CPU 审核；结果中的第三方独立见证状态仍单独保留。
+
 连续负载已完成、随后 MMLU 在模型启动前失败时，可选择新输出目录和单个版本，增加 `--reuse-completed-continuous /原输出/版本/continuous`。入口核验完整封存、官方镜像、模型、输入、物理卡映射及源码适用性；原连续结果保留原时间，不重测或改写。已启动模型的后续失败不适用此恢复入口。
 
 仅重建已封存的 0.23 C8 报告，在普通 CPU 机器执行：

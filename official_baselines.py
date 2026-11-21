@@ -52,16 +52,32 @@ def main(arguments=None):
     parser.add_argument('--prepare-environment', action='store_true')
     parser.add_argument('--report-only', action='store_true',
                         help='CPU-only replay of closed C8 originals or explicit sealed-report projection')
+    parser.add_argument('--complete-ft', type=Path,
+                        help='Append only the independent arithmetic companion and CPU qualification to a closed version, in a new output')
+    parser.add_argument('--source-version-seal-sha256')
+    parser.add_argument('--reuse-ft-companion', type=Path,
+                        help='CPU re-audit a closed independent companion; no model requests')
+    parser.add_argument('--companion-seal-sha256')
     parser.add_argument('--reuse-completed-continuous', type=Path,
                         help='In a new output, retain sealed C8 after a later pre-model failure; preserve original clocks')
     args = parser.parse_args(arguments)
     try:
         if args.report_only:
-            if args.prepare_environment or args.reuse_completed_continuous:
+            if args.prepare_environment or args.reuse_completed_continuous or args.complete_ft or args.reuse_ft_companion:
                 raise ValueError('Report-only cannot prepare or resume a model campaign')
             from official_rebuild import run
             return run(args.config)
         config = configuration(args.config)
+        if (args.source_version_seal_sha256 or args.reuse_ft_companion or args.companion_seal_sha256) and not args.complete_ft:
+            raise ValueError('F/T continuation options require --complete-ft')
+        if args.complete_ft:
+            if args.prepare_environment or args.reuse_completed_continuous or len(config['versions']) != 1:
+                raise ValueError('F/T completion requires one explicit closed version and a new output')
+            if platform.system() != 'Linux' or platform.machine() != 'aarch64':
+                raise ValueError('Official Ascend F/T completion requires Linux aarch64')
+            from official_ft import continue_closed
+            return continue_closed(config, args.complete_ft, args.source_version_seal_sha256,
+                companion_source=args.reuse_ft_companion, companion_seal=args.companion_seal_sha256)
         if args.reuse_completed_continuous:
             if args.prepare_environment or len(config['versions']) != 1:
                 raise ValueError('Completed C8 recovery requires one explicit full-suite version')
