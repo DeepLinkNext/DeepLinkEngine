@@ -211,7 +211,9 @@ def reuse(output):
     expected.update(manifest_digest='sha256:' + key(), manifest_kind='source-build-derivation')
     if (lock != expected or installed.get('schema') != 'deeplinkengine-source-candidate-sdk/v1'
             or installed.get('source_candidate') != identity()
+            or json.loads((output / 'source-candidate-lock.json').read_bytes()) != identity()
             or installed.get('image_manifest') != expected['manifest_digest']
+            or digest(output / 'source-build/receipt.json') != installed.get('build_receipt_sha256')
             or digest(output / 'installed-files.json') != installed['installed_files_sha256']
             or file_map(output) != json.loads((output / 'installed-files.json').read_bytes())):
         raise ValueError('Cached source candidate identity or installed files changed')
@@ -326,13 +328,15 @@ def prepare(base_lock_path, cache, output):
         observed = probe(output, build / 'metadata-probe', selection)
         files = file_map(output)
         save(output / 'installed-files.json', files)
+        receipt.update(status='prepared', metadata=observed, ended=time.time())
+        save(build / 'receipt.json', receipt)
         installed = dict(schema='deeplinkengine-source-candidate-sdk/v1', baseline_id=ID,
             image_manifest=selection['manifest_digest'], manifest_kind='source-build-derivation',
             base_image_manifest=BASE_MANIFEST, installed_files_sha256=digest(output / 'installed-files.json'),
             metadata=observed, model_started=False, official_release_image=False,
             upstream_source_patched=False, source_candidate=identity())
+        installed['build_receipt_sha256'] = digest(build / 'receipt.json')
         save(output / 'installation.json', installed)
-        receipt.update(status='prepared', metadata=observed)
         return installed
     except BaseException as error:
         receipt.update(status='failed', error=type(error).__name__ + ': ' + str(error))
@@ -343,5 +347,6 @@ def prepare(base_lock_path, cache, output):
                 receipt['toolchain_inventory_error'] = type(inventory_error).__name__ + ': ' + str(inventory_error)
         raise
     finally:
-        receipt['ended'] = time.time()
-        save(build / 'receipt.json', receipt)
+        if receipt['status'] != 'prepared':
+            receipt['ended'] = time.time()
+            save(build / 'receipt.json', receipt)

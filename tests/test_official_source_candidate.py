@@ -1,4 +1,5 @@
 import io
+import hashlib
 import json
 from pathlib import Path
 import subprocess
@@ -7,6 +8,7 @@ import tempfile
 import unittest
 import sys
 from unittest.mock import patch
+from types import SimpleNamespace
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] if Path(__file__).parent.name == 'tests' else Path(__file__).resolve().parent))
 import official_source_candidate as candidate
@@ -104,6 +106,60 @@ class CandidateTests(unittest.TestCase):
             self.assertEqual(len(removed), 3)
             self.assertTrue((site / 'torch-1.dist-info').is_dir())
             self.assertFalse((site / 'vllm-1.dist-info').exists())
+
+    def test_cached_sdk_rejects_changed_build_receipt_before_metadata_probe(self):
+        with tempfile.TemporaryDirectory() as directory:
+            sdk=Path(directory);(sdk/'source-build').mkdir()
+            identity={'id':'cpu-source-candidate'}
+            lock=dict(identity,manifest_digest='sha256:'+'a'*64,manifest_kind='source-build-derivation')
+            receipt=sdk/'source-build/receipt.json';receipt.write_text('{"status":"prepared"}')
+            (sdk/'installed-files.json').write_text('{}')
+            installed=dict(schema='deeplinkengine-source-candidate-sdk/v1',source_candidate=identity,
+                image_manifest=lock['manifest_digest'],installed_files_sha256=hashlib.sha256(b'{}').hexdigest(),
+                build_receipt_sha256=hashlib.sha256(receipt.read_bytes()).hexdigest())
+            (sdk/'installation.json').write_text(json.dumps(installed))
+            (sdk/'source-candidate-lock.json').write_text(json.dumps(identity))
+            (sdk/'image-lock.json').write_text(json.dumps(lock))
+            receipt.write_text('{"status":"prepared","post_install_change":true}')
+            with patch.object(candidate,'identity',return_value=identity),patch.object(candidate,'key',return_value='a'*64), \
+                 patch('official_image.probe') as probe:
+                with self.assertRaisesRegex(ValueError,'identity or installed files changed'):candidate.reuse(sdk)
+            probe.assert_not_called()
+
+    def test_successful_prepare_receipt_is_still_sealed_after_finally_and_reuse(self):
+        import official_image
+        import official_execution
+        import os
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);cache=root/'cache';base=cache/'official-sdks/0.23.0-4ee78def8f33d59d'
+            base.mkdir(parents=True);output=cache/'source-candidate-sdks/cpu-fixture'
+            lock=Path(public_entry.ROOT)/'engine/official-baselines/0.23.0.json'
+            (base/'image-lock.json').write_bytes(lock.read_bytes());(base/'installed-files.json').write_text('{}')
+            (base/'installation.json').write_text(json.dumps(dict(image_manifest=candidate.BASE_MANIFEST,
+                installed_files_sha256=hashlib.sha256(b'{}').hexdigest())))
+            (base/'image-manifest.json').write_text('{}');(base/'image-config.json').write_text('{}')
+            def extract(archive,path):
+                path.mkdir(parents=True);(path/'setup.py').write_text('CPU fixture')
+                version='0.28.0rc1' if path.name=='vllm-ascend' else '0.28.0'
+                (path/'PKG-INFO').write_text('Metadata-Version: 2.1\nVersion: '+version+'\n')
+            env=dict(os.environ,PYTHONHOME=str(output/'cpu-python'),CARGO_HOME=str(output/'cargo'),
+                     RUSTUP_HOME=str(output/'rustup'),PATH=os.environ['PATH'])
+            with patch.object(official_image,'file_map',return_value={}), \
+                 patch.object(official_image,'probe',return_value={'cpu_fixture':True}), \
+                 patch.object(official_image,'environment',return_value=(Path(sys.executable),env)), \
+                 patch.object(official_execution,'context_identity',return_value={'source_build_system_root':True}), \
+                 patch.object(official_execution,'sdk_run',return_value=subprocess.CompletedProcess([],0,stdout='',stderr='')), \
+                 patch.object(candidate,'source_archive',return_value=root/'unused-archive'), \
+                 patch.object(candidate,'safe_extract',side_effect=extract),patch.object(candidate,'command'), \
+                 patch.object(candidate,'toolchain_evidence',return_value={'cpu_fixture':True}), \
+                 patch.object(candidate.shutil,'which',return_value='/cpu-rustup'), \
+                 patch.object(candidate.shutil,'disk_usage',return_value=SimpleNamespace(free=200*1024**3)):
+                installed=candidate.prepare(lock,cache,output)
+                raw=(output/'source-build/receipt.json').read_bytes()
+                self.assertEqual(installed['build_receipt_sha256'],hashlib.sha256(raw).hexdigest())
+                self.assertEqual(json.loads(raw)['status'],'prepared')
+                reused=candidate.reuse(output)
+                self.assertEqual(reused['build_receipt_sha256'],installed['build_receipt_sha256'])
 
     def test_outside_package_destination_rejected(self):
         with tempfile.TemporaryDirectory() as temp:

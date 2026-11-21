@@ -1,4 +1,5 @@
 import json
+import hashlib
 from pathlib import Path
 import sys
 import tempfile
@@ -28,6 +29,7 @@ class RuntimeIdentityTests(unittest.TestCase):
         (sdk/'source-candidate-lock.json').write_text(json.dumps(candidate))
         (sdk/'source-build').mkdir()
         (sdk/'source-build/receipt.json').write_text(json.dumps(dict(status=status,candidate=candidate)))
+        (sdk/'installation.json').write_text(json.dumps(dict(build_receipt_sha256=hashlib.sha256((sdk/'source-build/receipt.json').read_bytes()).hexdigest())))
 
     def test_derivation_and_base_are_never_reported_as_official_image(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -45,6 +47,15 @@ class RuntimeIdentityTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             sdk=Path(directory);self.fixture(sdk,'failed')
             with self.assertRaisesRegex(ValueError,'incomplete'):
+                runtime_identity(sdk)
+
+    def test_changed_receipt_cannot_be_relabelled_with_a_new_current_hash(self):
+        with tempfile.TemporaryDirectory() as directory:
+            sdk=Path(directory);self.fixture(sdk)
+            receipt=sdk/'source-build/receipt.json'
+            value=json.loads(receipt.read_bytes());value['extra']='post-install change'
+            receipt.write_text(json.dumps(value))
+            with self.assertRaisesRegex(ValueError,'incomplete or differs'):
                 runtime_identity(sdk)
 
     def test_actual_serving_entry_rejects_wrong_runtime_before_framework_import(self):

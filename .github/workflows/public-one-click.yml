@@ -22,6 +22,7 @@ jobs:
           python-version: '3.12'
       - run: python -B tests/test_official_download.py
       - run: python -B tests/test_official_protocol_preparation.py
+      - run: python -B tests/test_official_protocol_download.py
       - run: python -B tests/test_official_image_recovery.py
       - run: python -B tests/test_official_range_download.py
   public-contract:
@@ -69,6 +70,7 @@ jobs:
       - run: python -B tests/test_official_image_recovery.py
       - run: python -B tests/test_official_protocol_bootstrap.py
       - run: python -B tests/test_official_execution.py
+      - run: python -B tests/test_official_protocol_download.py
       - run: python -B tests/test_official_protocol_preparation.py
       - run: python -B tests/test_official_judge_endpoint.py
       - run: python -B tests/test_official_sdk_state.py
