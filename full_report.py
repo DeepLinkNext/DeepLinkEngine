@@ -166,6 +166,7 @@ def context_decisions(context, audits):
                 windows[m+'_'+p]<=limit for m,limit in [('ttft',Decimal('2')),('tpot',Decimal('1.25'))] for p in ('p95','p99'))
     return dict(milestone=decision(milestone,'16K/4K吞吐≥50%，TTFT P95/P99比值≤3，TPOT P95/P99比值≤2；两臂完整且无失败。'),
                 final=decision(final,'32K全部五个60秒窗口：吞吐max/min≤1.50，TTFT P95/P99≤2，TPOT P95/P99≤1.25；两臂完整且无失败。'),
+                percentile_method='nearest_rank',
                 blocking_errors={r:audits.get(r,{}).get('errors',[]) for r in ('B0','B1')},
                 measured_ratios={k:str(v) if v is not None else None for k,v in ratios.items()},
                 measured_window_ratios={k:str(v) if v is not None else None for k,v in windows.items()})
@@ -402,6 +403,56 @@ def context_sources(folder, stored):
     return result
 
 
+def v2_latency_tails(metrics, observations):
+    for column, metric in ((1, 'ttft_ms'), (2, 'tpot_ms')):
+        values = sorted(row[column] for row in observations if row[column] is not None)
+        for percentile in (95, 99):
+            rank = (percentile * len(values) + 99) // 100
+            metrics[metric][f'p{percentile}'] = values[rank - 1] if values else None
+
+
+def apply_v2_context_tails(context, arms):
+    """Project nearest-rank tails from the same audited request clocks."""
+    pairs = {row['phase']: row for row in context['comparison']}
+    for role, root in arms.items():
+        raw_seal = (root / 'checksums.json').read_bytes()
+        if hashlib.sha256(raw_seal).hexdigest() != context['arm_seals'][role]:
+            raise ValueError('Context source seal changed before V2 percentile projection')
+        seal = json.loads(raw_seal)
+
+        def read(relative):
+            raw = (root / relative).read_bytes()
+            if hashlib.sha256(raw).hexdigest() != seal.get(relative):
+                raise ValueError('Context request or clock is missing from the audited seal: ' + relative)
+            return json.loads(raw)
+
+        folder = 'service/acceptance/'
+        for phase in read(folder + 'execution.json')['phases']:
+            if phase['name'] not in pairs:
+                continue
+            observations = []
+            for request in phase['request_files']:
+                row = read(folder + request)
+                if not row['success']:
+                    continue
+                start = row['start']['monotonic']
+                first = row['first_token']['monotonic']
+                count = row['usage']['completion_tokens']
+                ttft = 1000 * (first - start)
+                tpot = 1000 * (row['end']['monotonic'] - first) / (count - 1) if count > 1 else None
+                observations.append((start, ttft, tpot, row['tenant']))
+            arm = pairs[phase['name']][role]
+            v2_latency_tails(arm['metrics'], observations)
+            for tenant, metrics in arm['per_tenant'].items():
+                v2_latency_tails(metrics, [row for row in observations if row[3] == tenant])
+            phase_start = phase['start']['monotonic']
+            for index, window in enumerate(arm['windows']):
+                low = phase_start + 60 * index
+                high = min(low + 60, phase['submission_deadline_monotonic'])
+                v2_latency_tails(window['metrics'], [row for row in observations if low <= row[0] < high])
+
+
+
 def workload_sources(fixed, context, b1):
     plan = fixed['plan']
     prepared = plan.get('prepared_datasets', {})
@@ -449,7 +500,8 @@ def workload_sources(fixed, context, b1):
                 cost=dict(milestone_workload='mmlu', final_phase='multi-tenant-formal'),
                 continuous=dict(input_kind='synthetic', dataset=None, workload='4K/16K 连续合成 C8'),
                 context=dict(input_sha256=digest, source_protocol_sha256=contract['source_protocol_sha256'],
-                             output_tokens=contract['output_tokens'], cohorts=cohorts, phases=phases))
+                             percentile_method='nearest_rank', output_tokens=contract['output_tokens'],
+                             cohorts=cohorts, phases=phases))
 
 
 def workload_source_table(sources):
@@ -514,6 +566,7 @@ def collect(root, actual_cost=None):
         context = paired(arms)
     if stored!=context:
         raise ValueError('Context summary differs from independently re-audited originals')
+    apply_v2_context_tails(context, arms)
     stack_path=kit_path()/'mods'/('active-stack-'+fixed['plan']['engine_release'].rsplit('-',1)[1]+'.json')
     stack=json.loads(stack_path.read_text())
     if 'enabled_mods' not in stack:

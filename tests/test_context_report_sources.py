@@ -127,7 +127,7 @@ def collect_fixture(tmp_path, changed=None, actual_cost=None):
             patch('acceptance_suite.paired', side_effect=paired), \
             patch.object(report, 'audit_context', side_effect=audit), \
             patch.object(report, 'targets', return_value={}) as targets, patch.object(report, 'workload_pairs', return_value={}), \
-            patch.object(report, 'workload_sources', return_value={}):
+            patch.object(report, 'workload_sources', return_value={}), patch.object(report, 'apply_v2_context_tails'):
         result = report.collect(run, cost_path)
         expected = (cost_path or default) if actual_cost else None
         assert targets.call_args.args[-1] == expected
@@ -184,3 +184,35 @@ def test_dataset_source_is_taken_from_the_audited_cohort(tmp_path):
     path.write_bytes(path.read_bytes()+b' ')
     with pytest.raises(ValueError, match='audited input digest'):
         report.workload_sources(dict(plan={}), dict(contract=contract), tmp_path)
+
+
+def test_formal_context_rank_replays_sealed_whole_and_window_clocks(tmp_path):
+    folder = tmp_path / 'service/acceptance'
+    folder.mkdir(parents=True)
+    requests = []
+    for i, (start, ttft) in enumerate(((1, 1), (2, 2), (3, 3), (4, 10), (61, 5))):
+        name = f'request-{i}.json'
+        first = start + ttft
+        (folder / name).write_text(json.dumps(dict(
+            success=True, start=dict(monotonic=start), first_token=dict(monotonic=first),
+            end=dict(monotonic=first + 2), usage=dict(completion_tokens=3), tenant='tenant-0')))
+        requests.append(name)
+    (folder / 'execution.json').write_text(json.dumps(dict(phases=[dict(
+        name='32768-formal', start=dict(monotonic=0), submission_deadline_monotonic=120, request_files=requests)])))
+    seal = {path.relative_to(tmp_path).as_posix(): hashlib.sha256(path.read_bytes()).hexdigest()
+            for path in folder.iterdir()}
+    (tmp_path / 'checksums.json').write_text(json.dumps(seal))
+    def metrics():
+        return dict(ttft_ms=dict(p95=1, p99=2), tpot_ms=dict(p95=3, p99=4))
+    arm = dict(metrics=metrics(), per_tenant={'tenant-0': metrics()},
+               windows=[dict(metrics=metrics()), dict(metrics=metrics())])
+    context = dict(comparison=[{'phase': '32768-formal', 'B1': arm}],
+                   arm_seals={'B1': hashlib.sha256((tmp_path / 'checksums.json').read_bytes()).hexdigest()})
+    report.apply_v2_context_tails(context, {'B1': tmp_path})
+    assert arm['metrics']['ttft_ms'] == {'p95': 10000, 'p99': 10000}
+    assert arm['per_tenant']['tenant-0']['tpot_ms']['p99'] == 1000
+    assert arm['windows'][0]['metrics']['ttft_ms']['p99'] == 10000
+    assert arm['windows'][1]['metrics']['ttft_ms']['p99'] == 5000
+    (folder / requests[0]).write_text('{}')
+    with pytest.raises(ValueError, match='missing from the audited seal'):
+        report.apply_v2_context_tails(context, {'B1': tmp_path})
