@@ -45,6 +45,8 @@ class RuntimeStorageTests(unittest.TestCase):
             physical=str(target),verified=True,python=sys.executable,package_version=self.frozen['version'],
             release=self.frozen['release'],archives=self.frozen['archives'],reused_from=origin if reused else None)
         storage.marker(self.logical).write_text(json.dumps(record))
+        if reused:
+            storage.marker(Path(origin)).write_text(json.dumps(dict(record,logical=origin,reused_from=None)))
         self.logical.symlink_to(target)
         return target, record
 
@@ -55,6 +57,25 @@ class RuntimeStorageTests(unittest.TestCase):
                 target, record=self.recorded_target(reused=reused)
                 with patch.object(storage, 'filesystem', return_value='xfs'):
                     self.assertEqual(storage.storage_target(self.logical,self.frozen),target)
+
+    def test_multiple_reused_aliases_resolve_the_original_owned_target(self):
+        target, record=self.recorded_target(reused=True)
+        intermediate=self.logical.parent/'intermediate'
+        storage.marker(intermediate).write_text(json.dumps(dict(record,logical=str(intermediate))))
+        storage.marker(self.logical).write_text(json.dumps(dict(record,reused_from=str(intermediate))))
+        with patch.object(storage,'filesystem',return_value='xfs'):
+            self.assertEqual(storage.storage_target(self.logical,self.frozen),target)
+        changed=json.loads(storage.marker(intermediate).read_text());changed['release']='wrong'
+        storage.marker(intermediate).write_text(json.dumps(changed))
+        with self.assertRaisesRegex(ValueError,'reuse chain identity'):
+            storage.storage_target(self.logical,self.frozen)
+
+    def test_reused_alias_cycle_is_rejected(self):
+        target, record=self.recorded_target(reused=True)
+        prior=Path(record['reused_from'])
+        storage.marker(prior).write_text(json.dumps(dict(record,logical=str(prior),reused_from=str(self.logical))))
+        with self.assertRaisesRegex(ValueError,'reuse chain differs'):
+            storage.storage_target(self.logical,self.frozen)
 
     def test_remount_cannot_change_recorded_owner_or_frozen_release(self):
         target, record=self.recorded_target()
