@@ -67,6 +67,12 @@ jobs:
       - run: python -B tools/test_public_one_click.py
       - run: python -B tools/test_public_run_all.py
       - run: python -B tests/test_official_baselines.py
+      - run: python -B tests/test_official_runtime_identity.py
+      - run: python -B tests/test_official_build_context.py
+      - run: python -B tests/test_official_source_candidate.py
+      - run: python -B tests/test_official_build_assets.py
+      - run: python -B tests/test_official_source_build_graph.py
+      - run: python -B tests/test_official_source_download.py
       - run: python -B tests/test_official_kernel_preparation.py
       - run: python -B tests/test_official_inventory.py
       - run: python -B -m pytest -q tests/test_managed_shutdown.py
@@ -150,3 +156,35 @@ jobs:
         env:
           XDG_CACHE_HOME: ${{ runner.temp }}/deeplink-public-evidence
         run: python -B benchmark/reports/r8-compute-reference-20261119-v1/recompute.py
+
+  source-build-download-windows:
+    runs-on: windows-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -B tests/test_official_build_assets.py
+      - run: python -B tests/test_official_source_build_graph.py
+      - run: python -B tests/test_official_source_download.py
+
+
+  source-build-pep517-scope:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install pip==26.2
+      - run: python -B tests/test_official_pep517_scope.py
+      - run: python -B tests/test_official_source_delivery.py

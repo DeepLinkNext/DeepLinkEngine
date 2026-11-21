@@ -65,7 +65,7 @@ def report(root, config=None):
     document = dict(schema='deeplinkengine-official-baseline-report/v1',
                     baseline=campaign['baseline_image']['id'], status=campaign['status'],
                     planned_denominators=campaign['fixed_five_denominators'], phases=summaries,
-                    metrics=metrics, quality=quality,
+                    metrics=metrics, quality=quality, runtime_identity=campaign.get('runtime_identity'),
                     new_F_T_qualification=qualification is not None,
                     qualified_efficiency_percent=qualification['efficiency_lower_percent'] if qualification else None,
                     F_T_qualification=qualification,
