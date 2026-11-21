@@ -194,6 +194,8 @@ class CostTests(unittest.TestCase):
         self.assertAlmostEqual(float(result['four_tenant_cost_reduction_percent']), 40)
         self.assertAlmostEqual(float(result['same_rate_estimate']['mmlu']['reduction_percent']), 50)
         self.assertEqual(result['formal_cost']['mmlu']['arms']['B1']['expense_sha256'], [self.digest])
+        self.assertEqual(result['formal_cost']['mmlu']['utilization']['B1']['per_card_percent'], {'1': 85, '6': 85})
+        self.assertEqual(result['formal_cost']['four_tenant']['utilization']['B0']['missing_seconds'], 0)
         self.assertNotIn(self.doc.name, json.dumps(result))
         self.assertFalse(self.judge(self.expense(mmlu='2100', four_tenant='1800'))['milestone']['met'])
 

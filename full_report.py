@@ -183,7 +183,7 @@ def actual_cost_inputs(path, measurements):
         return None, {}
     path = Path(path)
     raw = path.read_bytes()
-    manifest = json.loads(raw)
+    manifest = json.loads(raw, parse_float=Decimal)
     if (not isinstance(manifest, dict) or set(manifest) != {'schema', 'scenarios'}
             or manifest['schema'] != 'deeplinkengine-v2-actual-card-cost/v1'):
         raise ValueError('Invalid V2 actual cost manifest')
@@ -252,6 +252,8 @@ def cost_decisions(fixed, pairs, context, audits, actual_cost):
     mmlu_util = mmlu.get('utilization', {})
     multi = next((r for r in (context or {}).get('comparison', []) if r['phase'] == 'multi-tenant-formal'), {})
     context_seals = (context or {}).get('arm_seals', {})
+    multi_util = {role: multi.get(role, {}).get('utilization', {}) for role in ('B0', 'B1')}
+    samples = {'mmlu': mmlu_util, 'four_tenant': multi_util}
     measurements = {'mmlu': {}, 'four_tenant': {}}
     for role in ('B0', 'B1'):
         arm = mmlu_arms.get(role, {})
@@ -276,6 +278,7 @@ def cost_decisions(fixed, pairs, context, audits, actual_cost):
         formal[name] = dict(
             evidence_status='verified' if actual else 'missing',
             reduction_percent=decimal_text(actual_reductions[name]),
+            utilization=samples[name],
             arms={r: dict(meter, **fees[r], cost_per_million_output_tokens_cny=decimal_text(actual[r]))
                   if actual else meter for r, meter in arms.items()})
 
@@ -302,7 +305,6 @@ def cost_decisions(fixed, pairs, context, audits, actual_cost):
                 and all(t['requests'] > 0 and t['successful'] == t['requests'] and t['failed'] == 0
                         for t in tenants.values()))
 
-    multi_util = {role: multi.get(role, {}).get('utilization', {}) for role in ('B0', 'B1')}
     multi_ready = (sampled(measurements['four_tenant'], multi_util)
                    and all(audits.get(role, {}).get('clean') is True and complete_tenants(multi[role])
                            for role in ('B0', 'B1')))
