@@ -49,7 +49,8 @@ def run(config, image, output, tools, sdk, sources, leases, continuous, *, nativ
                 reference_capture_profile='submission-v2', formal_repetitions=capture['formal_repetitions'],
                 max_tokens=capture['max_tokens'], sampling=dict(max_tokens=capture['max_tokens'], temperature=0,
                     seed=0, ignore_eos=capture['ignore_eos'], top_p=1.0, top_k=-1, presence_penalty=0.0, detokenize=False),
-                necessary_work_certified=False, efficiency_percent=None)
+                necessary_work_certified=False, efficiency_percent=None,
+                runtime_identity=__import__('official_runtime_identity').runtime_identity(image))
     save(output / 'native-plan.json', plan)
     if native_source is not None:
         plan['purpose'] = 'arithmetic-companion'
@@ -84,7 +85,7 @@ def run(config, image, output, tools, sdk, sources, leases, continuous, *, nativ
     try:
         with (output / 'native.log').open('xb') as stream:
             entry = 'official_native_entry.py' if native_source is None else 'official_ft_entry.py'
-            process = subprocess.Popen([str(python), '-S', str(ROOT / entry), str(output / 'native-plan.json')],
+            process = subprocess.Popen([str(python), '-S', '-B', str(ROOT / entry), str(output / 'native-plan.json')],
                                        env=env, stdout=stream, stderr=subprocess.STDOUT,
                                        pass_fds=tuple(v['fd'] for v in leases), start_new_session=True)
         owned.add(process.pid)

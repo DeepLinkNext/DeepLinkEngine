@@ -8,19 +8,25 @@ import shutil
 import subprocess
 import threading
 import uuid
+from urllib.parse import urlsplit
 
 
-def fetch(cache, registry, kind, identity, size, *, workers=4, chunk_size=1024**2):
+def fetch(cache, registry, kind, identity, size, *, workers=4, chunk_size=1024**2, source_url=None):
     from baseline_setup import digest, download_lock, fetch as sequential
     if (not re.fullmatch(r'sha256:[0-9a-f]{64}',identity)
             or type(size) is not int or size<=0 or type(workers) is not int or not 1<=workers<=4
             or type(chunk_size) is not int or not 1<=chunk_size<=4*1024**2):
         raise ValueError('Invalid bounded official range geometry')
+    if source_url is not None:
+        parsed=urlsplit(source_url)
+        if (parsed.scheme!='https' or not parsed.hostname or parsed.username is not None
+                or parsed.password is not None or parsed.fragment):
+            raise ValueError('Explicit artifact ranges require an HTTPS URL without credentials or fragment')
     cache=Path(cache);cache.mkdir(parents=True,exist_ok=True)
     target=cache/identity.replace(':','-');pin=identity.split(':')[1]
     # A sequential prefix is deliberately preserved in its original format.
     # Do not preallocate a second large object or reinterpret that prefix.
-    if target.with_suffix('.download.partial').exists():
+    if source_url is None and target.with_suffix('.download.partial').exists():
         print('BASELINE_RANGE_SEQUENTIAL_PREFIX_RETAINED',identity,flush=True)
         return sequential(cache,registry,kind,identity,size,attempts=0)
     lock=target.with_suffix('.download.lock')
@@ -35,7 +41,7 @@ def fetch(cache, registry, kind, identity, size, *, workers=4, chunk_size=1024**
         if any(p.is_symlink() for p in (partial,state_path,parts)):
             raise ValueError('Range cache paths must not be links')
         signature=dict(schema='deeplinkengine-official-range-state/v1',digest=identity,bytes=size,chunk_size=chunk_size,
-                       source=registry+kind+'/'+identity)
+                       source=source_url if source_url is not None else registry+kind+'/'+identity)
         if state_path.exists():
             state=json.loads(state_path.read_bytes())
             if any(state.get(k)!=v for k,v in signature.items()) or not isinstance(state.get('chunks'),dict):

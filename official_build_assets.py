@@ -66,6 +66,11 @@ def transports(row):
         try:
             found,record=matching_links(index,row);urls+=found;proof.append(record)
         except (OSError,ValueError) as error:proof.append(dict(index=index,error=type(error).__name__+': '+str(error)))
+    original=urllib.parse.urlsplit(row.get('upstream_url',row['url']))
+    if (original.scheme=='https' and original.hostname=='download-r2.pytorch.org'
+            and original.path.startswith('/whl/cpu/') and not original.query and not original.fragment
+            and original.username is None and original.password is None):
+        urls.append(urllib.parse.urlunsplit(original._replace(netloc='download.pytorch.org')))
     urls+= [row.get('api_url',row['url']),row['url']]
     return list(dict.fromkeys(urls)),proof
 
@@ -84,28 +89,105 @@ def fetch(row,cache):
         if shutil.disk_usage(cache).free<row['bytes']+2*1024**3:
             raise OSError('Build artifact prefetch requires one whole artifact plus 2 GiB free')
         urls,proof=transports(row)
+        range_error=None
+        if row['bytes']>=16*1024**2 and shutil.which('curl'):
+            try:return fetch_ranges(row,cache,target,urls,proof)
+            except OSError as error:
+                range_error=type(error).__name__+': '+str(error)
+                from official_baselines import save
+                save(target.with_name(row['filename']+'.range-fallback.json'),
+                     dict(status='bounded-range-failed',error=range_error,sequential_pinned_resume_selected=True,
+                          sha256=row['sha256'],bytes=row['bytes'],url_candidates=urls))
         path=_download_dependency(row,target,urls,valid)
         if not valid(path):raise ValueError('Build artifact failed fresh whole SHA admission')
-        return path,dict(cached=False,filename=row['filename'],sha256=row['sha256'],mirror_indexes=proof)
+        return path,dict(cached=False,filename=row['filename'],sha256=row['sha256'],mirror_indexes=proof,
+                         bounded_range_error=range_error)
+
+
+def fetch_ranges(row,cache,target,urls,index_proof):
+    """Reuse the public four-worker verified downloader for large build assets."""
+    from official_range_download import fetch as ranged
+    import tempfile
+    attempts=[]
+    for url in urls:
+        folder=cache.parent/'source-build-downloads/ranges'/hashlib.sha256(url.encode()).hexdigest()[:20]
+        try:
+            path=ranged(folder,'','','sha256:'+row['sha256'],row['bytes'],workers=4,source_url=url)
+            if path.stat().st_size!=row['bytes'] or sha(path)!=row['sha256']:
+                raise ValueError('Ranged build artifact differs from its publisher whole SHA')
+            with tempfile.NamedTemporaryFile(dir=cache,prefix=row['filename']+'.ranged-',delete=False) as stream:
+                temporary=Path(stream.name)
+                with path.open('rb') as reader:shutil.copyfileobj(reader,stream,1024**2)
+            if temporary.stat().st_size!=row['bytes'] or sha(temporary)!=row['sha256']:
+                raise ValueError('Ranged cache copy changed; preserve '+str(temporary))
+            temporary.replace(target)
+            proof=dict(cached=False,kind='verified-public-four-worker-ranges',filename=row['filename'],
+                sha256=row['sha256'],source_url=url,source_path=str(path),workers=4,mirror_indexes=index_proof,
+                attempts=attempts,sequential_prefix_preserved=str(target.with_name(row['filename']+'.download.partial')))
+            from official_baselines import save
+            save(target.with_name(row['filename']+'.source-ranges.json'),proof)
+            return target,proof
+        except (OSError,ValueError,subprocess.SubprocessError) as error:
+            attempts.append(dict(url=url,error=type(error).__name__+': '+str(error)))
+    raise OSError('Pinned build artifact failed all bounded Range transports: '+row['filename']+'; '+str(attempts))
+
+
+def admit_pip_cache(row,cache,*,pip_cache,report_url):
+    """Copy only this report URL's verified whole body from our metadata cache."""
+    if urllib.parse.urlsplit(report_url).scheme not in ('https','http'):
+        return None
+    from baseline_setup import download_lock
+    from pip._internal.network.cache import SafeFileCache
+    from pip._vendor.cachecontrol.controller import CacheController
+    import tempfile
+    root=Path(pip_cache).resolve();http=SafeFileCache(str(root/'http-v2'))
+    key=CacheController.cache_url(report_url)
+    source=Path(http._get_cache_path(key)+'.body')
+    if (source.is_symlink() or not source.is_file()
+            or not source.resolve().is_relative_to(root)
+            or source.stat().st_size!=row['bytes'] or sha(source)!=row['sha256']):
+        return None
+    cache=Path(cache);cache.mkdir(parents=True,exist_ok=True);target=cache/row['filename']
+    if Path(row['filename']).name!=row['filename']:raise ValueError('Unsafe metadata cache artifact filename')
+    with (cache/(row['filename']+'.lock')).open('a+b') as lease,download_lock(lease):
+        if target.is_symlink():raise ValueError('Build cache artifact is a symlink')
+        if target.exists():
+            if target.stat().st_size!=row['bytes'] or sha(target)!=row['sha256']:
+                raise ValueError('Build cache artifact has wrong whole SHA; preserve '+str(target))
+            return target,dict(cached=True,filename=row['filename'],sha256=row['sha256'])
+        if shutil.disk_usage(cache).free<row['bytes']+2*1024**3:
+            raise OSError('Metadata cache admission requires one whole artifact plus 2 GiB free')
+        with tempfile.NamedTemporaryFile(dir=cache,prefix=row['filename']+'.metadata-cache-',delete=False) as output:
+            temporary=Path(output.name)
+            with source.open('rb') as stream:shutil.copyfileobj(stream,output,1024**2)
+        if temporary.stat().st_size!=row['bytes'] or sha(temporary)!=row['sha256']:
+            raise ValueError('Metadata cache body changed; preserve '+str(temporary))
+        temporary.replace(target)
+        return target,dict(cached=True,kind='verified-metadata-http-cache',source_path=str(source),
+            report_url=report_url,filename=row['filename'],sha256=row['sha256'],
+            pip_version=__import__('pip').__version__,sdk_installation_performed=False)
 
 
 def authority(install,primary):
     """Check a resolver choice against the original publisher's artifact list."""
     info=install['download_info'];url=info['url'];filename=urllib.parse.unquote(urllib.parse.urlsplit(url).path.rsplit('/',1)[-1]);meta=install['metadata'];name=re.sub(r'[-_.]+','-',meta['name']).lower();version=meta['version'];digest=info.get('archive_info',{}).get('hashes',{}).get('sha256')
-    if not re.fullmatch(r'[0-9a-f]{64}',digest or ''):raise ValueError('Resolver artifact has no whole SHA-256')
+    if digest is not None and not re.fullmatch(r'[0-9a-f]{64}',digest):raise ValueError('Resolver artifact has an invalid whole SHA-256')
     if filename in primary:
         row=dict(primary[filename]);
-        if row['sha256']!=digest:raise ValueError('Resolver changed a fixed stage artifact')
-        return row
+        if digest is not None and row['sha256']!=digest:raise ValueError('Resolver changed a fixed stage artifact')
+        return dict(row,resolver_advertised_sha256=digest is not None)
     if not re.fullmatch(r'[a-z0-9][a-z0-9_.-]*',name):raise ValueError('Unsafe resolved package name')
     source='https://pypi.org/pypi/'+urllib.parse.quote(name,safe='')+'/'+urllib.parse.quote(version,safe='')+'/json'
     try:
-        raw=_read(source);data=json.loads(raw);matches=[r for r in data['urls'] if r['filename']==filename and r['digests']['sha256']==digest]
+        raw=_read(source);data=json.loads(raw);matches=[r for r in data['urls'] if r['filename']==filename and (digest is None or r['digests']['sha256']==digest)]
         if len(matches)!=1:raise ValueError('Resolver artifact is absent from the official PyPI release')
-        selected=matches[0]
-        return dict(filename=filename,bytes=selected['size'],sha256=digest,url=selected['url'],upstream_url=selected['url'],package=name,version=version,publisher_metadata_url=source,publisher_metadata_sha256=hashlib.sha256(raw).hexdigest())
+        selected=matches[0];publisher_digest=selected['digests']['sha256']
+        if not re.fullmatch(r'[0-9a-f]{64}',publisher_digest):raise ValueError('Publisher artifact has an invalid whole SHA-256')
+        return dict(filename=filename,bytes=selected['size'],sha256=publisher_digest,url=selected['url'],upstream_url=selected['url'],package=name,version=version,publisher_metadata_url=source,publisher_metadata_sha256=hashlib.sha256(raw).hexdigest(),resolver_advertised_sha256=digest is not None,publisher_digest_advertised=True)
     except urllib.error.HTTPError as error:
         if error.code!=404:raise
+    if digest is None:
+        raise ValueError('Resolver and official PyPI publisher supply no unique pinned artifact SHA-256: '+filename)
     # CPU variants and Triton-Ascend are also published in the exact upstream
     # indexes used by the Docker recipe. They must advertise the same digest.
     row=dict(filename=filename,sha256=digest,package=name)
@@ -193,33 +275,8 @@ def _run(argv,*,sdk,env,cwd,folder):
 
 
 def prepare_stage(python,core,cache,build,env,*,sdk,stage):
-    import tomllib
-    from official_baselines import save
-    from official_source_candidate import primary_build_constraint,build_dependency_artifacts
-    from transport_trust import configure
-    cache=Path(cache);base=cache/'official-sdks/0.23.0-4ee78def8f33d59d'
-    tls=configure(cache,base);child=dict(env);configure(cache,base,env=child)
-    # The primary wheels are fetched through the same advertised-hash mirrors.
-    primary={r['filename']:r for r in build_dependency_artifacts().values() if r['stage']==stage}
-    for row in primary.values():fetch(row,cache/'wheels')
-    primary_constraint,primary_proof=primary_build_constraint(python,core,cache,build,child,sdk=sdk,stage=stage)
-    original=tomllib.loads((core/'pyproject.toml').read_text())['build-system']['requires']
-    folder=build/(stage+'-dependency-plan');folder.mkdir();report=folder/'pip-report.json'
-    child.update(PIP_CONFIG_FILE=os.devnull,PIP_CACHE_DIR=str(cache/'source-build-downloads/verified-metadata-pip'),PIP_BUILD_CONSTRAINT=str(primary_constraint))
-    child.setdefault('PIP_DEFAULT_TIMEOUT','120');child.setdefault('PIP_RETRIES','3')
-    argv=[str(python),'-S','-B','-m','pip','install','--dry-run','--ignore-installed','--report',str(report),'--constraint',str(primary_constraint),'--index-url',PYPI_MIRRORS[0],'--extra-index-url',CPU_MIRROR]
-    if stage=='03-ascend':argv+=['--extra-index-url',ASCEND_ORIGIN]
-    argv+=original
-    _run(argv,sdk=sdk,env=child,cwd=core,folder=folder)
-    resolved=json.loads(report.read_bytes());rows=[];lines=[]
-    for install in resolved['install']:
-        row=authority(install,primary);path,transport=fetch(row,cache/'wheels');binding=verify_wheel_metadata(path,install['metadata']);rows.append(dict(row,path=str(path),transport=transport,metadata=install['metadata'],metadata_binding=binding))
-        lines.append(row['package']+' @ '+path.as_uri()+'#sha256='+row['sha256'])
-    closure=verify_closure(original,rows,resolved.get('environment',{}))
-    constraint=build/(stage+'-verified-closure-constraints.txt');constraint.write_text('\n'.join(lines)+'\n')
-    lock=dict(schema='deeplinkengine-isolated-build-dependency-closure/v1',stage=stage,original_requirements=original,pyproject_sha256=sha(core/'pyproject.toml'),resolver_report_sha256=sha(report),tls=tls,primary=primary_proof,closure=closure,artifacts=rows,constraint_sha256=sha(constraint),sdk_runtime_constraints_added=False,temporary_metadata_build_environments_possible=True,model_started=False)
-    save(folder/'lock.json',lock)
-    return constraint,dict(stage=stage,lock=str(folder/'lock.json'),lock_sha256=sha(folder/'lock.json'),constraint=str(constraint),constraint_sha256=sha(constraint),artifacts=len(rows),runtime_constraint_added=False)
+    from official_source_build_graph import prepare
+    return prepare(python,core,cache,build,env,sdk=sdk,stage=stage)
 
 
 def prefetch_all(config,arguments):

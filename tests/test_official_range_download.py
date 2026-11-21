@@ -73,6 +73,22 @@ class Ranges(unittest.TestCase):
     def test_worker_limit_is_enforced(self):
         with self.assertRaises(ValueError):self.run_fetch(workers=5)
 
+    def test_explicit_https_artifact_uses_same_exact_ranges_and_whole_sha(self):
+        url='https://mirror.invalid/pinned-wheel.whl'
+        def curl(args,**kwargs):
+            self.assertEqual(args[-1],url)
+            return self.curl(args,**kwargs)
+        with patch('official_range_download.subprocess.run',side_effect=curl):
+            path=fetch(self.root,'','',self.pin,len(self.payload),workers=2,chunk_size=4,source_url=url)
+        self.assertEqual(path.read_bytes(),self.payload)
+        state=json.loads(path.with_suffix('.range-state.json').read_text());self.assertEqual(state['source'],url)
+
+    def test_explicit_artifact_rejects_plaintext_credentials_and_fragments(self):
+        for url in ('http://mirror.invalid/pkg.whl','https://name:secret@mirror.invalid/pkg.whl','https://mirror.invalid/pkg.whl#sha256=abc'):
+            with self.assertRaisesRegex(ValueError,'HTTPS URL'):
+                fetch(self.root,'','',self.pin,len(self.payload),source_url=url)
+        self.assertFalse(list(self.root.iterdir()))
+
     def test_pure_download_facade_dispatches_only_when_explicitly_requested(self):
         import official_download
         payload=b'x'*(2*1024**2);blob=self.root/'fixture';blob.write_bytes(payload)
