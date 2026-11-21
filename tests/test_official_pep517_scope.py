@@ -74,6 +74,15 @@ for name,args,changes,success in cases:
         assert {r['dependency_version'] for r in rows}=={'1.0','2.0'},rows
         assert len({r['dependency_file'] for r in rows})>=2,rows
 
+# The build controller owns Linux process groups and /proc birth identities.
+# Windows verifies actual pip's four portable isolation cases above; it does
+# not claim support for installing or building an Ascend SDK.
+if os.name == 'nt':
+    proof.update(ended=time.time(),production_graph=dict(status='not-run',reason='Linux-only source-build controller'),source_runtime_or_upstream_requirements_modified=False)
+    (j/'proof.json').write_text(json.dumps(proof,indent=2)+'\n')
+    print(json.dumps(dict(status='passed',cases=len(proof['cases']),production_graph='Linux-only',fixture_package_is_not_torch=True)))
+    sys.exit(0)
+
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 import official_source_candidate as candidate
 import official_source_build_graph as graph
