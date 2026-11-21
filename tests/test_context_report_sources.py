@@ -118,7 +118,7 @@ def collect_fixture(tmp_path, changed=None):
     with patch('runtime_storage.restore_missing'), patch.object(report, 'kit_path', return_value=kit), \
             patch('third_party_report.inspect', return_value=observed), \
             patch('acceptance_suite.paired', side_effect=paired), \
-            patch.object(report, 'attach_dataset_costs'), patch.object(report, 'audit_context', side_effect=audit), \
+            patch.object(report, 'audit_context', side_effect=audit), \
             patch.object(report, 'targets', return_value={}), patch.object(report, 'workload_pairs', return_value={}):
         result = report.collect(run)
     return result, audits, arms, folder, stored
