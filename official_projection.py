@@ -53,6 +53,15 @@ def plot_python(cache, record):
     if current:
         record.update(status='current', **current)
         return Path(current['python']), env
+    # Reuse the existing one-click report environment without changing its SDK.
+    report_cache = Path(os.environ.get('XDG_CACHE_HOME', Path.home() / '.cache')) / 'vllm-hust-engine/report-mpl3108'
+    existing = [Path(os.environ['VLLM_HUST_REPORT_PYTHON'])] if os.environ.get('VLLM_HUST_REPORT_PYTHON') else []
+    existing += [report_cache / ('Scripts/python.exe' if os.name == 'nt' else 'bin/python')]
+    for candidate in existing:
+        ready = probe(candidate) if candidate.is_file() else None
+        if ready:
+            record.update(status='existing-report', **ready)
+            return Path(ready['python']), env
     prefix = cache / 'environment'
     if any(path.is_symlink() for path in (prefix, prefix / 'bin', prefix / 'Scripts')):
         raise ValueError('CPU plotting environment directories cannot be symlinks')

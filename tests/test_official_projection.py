@@ -161,11 +161,24 @@ class PublicProjectionTests(unittest.TestCase):
             self.assertEqual(record['status'],'failed');self.assertEqual(record['repair_status'],'failed')
             self.assertEqual(record['repair_step'],'install-pinned-renderer')
 
+    def test_existing_one_click_report_environment_is_reused(self):
+        sys.path.insert(0,str(ROOT));self.addCleanup(lambda:sys.path.remove(str(ROOT)))
+        spec=importlib.util.spec_from_file_location('existing_report_renderer_checks',ROOT/'official_projection.py')
+        module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
+        existing=self.root/'existing-python';existing.write_bytes(b'fixture executable')
+        responses=[subprocess.CompletedProcess([],1,'','Missing matplotlib'),subprocess.CompletedProcess([],0,json.dumps({'python':str(existing),'matplotlib':'3.10.8'}),'')]
+        with patch.dict(os.environ,{'VLLM_HUST_REPORT_PYTHON':str(existing)}):
+            with patch.object(module.subprocess,'run',side_effect=responses) as commands:
+                record={};python,env=module.plot_python(self.root/'new-cache',record)
+        self.assertEqual(record['status'],'existing-report');self.assertEqual(python,existing)
+        self.assertEqual(record['repair_status'],'not-needed');self.assertEqual(commands.call_count,2)
+
     @unittest.skipUnless(os.environ.get('DEEPLINK_PLOT_TEST_WHEELS'),'Offline CPU plot wheels not requested')
     def test_real_public_cli_repairs_ordinary_python_then_reuses_cache(self):
         ordinary=self.root/'ordinary-python';subprocess.run([sys.executable,'-m','venv',str(ordinary)],check=True,timeout=60)
         python=ordinary/('Scripts/python.exe' if os.name=='nt' else 'bin/python')
         env=dict(os.environ,PIP_NO_INDEX='1',PIP_FIND_LINKS=os.environ['DEEPLINK_PLOT_TEST_WHEELS'])
+        env.pop('VLLM_HUST_REPORT_PYTHON',None);env['XDG_CACHE_HOME']=str(self.root/'ordinary-cache-home')
         self.config['plots']=True;self.run_cli(env=env,python=python,timeout=60)
         output=self.root/'derived';record=json.loads((output/'plot-environment.json').read_bytes())
         self.assertEqual(record['status'],'repaired');self.assertFalse(record['current_renderer_ready'])
