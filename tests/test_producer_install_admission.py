@@ -24,24 +24,31 @@ ORIGINAL = ROOT/'tests/fixtures/r8_producer_cli.py'
 
 
 class Producer(unittest.TestCase):
+    fixture = ORIGINAL
+    profile = 'r8'
+    version = '2026.11.17.8.post2'
+    release = 'full-answer-b1-20261117-r8'
+
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
         self.root = Path(self.tmp.name)
-        self.raw = ORIGINAL.read_bytes()
+        self.raw = self.fixture.read_bytes()
 
     def package(self):
         package = self.root/'package/vllm_hust_engine'
         package.mkdir(parents=True)
         (package/'cli.py').write_bytes(self.raw)
-        (package/'__init__.py').write_text('__version__="2026.11.17.8.post2"\n')
+        (package/'__init__.py').write_text('__version__='+repr(self.version)+'\n')
         (package/'payload').mkdir()
         return package
 
     def test_exact_source_and_only_declared_ast_changes(self):
         payload = self.root/'original/payload'
         derived, record = adapter.derive(self.raw, payload=payload, receipts=self.root/'receipts')
-        self.assertEqual(hashlib.sha256(self.raw).hexdigest(), adapter.ORIGINAL_SHA256)
+        self.assertIn(hashlib.sha256(self.raw).hexdigest(), adapter.PROFILES)
+        self.assertEqual(record['source_profile'], self.profile)
+        self.assertEqual(record['source_release'], self.release)
         self.assertTrue(record['unchanged_other_ast'])
         self.assertIn('verify_installed_sources(root)', derived.decode())
         self.assertEqual(record['original_probe_sha256'], adapter.sha(probe.probe(probe.original()).encode()))
@@ -56,6 +63,11 @@ class Producer(unittest.TestCase):
         for raw in (self.raw+b'\nother=True\n', self.raw.replace(b'verify_installed_sources(root)', b'{}')):
             with self.assertRaisesRegex(ValueError, 'source requires review'):
                 adapter.derive(raw, payload=self.root/'payload', receipts=self.root/'receipts')
+
+    def test_profile_cannot_relabel_the_original_producer_release(self):
+        with patch.dict(adapter.PROFILES, {adapter.sha(self.raw):{'profile':'other','release':'other'}}):
+            with self.assertRaisesRegex(ValueError, 'release differs'):
+                adapter.derive(self.raw, payload=self.root/'payload', receipts=self.root/'receipts')
 
     def command(self, package, python, target, evidence):
         cli = types.SimpleNamespace(__file__=str(package/'cli.py'))
@@ -87,7 +99,7 @@ class Producer(unittest.TestCase):
         package = self.package()
         source = package/'cli.py'
         source.unlink()
-        source.symlink_to(ORIGINAL)
+        source.symlink_to(self.fixture)
         with self.assertRaisesRegex(ValueError, 'ordinary installed'):
             self.command(package, sys.executable, self.root/'sdk', self.root/'evidence')
 
@@ -114,12 +126,13 @@ def verify_installed_sources(root):
  return {'runtime/module.py':'fixture-only-source-verification'}
 '''}
         tools['DEPLOYMENT-TOOLS.json'] = json.dumps({'files':{n:adapter.sha(v) for n,v in tools.items()}}).encode()
-        sdk = {'deployment.json':json.dumps({'release':'full-answer-b1-20261117-r8'}).encode(),
+        sdk = {'deployment.json':json.dumps({'release':self.release}).encode(),
             'runtime/module.py':b'corrupt source' if corrupt_source else b'unchanged source',
             'mods/microflow/hust_prefill_microflow/school028/host-contract.json':
                 json.dumps({'versions':{'fixture':'2' if wrong_metadata else '1'}}).encode()}
         artifacts = {}
-        for name, files, prefix in [('sdk-r8.tar.gz', sdk, ''), ('tools-r4.tar.gz', tools, 'vllm-hust-engine/')]:
+        tools_name = 'tools-r4.tar.gz' if self.profile == 'r8' else 'tools-r9.tar.gz'
+        for name, files, prefix in [('sdk-'+self.profile+'.tar.gz', sdk, ''), (tools_name, tools, 'vllm-hust-engine/')]:
             path = package/'payload'/name
             with tarfile.open(path, 'w:gz') as archive:
                 for member, raw in files.items():
@@ -128,7 +141,7 @@ def verify_installed_sources(root):
                     item.mode = 0o644
                     archive.addfile(item, io.BytesIO(raw))
             artifacts[name] = dict(bytes=path.stat().st_size, sha256=adapter.sha(path.read_bytes()))
-        frozen = dict(release='full-answer-b1-20261117-r8', version='2026.11.17.8.post2',
+        frozen = dict(release=self.release, version=self.version,
             archives=artifacts, runtime_files=1, pythonpath_layout=['runtime'])
         (package/'payload/frozen.json').write_text(json.dumps(frozen))
 
@@ -188,6 +201,13 @@ def verify_installed_sources(root):
         self.assertEqual(len(receipts), 1)
         self.assertEqual(json.loads(receipts[0].read_bytes())['status'], 'failed')
         self.assertEqual(list(stdlib.rglob('*.pyc')), [])
+
+
+class R9Producer(Producer):
+    fixture = ROOT/'tests/fixtures/r9_producer_cli.py'
+    profile = 'r9'
+    version = '2026.11.19.9.post1'
+    release = 'full-answer-b1-20261119-r9'
 
 
 if __name__ == '__main__':

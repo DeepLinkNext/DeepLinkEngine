@@ -1,4 +1,4 @@
-"""Declare a CPU-only admission adapter for the immutable R8 producer installer."""
+"""Declare CPU-only admission adapters for source-pinned producer installers."""
 import ast
 import hashlib
 import json
@@ -8,6 +8,11 @@ import sys
 
 ROOT = Path(__file__).resolve().parent
 ORIGINAL_SHA256 = 'cbb124ca19737524e73181930860a31d7da76ed55e1bd8b283ae71f103751edd'
+PROFILES = {
+    ORIGINAL_SHA256: {'profile': 'r8', 'release': 'full-answer-b1-20261117-r8'},
+    '01d0a5f98d231a27b499adea9a2e90edeb62419f8c73ee2c26828b1efc77a2bf':
+        {'profile': 'r9', 'release': 'full-answer-b1-20261119-r9'},
+}
 SCHEMA = 'deeplinkengine-producer-cpu-admission/v1'
 ENTRY = """import importlib.util,sys
 path=sys.argv.pop(1)
@@ -24,9 +29,15 @@ def sha(raw):
 
 def derive(raw, *, payload, receipts):
     """Retain all producer AST except its CPU admission code and payload locator."""
-    if sha(raw) != ORIGINAL_SHA256:
+    profile = PROFILES.get(sha(raw))
+    if profile is None:
         raise ValueError('Producer CLI source requires review before CPU admission adaptation')
     tree = ast.parse(raw)
+    releases = [n.value.value for n in tree.body if isinstance(n, ast.Assign)
+                and any(isinstance(t, ast.Name) and t.id == 'RELEASE' for t in n.targets)
+                and isinstance(n.value, ast.Constant)]
+    if releases != [profile['release']]:
+        raise ValueError('Producer CLI release differs from its exact source profile')
     audits = [n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == 'audit_install']
     payloads = [n for n in tree.body if isinstance(n, ast.Assign)
                 and any(isinstance(t, ast.Name) and t.id == 'PAYLOAD' for t in n.targets)]
@@ -62,7 +73,8 @@ def derive(raw, *, payload, receipts):
     if ast.dump(ast.parse(raw), include_attributes=False) != ast.dump(restored, include_attributes=False):
         raise ValueError('Producer adaptation changed other AST')
     from sdk_dependency_probe import original, probe
-    return derived, dict(schema=SCHEMA, original_source_sha256=sha(raw),
+    return derived, dict(schema=SCHEMA, source_profile=profile['profile'], source_release=profile['release'],
+        original_source_sha256=sha(raw),
         derived_source_sha256=sha(derived), unchanged_other_ast=True,
         original_probe_sha256=sha(probe(original()).encode()),
         cpu_metadata_adapter_sha256=sha((ROOT/'sdk_dependency_probe.py').read_bytes()),
