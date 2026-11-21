@@ -17,6 +17,73 @@ COUNTS = {'mmlu': 200, 'hle': 200, 'frontier': 160, 'swe': 64, 'terminal': 48}
 LABELS = {'mmlu': 'MMLU200', 'hle': 'HLE200', 'frontier': 'Frontier160', 'swe': 'SWE trace64', 'terminal': 'Terminal trace48'}
 
 
+def plot_python(cache, record):
+    """Use a working CPU renderer or repair a private, cross-platform venv."""
+    requirements = ROOT / 'benchmark/one-click-kit/scripts/requirements-report.txt'
+    if requirements.read_text(encoding='utf-8').strip() != 'matplotlib==3.10.8':
+        raise ValueError('The CPU plotting requirement must remain matplotlib==3.10.8')
+    record.update(status='detecting', repair_status='not-needed', requirements_sha256=digest(requirements), cache=str(cache))
+    env = dict(os.environ, PYTHONPATH='', PYTHONDONTWRITEBYTECODE='1', PIP_DISABLE_PIP_VERSION_CHECK='1')
+    env.pop('PYTHONHOME', None)
+    for variable, folder in (('MPLCONFIGDIR', 'matplotlib'), ('PIP_CACHE_DIR', 'pip-cache'), ('TMPDIR', 'tmp'), ('TMP', 'tmp'), ('TEMP', 'tmp')):
+        directory = cache / folder
+        if directory.is_symlink():
+            raise ValueError('CPU plotting cache directories cannot be symlinks')
+        directory.mkdir(parents=True, exist_ok=True)
+        env[variable] = str(directory)
+    probe_code = ("import io,json,sys,matplotlib;assert matplotlib.__version__=='3.10.8';"
+                  "matplotlib.use('Agg');from matplotlib.figure import Figure;"
+                  "from matplotlib.backends.backend_agg import FigureCanvasAgg;"
+                  "f=Figure(figsize=(1,1));f.add_subplot().plot([0,1]);"
+                  "FigureCanvasAgg(f).print_png(io.BytesIO());"
+                  "print(json.dumps(dict(python=sys.executable,matplotlib=matplotlib.__version__)))")
+
+    def probe(python):
+        try:
+            result = subprocess.run([str(python), '-B', '-c', probe_code], env=env, cwd=ROOT,
+                                    capture_output=True, text=True, timeout=30)
+            value = json.loads(result.stdout) if result.returncode == 0 else None
+            return value if value and value.get('matplotlib') == '3.10.8' else None
+        except (OSError, ValueError, subprocess.TimeoutExpired):
+            return None
+
+    current = probe(sys.executable)
+    record['current_python'] = sys.executable
+    record['current_renderer_ready'] = current is not None
+    if current:
+        record.update(status='current', **current)
+        return Path(current['python']), env
+    prefix = cache / 'environment'
+    if any(path.is_symlink() for path in (prefix, prefix / 'bin', prefix / 'Scripts')):
+        raise ValueError('CPU plotting environment directories cannot be symlinks')
+    python = prefix / ('Scripts/python.exe' if os.name == 'nt' else 'bin/python')
+    cached = probe(python) if python.is_file() else None
+    if cached:
+        record.update(status='cached', **cached)
+        return Path(cached['python']), env
+    record['repair_status'] = 'repairing' if python.exists() else 'creating'
+    try:
+        for step, command, timeout in (
+            ('create-venv', [sys.executable, '-B', '-m', 'venv', str(prefix)], 120),
+            ('install-pinned-renderer', [str(python), '-B', '-m', 'pip', 'install', '--no-input', '--timeout', '15',
+                '--retries', '1', '--force-reinstall', '-r', str(requirements)], 300),
+        ):
+            record['repair_step'] = step
+            result = subprocess.run(command, env=env, cwd=ROOT, capture_output=True, text=True, timeout=timeout)
+            if result.returncode:
+                hint = (result.stderr or result.stdout).strip().splitlines()
+                record['error_hint'] = re.sub(r'(https?://)[^/\s]*@', r'\1[redacted]@', hint[-1]) if hint else None
+                raise ValueError(step + ' failed with exit ' + str(result.returncode))
+        repaired = probe(python)
+        if repaired is None:
+            raise ValueError('Repaired CPU renderer did not pass its actual PNG probe')
+        record.update(status='repaired', repair_status='completed', **repaired)
+        return Path(repaired['python']), env
+    except (OSError, ValueError, subprocess.TimeoutExpired) as error:
+        record.update(status='failed', repair_status='failed', error=type(error).__name__ + ': ' + str(error))
+        raise ValueError('Automatic CPU plotting environment repair failed: ' + str(error)) from error
+
+
 def prepare(document, report_sha256):
     if document.get('schema') != 'deeplinkengine-official-baseline-report/v1':
         raise ValueError('Unsupported original report')
@@ -99,16 +166,21 @@ def prepare(document, report_sha256):
 def run(configuration):
     config_path = Path(configuration).absolute()
     config = json.loads(config_path.read_bytes())
-    allowed = {'kind', 'source', 'out', 'report_sha256', 'original_version_seal_sha256', 'plots'}
+    allowed = {'kind', 'source', 'out', 'report_sha256', 'original_version_seal_sha256', 'plots', 'plot_cache'}
     if (not isinstance(config, dict) or set(config) - allowed or config.get('kind') != 'sealed-report-projection'
             or any(not isinstance(config.get(key), str) or not config[key] for key in ('source', 'out'))
             or any(not re.fullmatch('[a-f0-9]{64}', config.get(key, '')) for key in ('report_sha256', 'original_version_seal_sha256'))
+            or ('plot_cache' in config and (not isinstance(config['plot_cache'], str) or not config['plot_cache']))
             or type(config.get('plots', True)) is not bool):
         raise ValueError('Sealed report projection requires explicit source, new out, report SHA256 and original version seal SHA256')
     source = Path(os.path.abspath(config_path.parent / config['source']))
     out = Path(os.path.abspath(config_path.parent / config['out']))
     if not source.is_dir() or source.is_symlink() or os.path.lexists(out) or out.resolve().is_relative_to(source.resolve()):
         raise ValueError('Select a closed source directory and a new output outside it; no symlinks or overwrites')
+    default_cache = Path(os.environ.get('XDG_CACHE_HOME', Path.home() / '.cache')) / 'deeplinkengine' / ('report-mpl3108-' + sys.implementation.cache_tag + '-' + sys.platform)
+    cache = Path(os.path.abspath(config_path.parent / config['plot_cache'])) if config.get('plot_cache') else default_cache.absolute()
+    if config.get('plots', True) and (cache.is_symlink() or any(cache.resolve().is_relative_to(root.resolve()) or root.resolve().is_relative_to(cache.resolve()) for root in (source, out))):
+        raise ValueError('The CPU plotting cache must be separate from original evidence and report output')
     seal_raw = member(source, 'checksums.json').read_bytes()
     if hashlib.sha256(seal_raw).hexdigest() != config['original_version_seal_sha256']:
         raise ValueError('External original version seal SHA256 mismatch')
@@ -169,7 +241,8 @@ def run(configuration):
         selected_original_members_verified={name: hashlib.sha256(raw).hexdigest() for name, raw in sorted(selected.items())},
         unverified_omitted_original_members=len(set(seal) - set(selected)), original_sources=campaign.get('sources', {}),
         original_reuse_sources=reuse, projection_sources={name: digest(ROOT / name) for name in
-            ('run_all.py', 'official_baselines.py', 'official_rebuild.py', 'official_projection.py', 'official_plots.py')},
+            ('run_all.py', 'official_baselines.py', 'official_rebuild.py', 'official_projection.py', 'official_plots.py',
+             'benchmark/one-click-kit/scripts/requirements-report.txt')},
         publication_ready=False, plots_requested=config.get('plots', True), F=None, efficiency_percent=None,
         independent_third_party=False)
     out.mkdir(parents=True, exist_ok=False)
@@ -182,14 +255,22 @@ def run(configuration):
     write(out / 'report.json', projected)
     write(out / 'publication-preview.json', preview)
     if config.get('plots', True):
+        environment_record = dict(status='detecting', repair_status='not-started', current_python=sys.executable)
+        provenance['plot_environment'] = environment_record
+        environment_ready = False
         try:
-            result = subprocess.run([sys.executable, '-B', str(ROOT / 'official_plots.py'), str(out / 'report.json')],
-                                    capture_output=True, text=True, timeout=300)
+            python, env = plot_python(cache, environment_record)
+            environment_ready = True
+            result = subprocess.run([str(python), '-B', str(ROOT / 'official_plots.py'), str(out / 'report.json')],
+                                    env=env, cwd=ROOT, capture_output=True, text=True, timeout=300)
             log = result.stdout + result.stderr
             plot_error = result.returncode != 0
-        except (OSError, subprocess.TimeoutExpired) as error:
+        except (OSError, ValueError, subprocess.TimeoutExpired) as error:
             log = str(error)
             plot_error = True
+            if not environment_ready:
+                environment_record.update(status='failed', repair_status='failed', error=log)
+        write(out / 'plot-environment.json', environment_record)
         (out / 'plotting.log').write_text(log, encoding='utf-8')
         if plot_error:
             provenance['status'] = 'failed'

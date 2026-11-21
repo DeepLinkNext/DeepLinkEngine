@@ -51,7 +51,11 @@ jobs:
       - run: python -B tests/test_official_judge_endpoint.py
       - run: python -B tests/test_official_rebuild.py
       - run: python -B tests/test_official_plots.py
+      - name: Download pinned CPU plotting wheels for the isolated repair test
+        run: python -m pip download --dest "${{ runner.temp }}/deeplink-plot-wheels" -r benchmark/one-click-kit/scripts/requirements-report.txt
       - run: python -B tests/test_official_projection.py
+        env:
+          DEEPLINK_PLOT_TEST_WHEELS: ${{ runner.temp }}/deeplink-plot-wheels
       - run: python -B tests/test_run_all.py
       - run: python -B -m pytest -q tests/test_interrupted_root_recovery.py tests/test_device_reuse.py
       - run: python -B tests/test_environment_setup.py

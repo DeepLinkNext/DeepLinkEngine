@@ -3,6 +3,7 @@ import copy
 import hashlib
 import importlib.util
 import json
+import os
 from pathlib import Path
 import subprocess
 import sys
@@ -51,13 +52,13 @@ class PublicProjectionTests(unittest.TestCase):
         seal_raw=raw(seal)
         for name,value in {**files,'checksums.json':seal_raw}.items():
             path=self.source/name;path.parent.mkdir(parents=True,exist_ok=True);path.write_bytes(value)
-        self.config=dict(kind='sealed-report-projection',source='sealed',out='derived',plots=False,
+        self.config=dict(kind='sealed-report-projection',source='sealed',out='derived',plots=False,plot_cache='plot-cache',
             report_sha256=pin(files['report.json']),original_version_seal_sha256=pin(seal_raw))
 
-    def run_cli(self,success=True):
+    def run_cli(self,success=True,env=None,python=None,timeout=30):
         config=self.root/'projection.json';config.write_bytes(raw(self.config))
-        result=subprocess.run([sys.executable,'-B',str(ROOT/'run_all.py'),'--official-baselines','--report-only','--config',str(config)],
-                              capture_output=True,text=True,timeout=30)
+        result=subprocess.run([str(python or sys.executable),'-B',str(ROOT/'run_all.py'),'--official-baselines','--report-only','--config',str(config)],
+                              env=env,capture_output=True,text=True,timeout=timeout)
         self.assertEqual(result.returncode==0,success,result.stdout+result.stderr)
         return result
 
@@ -125,6 +126,55 @@ class PublicProjectionTests(unittest.TestCase):
             self.assertEqual(execution['status'],'failed');self.assertEqual(derivation['status'],'failed')
             self.assertEqual(report['report_projection']['status'],'failed');self.assertEqual(report['status'],'failed')
             self.assertEqual(execution['model_requests_executed'],0)
+
+    def test_plot_cache_cannot_enter_original_or_output_seal(self):
+        for location in ('sealed/cache','derived/cache'):
+            self.config.update(plots=True,plot_cache=location);self.run_cli(False)
+
+    def test_healthy_current_renderer_does_not_install_dependencies(self):
+        sys.path.insert(0,str(ROOT));self.addCleanup(lambda:sys.path.remove(str(ROOT)))
+        spec=importlib.util.spec_from_file_location('current_renderer_checks',ROOT/'official_projection.py')
+        module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
+        ready=json.dumps({'python':sys.executable,'matplotlib':'3.10.8'})
+        record={}
+        with patch.object(module.subprocess,'run',return_value=subprocess.CompletedProcess([],0,ready,'')) as commands:
+            python,env=module.plot_python(self.root/'cpu-cache',record)
+        self.assertEqual(record['status'],'current');self.assertEqual(record['repair_status'],'not-needed')
+        self.assertEqual(commands.call_count,1);self.assertEqual(python,Path(sys.executable))
+
+    def test_pinned_environment_install_failure_and_timeout_are_recorded(self):
+        sys.path.insert(0,str(ROOT));self.addCleanup(lambda:sys.path.remove(str(ROOT)))
+        spec=importlib.util.spec_from_file_location('repair_failure_checks',ROOT/'official_projection.py')
+        module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
+        for index,timeout in enumerate((False,True)):
+            cache=self.root/('repair-cache-'+str(index));record={}
+            def execute(command,**kwargs):
+                if '-c' in command:return subprocess.CompletedProcess(command,1,'','No matplotlib')
+                if 'venv' in command:
+                    prefix=Path(command[-1]);python=prefix/('Scripts/python.exe' if os.name=='nt' else 'bin/python')
+                    python.parent.mkdir(parents=True,exist_ok=True);python.write_bytes(b'fixture only')
+                    return subprocess.CompletedProcess(command,0,'','')
+                if timeout:raise subprocess.TimeoutExpired(command,300)
+                return subprocess.CompletedProcess(command,1,'','No matching distribution found for matplotlib==3.10.8')
+            with patch.object(module.subprocess,'run',side_effect=execute):
+                with self.assertRaisesRegex(ValueError,'repair failed'):module.plot_python(cache,record)
+            self.assertEqual(record['status'],'failed');self.assertEqual(record['repair_status'],'failed')
+            self.assertEqual(record['repair_step'],'install-pinned-renderer')
+
+    @unittest.skipUnless(os.environ.get('DEEPLINK_PLOT_TEST_WHEELS'),'Offline CPU plot wheels not requested')
+    def test_real_public_cli_repairs_ordinary_python_then_reuses_cache(self):
+        ordinary=self.root/'ordinary-python';subprocess.run([sys.executable,'-m','venv',str(ordinary)],check=True,timeout=60)
+        python=ordinary/('Scripts/python.exe' if os.name=='nt' else 'bin/python')
+        env=dict(os.environ,PIP_NO_INDEX='1',PIP_FIND_LINKS=os.environ['DEEPLINK_PLOT_TEST_WHEELS'])
+        self.config['plots']=True;self.run_cli(env=env,python=python,timeout=60)
+        output=self.root/'derived';record=json.loads((output/'plot-environment.json').read_bytes())
+        self.assertEqual(record['status'],'repaired');self.assertFalse(record['current_renderer_ready'])
+        self.assertEqual(record['matplotlib'],'3.10.8');self.assertTrue((output/'fixed-five-throughput.png').is_file())
+        self.assertFalse(any('site-packages/' in key or '/environment/' in key for key in json.loads((output/'checksums.json').read_bytes())))
+        empty=self.root/'empty-wheels';empty.mkdir();env['PIP_FIND_LINKS']=str(empty)
+        self.config['out']='cached';self.run_cli(env=env,python=python,timeout=60)
+        reused=json.loads((self.root/'cached/plot-environment.json').read_bytes())
+        self.assertEqual(reused['status'],'cached');self.assertEqual(reused['repair_status'],'not-needed')
 
 
 if __name__=='__main__':unittest.main()
