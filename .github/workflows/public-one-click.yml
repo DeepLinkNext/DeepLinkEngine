@@ -76,6 +76,7 @@ jobs:
       - run: python -B tests/test_official_protocol_preparation.py
       - run: python -B tests/test_official_judge_endpoint.py
       - run: python -B tests/test_official_sdk_state.py
+      - run: python -B tests/test_official_sdk_bytecode.py
       - run: python -B tests/test_official_runtime_identity.py
       - run: python -B tests/test_official_build_context.py
       - run: python -B tests/test_official_source_candidate.py

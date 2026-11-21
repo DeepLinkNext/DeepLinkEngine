@@ -316,6 +316,9 @@ def execute_request(request):
     mount_namespace = os.readlink('/proc/self/ns/mnt')
     os.chroot(root)
     os.chdir(request['cwd'])
+    readonly_anchor = request.get('readonly_sdk_anchor')
+    if readonly_anchor and not os.statvfs(readonly_anchor).f_flag & os.ST_RDONLY:
+        raise ValueError('Admitted SDK anchor did not become read-only in the private namespace')
     for path, expected in before['lock_directories'].items():
         if [os.stat(path).st_dev, os.stat(path).st_ino] != expected:
             raise ValueError('Cooperative lock directory inode changed: ' + path)
@@ -325,6 +328,8 @@ def execute_request(request):
                    host=before, mount_namespace=mount_namespace, shared_lock_inodes_verified=True,
                    pid_namespace_created=False, sdk_root_used_as_execution_root=False,
                    root_dev_inode=root_identity,
+                   readonly_sdk_anchor=readonly_anchor,
+                   sdk_anchor_readonly=bool(readonly_anchor),
                    execution_os_release=Path('/etc/os-release').read_text(),
                    source_build_system_root=request.get('source_build_system_root', False),
                    execution_root_receipt=str(root_receipt), execution_root_receipt_sha256=root_receipt_sha256)
@@ -430,8 +435,84 @@ def enter_cli(sdk, script, arguments, *, cache=None, execution_root=None, extra_
     python, env = environment(sdk, Path(cache or sdk.parent.parent / 'execution-controller'))
     request = request_for([str(python), '-B', str(Path(script).resolve()), *arguments], root,
                           env=env, extra_paths=(sdk, Path(script).resolve().parent, *extra_paths))
+    readonly_sdk_anchor(request, sdk)
     execute_request(request)
     raise AssertionError('Execution-context exec unexpectedly returned')
+
+
+def readonly_sdk_anchor(request, sdk):
+    """Protect a completed raw image only in this new private mount namespace."""
+    sdk = Path(sdk).resolve()
+    receipt = sdk / 'installation.json'
+    if not receipt.is_file() or json.loads(receipt.read_bytes()).get('schema') != 'deeplinkengine-official-sdk/v1':
+        return False
+    if str(sdk) in ('/', '/root', '/tmp', '/usr', '/lib', '/lib64', '/etc', '/run'):
+        raise ValueError('An SDK anchor must have its own private directory')
+    request['binds'].append((str(sdk), str(sdk), True))
+    request['readonly_sdk_anchor'] = str(sdk)
+    return True
+
+
+def private_mounts():
+    """A verified inherited context must not propagate mounts to its parent."""
+    for line in Path('/proc/self/mountinfo').read_text().splitlines():
+        fields = line.split(' - ', 1)[0].split()
+        if any(value.startswith(('shared:', 'master:', 'propagate_from:')) for value in fields[6:]):
+            raise ValueError('Inherited execution context has non-private mount propagation')
+
+
+def execute_tokenizer_alias(request):
+    """Inherit the loader/root and create only a new private tokenizer alias."""
+    inherited = context_identity()
+    if inherited is None:
+        raise ValueError('Tokenizer alias requires a verified inherited private context')
+    private_mounts()
+    source = Path(request['model']).resolve()
+    stage = Path(request['stage']).resolve()
+    target = Path('/models')
+    if not source.is_dir() or not stage.is_dir() or target.is_symlink() or stage.is_relative_to(target):
+        raise ValueError('Tokenizer alias staging must be outside /models')
+    library = ctypes.CDLL(None, use_errno=True)
+    _call(library.unshare, CLONE_NEWNS)
+    # The inherited namespace was already made recursively private. A chroot
+    # directory need not be a mountpoint, so do not remount or rebind / here.
+    private_mounts()
+    raw = dict(binds=[])
+    readonly_sdk_anchor(raw, request['sdk'])
+    for original, destination_path, readonly in raw['binds']:
+        _bind(Path('/'), original, destination_path, readonly)
+    # Preserve the source before shadowing an existing /models mount.
+    _bind(Path('/'), source, stage / 'source-model', True)
+    _bind(Path('/'), stage / 'models', '/models', False)
+    _bind(Path('/'), stage / 'source-model', '/models/Qwen3.5-35B-A3B', True)
+    if not os.statvfs('/models/Qwen3.5-35B-A3B').f_flag & os.ST_RDONLY:
+        raise ValueError('Tokenizer model alias is not read-only')
+    context = dict(inherited, mount_namespace=os.readlink('/proc/self/ns/mnt'),
+                   tokenizer_alias=dict(source=str(source), target='/models/Qwen3.5-35B-A3B', read_only=True),
+                   inherited_private_root=True)
+    context['host'] = dict(inherited['host'], pid=os.getpid(),
+                           start_ticks=Path('/proc/self/stat').read_text().rsplit(')', 1)[1].split()[19])
+    if raw.get('readonly_sdk_anchor'):
+        context.update(readonly_sdk_anchor=raw['readonly_sdk_anchor'],
+                       sdk_anchor_readonly=bool(os.statvfs(raw['readonly_sdk_anchor']).f_flag & os.ST_RDONLY))
+    environment = dict(request['env'], DEEPLINK_EXECUTION_CONTEXT=json.dumps(context, separators=(',', ':')))
+    os.chdir(request['cwd'])
+    os.execve(request['command'][0], request['command'], environment)
+
+
+def tokenizer_alias(command, *, model, sdk, cache, env, cwd):
+    """Retain the current private glibc instead of entering its chroot again."""
+    if context_identity() is None:
+        return None
+    parent = Path(cache) / 'official-tokenizer-aliases'
+    parent.mkdir(parents=True, exist_ok=True)
+    stage = Path(tempfile.mkdtemp(prefix='alias-', dir=parent))
+    (stage / 'source-model').mkdir()
+    (stage / 'models/Qwen3.5-35B-A3B').mkdir(parents=True)
+    request = dict(command=list(map(str, command)), model=str(Path(model).resolve()),
+                   sdk=str(Path(sdk).resolve()), stage=str(stage), env=env, cwd=str(Path(cwd).resolve()))
+    return subprocess.run([sys.executable, '-B', str(Path(__file__).resolve()), '--tokenizer-alias-json'],
+                          input=json.dumps(request), env=os.environ.copy(), text=True).returncode
 
 
 def prepare_anchor(config):
@@ -531,6 +612,9 @@ def maybe_enter_config(path, arguments):
 
 
 if __name__ == '__main__':
-    if sys.argv[1:] != ['--exec-json']:
+    if sys.argv[1:] == ['--tokenizer-alias-json']:
+        execute_tokenizer_alias(json.load(sys.stdin))
+    elif sys.argv[1:] == ['--exec-json']:
+        execute_request(json.load(sys.stdin))
+    else:
         raise SystemExit('Internal private execution wrapper; invoke public run_all.py')
-    execute_request(json.load(sys.stdin))

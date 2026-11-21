@@ -180,5 +180,20 @@ class ExecutionContextTests(unittest.TestCase):
             self.assertTrue(output.exists());prepare.assert_not_called()
 
 
+    def test_raw_sdk_anchor_is_protected_but_derived_output_remains_writable(self):
+        with tempfile.TemporaryDirectory() as temp:
+            sdk=Path(temp)/'sdk';sdk.mkdir();receipt=sdk/'installation.json'
+            receipt.write_text(json.dumps({'schema':'deeplinkengine-official-sdk/v1'}))
+            request={'binds':[]}
+            self.assertTrue(execution.readonly_sdk_anchor(request,sdk))
+            self.assertEqual(request['binds'],[(str(sdk.resolve()),str(sdk.resolve()),True)])
+            receipt.write_text(json.dumps({'schema':'deeplinkengine-official-source-candidate/v1'}))
+            request={'binds':[]};self.assertFalse(execution.readonly_sdk_anchor(request,sdk));self.assertEqual(request['binds'],[])
+
+    def test_tokenizer_alias_without_verified_context_does_not_mount_or_spawn(self):
+        with patch.object(execution,'context_identity',return_value=None),patch.object(execution.subprocess,'run',side_effect=AssertionError('no child')):
+            self.assertIsNone(execution.tokenizer_alias([],model='model',sdk='sdk',cache='cache',env={},cwd='.'))
+
+
 if __name__ == '__main__':
     unittest.main()

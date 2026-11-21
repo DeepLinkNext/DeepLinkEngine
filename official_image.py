@@ -220,7 +220,7 @@ names=('vllm','vllm-ascend','torch','torch-npu','transformers','triton-ascend')
 plugins=[dict(group=g,name=p.name,value=p.value) for g in ('vllm.general_plugins','vllm.platform_plugins') for p in m.entry_points(group=g)]
 print(json.dumps(dict(python=sys.executable,prefix=sys.prefix,no_site=sys.flags.no_site,versions={n:m.version(n) for n in names},origins={n:u.find_spec(n).origin for n in ('torch','torch_npu','vllm','vllm_ascend')},plugins=plugins,execution_context=json.loads(os.environ.get('DEEPLINK_EXECUTION_CONTEXT','null')))))"""
     from official_execution import sdk_run
-    result = sdk_run([str(python), '-S', '-c', code], sdk=root, env=env, capture_output=True, text=True, timeout=120)
+    result = sdk_run([str(python), '-S', '-B', '-c', code], sdk=root, env=env, capture_output=True, text=True, timeout=120)
     if result.returncode:
         raise ValueError('Official image metadata probe failed: ' + result.stderr[-2000:])
     observed = json.loads(result.stdout)

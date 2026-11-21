@@ -93,7 +93,10 @@ def main(arguments=None):
             from official_protocol_preparation import selection
             selection(config)
         if not args.prepare_environment or '0.28.0rc1-source' in config['versions']:
-            from official_execution import maybe_enter_official
+            from official_execution import maybe_enter_official, needed
+            if needed():
+                from transport_trust import configure
+                configure(config['cache'])
             maybe_enter_official(config, list(arguments) if arguments is not None else sys.argv[1:])
         if config.get('model_manifest'):
             from model_restore import restore
@@ -195,9 +198,15 @@ def main(arguments=None):
                         if digest(sdk / 'installed-files.json') != installed['installed_files_sha256']:
                             raise ValueError('Cached official SDK file manifest differs')
                         if was_complete:
-                            if file_map(sdk) != json.loads((sdk / 'installed-files.json').read_bytes()):
-                                raise ValueError('Cached official SDK files differ')
+                            expected_files = json.loads((sdk / 'installed-files.json').read_bytes())
+                            current_files = file_map(sdk)
+                            if current_files != expected_files:
+                                from official_sdk_bytecode import repair_locked
+                                row['sdk_bytecode_recovery'] = repair_locked(sdk, lock, cache, current_files)
+                                save(out / 'results.json', record)
                             installed['metadata'] = probe(sdk, out / (version + '-probe-cache'), identity)
+                            if file_map(sdk) != expected_files:
+                                raise ValueError('SDK files changed during cached metadata qualification')
                     else:
                         installed = prepare(lock, cache / 'official-oci', sdk)
                 row.update(installation=str(sdk), installation_receipt=installed,

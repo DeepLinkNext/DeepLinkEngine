@@ -24,12 +24,12 @@ names=json.loads(sys.argv[1]);versions={}
 for n in names:
  try:versions[n]=m.version(n)
  except m.PackageNotFoundError:versions[n]=None
-print(json.dumps({'python':sys.executable,'prefix':sys.prefix,'version':list(sys.version_info[:2]),'implementation':platform.python_implementation(),'machine':platform.machine(),'system':platform.system(),'packages':versions}))
+print(json.dumps({'python':sys.executable,'prefix':sys.prefix,'base_prefix':sys.base_prefix,'bytecode_writes_disabled':sys.dont_write_bytecode,'version':list(sys.version_info[:2]),'implementation':platform.python_implementation(),'machine':platform.machine(),'system':platform.system(),'packages':versions}))
 """
 
 
 def probe(python, packages, env=None):
-    result = subprocess.run([str(python), "-I", "-c", PROBE, json.dumps(list(packages))],
+    result = subprocess.run([str(python), "-I", "-B", "-c", PROBE, json.dumps(list(packages))],
                             env=env, capture_output=True, text=True, check=True, timeout=30)
     return json.loads(result.stdout)
 
@@ -335,7 +335,7 @@ spec=importlib.util.spec_from_file_location('environment_setup',sys.argv[1])
 module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
 print(json.dumps(module.distribution_integrity('triton-ascend')))
 """
-    observed = subprocess.run([str(python), "-I", "-X", "utf8", "-c", code, str(ROOT / "environment_setup.py")],
+    observed = subprocess.run([str(python), "-I", "-B", "-X", "utf8", "-c", code, str(ROOT / "environment_setup.py")],
                               env=env, capture_output=True, text=True, encoding="utf-8", check=True, timeout=180)
     result = json.loads(observed.stdout)
     return dict(verified=result["verified"], packages={"triton-ascend": result})
@@ -357,7 +357,7 @@ print(json.dumps({'status':'verified','torch':torch.__version__,'torchvision':to
                   'cpu_operator':'torchvision.ops.nms','model_loaded':False,'npu_backend_imported':False}))
 """
     try:
-        observed = subprocess.run([str(python), "-I", "-c", code], env=isolated,
+        observed = subprocess.run([str(python), "-I", "-B", "-c", code], env=isolated,
                                   capture_output=True, text=True, check=True, timeout=180)
         return json.loads(observed.stdout)
     except subprocess.CalledProcessError as error:
@@ -433,7 +433,7 @@ def ensure_environment(data):
                 restore_python(managed)
             python = str(managed / "bin/python")
             if not Path(python).is_file():
-                command([str(before["python"]), "-I", "-m", "venv", str(managed)],
+                command([str(before["python"]), "-I", "-B", "-m", "venv", str(managed)],
                         env, directory, "create-venv", report, report_path)
             info = probe(python, required, env)
             if not compatible_python(info):
@@ -446,7 +446,7 @@ def ensure_environment(data):
             if options.get("wheelhouse") and not Path(options["wheelhouse"]).is_dir():
                 raise ValueError("environment.wheelhouse is not a directory")
             # CANN exposes its tools through PYTHONPATH for runtime use. Keep them out of pip resolution.
-            install = [python, "-I", "-m", "pip", "install", "--disable-pip-version-check", "--only-binary=:all:", "--no-compile"]
+            install = [python, "-I", "-B", "-m", "pip", "install", "--disable-pip-version-check", "--only-binary=:all:", "--no-compile"]
             for folder in links:
                 install += ["--find-links", folder]
             qualified_imports = None
