@@ -55,7 +55,7 @@ def member(root, name):
 
 
 class Evidence:
-    def __init__(self, root, support=None, logical_root=None):
+    def __init__(self, root, support=None, logical_root=None, *, c8_subset=False):
         self.root = Path(root)
         self.support = support
         self.logical_root = logical_root or str(self.root.absolute())
@@ -65,13 +65,23 @@ class Evidence:
         if not isinstance(self.seal, dict) or not self.seal:
             raise ValueError('A nonempty original version seal is required')
         for name, pin in self.seal.items():
+            relative(name)
+            if not isinstance(pin, str) or not re.fullmatch('[a-f0-9]{64}', pin):
+                raise ValueError('Invalid original seal member: ' + name)
+        self.available = c8_members(self.seal) if c8_subset else set(self.seal)
+        if c8_subset:
+            present = {p.relative_to(self.root).as_posix() for p in self.root.rglob('*') if p.is_file()}
+            if present != self.available | {'checksums.json'}:
+                raise ValueError('Portable C8 payload must exactly match its original sealed closure')
+        for name in self.available:
+            pin = self.seal[name]
             if not re.fullmatch('[a-f0-9]{64}', pin) or digest(member(self.root, name)) != pin:
                 raise ValueError('Original sealed evidence changed: ' + name)
 
     def raw(self, name):
         path = member(self.root, name)
         raw = path.read_bytes()
-        if name not in self.seal or hashlib.sha256(raw).hexdigest() != self.seal[name]:
+        if name not in self.available or hashlib.sha256(raw).hexdigest() != self.seal[name]:
             raise ValueError('Unsealed evidence: ' + name)
         return raw
 
@@ -88,6 +98,13 @@ class Evidence:
         if digest(path) != pin:
             raise ValueError('Original supporting source changed: ' + logical)
         return Path(path)
+
+
+def c8_members(seal):
+    required = {'campaign.json', 'model-weights.json', 'resource-admission.json'}
+    if not required.issubset(seal) or 'continuous/checksums.json' not in seal:
+        raise ValueError('Original C8 seal and parent identity metadata are required')
+    return required | {name for name in seal if name.startswith('continuous/')}
 
 
 def trusted(name, evidence, bindings):
@@ -265,6 +282,8 @@ def replay(evidence):
     return observations, groups, support, dict(original_campaign_status=campaign['status'],
         original_stage_statuses=campaign['stages'], source_arm_seal_sha256=seal_sha,
         original_source_root=evidence.logical_root, shared_warmup_requests=len(warmup['requests']),
+        original_version_all_member_bytes_verified=evidence.available == set(evidence.seal),
+        original_version_member_count=len(evidence.seal), included_original_member_count=len(evidence.available),
         original_audit_sha256=digest(TOOLS / 'original_audit.py'),
         original_metric_consumer_sha256=next(pin for name,pin in bindings.items() if PurePosixPath(name).name=='report_execution.py'),
         original_model_weights_manifest_sha256=evidence.seal['model-weights.json'],
@@ -311,7 +330,7 @@ def aggregate(records, phases, inputs):
     return result
 
 
-def unpack(archive, destination):
+def unpack(archive, destination, expected_version_seal=None):
     with tarfile.open(archive, 'r:gz') as stream:
         for row in stream:
             if not row.isfile():
@@ -323,8 +342,13 @@ def unpack(archive, destination):
             with stream.extractfile(row) as source, target.open('xb') as output:
                 shutil.copyfileobj(source, output)
     manifest = json.loads((destination / 'manifest.json').read_bytes())
-    if manifest.get('schema') != 'deeplinkengine-official-c8-portable/v1':
+    schema = manifest.get('schema')
+    if schema != 'deeplinkengine-official-c8-portable/v2':
         raise ValueError('Unknown portable archive')
+    if (not isinstance(expected_version_seal, str)
+            or not re.fullmatch('[a-f0-9]{64}', expected_version_seal)
+            or manifest.get('original_version_seal_sha256') != expected_version_seal):
+        raise ValueError('External original version seal SHA256 is required and must match')
     actual = {str(path.relative_to(destination)).replace(os.sep, '/') for path in destination.rglob('*') if path.is_file()}
     if actual != set(manifest['files']) | {'manifest.json'}:
         raise ValueError('Portable file set differs')
@@ -332,13 +356,20 @@ def unpack(archive, destination):
         if digest(member(destination, name)) != pin:
             raise ValueError('Portable evidence changed: ' + name)
     support = {logical: member(destination, name) for logical, name in manifest['logical_support'].items()}
-    return Evidence(destination / 'evidence', support, manifest['original_source_root'])
+    evidence = Evidence(destination / 'evidence', support, manifest['original_source_root'], c8_subset=True)
+    omitted = {name:pin for name,pin in evidence.seal.items() if name not in evidence.available}
+    if (manifest.get('omitted_original_members') != omitted
+            or expected_version_seal != evidence.seal_sha256
+            or manifest.get('payload_scope') != 'complete-c8-and-parent-identity-only'):
+        raise ValueError('Portable original custody scope differs')
+    return evidence
 
 
 def package(evidence, support, destination):
     with tempfile.TemporaryDirectory(prefix='official-c8-export-', dir=destination.parent) as temporary:
         stage = Path(temporary); files = {}; logical = {}
-        for name in list(evidence.seal) + ['checksums.json']:
+        included = c8_members(evidence.seal)
+        for name in sorted(included) + ['checksums.json']:
             path = member(stage, 'evidence/' + name); path.parent.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(member(evidence.root, name), path)
             pin = digest(path)
@@ -350,8 +381,11 @@ def package(evidence, support, destination):
             path.parent.mkdir(exist_ok=True)
             if not path.exists():shutil.copyfile(source, path)
             files[name] = pin; logical[original] = name
-        write(stage / 'manifest.json', dict(schema='deeplinkengine-official-c8-portable/v1',
+        write(stage / 'manifest.json', dict(schema='deeplinkengine-official-c8-portable/v2',
             original_source_root=evidence.logical_root, files=files, logical_support=logical,
+            original_version_seal_sha256=evidence.seal_sha256,
+            payload_scope='complete-c8-and-parent-identity-only',
+            omitted_original_members={name:pin for name,pin in evidence.seal.items() if name not in included},
             sdk_runtime_and_model_weights_included=False, supporting_source_files_included=True,
             model_requests_executed=0))
         with tarfile.open(destination, 'x:gz') as archive:
@@ -360,7 +394,7 @@ def package(evidence, support, destination):
 
 def run(configuration):
     config_path = Path(configuration).absolute(); config = json.loads(config_path.read_bytes())
-    if not isinstance(config, dict) or set(config) - {'source', 'out', 'source_sha256'} or not all(isinstance(config.get(key), str) and config[key] for key in ('source', 'out')):
+    if not isinstance(config, dict) or set(config) - {'source', 'out', 'source_sha256', 'original_version_seal_sha256'} or not all(isinstance(config.get(key), str) and config[key] for key in ('source', 'out')):
         raise ValueError('Report-only config requires source and a new out; archive input also requires source_sha256')
     source = Path(os.path.abspath(config_path.parent / config['source'])); out = Path(os.path.abspath(config_path.parent / config['out']))
     if source.is_symlink() or os.path.lexists(out):raise ValueError('Select immutable input and a new output; symlinks/overwrites are refused')
@@ -371,13 +405,15 @@ def run(configuration):
         if source.is_file():
             if not re.fullmatch('[a-f0-9]{64}', config.get('source_sha256', '')) or digest(source) != config['source_sha256']:
                 raise ValueError('Portable archive SHA256 is required and must match')
-            evidence = unpack(source, Path(temporary))
+            evidence = unpack(source, Path(temporary), config.get('original_version_seal_sha256'))
         else:
             if not re.fullmatch('[a-f0-9]{64}', config.get('source_sha256', '')) or digest(source/'checksums.json') != config['source_sha256']:
                 raise ValueError('Original directory checksums.json SHA256 is required and must match')
             evidence = Evidence(source)
             if evidence.seal_sha256 != config['source_sha256']:
                 raise ValueError('Original seal changed during admission')
+            if config.get('original_version_seal_sha256', evidence.seal_sha256) != evidence.seal_sha256:
+                raise ValueError('External original version seal differs')
         observations, groups, support, provenance = replay(evidence)
         out.mkdir(exist_ok=False)
         write(out / 'observations.json', observations)

@@ -28,6 +28,8 @@ python run_all.py --official-baselines --config evaluation.json
 python run_all.py --official-baselines --report-only --config report-only.json
 ```
 
-配置为 `{"source":"原输出/0.23.0","source_sha256":"原 checksums.json 的 SHA256","out":"新的报告目录"}`。输出包含 4K/16K 正式阶段、单列预热、网站观测 JSON 和 `portable-c8.tar.gz`。外部机器可将 `source` 换为该归档、摘要换为归档 SHA256，使用同一命令复算，无需模型、SDK 或 NPU。归档中的源码仅作来源核验，不执行。
+配置为 `{"source":"原输出/0.23.0","source_sha256":"原 checksums.json 的 SHA256","out":"新的报告目录"}`。输出包含 4K/16K 正式阶段、单列预热、网站观测 JSON 和 `portable-c8.tar.gz`。外部机器将 `source` 换为该归档、`source_sha256` 换为归档摘要，并填写 `original_version_seal_sha256` 为原版本封存摘要，使用同一命令复算，无需模型、SDK 或 NPU。归档中的源码仅作来源核验，不执行。
+
+目录输入仍核验原版本全部封存文件。便携包仅附完整 C8、父轮身份及相关源码；未运行的真实上下文输入不分发，其原封存摘要保留于清单。便携复算核验完整 C8 闭包，不声称已复验未附文件的全部字节。
 
 此模式保留原失败、未运行阶段和原时钟；命令成功只表示 CPU 重建完成，不代表全套通过。F、效率和第三方认证仍为空或未认证。
