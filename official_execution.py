@@ -371,7 +371,7 @@ def run_in_context(command, root, *, env, cwd=None, extra_paths=(), **kwargs):
     # The wrapper starts with the host interpreter. Image PYTHONHOME and shared
     # libraries apply only after chroot/exec, not to that host interpreter.
     outer = _neutral_environment()
-    text_mode = kwargs.get('text') or kwargs.get('encoding') or kwargs.get('universal_newlines')
+    text_mode = kwargs.get('text') or kwargs.get('encoding') or kwargs.get('errors') or kwargs.get('universal_newlines')
     payload = json.dumps(request)
     return subprocess.run([sys.executable, '-B', str(Path(__file__).resolve()), '--exec-json'],
                           env=outer, input=payload if text_mode else payload.encode(), **kwargs)
@@ -382,7 +382,7 @@ def popen_in_context(command, root, *, env, cwd=None, extra_paths=(), **kwargs):
     process = subprocess.Popen([sys.executable, '-B', str(Path(__file__).resolve()), '--exec-json'],
                                env=_neutral_environment(), stdin=subprocess.PIPE, **kwargs)
     try:
-        text_mode = kwargs.get('text') or kwargs.get('encoding') or kwargs.get('universal_newlines')
+        text_mode = kwargs.get('text') or kwargs.get('encoding') or kwargs.get('errors') or kwargs.get('universal_newlines')
         payload = json.dumps(request)
         with process.stdin as pipe:
             pipe.write(payload if text_mode else payload.encode())

@@ -17,7 +17,7 @@ class ExecutionContextTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             bootstrap=Path(directory)/'bootstrap.py'
             bootstrap.write_text('import sys,json\nvalue=json.load(sys.stdin)\nassert value["wire"]=="中文"\nprint("stdin-closed="+str(sys.stdin.read()==""))\n',encoding='utf-8')
-            for options in [{},dict(text=True),dict(encoding='utf-8'),dict(universal_newlines=True)]:
+            for options in [{},dict(text=True),dict(encoding='utf-8'),dict(errors='strict'),dict(universal_newlines=True)]:
                 with self.subTest(options=options),patch.object(execution,'request_for',return_value={'wire':'中文'}),patch.object(execution,'__file__',str(bootstrap)):
                     process=execution.popen_in_context(['cpu-child'],Path(directory),env={},stdout=subprocess.PIPE,stderr=subprocess.PIPE,**options)
                     stdout,stderr=process.communicate(timeout=10)
