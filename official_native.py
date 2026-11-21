@@ -6,7 +6,7 @@ import time
 
 from official_baselines import save
 from official_image import digest, environment
-from official_suite import ROOT, clean_client_environment, load, public_arguments, service_cache
+from official_suite import ROOT, clean_client_environment, load, public_arguments, service_cache, kernel_cache
 
 
 def run(config, image, output, tools, sdk, sources, leases, continuous):
@@ -47,6 +47,7 @@ def run(config, image, output, tools, sdk, sources, leases, continuous):
     guard = load(sdk / 'mods/packed-host/memory_guard.py', 'official_native_memory_guard')
     initial = admit_startup_memory(guard, Path(config['model']), weights, output)
     python, env = environment(image, service_cache(config, output), devices='0,1')
+    env.update(TRITON_CACHE_DIR=str(kernel_cache(config, image)), VLLMHUST_OFFICIAL_SDK=str(image))
     env.update(PYTHONPATH=str(ROOT) + ':' + str(tools / 'scripts') + ':' + str(tools / 'third-party-test-kit/proc_capture') + ':' + env['PYTHONPATH'],
                VLLM_HUST_TEST_OUTPUT=str(output), VLLM_ENABLE_V1_MULTIPROCESSING='1',
                VLLM_DISABLE_REQUEST_ID_RANDOMIZATION='1')

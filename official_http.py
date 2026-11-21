@@ -57,6 +57,19 @@ def main():
         prepare(sdk, Path(plan['model']), Path(plan['qualified_continuous']), Path(plan['native_workload']))
         return 0
     if args.phase == 'warmup':
+        import urllib.request
+        from official_baselines import save
+        request = urllib.request.Request('http://127.0.0.1:18390/collective_rpc',
+            json.dumps(dict(method='hust_official_kernel_prepare', timeout=1800)).encode(),
+            {'Content-Type': 'application/json'})
+        opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+        with opener.open(request, timeout=1830) as response:
+            prepared = json.load(response)['results']
+        if len(prepared) != 2 or any(row.get('applicable') and not row.get('completed') for row in prepared):
+            raise ValueError('Both workers must finish bounded official kernel preparation')
+        if any(row.get('applicable') for row in prepared) and {row.get('rank') for row in prepared} != {0, 1}:
+            raise ValueError('Prepared official kernels must cover both ranks')
+        save(output / 'official-kernel-preparation.json', prepared)
         from serving_warmup import run
         if plan['kind'] == 'context':
             from completion_warmup import run

@@ -124,6 +124,14 @@ def service_cache(config, output):
     return Path(config['cache']) / 'official-services' / identity
 
 
+def kernel_cache(config, image):
+    from official_kernel_preparation import POLICY
+    lock = json.loads((image / 'image-lock.json').read_bytes())
+    folder = Path(config['cache']) / 'official-kernel-cache' / lock['manifest_digest'].split(':')[1] / POLICY
+    folder.mkdir(parents=True, exist_ok=True)
+    return folder
+
+
 def derive_metrics(config, service_plan):
     plan = Path(service_plan)
     root = plan.parent.parent
@@ -171,6 +179,7 @@ def phase(config, image, phase_name, output, tools, sdk, sources, leases, contin
                 serve_arguments=public_arguments(kind), engine_release=lock['id'],
                 original_baseline_018_relabelled=False, necessary_work_certified=False)
     plan['worker_sources'][str(ROOT / 'official_worker.py')] = sources[str(ROOT / 'official_worker.py')]
+    plan['worker_sources'][str(ROOT / 'official_kernel_preparation.py')] = sources[str(ROOT / 'official_kernel_preparation.py')]
     if kind == 'dataset':
         suffix = 'trace' if phase_name in ('swe', 'terminal') else 'solver'
         plan['dataset_spec'] = str(Path(config['protocol_run']) / 'plans' / (phase_name + '-' + suffix + '-B0.json'))
@@ -186,6 +195,7 @@ def phase(config, image, phase_name, output, tools, sdk, sources, leases, contin
         plan['continuous_inputs'] = str(service / 'context-warmup-inputs.json')
     save(service / 'plan.json', plan)
     python, env = environment(image, cache, devices='0,1')
+    env.update(TRITON_CACHE_DIR=str(kernel_cache(config, image)), VLLMHUST_OFFICIAL_SDK=str(image))
     env.update(PYTHONPATH=str(ROOT) + ':' + str(tools / 'scripts') + ':' + env['PYTHONPATH'],
                VLLM_HUST_TEST_OUTPUT=str(service), VLLM_HUST_PHYSICAL_DEVICES=','.join(map(str, config['physical_devices'])),
                VLLMHUST_ENGINE_LOCKS=json.dumps(leases), VLLM_SERVER_DEV_MODE='1')
@@ -282,7 +292,8 @@ def run(config, image, output):
     mapping = verify_mapping('0,1')
     sources.update({str(ROOT / name): digest(ROOT / name) for name in
                     ('official_suite.py', 'official_http.py', 'official_serve.py', 'official_worker.py',
-                     'official_judge.py', 'official_native.py', 'official_native_entry.py', 'official_report.py', 'official_plots.py')})
+                     'official_judge.py', 'official_native.py', 'official_native_entry.py', 'official_report.py', 'official_plots.py',
+                     'official_kernel_preparation.py')})
     frozen = dict(schema='deeplinkengine-official-full-suite/v1', baseline_image=json.loads((image / 'image-lock.json').read_bytes()),
                   status='preparing', prepared_before_model_start=True, started=time.time(),
                   sources=sources, physical_mapping=mapping,

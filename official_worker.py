@@ -3,9 +3,15 @@ from compile_boundary import WorkerExtension
 
 
 class OfficialWorker(WorkerExtension):
+    def hust_official_kernel_prepare(self):
+        from official_kernel_preparation import prepare
+        return prepare(self)
+
     def hust_native_observer_audit(self):
+        preparation = self.hust_official_kernel_prepare()
         from runtime_identity import identity
         result = dict(identity(self), role='B0', native_per_step_observer=False,
+                    kernel_preparation=preparation,
                     observer_removal_required=False,
                     observer_basis='Unmodified official image; no optimized-engine MODs or per-step counting hooks')
         # Preserve actual loaded dimensions, dispatch and method sources once,

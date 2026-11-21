@@ -44,6 +44,7 @@ jobs:
       - run: python -B tools/test_public_one_click.py
       - run: python -B tools/test_public_run_all.py
       - run: python -B tests/test_official_baselines.py
+      - run: python -B tests/test_official_kernel_preparation.py
       - run: python -B tests/test_run_all.py
       - run: python -B tests/test_environment_setup.py
       - run: python -B tests/test_standalone.py
