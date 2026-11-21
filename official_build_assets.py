@@ -61,7 +61,10 @@ def matching_links(index,row):
 
 def transports(row):
     package=re.sub(r'[-_.]+','-',row['package']).lower();urls=[];proof=[]
-    indexes=[CPU_MIRROR+package+'/'] if '+cpu' in row['filename'] else [base+package+'/' for base in PYPI_MIRRORS]
+    publisher=row.get('publisher_index')
+    cpu_channel=('+cpu' in row['filename'] or
+        isinstance(publisher,dict) and publisher.get('index')==CPU_ORIGIN+package+'/')
+    indexes=[CPU_MIRROR+package+'/'] if cpu_channel else [base+package+'/' for base in PYPI_MIRRORS]
     for index in indexes:
         try:
             found,record=matching_links(index,row);urls+=found;proof.append(record)
@@ -178,12 +181,19 @@ def authority(install,primary):
         return dict(row,resolver_advertised_sha256=digest is not None)
     if not re.fullmatch(r'[a-z0-9][a-z0-9_.-]*',name):raise ValueError('Unsafe resolved package name')
     source='https://pypi.org/pypi/'+urllib.parse.quote(name,safe='')+'/'+urllib.parse.quote(version,safe='')+'/json'
+    pypi_alternative=None
     try:
-        raw=_read(source);data=json.loads(raw);matches=[r for r in data['urls'] if r['filename']==filename and (digest is None or r['digests']['sha256']==digest)]
-        if len(matches)!=1:raise ValueError('Resolver artifact is absent from the official PyPI release')
-        selected=matches[0];publisher_digest=selected['digests']['sha256']
-        if not re.fullmatch(r'[0-9a-f]{64}',publisher_digest):raise ValueError('Publisher artifact has an invalid whole SHA-256')
-        return dict(filename=filename,bytes=selected['size'],sha256=publisher_digest,url=selected['url'],upstream_url=selected['url'],package=name,version=version,publisher_metadata_url=source,publisher_metadata_sha256=hashlib.sha256(raw).hexdigest(),resolver_advertised_sha256=digest is not None,publisher_digest_advertised=True)
+        raw=_read(source);data=json.loads(raw);filenames=[r for r in data['urls'] if r['filename']==filename]
+        matches=[r for r in filenames if digest is None or r['digests']['sha256']==digest]
+        if not matches and digest is not None:
+            pypi_alternative=dict(url=source,sha256=hashlib.sha256(raw).hexdigest(),raw_utf8=raw.decode('utf-8'),
+                filename=filename,matching_filename_artifacts=[dict(filename=r['filename'],bytes=r['size'],
+                    sha256=r['digests']['sha256'],url=r['url']) for r in filenames])
+        else:
+            if len(matches)!=1:raise ValueError('Resolver artifact is absent from the official PyPI release')
+            selected=matches[0];publisher_digest=selected['digests']['sha256']
+            if not re.fullmatch(r'[0-9a-f]{64}',publisher_digest):raise ValueError('Publisher artifact has an invalid whole SHA-256')
+            return dict(filename=filename,bytes=selected['size'],sha256=publisher_digest,url=selected['url'],upstream_url=selected['url'],package=name,version=version,publisher_metadata_url=source,publisher_metadata_sha256=hashlib.sha256(raw).hexdigest(),resolver_advertised_sha256=digest is not None,publisher_digest_advertised=True)
     except urllib.error.HTTPError as error:
         if error.code!=404:raise
     if digest is None:
@@ -196,9 +206,25 @@ def authority(install,primary):
         try:
             links,proof=matching_links(index,row)
             if links:
+                extra={}
+                if pypi_alternative is not None:
+                    # The recipe's CPU channel can publish different bytes
+                    # under the same filename as PyPI. Bind both identities,
+                    # and attest the actual resolver transport separately.
+                    transport_proof=proof
+                    if url not in links:
+                        if index!=CPU_ORIGIN+name+'/':continue
+                        mirror_links,transport_proof=matching_links(CPU_MIRROR+name+'/',row)
+                        if url not in mirror_links:continue
+                    extra=dict(pypi_alternative_release=pypi_alternative,resolver_report_url=url,
+                        resolver_transport_attestation=transport_proof)
                 request=urllib.request.Request(links[0],method='HEAD')
                 with urllib.request.urlopen(request,timeout=30) as response:size=int(response.headers['Content-Length'])
-                return dict(row,bytes=size,url=links[0],upstream_url=links[0],version=version,publisher_index=proof)
+                return dict(row,bytes=size,url=links[0],upstream_url=links[0],version=version,publisher_index=proof,
+                    **extra)
+            # A nonmatching PyPI artifact does not attest this file. The other
+            # recipe channel must advertise both its filename and whole SHA.
+            if pypi_alternative is not None:continue
             # Some official Ascend indexes do not advertise archive digests.
             # Accept only the exact HTTPS publisher URL already downloaded and
             # hashed by pip, and label the absence of a publisher digest.
@@ -211,6 +237,8 @@ def authority(install,primary):
                     return dict(row,bytes=size,url=link,upstream_url=link,version=version,
                         publisher_index=dict(index=index,index_sha256=hashlib.sha256(raw).hexdigest(),publisher_digest_advertised=False,digest_source='pip-computed-whole-source-download'))
         except (OSError,ValueError):continue
+    if pypi_alternative is not None:
+        raise ValueError('Resolver artifact is absent from the official PyPI release and no original recipe publisher channel attests its SHA and transport: '+filename)
     raise ValueError('No publisher index attests the resolved build artifact: '+filename)
 
 
