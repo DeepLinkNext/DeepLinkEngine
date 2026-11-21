@@ -153,7 +153,13 @@ def main(arguments=None):
                         if recovered:
                             row['interrupted_source_build'] = recovered
                             save(out / 'results.json', record)
-                        installed = reuse_candidate(sdk) if sdk.exists() else prepare_candidate(base_lock, cache, sdk)
+                        if sdk.exists():
+                            installed = reuse_candidate(sdk)
+                        else:
+                            from official_source_delivery import prepare as deliver_verified_wheels
+                            row['build_dependency_delivery'] = deliver_verified_wheels(cache, sdk, out / (version + '-dependency-delivery'))
+                            save(out / 'results.json', record)
+                            installed = prepare_candidate(base_lock, cache, sdk)
                     row.update(installation=str(sdk), installation_receipt=installed,
                                status='prepared' if args.prepare_environment else 'running',
                                model_started=False if args.prepare_environment else None)

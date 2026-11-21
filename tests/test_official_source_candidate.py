@@ -86,6 +86,9 @@ class CandidateTests(unittest.TestCase):
             self.assertEqual((root/'cmake').read_bytes(),original)
 
     def setUp(self):
+        delivery = patch('official_source_delivery.prepare', return_value=dict(path='cpu-fixture-delivery', sha256='a'*64))
+        self.delivery = delivery.start()
+        self.addCleanup(delivery.stop)
         storage = patch.object(official_storage, 'prefer', side_effect=lambda p: (Path(p), None))
         storage.start()
         self.addCleanup(storage.stop)
@@ -301,16 +304,53 @@ class CandidateTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
             path = self.config(root, candidate.VERSION)
+            events=[]
+            def deliver(cache,sdk,out):
+                if sys.platform=='linux':
+                    import fcntl
+                    lock=sdk.parent/(sdk.name+'.prepare.lock')
+                    with lock.open('a+b') as stream:
+                        with self.assertRaises(BlockingIOError):fcntl.flock(stream,fcntl.LOCK_EX|fcntl.LOCK_NB)
+                events.append('delivery');return dict(path='cpu-fixture-delivery',sha256='a'*64)
+            self.delivery.side_effect=deliver
+            def prepare(*args):events.append('original-prepare');return dict(schema='fixture-only')
             with patch.object(public_entry.platform, 'system', return_value='Linux'), \
                  patch.object(public_entry.platform, 'machine', return_value='aarch64'), \
-                 patch.object(candidate, 'prepare', return_value=dict(schema='fixture-only')) as build:
+                 patch.object(candidate, 'prepare', side_effect=prepare) as build:
                 code = public_entry.main(['--config', str(path), '--prepare-environment'])
             self.assertEqual(code, 0)
+            self.assertEqual(events,['delivery','original-prepare'])
             build.assert_called_once()
+            self.delivery.assert_called_once()
             actual = json.loads((root / 'result/results.json').read_bytes())
+            self.assertEqual(actual['stages'][0]['build_dependency_delivery']['path'], 'cpu-fixture-delivery')
             self.assertFalse(actual['model_execution_authorized'])
             self.assertEqual(actual['stages'][0]['baseline_id'], candidate.ID)
             self.assertFalse(actual['stages'][0]['official_release_image'])
+
+    def test_public_completed_candidate_reuse_skips_delivery_and_build(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root=Path(temp);path=self.config(root,candidate.VERSION)
+            sdk=root/'cache/source-candidate-sdks'/(candidate.ID+'-'+candidate.key()[:16]);sdk.mkdir(parents=True)
+            with patch.object(public_entry.platform,'system',return_value='Linux'), \
+                 patch.object(public_entry.platform,'machine',return_value='aarch64'), \
+                 patch.object(candidate,'quarantine_partial',return_value=None), \
+                 patch.object(candidate,'reuse',return_value=dict(schema='cpu-strict-reuse-fixture')) as reuse, \
+                 patch.object(candidate,'prepare') as build:
+                self.assertEqual(public_entry.main(['--config',str(path),'--prepare-environment']),0)
+            reuse.assert_called_once_with(sdk);build.assert_not_called();self.delivery.assert_not_called()
+
+    def test_public_delivery_failure_stops_before_original_sdk_copy(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root=Path(temp);path=self.config(root,candidate.VERSION)
+            self.delivery.side_effect=ValueError('verified delivery rejected bad cache')
+            with patch.object(public_entry.platform,'system',return_value='Linux'), \
+                 patch.object(public_entry.platform,'machine',return_value='aarch64'), \
+                 patch.object(candidate,'prepare') as build:
+                self.assertEqual(public_entry.main(['--config',str(path),'--prepare-environment']),1)
+            build.assert_not_called()
+            actual=json.loads((root/'result/results.json').read_bytes())
+            self.assertIn('delivery rejected bad cache',actual['stages'][0]['error'])
 
     def test_public_candidate_failure_is_preserved(self):
         with tempfile.TemporaryDirectory() as temp:
