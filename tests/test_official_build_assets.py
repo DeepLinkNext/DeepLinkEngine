@@ -49,6 +49,20 @@ class BuildAssetsTests(unittest.TestCase):
         self.assertEqual(assets.verify_closure(['root>=1'],rows[:1],{})['reachable_projects'],1)
         with self.assertRaisesRegex(ValueError,'Incomplete'):assets.verify_closure(['root[fast]>=1'],rows[:1],{})
 
+    def test_exact_pip_cache_body_is_admitted_only_after_whole_sha(self):
+        from pip._internal.network.cache import SafeFileCache
+        from pip._vendor.cachecontrol.controller import CacheController
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);body=b'verified resolver HTTP response';url='https://mirror.invalid/exact.whl';pip_cache=root/'pip'
+            http=SafeFileCache(str(pip_cache/'http-v2'));source=Path(http._get_cache_path(CacheController.cache_url(url))+'.body');source.parent.mkdir(parents=True);source.write_bytes(body)
+            row=dict(filename='exact.whl',bytes=len(body),sha256=hashlib.sha256(body).hexdigest())
+            with patch.object(assets,'transports',side_effect=AssertionError('must not re-download')):
+                path,proof=assets.admit_pip_cache(row,root/'wheels',pip_cache=pip_cache,report_url=url)
+            self.assertEqual(path.read_bytes(),body);self.assertEqual(proof['kind'],'verified-metadata-http-cache')
+            self.assertNotEqual(path.stat().st_ino,source.stat().st_ino)
+            self.assertIsNone(assets.admit_pip_cache(dict(row,sha256='a'*64),root/'other',pip_cache=pip_cache,report_url=url))
+            self.assertIsNone(assets.admit_pip_cache(row,root/'other',pip_cache=pip_cache,report_url=url+'other'))
+
     def test_existing_range_downloader_resumes_real_http_and_checks_whole_sha(self):
         body=b'build-assets-range-fixture'*2048
         offsets=[]
@@ -85,7 +99,7 @@ class BuildAssetsTests(unittest.TestCase):
                 report=Path(argv[argv.index('--report')+1]);report.write_text(json.dumps(dict(install=rows,environment={})))
             def fetch(row,cache):return (torch if row['package']=='torch' else sympy),dict(cpu_fixture=True)
             with patch.object(candidate,'build_dependency_artifacts',return_value={'sha256:'+primary['sha256']:primary}),patch.object(candidate,'primary_build_constraint',return_value=(primary_constraint,dict(cpu_fixture=True))), \
-                 patch.object(transport_trust,'configure',return_value=dict(cpu_fixture=True)),patch.object(assets,'_run',side_effect=resolve),patch.object(assets,'fetch',side_effect=fetch),patch.object(assets,'_read',return_value=official):
+                 patch.object(transport_trust,'configure',return_value=dict(cpu_fixture=True)),patch.object(assets,'_run',side_effect=resolve),patch.object(assets,'fetch',side_effect=fetch),patch.object(assets,'admit_pip_cache',return_value=None),patch.object(assets,'_read',return_value=official):
                 path,proof=assets.prepare_stage(Path(sys.executable),core,root/'cache',build,{},sdk=root/'sdk',stage='01-core')
             text=path.read_text();self.assertIn('torch @ file:',text);self.assertIn('sympy @ file:',text);self.assertFalse(proof['runtime_constraint_added']);self.assertEqual((core/'pyproject.toml').read_bytes(),original)
 

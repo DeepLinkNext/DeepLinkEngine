@@ -89,6 +89,40 @@ def fetch(row,cache):
         return path,dict(cached=False,filename=row['filename'],sha256=row['sha256'],mirror_indexes=proof)
 
 
+def admit_pip_cache(row,cache,*,pip_cache,report_url):
+    """Copy only this report URL's verified whole body from our metadata cache."""
+    from baseline_setup import download_lock
+    from pip._internal.network.cache import SafeFileCache
+    from pip._vendor.cachecontrol.controller import CacheController
+    import tempfile
+    root=Path(pip_cache).resolve();http=SafeFileCache(str(root/'http-v2'))
+    key=CacheController.cache_url(report_url)
+    source=Path(http._get_cache_path(key)+'.body')
+    if (source.is_symlink() or not source.is_file()
+            or not source.resolve().is_relative_to(root)
+            or source.stat().st_size!=row['bytes'] or sha(source)!=row['sha256']):
+        return None
+    cache=Path(cache);cache.mkdir(parents=True,exist_ok=True);target=cache/row['filename']
+    if Path(row['filename']).name!=row['filename']:raise ValueError('Unsafe metadata cache artifact filename')
+    with (cache/(row['filename']+'.lock')).open('a+b') as lease,download_lock(lease):
+        if target.is_symlink():raise ValueError('Build cache artifact is a symlink')
+        if target.exists():
+            if target.stat().st_size!=row['bytes'] or sha(target)!=row['sha256']:
+                raise ValueError('Build cache artifact has wrong whole SHA; preserve '+str(target))
+            return target,dict(cached=True,filename=row['filename'],sha256=row['sha256'])
+        if shutil.disk_usage(cache).free<row['bytes']+2*1024**3:
+            raise OSError('Metadata cache admission requires one whole artifact plus 2 GiB free')
+        with tempfile.NamedTemporaryFile(dir=cache,prefix=row['filename']+'.metadata-cache-',delete=False) as output:
+            temporary=Path(output.name)
+            with source.open('rb') as stream:shutil.copyfileobj(stream,output,1024**2)
+        if temporary.stat().st_size!=row['bytes'] or sha(temporary)!=row['sha256']:
+            raise ValueError('Metadata cache body changed; preserve '+str(temporary))
+        temporary.replace(target)
+        return target,dict(cached=True,kind='verified-metadata-http-cache',source_path=str(source),
+            report_url=report_url,filename=row['filename'],sha256=row['sha256'],
+            pip_version=__import__('pip').__version__,sdk_installation_performed=False)
+
+
 def authority(install,primary):
     """Check a resolver choice against the original publisher's artifact list."""
     info=install['download_info'];url=info['url'];filename=urllib.parse.unquote(urllib.parse.urlsplit(url).path.rsplit('/',1)[-1]);meta=install['metadata'];name=re.sub(r'[-_.]+','-',meta['name']).lower();version=meta['version'];digest=info.get('archive_info',{}).get('hashes',{}).get('sha256')
@@ -213,7 +247,10 @@ def prepare_stage(python,core,cache,build,env,*,sdk,stage):
     _run(argv,sdk=sdk,env=child,cwd=core,folder=folder)
     resolved=json.loads(report.read_bytes());rows=[];lines=[]
     for install in resolved['install']:
-        row=authority(install,primary);path,transport=fetch(row,cache/'wheels');binding=verify_wheel_metadata(path,install['metadata']);rows.append(dict(row,path=str(path),transport=transport,metadata=install['metadata'],metadata_binding=binding))
+        row=authority(install,primary)
+        admitted=admit_pip_cache(row,cache/'wheels',pip_cache=Path(child['PIP_CACHE_DIR']),report_url=install['download_info']['url'])
+        path,transport=admitted if admitted is not None else fetch(row,cache/'wheels')
+        binding=verify_wheel_metadata(path,install['metadata']);rows.append(dict(row,path=str(path),transport=transport,metadata=install['metadata'],metadata_binding=binding))
         lines.append(row['package']+' @ '+path.as_uri()+'#sha256='+row['sha256'])
     closure=verify_closure(original,rows,resolved.get('environment',{}))
     constraint=build/(stage+'-verified-closure-constraints.txt');constraint.write_text('\n'.join(lines)+'\n')
