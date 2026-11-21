@@ -378,6 +378,9 @@ def ensure_environment(data):
     if os.environ.get("DEEPLINKENGINE_MANAGED_PYTHON") == sys.executable:
         selection["python"] = sys.executable
     python, before = select_python(selection, required)
+    # Large public package indexes can pause longer than pip's 15-second default.
+    env.setdefault("PIP_DEFAULT_TIMEOUT", "120")
+    env.setdefault("PIP_RETRIES", "3")
     env.setdefault("PIP_CACHE_DIR", str(Path(data["cache"]) / "pip"))
     env.setdefault("XDG_CACHE_HOME", str(Path(data["cache"]) / "xdg"))
     recipe = {"packages": required, "sources": lock.get("environment_sources", {}),
