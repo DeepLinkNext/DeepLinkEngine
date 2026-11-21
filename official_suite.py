@@ -17,10 +17,15 @@ from official_baselines import save
 from official_image import digest, environment
 
 ROOT = Path(__file__).resolve().parent
+TOOLS = ROOT / 'benchmark/one-click-kit'
 PHASES = ('continuous', 'mmlu', 'frontier', 'hle', 'swe', 'terminal', 'frontier-judge', 'hle-judge', 'context', 'native-timing')
 
 
 def validate_configuration(config):
+    for name in ('native_timing_inputs.py', 'native_timing_session.py', 'reference_capture_profile.py',
+                 'native_plan_values.py', 'baseline_native_entry.py', 'compile_boundary.py'):
+        if not (TOOLS / 'scripts' / name).is_file():
+            raise ValueError('Complete bundled protocol tools required: ' + name)
     for name in ('protocol_run', 'protocol_deployment', 'protocol_python'):
         if name not in config:
             raise ValueError('Full official suite requires ' + name)
@@ -187,6 +192,7 @@ def phase(config, image, phase_name, output, tools, sdk, sources, leases, contin
     from engine_entry import ipc_directory, temporary_directory
     env['VLLM_RPC_BASE_PATH'] = str(ipc_directory(service))
     env['TMPDIR'] = str(temporary_directory(service))
+    env['PYTHONPATH'] = str(tools / 'third-party-test-kit/proc_capture') + ':' + env['PYTHONPATH']
     logs = output / 'cann-logs'
     logs.mkdir()
     env['ASCEND_PROCESS_LOG_PATH'] = str(logs)
@@ -267,7 +273,7 @@ def run(config, image, output):
     validate_configuration(config)
     output.mkdir(parents=True, exist_ok=False)
     sdk = Path(config['protocol_deployment']).resolve()
-    tools = sdk.parent / 'tools'
+    tools = TOOLS
     sys.path.insert(0, str(tools / 'scripts'))
     sources = source_bindings(tools, sdk)
     from resource_guard import acquire, release, verify_mapping

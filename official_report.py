@@ -56,14 +56,14 @@ def report(root, config=None):
     save(root / 'report.json', document)
     figures = []
     if config is not None and metrics:
-        from official_suite import ROOT, clean_client_environment
+        from official_suite import ROOT, TOOLS, clean_client_environment
         sdk = Path(config['protocol_deployment'])
         cache = Path(config['cache']) / 'official-report'
         temporary = cache / 'tmp'
         temporary.mkdir(parents=True, exist_ok=True)
         env = clean_client_environment()
         env.update(XDG_CACHE_HOME=str(cache), TMPDIR=str(temporary), MPLCONFIGDIR=str(cache / 'matplotlib'))
-        plan = dict(client_tools=str(sdk.parent / 'tools'), protocol_deployment=str(sdk),
+        plan = dict(client_tools=str(TOOLS), protocol_deployment=str(sdk),
                     output=str(root), client_sources=campaign['sources'])
         existing = Path(config['protocol_run']).parents[1] / 'cache/xdg/vllm-hust-engine/report-mpl3108/bin/python'
         if existing.is_file():
