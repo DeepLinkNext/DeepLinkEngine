@@ -139,13 +139,17 @@
         "vllm-workspace/vllm/vllm/v1/engine/core_client.py": "fd6ca0cb7499b3086eef2fc57674b7ace56ef1c648f09e92e144b255b79018f8",
         "vllm-workspace/vllm/vllm/v1/engine/llm_engine.py": "d4d5fba309db4d3f271ac7479e3ddaa623045499e4c6cfac41c0c7710012413c",
         "vllm-workspace/vllm/vllm/v1/engine/output_processor.py": "e47b86cd69ce1c1e3f53dac655eaa75c32a4057d10f4a1db16bb83a397f2a329",
-        "vllm-workspace/vllm/vllm/v1/kv_cache_interface.py": "1cf202f1a44d5bc5c3832b70b41507687ecceea3784e67a4f003bc0210d6eecb"
+        "vllm-workspace/vllm/vllm/v1/kv_cache_interface.py": "1cf202f1a44d5bc5c3832b70b41507687ecceea3784e67a4f003bc0210d6eecb",
+        "vllm-workspace/vllm/vllm/v1/spec_decode/llm_base_proposer.py": "5bd11c41f0a8cf1272b5880d9878043f876bee6c7e04fb781e613f92930b15ab",
+        "vllm-workspace/vllm/vllm/config/speculative.py": "9c642a87264339c0dbc1d0b57330572149df0f9d5e16c6893b9895e50a619e19",
+        "vllm-workspace/vllm-ascend/vllm_ascend/device/device_op.py": "f4392f346816c85f138d7e033a924c6b628ae684cd4fcd7a6d8818518351b5c9",
+        "vllm-workspace/vllm-ascend/vllm_ascend/device/hardware_profile.py": "024ea110a1da68edd91658596b6e95e6e81230b3189f7abe6cabe460d34bd3d6"
       },
       "supported_prefill_families": [
-        "triton-chunk64"
+        "triton-chunk64",
+        "fla-npu"
       ],
       "unmapped_prefill_families": [
-        "fla-npu",
         "torch-npu-fused-chunk"
       ],
       "model_config_sha256": "5e4d7f74fec2f360eb9cfbfcd6ec0c4c76e684d3a11caaed259d9fd9bfbc7944",
@@ -165,7 +169,10 @@
         "parallel_drafting": false,
         "greedy": true
       },
-      "necessary_work": "Own ordered public geometry; terminal uncertainty and all 1..64 prompt compositions retained. Independent companion proves producer/source correspondence only; its counts/times do not replace any native repetition."
+      "necessary_work": "Own ordered public geometry; terminal uncertainty and all 1..64 prompt compositions retained. Independent companion proves producer/source correspondence only; its counts/times do not replace any native repetition.",
+      "runtime_operator_profiles": {
+        "fla-npu": "b7a8d2460df7892c60d41c2957f4f1cf2091652993836321c602860a99ae65b6"
+      }
     }
   },
   "formula_sha256": {

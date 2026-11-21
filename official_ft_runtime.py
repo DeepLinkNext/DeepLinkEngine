@@ -17,10 +17,18 @@ def gdn_backend():
         fla = module._get_fla_gdn_prefill_op() if supported else None
     probe = cls._fused_chunk_available
     selected = 'fla-npu' if fla is not None else 'torch-npu-fused-chunk' if probe is True else 'triton-chunk64' if probe is False else None
-    return dict(selected=selected, fla_hardware_supported=supported,
+    result = dict(selected=selected, fla_hardware_supported=supported,
         fla_branch_present=fla_branch,
         fla_operator_available=fla is not None, cached_fused_probe=probe,
         probe_executed_by_observer=False)
+    if selected == 'fla-npu':
+        from vllm_ascend.device.device_op import DeviceOperator
+        from official_ft_fla import observe
+        try:
+            result['operator_identity'] = observe(fla, DeviceOperator.fla_gdn_prefill)
+        except Exception as error:
+            result['operator_identity'] = dict(admitted=False, error=type(error).__name__ + ': ' + str(error))
+    return result
 
 
 def configuration(worker):

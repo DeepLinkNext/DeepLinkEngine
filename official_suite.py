@@ -333,7 +333,8 @@ def run(config, image, output):
             after = path.stat()
             if (before.st_dev, before.st_ino, before.st_size, before.st_mtime_ns, before.st_ctime_ns) != (after.st_dev, after.st_ino, after.st_size, after.st_mtime_ns, after.st_ctime_ns):
                 raise ValueError('Checkpoint changed during hashing')
-            weights[path.name] = dict(bytes=after.st_size, sha256=value, mtime_ns=after.st_mtime_ns, inode=after.st_ino)
+            weights[path.name] = dict(bytes=after.st_size, sha256=value, mtime_ns=after.st_mtime_ns,
+                                      inode=after.st_ino, ctime_ns=after.st_ctime_ns, device=after.st_dev)
         if len(weights) != 14 or sum(v['bytes'] for v in weights.values()) != 71903878016:
             raise ValueError('Fixed BF16 14-shard Qwen3.5-35B-A3B checkpoint required')
         save(output / 'model-weights.json', weights)

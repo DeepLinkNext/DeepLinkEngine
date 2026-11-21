@@ -44,10 +44,13 @@ def verify_model(model, original_weights, out):
     checked = {}
     for name, value in expected.items():
         path = Path(model) / name
+        if path.is_symlink() or not path.resolve().is_relative_to(Path(model).resolve()):
+            raise ValueError('Companion checkpoint must be an owned regular file: ' + name)
         before = path.stat()
         old = original_weights[name]
-        retained = (before.st_size == old['bytes'] and before.st_mtime_ns == old.get('mtime_ns')
-                    and before.st_ino == old.get('inode'))
+        retained = (os.name == 'posix' and before.st_size == old['bytes'] and before.st_mtime_ns == old.get('mtime_ns')
+                    and before.st_ino == old.get('inode')
+                    and before.st_ctime_ns == old.get('ctime_ns') and before.st_dev == old.get('device'))
         if not retained:
             print('OFFICIAL_FT_VERIFY_WEIGHT', name, flush=True)
             if before.st_size != value['bytes'] or sha(path) != value['sha256']:
@@ -57,9 +60,31 @@ def verify_model(model, original_weights, out):
                 after.st_size, after.st_mtime_ns, after.st_ctime_ns, after.st_ino):
             raise ValueError('Companion checkpoint changed during verification')
         checked[name] = dict(**value, unchanged_original_verified_stat=retained,
-                             mtime_ns=after.st_mtime_ns, inode=after.st_ino)
+                             mtime_ns=after.st_mtime_ns, inode=after.st_ino,
+                             ctime_ns=after.st_ctime_ns, device=after.st_dev)
     save(Path(out) / 'model-verification.json', checked)
     return checked
+
+
+def admit_image(image, identity, output):
+    """Use the existing official SDK cache verification and live origin probe."""
+    from official_image import digest, file_map, probe
+    image = Path(image)
+    installation = json.loads((image / 'installation.json').read_bytes())
+    if (installation['image_manifest'] != identity['manifest_digest']
+            or json.loads((image / 'image-lock.json').read_bytes()) != identity
+            or digest(image / 'installed-files.json') != installation['installed_files_sha256']):
+        raise ValueError('Cached official SDK identity/file manifest differs')
+    if file_map(image) != json.loads((image / 'installed-files.json').read_bytes()):
+        raise ValueError('Cached official SDK files differ')
+    observed = probe(image, Path(output) / 'sdk-probe', identity)
+    if observed['versions'] != installation['metadata']['versions']:
+        raise ValueError('Cached official SDK actual package versions differ')
+    admitted = dict(image_manifest=identity['manifest_digest'],
+        installed_files_sha256=installation['installed_files_sha256'],
+        cached_payload_verified=True, actual_metadata=observed, sdk_reinstalled=False)
+    save(Path(output) / 'sdk-admission.json', admitted)
+    return admitted
 
 
 def complete_native(config, image, native, output, tools, sdk, sources, leases, continuous,
@@ -81,6 +106,8 @@ def complete_native(config, image, native, output, tools, sdk, sources, leases, 
         if native_seal is not None and record['source_native_seal_sha256'] != native_seal:
             raise ValueError('Externally bound native evidence changed')
         qualify_mapping(mapping, domain()['accelerator'])
+        if sha(Path(config['model']) / 'config.json') != domain()['model_config_sha256']:
+            raise ValueError('Companion model configuration differs from the original reference')
         verify_model(config['model'], weights, output)
         save(output / 'model-weights.json', weights)
         source = Evidence(native, record['source_native_seal_sha256'])
@@ -151,7 +178,7 @@ def continue_closed(config, original, expected_seal, *, companion_source=None, c
     """Explicit public continuation: only companion and CPU work, new output."""
     import sys
     sys.path.insert(0, str(TOOLS / 'scripts'))
-    from official_image import prepare, read_lock
+    from official_image import prepare, read_lock, finish_restoration
     from official_suite import source_bindings
     from resource_guard import acquire, release, verify_mapping
     if not re.fullmatch('[0-9a-f]{64}', expected_seal or ''):
@@ -179,11 +206,13 @@ def continue_closed(config, original, expected_seal, *, companion_source=None, c
         raise ValueError('Companion runtime source identity differs from the native original')
     image = Path(config['cache']) / 'official-sdks' / (version + '-' + identity['manifest_digest'].split(':')[1][:16])
     if not (image / 'installation.json').is_file():
-        prepare(lock_path, Path(config['cache']) / 'official-oci', image)
-    elif json.loads((image / 'image-lock.json').read_bytes()) != identity:
-        raise ValueError('Cached companion SDK identity differs')
+        if image.exists():
+            finish_restoration(lock_path, image)
+        else:
+            prepare(lock_path, Path(config['cache']) / 'official-oci', image)
     out = Path(config['out'])
     out.mkdir(parents=True, exist_ok=False)
+    admission = admit_image(image, identity, out)
     weights = source.read('model-weights.json')
     sdk = Path(config['protocol_deployment'])
     sources = source_bindings(TOOLS, sdk)
@@ -197,7 +226,8 @@ def continue_closed(config, original, expected_seal, *, companion_source=None, c
         original_results_modified=False, source_execution=campaigndata(campaign),
         cpu_and_companion_source_sha256={p.name: sha(p) for p in ROOT.glob('official*.py')},
         companion_physical_mapping=current_mapping, native_timing_repeated=False,
-        dataset_solvers_repeated=False, independent_third_party=False)
+        dataset_solvers_repeated=False, independent_third_party=False,
+        official_sdk_admission=admission)
     save(out / 'continuation.json', record)
     leases = []
     try:

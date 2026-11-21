@@ -95,13 +95,17 @@ def source_domain(sdk, native_plan, companion_plan, native_inventories, companio
                 loaded_source_sha256=loaded, upstream_model_sources_modified=False)
 
 
-def native_implementation(native, plan, workers, core, version, domain):
+def native_implementation(native, plan, workers, core, version, domain, sdk):
     for name in ('native_timing_session.py', 'native_public_client.py', 'native_output_geometry.py',
                  'reference_capture_profile.py', 'baseline_native_entry.py'):
         pins = [pin for filename, pin in plan['files'].items()
                 if PurePosixPath(filename).parts[-2:] == ('scripts', name)]
         if pins != [sha(KIT / 'scripts' / name)]:
             raise ValueError('Native clock/public-input source differs: ' + name)
+    inventory_name = 'third-party-test-kit/proc_capture/m01_model_inventory.py'
+    inventory_pins = [pin for filename, pin in plan['files'].items() if filename.endswith('/' + inventory_name)]
+    if inventory_pins != [sha(KIT / inventory_name)]:
+        raise ValueError('Actual native loaded-inventory collector source differs')
     if len(workers) != 2 or {w['rank'] for w in workers} != {0, 1}:
         raise ValueError('Both original native worker observations required')
     for worker in workers:
@@ -117,6 +121,9 @@ def native_implementation(native, plan, workers, core, version, domain):
                 raise ValueError('Native and companion fixed KV pool geometry differ')
             if resolved['gdn_backend']['selected'] not in domain['supported_prefill_families']:
                 raise ValueError('Actual native GDN backend requires its arithmetic adapter')
+            if resolved['gdn_backend']['selected'] == 'fla-npu':
+                from official_ft_fla import validate
+                validate(resolved['gdn_backend']['operator_identity'], sdk)
         elif version == '0.23.0':
             # Original v5 predates the explicit resolved-config record. Its
             # fixed source family has unconditional sequential MTP2, and the
@@ -211,6 +218,8 @@ def audit(native_root, companion_root, sdk, model_config, out, *, version, sourc
     out = Path(out)
     out.mkdir(exist_ok=False)
     domains = json.loads((ROOT / 'engine/official-ft-source-domains.json').read_bytes())
+    if version not in domains['domains']:
+        raise ValueError('A registered actual-source arithmetic domain is required for version ' + version)
     domain = domains['domains'][version]
     if domain['reviewed'] is not True:
         raise ValueError('Official arithmetic source family is not yet reviewed')
@@ -242,6 +251,9 @@ def audit(native_root, companion_root, sdk, model_config, out, *, version, sourc
     for value in observed.read('client/loaded-inventory-bindings-after.json'):
         if value['resolved_configuration']['gdn_backend']['selected'] not in domain['supported_prefill_families']:
             raise ValueError('Actual companion GDN backend requires its arithmetic adapter')
+        if value['resolved_configuration']['gdn_backend']['selected'] == 'fla-npu':
+            from official_ft_fla import validate as validate_fla
+            validate_fla(value['resolved_configuration']['gdn_backend']['operator_identity'], sdk)
     sources = dict(core['source_sha256'])
     for identity in observed.read('client/resolved-worker-identities.json'):
         sources.update(identity['model_sources'])
@@ -278,7 +290,7 @@ def audit(native_root, companion_root, sdk, model_config, out, *, version, sourc
                          b1_state_cache_present=False, shared_request_cache_salts_unique=True):
             raise ValueError('Native fresh-prefix reset is incomplete')
         workers = native.read(f'client/formal-{index}-pre-audit.json')
-        native_implementation(native, plan, workers, core, version, domain)
+        native_implementation(native, plan, workers, core, version, domain, sdk)
         raw = native.read(f'client/formal-{index}/raw-public-output-frames.json')
         original = native.read(f'client/formal-{index}/public-output-geometry.json')
         rebuilt = geometry(raw, tokens, maximum=256)
@@ -307,4 +319,4 @@ def audit(native_root, companion_root, sdk, model_config, out, *, version, sourc
 
 
 # Updated only with the independently reviewed versioned domain file.
-SOURCE_DOMAINS_SHA256 = 'd60e762c33b550efa143e5d3d00df479a723d09375eed2759d3982dbf0c2f35d'
+SOURCE_DOMAINS_SHA256 = '897b013b9e449910353551f3a041bfc3dedd2a29e2df72611f8a11f0325647ba'

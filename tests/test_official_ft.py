@@ -170,7 +170,134 @@ class LengthPlaneTests(unittest.TestCase):
             stable_lengths(row)
 
 
+def fixed_fla_entry(fused_fwd):
+    return fused_fwd(output_final_state=True, chunk_size=64, layout='BNSD',
+        use_exp2=False, use_qk_l2norm_in_kernel=False, allow_neg_eigval=False,
+        disable_recompute=True, state_v_first=False)
+
+
+def changed_fla_entry(fused_fwd):
+    return fused_fwd(output_final_state=True, chunk_size=128, layout='BNSD',
+        use_exp2=False, use_qk_l2norm_in_kernel=False, allow_neg_eigval=False,
+        disable_recompute=True, state_v_first=False)
+
+
+def loaded_fla_operator(*, output_final_state=False, chunk_size=64, layout='BNSD',
+        use_exp2=False, use_qk_l2norm_in_kernel=False, allow_neg_eigval=False,
+        disable_recompute=True, state_v_first=False, use_gate_in_kernel=False):
+    raise AssertionError('CPU signature audit must never call the device operator')
+
+
+class FlaDomainTests(unittest.TestCase):
+    def test_actual_flags_combine_source_literals_and_loaded_defaults_without_call(self):
+        from official_ft_fla import flags, profile
+        expected = dict(profile()['call_flags'], use_gate_in_kernel=False)
+        self.assertEqual(flags(loaded_fla_operator, fixed_fla_entry, expected), expected)
+
+    def test_different_actual_chunk_family_is_rejected(self):
+        from official_ft_fla import flags, profile
+        with self.assertRaisesRegex(ValueError, 'flags differ'):
+            flags(loaded_fla_operator, changed_fla_entry, profile()['call_flags'])
+
+    def test_claimed_admission_without_actual_mapped_libraries_is_rejected(self):
+        import official_ft_fla as module
+        domain = module.profile()
+        value = dict(profile_sha256=module.PROFILE_SHA256, observed_files=module.files(domain),
+            admitted=True, actual_library_source_stamp=domain['source_stamp'],
+            probe_kernel_executed=False, backend_modified=False, tensor_values_observed=False,
+            loaded_libraries={})
+        with self.assertRaisesRegex(ValueError, 'loaded library set'):
+            module.validate(value, ROOT)
+
+    def test_fla_closure_does_not_claim_whole_python_package_git_equivalence(self):
+        from official_ft_fla import profile
+        value = profile()
+        self.assertFalse(value['whole_python_package_matches_public_git'])
+        self.assertEqual(len(value['packaged_kernel_sources']), 88)
+
+    def test_source_and_formula_policy_pins_reproduce(self):
+        import official_ft_audit as module
+        path = ROOT / 'engine/official-ft-source-domains.json'
+        self.assertEqual(module.sha(path), module.SOURCE_DOMAINS_SHA256)
+        for name, pin in json.loads(path.read_bytes())['formula_sha256'].items():
+            self.assertEqual(module.sha(module.KIT / 'third-party-test-kit' / name), pin)
+
+
 class CompletionTests(unittest.TestCase):
+    def image_fixture(self, root):
+        import official_ft
+        sdk, out = root / 'sdk', root / 'out'
+        sdk.mkdir()
+        out.mkdir()
+        (sdk / 'payload').write_bytes(b'original')
+        manifest = {'payload': hashlib.sha256(b'original').hexdigest()}
+        (sdk / 'installed-files.json').write_text(json.dumps(manifest))
+        identity = dict(manifest_digest='sha256:fixed-image')
+        (sdk / 'image-lock.json').write_text(json.dumps(identity))
+        (sdk / 'installation.json').write_text(json.dumps(dict(image_manifest=identity['manifest_digest'],
+            installed_files_sha256=official_ft.sha(sdk / 'installed-files.json'),
+            metadata=dict(versions=dict(vllm='0.23.0')))))
+        return sdk, out, identity
+
+    def test_cached_sdk_payload_is_checked_before_a_live_probe(self):
+        import official_ft
+        from types import SimpleNamespace
+        from unittest.mock import Mock
+        with tempfile.TemporaryDirectory() as temporary:
+            sdk, out, identity = self.image_fixture(Path(temporary))
+            (sdk / 'payload').write_bytes(b'modified')
+            probe = Mock()
+            module = SimpleNamespace(digest=official_ft.sha,
+                file_map=lambda path: {'payload': official_ft.sha(path / 'payload')}, probe=probe)
+            with patch.dict(sys.modules, {'official_image': module}):
+                with self.assertRaisesRegex(ValueError, 'SDK files differ'):
+                    official_ft.admit_image(sdk, identity, out)
+            probe.assert_not_called()
+
+    def test_valid_cached_sdk_is_probed_without_reinstallation(self):
+        import official_ft
+        from types import SimpleNamespace
+        from unittest.mock import Mock
+        with tempfile.TemporaryDirectory() as temporary:
+            sdk, out, identity = self.image_fixture(Path(temporary))
+            probe = Mock(return_value=dict(versions=dict(vllm='0.23.0'), source='actual-origin-probe'))
+            module = SimpleNamespace(digest=official_ft.sha,
+                file_map=lambda path: {'payload': official_ft.sha(path / 'payload')}, probe=probe)
+            with patch.dict(sys.modules, {'official_image': module}):
+                value = official_ft.admit_image(sdk, identity, out)
+            self.assertTrue(value['cached_payload_verified'])
+            self.assertFalse(value['sdk_reinstalled'])
+            probe.assert_called_once_with(sdk, out / 'sdk-probe', identity)
+
+    def test_legacy_weight_stat_schema_still_hashes_unchanged_size_and_mtime(self):
+        from official_ft import verify_model
+        import os
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            shard = root / 'shard.safetensors'
+            shard.write_bytes(b'abcd')
+            original = shard.stat()
+            expected = dict(bytes=4, sha256=hashlib.sha256(b'abcd').hexdigest())
+            metadata = dict(expected, inode=original.st_ino, mtime_ns=original.st_mtime_ns)
+            shard.write_bytes(b'efgh')
+            os.utime(shard, ns=(original.st_atime_ns, original.st_mtime_ns))
+            with patch('full_reference_reuse.domain', return_value=dict(weights={shard.name: expected})):
+                with self.assertRaisesRegex(ValueError, 'checkpoint differs'):
+                    verify_model(root, {shard.name: metadata}, root)
+
+    def test_legacy_weight_schema_uses_actual_hash_when_bytes_match(self):
+        from official_ft import verify_model
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            shard = root / 'shard.safetensors'
+            shard.write_bytes(b'abcd')
+            original = shard.stat()
+            expected = dict(bytes=4, sha256=hashlib.sha256(b'abcd').hexdigest())
+            metadata = dict(expected, inode=original.st_ino, mtime_ns=original.st_mtime_ns)
+            with patch('full_reference_reuse.domain', return_value=dict(weights={shard.name: expected})):
+                checked = verify_model(root, {shard.name: metadata}, root)
+            self.assertFalse(checked[shard.name]['unchanged_original_verified_stat'])
+
     def test_companion_plugin_is_discovered_but_inactive_in_ordinary_runs(self):
         import importlib.metadata
         import official_ft_plugin
