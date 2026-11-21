@@ -2,13 +2,15 @@
 
 保留原 0.18 结果，为官方版本分别记录运行环境和测试结果。当前使用 Qwen3.5-35B-A3B、BF16、TP2 和完整题单。
 
-填写 [配置示例](official-baselines.example.json)，将 `protocol_*` 指向已有测试准备生成的题单、SDK 和安装记录中的 Python，选择新的输出目录后执行：
+填写 [配置示例](official-baselines.example.json) 中的模型、设备、缓存和新输出目录后执行：
 
 ```sh
 python run_all.py --official-baselines --config evaluation.json
 ```
 
 只准备环境可加 `--prepare-environment`。入口按摘要下载官方 ARM64 镜像，在独立目录恢复 Python、CANN 和依赖，核验实际包版本与文件；不更改宿主驱动或共享 Python。
+
+未提供 `protocol_*` 时，入口自动准备共同协议、固定裁判和完整题单，再测试所选官方版本；准备阶段不运行原 0.18 或 B1 模型。已有完整的三条协议路径仍可显式使用。可选 `model_manifest` 按固定修订及 SHA256 自动恢复模型，路径相对配置文件。
 
 0.23.0、0.30.0 使用各自固定镜像。0.28 当前只有 Ascend 候选源码标签 `v0.28.0.rc1`，尚无本入口核定的正式镜像，明确记录为受阻；不替换为其他版本。
 

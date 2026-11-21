@@ -24,6 +24,9 @@ class CandidateTests(unittest.TestCase):
         source = patch.object(public_entry, 'ROOT', Path(official_storage.__file__).parent)
         source.start()
         self.addCleanup(source.stop)
+        context = patch('official_execution.maybe_enter_official', return_value=None)
+        context.start()
+        self.addCleanup(context.stop)
         if sys.platform != 'linux':
             # The platform-mocked CLI fixture has no Linux /proc owner.
             owner = patch('official_sdk_state.owner_info', return_value={'cpu_fixture': True})

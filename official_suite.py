@@ -48,6 +48,18 @@ def validate_configuration(config):
             raise ValueError('Original full fixed-profile denominator differs: ' + dataset)
 
 
+def protocol_data_cache(config):
+    campaign = Path(config['protocol_run']).resolve()
+    saved = campaign.parent / 'evaluation.json'
+    if not saved.is_file():
+        return campaign.parents[1] / 'cache'
+    prepared = json.loads(saved.read_bytes())
+    if (Path(prepared['model']).resolve() != Path(config['model']).resolve()
+            or Path(prepared['out']).resolve() != campaign):
+        raise ValueError('Prepared protocol cache configuration differs from its campaign')
+    return Path(prepared['cache']).resolve()
+
+
 def load(path, name):
     spec = importlib.util.spec_from_file_location(name, path)
     module = importlib.util.module_from_spec(spec)
@@ -350,7 +362,7 @@ def run(config, image, output):
         preparation.mkdir()
         plan = dict(client_tools=str(tools), client_sources=sources, model=config['model'],
                     protocol_deployment=str(sdk), output=str(preparation),
-                    data_cache=str(Path(config['protocol_run']).parents[1] / 'cache'),
+                    data_cache=str(protocol_data_cache(config)),
                     context_output=str(output / 'context-inputs'))
         save(preparation / 'plan.json', plan)
         with (preparation / 'prepare-context.log').open('xb') as stream:

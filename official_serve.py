@@ -17,6 +17,10 @@ def main():
     for name, expected in plan['worker_sources'].items():
         if hashlib.sha256(Path(name).read_bytes()).hexdigest() != expected:
             raise ValueError('Observed-warmup source differs')
+    from official_runtime_identity import runtime_identity
+    observed_runtime = runtime_identity(root)
+    if observed_runtime != plan['runtime_identity']:
+        raise ValueError('Serving runtime source/build identity differs')
     if any(key.startswith(('BETTERSCALE', 'HUST', 'MTP', 'KVMAT')) for key in os.environ):
         raise ValueError('Optimized-engine settings leaked into official serving')
     import torch
@@ -34,6 +38,7 @@ def main():
     (output / 'actual-package-imports.json').write_text(json.dumps(dict(
         python=sys.executable, prefix=sys.prefix, no_site=bool(sys.flags.no_site),
         versions=actual, modules=origins, official_baseline=plan['baseline_id'],
+        runtime_identity=observed_runtime, upstream_source_patched=False,
         source_patched=False, optimized_mods_enabled=False), indent=2) + '\n')
     from engine_entry import check_pinned_host_memory
     check_pinned_host_memory(output, dict(os.environ))

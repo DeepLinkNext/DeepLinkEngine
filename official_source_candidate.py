@@ -34,6 +34,8 @@ def identity():
                 version=VERSION, upstream_version='0.28.0', ascend_version='0.28.0rc1',
                 candidate=True, official_release_image=False, base_image_manifest=BASE_MANIFEST,
                 controller_sha256=hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
+                preparation_sources={name: hashlib.sha256(Path(__file__).with_name(name).read_bytes()).hexdigest()
+                                     for name in ('official_execution.py','official_build_context.py')},
                 soc_version='ascend910b1', sources=SOURCES,
                 recipe='vllm-project/vllm-ascend@96df623103f921df1a4488170d106f36689acb59/Dockerfile',
                 published_sdists=True, upstream_source_patched=False,
@@ -150,7 +152,8 @@ def toolchain_evidence(sdk, env, sources, build):
     evidence = dict(versions={}, lock_files={}, retained_downloads={}, binaries={}, rust_channel_manifests={},
                     download_validation='Rustup performs its own archive verification; only retained download bytes are independently hashed here')
     neutral = dict(env, RUSTUP_AUTO_INSTALL='0')
-    for name, arguments in (('gcc', ['--version']), ('rustc', ['-Vv']), ('cargo', ['-V'])):
+    for name, arguments in (('gcc', ['--version']), ('g++', ['--version']), ('clang-15', ['--version']),
+                            ('protoc', ['--version']), ('cmake', ['--version']), ('rustc', ['-Vv']), ('cargo', ['-V'])):
         executable = shutil.which(name, path=env['PATH'])
         if executable is None:
             evidence['versions'][name] = dict(available=False)
@@ -241,6 +244,10 @@ def prepare(base_lock_path, cache, output):
             raise ValueError('Official source candidate base integrity failed')
     if shutil.disk_usage(cache).free < 100 * 1024**3:
         raise ValueError('Source builds require 100 GiB free in the private cache')
+    from official_execution import context_identity
+    context = context_identity()
+    if context is None or context.get('source_build_system_root') is not True:
+        raise ValueError('Use the public run_all source-candidate entry to prepare its private build tools')
     output.parent.mkdir(parents=True, exist_ok=True)
     shutil.copytree(base, output, symlinks=True)
     for name in ('installation.json', 'image-lock.json', 'installed-files.json', 'image-manifest.json'):
@@ -253,7 +260,8 @@ def prepare(base_lock_path, cache, output):
     build.mkdir()
     receipt = dict(schema='deeplinkengine-upstream-source-build/v1', candidate=identity(),
         status='building', started=time.time(), model_started=False, base_sdk=str(base),
-        base_installation_sha256=digest(base / 'installation.json'), shared_environment_modified=False)
+        base_installation_sha256=digest(base / 'installation.json'), shared_environment_modified=False,
+        build_execution_context=context)
     save(build / 'receipt.json', receipt)
     try:
         for name, item in SOURCES.items():
@@ -276,7 +284,7 @@ def prepare(base_lock_path, cache, output):
                    PIP_DISABLE_PIP_VERSION_CHECK='1',
                    PIP_CACHE_DIR=str(build / 'cache/pip'),
                    CARGO_HOME=str(build / 'cache/cargo'), RUSTUP_HOME=str(build / 'cache/rustup'),
-                   CMAKE_BUILD_PARALLEL_LEVEL='16', MAX_JOBS='16')
+                   CMAKE_BUILD_PARALLEL_LEVEL='16', MAX_JOBS='16', PROTOC_INCLUDE='/usr/include')
         env['PATH'] = str(python.parent) + ':' + env['CARGO_HOME'] + '/bin:' + env['PATH']
         core = output / 'rootfs/vllm-workspace/vllm'
         ascend = output / 'rootfs/vllm-workspace/vllm-ascend'

@@ -227,20 +227,21 @@ def _neutral_environment():
     return environment
 
 
-def host_tools():
+def host_tools(toolchain=True):
     """Expose required host tools read-only, retaining the private glibc."""
     files = set()
     directories = set()
     binaries = set()
-    for name in ('npu-smi', 'gcc', 'g++', 'cc', 'c++', 'as', 'ld', 'ar', 'ranlib',
+    names = ('npu-smi', 'gcc', 'g++', 'cc', 'c++', 'as', 'ld', 'ar', 'ranlib',
                  'make', 'ninja', 'cmake', 'pkg-config', 'curl', 'wget', 'git',
-                 'bash', 'tar', 'gzip', 'unzip', 'readelf', 'nm', 'strip', 'flock'):
+                 'bash', 'tar', 'gzip', 'unzip', 'readelf', 'nm', 'strip', 'flock') if toolchain else ('npu-smi',)
+    for name in names:
         binary = shutil.which(name)
         if not binary:
             continue
         files.add(binary)
         binaries.add(binary)
-    for compiler in ('gcc', 'g++'):
+    for compiler in (('gcc', 'g++') if toolchain else ()):
         binary = shutil.which(compiler)
         if binary:
             for name in ('cc1', 'cc1plus', 'collect2', 'lto1', 'lto-wrapper'):
@@ -261,10 +262,10 @@ def host_tools():
                 files.add(str(path))
     # GCC's subordinate compilers, headers and link-time objects are needed by
     # Triton and source builds. None of the host's glibc ELF files is exposed.
-    for name in ('/usr/lib/gcc', '/usr/libexec/gcc', '/usr/include'):
+    for name in (('/usr/lib/gcc', '/usr/libexec/gcc', '/usr/include') if toolchain else ()):
         if Path(name).is_dir():
             directories.add(name)
-    for folder in ('/usr/lib64', '/lib64'):
+    for folder in (('/usr/lib64', '/lib64') if toolchain else ()):
         if Path(folder).is_dir():
             for pattern in ('crt*.o', 'Scrt*.o', '*.a', 'libc.so', 'libm.so', 'libpthread.so',
                             'libgcc_s.so*', 'libstdc++.so*', 'libgomp.so*', 'libatomic.so*'):
@@ -302,6 +303,8 @@ def execute_request(request):
     before['start_ticks'] = Path('/proc/self/stat').read_text().rsplit(')', 1)[1].split()[19]
     before['os_release'] = Path('/etc/os-release').read_text()
     root_identity = [root.stat().st_dev, root.stat().st_ino]
+    root_receipt = root.parent / 'receipt.json'
+    root_receipt_sha256 = sha(root_receipt)
     library = ctypes.CDLL(None, use_errno=True)
     _call(library.unshare, CLONE_NEWNS)
     _mount(None, '/', MS_REC | MS_PRIVATE)
@@ -322,10 +325,12 @@ def execute_request(request):
                    host=before, mount_namespace=mount_namespace, shared_lock_inodes_verified=True,
                    pid_namespace_created=False, sdk_root_used_as_execution_root=False,
                    root_dev_inode=root_identity,
-                   execution_os_release=Path('/etc/os-release').read_text())
+                   execution_os_release=Path('/etc/os-release').read_text(),
+                   source_build_system_root=request.get('source_build_system_root', False),
+                   execution_root_receipt=str(root_receipt), execution_root_receipt_sha256=root_receipt_sha256)
     environment = request['env']
     environment['DEEPLINK_EXECUTION_CONTEXT'] = json.dumps(context, separators=(',', ':'))
-    os.execve(request['command'][0], request['command'], environment)
+    os.execvpe(request['command'][0], request['command'], environment)
 
 
 def request_for(command, root, *, env, cwd=None, extra_paths=()):
@@ -349,13 +354,16 @@ def request_for(command, root, *, env, cwd=None, extra_paths=()):
         if str(path) in ('/', '/usr', '/lib', '/lib64', '/bin', '/sbin', '/etc', '/run'):
             raise ValueError('Do not replace private execution system directories')
         binds.append((str(path), str(path), False))
-    tools, library_dirs = host_tools()
+    receipt = json.loads((root.parent / 'receipt.json').read_bytes())
+    system_tools = receipt.get('source_build_system_root') is True
+    tools, library_dirs = host_tools(toolchain=not system_tools)
     binds += tools
     environment = dict(env)
     current = environment.get('LD_LIBRARY_PATH', '').split(':')
     environment['LD_LIBRARY_PATH'] = ':'.join(dict.fromkeys([p for p in current if p] + library_dirs))
     return dict(root=str(root), command=[str(v) for v in command], env=environment,
-                cwd=str(Path(cwd or os.getcwd()).resolve()), binds=binds)
+                cwd=str(Path(cwd or os.getcwd()).resolve()), binds=binds,
+                source_build_system_root=system_tools)
 
 
 def run_in_context(command, root, *, env, cwd=None, extra_paths=(), **kwargs):
@@ -396,16 +404,16 @@ def sdk_popen(command, *, sdk, env, **kwargs):
     return popen_in_context(command, root, env=env, extra_paths=(Path(sdk), Path(__file__).parent), **kwargs)
 
 
-def enter_cli(sdk, script, arguments, *, cache=None):
+def enter_cli(sdk, script, arguments, *, cache=None, execution_root=None, extra_paths=()):
     """Replace this controller with SDK Python, retaining PID and birth time."""
-    if not needed():
+    if not needed() and execution_root is None:
         return False
     from official_image import environment
     sdk = Path(sdk).resolve()
-    root = ensure_for_sdk(sdk)
+    root = Path(execution_root).resolve() if execution_root is not None else ensure_for_sdk(sdk)
     python, env = environment(sdk, Path(cache or sdk.parent.parent / 'execution-controller'))
     request = request_for([str(python), '-B', str(Path(script).resolve()), *arguments], root,
-                          env=env, extra_paths=(sdk, Path(script).resolve().parent))
+                          env=env, extra_paths=(sdk, Path(script).resolve().parent, *extra_paths))
     execute_request(request)
     raise AssertionError('Execution-context exec unexpectedly returned')
 
@@ -450,10 +458,46 @@ def prepare_anchor(config):
     return sdk
 
 
+def config_workspaces(config, path):
+    """Bind declared workspace parents, including paths outside /root or /data."""
+    path = Path(path).resolve()
+    paths = [path.parent]
+    keys = ('model','cache','out','protocol_run','protocol_deployment','protocol_python',
+            'context_contract','judge_installation','model_manifest','baseline_deployment','dataset_assets','env_file')
+    values = [config[key] for key in keys if key in config]
+    options = config.get('environment', {})
+    values += [options[key] for key in ('official_sdk','wheelhouse','cann_home') if key in options]
+    for value in values:
+        parent = (path.parent / Path(value).expanduser()).absolute().parent
+        parent.mkdir(parents=True, exist_ok=True)
+        if parent == Path('/') or str(parent) in ('/usr','/bin','/sbin','/lib','/lib64','/etc','/run'):
+            raise ValueError('Use workspace paths outside private system directories')
+        paths.append(parent)
+    return tuple(dict.fromkeys(paths))
+
+
+def argument_config(arguments):
+    for index, value in enumerate(arguments):
+        if value == '--config' and index + 1 < len(arguments):
+            return Path(arguments[index + 1])
+        if value.startswith('--config='):
+            return Path(value.split('=',1)[1])
+    raise ValueError('Public execution context requires its configuration path')
+
+
 def maybe_enter_official(config, arguments):
-    if needed():
+    source_candidate = '0.28.0rc1-source' in config['versions']
+    current = context_identity()
+    build_root_needed = source_candidate and not (current and current.get('source_build_system_root'))
+    if needed() or build_root_needed:
         sdk = prepare_anchor(config)
-        enter_cli(sdk, Path(__file__).parent / 'run_all.py', ['--official-baselines', *arguments])
+        root = None
+        if source_candidate:
+            from official_build_context import ensure
+            root = ensure(sdk)
+        paths = config_workspaces(config, argument_config(arguments))
+        enter_cli(sdk, Path(__file__).parent / 'run_all.py', ['--official-baselines', *arguments],
+                  execution_root=root, extra_paths=paths)
 
 
 def maybe_enter_config(path, arguments):
@@ -466,7 +510,8 @@ def maybe_enter_config(path, arguments):
         sdk = Path(sdk)
         if not sdk.is_absolute():
             sdk = Path(path).resolve().parent / sdk
-        enter_cli(sdk, Path(__file__).parent / 'run_all.py', arguments)
+        enter_cli(sdk, Path(__file__).parent / 'run_all.py', arguments,
+                  extra_paths=config_workspaces(config, path))
 
 
 if __name__ == '__main__':

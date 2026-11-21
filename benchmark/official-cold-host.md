@@ -1,5 +1,7 @@
 # 从空白 Ascend 主机准备官方对照
 
+通常直接填写官方配置并运行 `python run_all.py --official-baselines --config evaluation.json`。缺少共同协议路径时会自动准备私有 CANN 9.1 协议环境、固定裁判和题单，再执行所选官方版本；准备不启动原 0.18/B1 模型。下面的分步模式用于独立预取和排错。
+
 网络较慢时，可在另一台电脑（含 Windows）只下载一个官方锁中已有的 OCI 文件，不解包、不安装、不启动模型。配置仅含 `cache`、新 `out` 和 `versions`：
 
 ```sh

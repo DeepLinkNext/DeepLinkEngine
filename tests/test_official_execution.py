@@ -13,6 +13,17 @@ import official_execution as execution
 
 
 class ExecutionContextTests(unittest.TestCase):
+    def test_configuration_binds_declared_workspace_parents(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);configuration=root/'config/evaluation.json'
+            configuration.parent.mkdir();configuration.write_text('{}')
+            values=dict(model=str(root/'models/model'),out=str(root/'output/run'),
+                        cache=str(root/'cache/downloads'))
+            paths=execution.config_workspaces(values,configuration)
+            self.assertIn(configuration.parent,paths)
+            self.assertIn(root/'models',paths);self.assertIn(root/'output',paths)
+            self.assertFalse((root/'output/run').exists())
+
     def test_actual_libc_floor_not_python_binary_minimum(self):
         for version, expected in [('2.34', True), ('2.35', False), ('2.39', False), (None, False)]:
             with self.subTest(version=version), patch.object(execution, 'libc_version', return_value=version):
