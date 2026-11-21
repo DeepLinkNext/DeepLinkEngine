@@ -1,6 +1,7 @@
 import contextlib
 import hashlib
 import io
+import itertools
 import json
 from pathlib import Path
 import sys
@@ -56,6 +57,19 @@ class ProtocolDownload(unittest.TestCase):
             with self.assertRaisesRegex(ValueError,'SHA-256'):self.invoke()
         self.assertFalse((self.root/'cache/b0-parts/fixture.part-001').exists())
         self.assertEqual(json.loads((self.root/'out/results.json').read_bytes())['status'],'failed')
+
+    def test_streamed_response_uses_available_bytes_without_waiting_for_a_large_buffer(self):
+        class Stream(io.BytesIO):
+            def read(self,*args):raise AssertionError('Do not wait for a complete large read')
+            def read1(self,size):return super().read(size)
+        with patch('urllib.request.urlopen',side_effect=lambda *a,**k:Stream(self.raw)):
+            self.assertEqual(self.invoke(),0)
+
+    def test_continued_trickle_is_bounded_and_never_admitted(self):
+        with patch('urllib.request.urlopen',side_effect=lambda *a,**k:io.BytesIO(self.raw)), \
+             patch('environment_setup.time.monotonic',side_effect=itertools.count(0,46)):
+            with self.assertRaisesRegex(OSError,'below 1 KiB/s'):self.invoke()
+        self.assertFalse((self.root/'cache/b0-parts/fixture.part-001').exists())
 
 
 if __name__=='__main__':unittest.main()

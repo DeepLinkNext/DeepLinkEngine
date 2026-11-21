@@ -12,6 +12,7 @@ import shutil
 import subprocess
 import tempfile
 import threading
+import time
 import urllib.request
 import urllib.error
 import sys
@@ -198,10 +199,19 @@ def cached_wheel(source, links, cache):
                     with tempfile.NamedTemporaryFile(dir=cache, prefix="wheel-", delete=False) as stream:
                         temporary = Path(stream.name)
                         with urllib.request.urlopen(request, timeout=45) as raw:
-                            while block := raw.read(1024 * 1024):
+                            read=getattr(raw,'read1',raw.read)
+                            checked=time.monotonic();checked_bytes=0
+                            while block := read(64 * 1024):
                                 stream.write(block)
                                 if stream.tell() > source.get("bytes", 2 * 1024**3):
                                     raise ValueError("Dependency download exceeds its fixed size")
+                                now=time.monotonic()
+                                if now-checked>=45:
+                                    received=stream.tell()
+                                    print('ENVIRONMENT progress',filename,received,source.get('bytes'),flush=True)
+                                    if (received-checked_bytes)/(now-checked)<1024:
+                                        raise OSError('Dependency transfer remains below 1 KiB/s: '+filename)
+                                    checked,checked_bytes=now,received
                     observed_bytes = temporary.stat().st_size
                     if "bytes" in source and observed_bytes < source["bytes"]:
                         # read(size) may return EOF without raising IncompleteRead.
