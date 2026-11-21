@@ -33,3 +33,11 @@ python run_all.py --official-baselines --report-only --config report-only.json
 目录输入仍核验原版本全部封存文件。便携包仅附完整 C8、父轮身份及相关源码；未运行的真实上下文输入不分发，其原封存摘要保留于清单。便携复算核验完整 C8 闭包，不声称已复验未附文件的全部字节。
 
 此模式保留原失败、未运行阶段和原时钟；命令成功只表示 CPU 重建完成，不代表全套通过。F、效率和第三方认证仍为空或未认证。
+
+已有完整阶段报告只需派生新报告时，使用同一命令，配置显式选择：
+
+```json
+{"kind":"sealed-report-projection","source":"已结束的版本目录","report_sha256":"原report.json的SHA256","original_version_seal_sha256":"原checksums.json的SHA256","out":"新的CPU报告目录"}
+```
+
+该分支仅验证报告、campaign及所消费的小元数据，保留原状态、原数值和未测项，不重算全部SSE或验证未附payload。输入原件与旧曲线不改，输出另存选中原件、来源记录及未就绪的网站预览；不签新F/T或第三方认证。绘图先探测当前Matplotlib 3.10.8，缺失或损坏时自动修复独立CPU缓存环境，支持标准`PIP_INDEX_URL`/`PIP_FIND_LINKS`下载源，环境状态写入`plot-environment.json`。默认缓存在输出父目录的独立目录，避免HOME/XDG空间影响；`plot_cache`仍可显式指定报告目录外的缓存。仅投影JSON时可设`"plots":false`。最后发布的`projection-execution.json`绑定最终封存摘要，作为完成标记。原C8严格复算仍使用前述配置。
