@@ -163,3 +163,62 @@ def test_http_observation_launch_receives_the_frozen_device_change_option(tmp_pa
     with patch.dict(sys.modules, engine_entry=SimpleNamespace(environment=lambda *a: {})), patch.dict(namespace, run_stage=launch):
         result = namespace["execute"](out, admission)
     assert result["blockers"] == ["Current HTTP observation failed: fixture"]
+
+
+@pytest.mark.parametrize("known_conflict", [True, False])
+def test_http_state_drain_refreshes_after_the_exact_scheduler_conflict(tmp_path, monkeypatch, known_conflict):
+    import asyncio
+
+    from test_context_baseline_reuse import combined
+    kit = ROOT / "benchmark/one-click-kit"
+    monkeypatch.syspath_prepend(str(kit / "tests"))
+    from test_reference_http_observation import Client
+
+    files = combined()
+    namespace = {}
+    exec(files["third-party-test-kit/proc_capture/m01_http_capture.py"], namespace)
+    original = kit / "third-party-test-kit/proc_capture/m01_http_capture.py"
+    reviewed = tmp_path / "reviewed.py"
+    reviewed.write_bytes(files["third-party-test-kit/proc_capture/m01_http_capture.py"])
+    evidence = {}
+    exec(files["scripts/reference_evidence.py"], evidence)
+    assert evidence["http_state_drain_fix_only"](original, reviewed, reuse.sha(original))
+    reviewed.write_bytes(reviewed.read_bytes() + b"\n# A different change\n")
+    assert not evidence["http_state_drain_fix_only"](original, reviewed, reuse.sha(original))
+
+    class Contended(Client):
+        drop_attempts = 0
+        resumed_snapshots = 0
+
+        async def call_utility_async(self, name, *args):
+            if name == "state_cache":
+                command = args[0]
+                if command["kind"] == "drop":
+                    self.drop_attempts += 1
+                    if self.drop_attempts == 1:
+                        self.calls.append((name, args))
+                        detail = "incremental cache transaction is still in flight" if known_conflict else "unexpected cache failure"
+                        raise Exception("Call to state_cache method failed: " + detail)
+                    assert self.resumed_snapshots >= 2
+                elif self.drop_attempts == 1:
+                    self.resumed_snapshots += 1
+                    if self.resumed_snapshots == 1:
+                        result = await super().call_utility_async(name, *args)
+                        return dict(result, pending=[17])
+            return await super().call_utility_async(name, *args)
+
+    async def check():
+        client = Contended()
+        control = namespace["Control"](client, tmp_path / "raw")
+        if known_conflict:
+            begin = await control.call("begin")
+            drain = begin["cache_drain"]
+            assert drain["completed"] and drain["prefix_reset"]
+            assert drain["drop_dispatch_conflicts"] == ["owned-warmup-checkpoint"]
+            assert drain["drops"][0]["receipt"]["ranks"] == [0, 1]
+            assert client.drop_attempts == 2
+        else:
+            with pytest.raises(Exception, match="unexpected cache failure"):
+                await control.call("begin")
+            assert not client.active and client.drop_attempts == 1
+    asyncio.run(check())

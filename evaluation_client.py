@@ -633,6 +633,47 @@ def device_change_bridge(result):
     ])
 
 
+def http_state_drain_bridge(result):
+    """Recheck the existing cold-state boundary when a new cache operation wins the RPC race."""
+    key = 'third-party-test-kit/proc_capture/m01_http_capture.py'
+    old = '                operation = await self.core("state_cache", {"kind": "drop", "key": key})'
+    new = (
+        '                try:\n'
+        '                    operation = await self.core("state_cache", {"kind": "drop", "key": key})\n'
+        '                except Exception as error:\n'
+        '                    if str(error) != "Call to state_cache method failed: incremental cache transaction is still in flight":\n'
+        '                        raise\n'
+        '                    # The scheduler rejected this command before queuing a drop.\n'
+        '                    # A new snapshot must retire any reappearing State operations.\n'
+        '                    record.setdefault("drop_dispatch_conflicts", []).append(key)\n'
+        '                    await asyncio.sleep(.05)\n'
+        '                    continue'
+    )
+    result[key] = once(result[key].decode(), old, new).encode()
+    evidence_key = 'scripts/reference_evidence.py'
+    result[evidence_key] += (
+        '\n\ndef http_state_drain_fix_only(original, current, pin):\n'
+        '    """Qualify only the reviewed pre-capture change against the original source pin."""\n'
+        '    if not original.is_file() or sha(original) != pin:\n'
+        '        return False\n'
+        '    source = original.read_text()\n'
+        f'    old, new = {old!r}, {new!r}\n'
+        '    return source.count(old) == 1 and current.read_text() == source.replace(old, new)\n'
+    ).encode()
+    for name in ('reference_model_reuse', 'reference_qualification_reuse'):
+        script = 'scripts/' + name + '.py'
+        text = result[script].decode()
+        text = once(text, 'from reference_evidence import transient_cache,',
+                    'from reference_evidence import http_state_drain_fix_only, transient_cache,')
+        anchor = '            if (relative == "scripts/run_b1_r4.py" and current_pin == sha(current)'
+        source_pin = 'pin' if name == 'reference_model_reuse' else 'expected'
+        text = once(text, anchor,
+            f'            if (relative == "{key}" and current_pin == sha(current)\n'
+            f'                    and http_state_drain_fix_only(path, current, {source_pin})):\n'
+            '                continue\n' + anchor)
+        result[script] = text.encode()
+
+
 def context_baseline_bridge(result):
     """Preserve completed fixed-B0 context phases across a B1-only change."""
     def scripts(files):
@@ -682,6 +723,7 @@ def context_baseline_bridge(result):
     result[key] = text.encode()
     historical_mmlu_location_bridge(result)
     device_change_bridge(result)
+    http_state_drain_bridge(result)
     current = digest(scripts(result))
     result['scripts/context_baseline_reuse.py'] = CONTEXT_BASELINE_HELPER.replace('__CURRENT_SOURCES__', current).encode()
 
