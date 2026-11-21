@@ -1,5 +1,6 @@
 """CPU checks using the byte-verified upstream logger, without tensor packages."""
 import hashlib
+import ast
 import json
 import os
 from pathlib import Path
@@ -16,6 +17,7 @@ import service_logging as adapter
 URL = ('https://raw.githubusercontent.com/vllm-project/vllm-ascend/'
        'c09d3e20b9c45c80b34ae3781440d90904a44023/vllm_ascend/logger.py')
 VENDOR = None
+PLATFORM = None
 
 
 def vendor():
@@ -26,6 +28,22 @@ def vendor():
         if hashlib.sha256(VENDOR).hexdigest() != adapter.LOGGER_SHA256:
             raise ValueError('Test requires the exact real upstream logger')
     return VENDOR
+
+
+def platform_logging_statements():
+    global PLATFORM
+    if PLATFORM is None:
+        source = os.environ.get('DEEPLINK_TEST_ASCEND_PLATFORM')
+        PLATFORM = Path(source).read_bytes() if source else urllib.request.urlopen(URL.replace('logger.py', 'platform.py'), timeout=45).read()
+    method = next(node for node in ast.walk(ast.parse(PLATFORM))
+                  if isinstance(node, ast.FunctionDef) and node.name == 'check_and_update_config')
+    names = ('configure_ascend_file_logging', 'configure_ascend_logging')
+    calls = [node for node in method.body if isinstance(node, ast.Expr)
+             and isinstance(node.value, ast.Call) and isinstance(node.value.func, ast.Name)
+             and node.value.func.id in names]
+    if tuple(node.value.func.id for node in calls) != names:
+        raise ValueError('Actual platform logging order changed; review the adapter')
+    return compile(ast.Module(body=calls, type_ignores=[]), '<actual-vendor-platform-logging>', 'exec')
 
 
 class LoggingTests(unittest.TestCase):
@@ -60,7 +78,7 @@ class LoggingTests(unittest.TestCase):
         return result
 
     def test_first_native_file_fallback_and_cleanup(self):
-        self.child("""
+        result = self.child("""
 import sys,os,json,logging
 from pathlib import Path
 sys.path.insert(0,sys.argv[1]);import service_logging as a
@@ -75,7 +93,7 @@ v.configure_ascend_file_logging();assert Path(v._file_handler.baseFilename).pare
 import vllm_ascend.ascend_config as config,types
 config.get_ascend_config=lambda:types.SimpleNamespace(ascend_log_path=p['logs'])
 v.configure_ascend_file_logging();assert Path(v._file_handler.baseFilename).parent==Path(p['logs'])
-logging.getLogger('vllm').warning('API first message')
+logging.getLogger('vllm_ascend').warning('API first message')
 v._file_handler.flush();assert 'API first message' in Path(v._file_handler.baseFilename).read_text()
 assert os.environ.get('HOME')==home
 for key in ('XDG_CONFIG_HOME','VLLM_CONFIG_ROOT'):
@@ -83,6 +101,38 @@ for key in ('XDG_CONFIG_HOME','VLLM_CONFIG_ROOT'):
 assert a.digest(v.__file__)==a.LOGGER_SHA256
 assert json.loads(Path(p['receipt']).read_bytes())['adapter_applied'] is True
 """)
+        self.assertIn('API first message', result.stderr)
+
+    def test_native_file_first_order_skips_console_without_adapter(self):
+        # Real vendor source: a file handler makes its native console guard return.
+        self.put('vllm_ascend/__init__.py', '')
+        self.child("""
+import sys,logging
+import vllm_ascend.logger as v
+v._setup_file_logging(log_dir=sys.argv[3])
+v.configure_ascend_logging()
+handlers=logging.getLogger('vllm_ascend').handlers
+assert any(isinstance(x,logging.FileHandler) for x in handlers)
+assert not any(isinstance(x,logging.StreamHandler) and not isinstance(x,logging.FileHandler) for x in handlers)
+""")
+
+    def test_actual_platform_sequence_keeps_native_console_and_file(self):
+        # Serialize the two actual AST statements, not a rewritten platform fixture.
+        statements = platform_logging_statements()
+        import marshal
+        compiled = self.out/'platform-logging.marshal';compiled.write_bytes(marshal.dumps(statements))
+        result = self.child("""
+import sys,os,marshal,logging
+from pathlib import Path
+sys.path.insert(0,sys.argv[1]);import service_logging as a
+p=a.prepare(sys.argv[2],sys.argv[3],os.environ);a.install(p)
+import vllm_ascend.logger as v
+exec(marshal.loads((Path(sys.argv[3])/'platform-logging.marshal').read_bytes()),vars(v))
+logging.getLogger('vllm_ascend').warning('actual platform console and file')
+v._file_handler.flush()
+assert 'actual platform console and file' in Path(v._file_handler.baseFilename).read_text()
+""")
+        self.assertIn('actual platform console and file', result.stderr)
 
     def test_unknown_vendor_and_outside_sdk_refused_without_import(self):
         (self.site / 'vllm_ascend/logger.py').write_text('# unknown vendor\n')

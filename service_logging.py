@@ -97,12 +97,15 @@ def install(plan):
                 native = getattr(module, '_setup_file_logging', None)
                 if not callable(native) or module._file_logging_configured:
                     raise ValueError('Unsupported native Ascend logger initialization')
+                # Native console setup skips a logger with any existing handler.
+                # Preserve it before adding the early native FileHandler.
+                module.configure_ascend_logging()
                 native(log_dir=plan['logs'])
                 handler = Path(module._file_handler.baseFilename).resolve()
                 if not inside(handler, plan['logs']) or not handler.is_file():
                     raise ValueError('Native Ascend logger did not use the service directory')
                 save(plan['receipt'], dict(plan, state='applied', adapter_applied=True,
-                    native_helper='_setup_file_logging', actual_handler=str(handler),
+                    native_helpers=['configure_ascend_logging', '_setup_file_logging'], actual_handler=str(handler),
                     pid=os.getpid(), upstream_source_patched=False))
             except BaseException as error:
                 save(plan['receipt'], dict(plan, state='failed', error=repr(error)))
