@@ -125,11 +125,30 @@ def file_map(root):
     return result
 
 
+def configure_fla_opp(root, site, env):
+    """Register the locked 0.30 wheel's OPP before CANN/Torch initialization."""
+    lock = root / 'image-lock.json'
+    if not lock.is_file() or json.loads(lock.read_bytes()).get('upstream_version') != '0.30.0':
+        return
+    package = (site / 'fla_npu').resolve()
+    vendor = (package / 'opp/vendors/fla_npu_transformer').resolve()
+    library = (vendor / 'op_api/lib/libcust_opapi.so').resolve()
+    if not package.is_relative_to(root.resolve()) or not vendor.is_relative_to(package) or not library.is_relative_to(package):
+        raise ValueError('FLA custom operators must remain inside the admitted package')
+    if not (package / '__init__.py').is_file() or not library.is_file() or not (vendor / 'op_impl').is_dir():
+        raise ValueError('The official 0.30 runtime requires its complete embedded FLA OPP')
+    # Match the package's pre-import recommendation. Its op_api is opened by
+    # absolute path; never shadow CANN's libopapi.so in LD_LIBRARY_PATH.
+    entries = [str(vendor), str(vendor / 'op_api/lib')]
+    entries += [value for value in env.get('ASCEND_CUSTOM_OPP_PATH', '').split(':') if value]
+    env['ASCEND_CUSTOM_OPP_PATH'] = ':'.join(dict.fromkeys(entries))
+
+
 def environment(root, cache, *, devices=None):
     root, cache = Path(root).resolve(), Path(cache).resolve()
     config = json.loads((root / 'image-config.json').read_bytes())
     rootfs = root / 'rootfs'
-    blocked = ('ASCEND', 'ATB', 'VLLM', 'HUST', 'BETTERSCALE', 'MTP', 'KVMAT', 'HCCL', 'TRITON', 'TORCH')
+    blocked = ('ASCEND', 'ATB', 'VLLM', 'HUST', 'BETTERSCALE', 'MTP', 'KVMAT', 'HCCL', 'TRITON', 'TORCH', 'FLA_NPU')
     env = {k: v for k, v in os.environ.items() if not k.startswith(blocked)
            and k not in ('PYTHONPATH', 'PYTHONHOME', 'LD_LIBRARY_PATH', 'LD_PRELOAD')
            and not k.endswith(('_TOKEN', '_API_KEY', '_PASSWORD', '_SECRET'))
@@ -165,6 +184,7 @@ def environment(root, cache, *, devices=None):
         env[key] = str(folder)
     if devices is not None:
         env['ASCEND_RT_VISIBLE_DEVICES'] = devices
+    configure_fla_opp(root, sites[0], env)
     return home / 'bin/python3', env
 
 

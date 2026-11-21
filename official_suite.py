@@ -132,6 +132,15 @@ def kernel_cache(config, image):
     return folder
 
 
+def runtime_environment(env):
+    return dict(schema='deeplinkengine-official-pre-import-environment/v1',
+                bound_before_python_launch=True,
+                python_home=env['PYTHONHOME'],
+                ascend_home=env.get('ASCEND_HOME_PATH'),
+                custom_opp_paths=[value for value in env.get('ASCEND_CUSTOM_OPP_PATH', '').split(':') if value],
+                triton_cache=env.get('TRITON_CACHE_DIR'))
+
+
 def derive_metrics(config, service_plan):
     plan = Path(service_plan)
     root = plan.parent.parent
@@ -208,6 +217,7 @@ def phase(config, image, phase_name, output, tools, sdk, sources, leases, contin
     logs = output / 'cann-logs'
     logs.mkdir()
     env['ASCEND_PROCESS_LOG_PATH'] = str(logs)
+    save(output / 'runtime-environment.json', runtime_environment(env))
     owned = Owned(service)
     receipt = dict(schema='deeplinkengine-official-arm/v1', baseline_id=lock['id'], phase=phase_name,
                    role='B0', kind='continuous' if kind == 'context' else kind,
@@ -232,6 +242,11 @@ def phase(config, image, phase_name, output, tools, sdk, sources, leases, contin
         opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
         while True:
             owned.scan()
+            from startup_failure import inspect as inspect_startup_failure
+            fatal = inspect_startup_failure(output / 'service.log')
+            if fatal:
+                save(output / 'startup-failure.json', fatal)
+                raise RuntimeError('Official startup failed: ' + (fatal['root_error'] or fatal['fatal']))
             if server.poll() is not None:
                 raise RuntimeError('Official service failed before readiness; inspect original service.log')
             check_memory(guard, initial, output)

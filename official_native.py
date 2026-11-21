@@ -6,7 +6,7 @@ import time
 
 from official_baselines import save
 from official_image import digest, environment
-from official_suite import ROOT, clean_client_environment, load, public_arguments, service_cache, kernel_cache
+from official_suite import ROOT, clean_client_environment, load, public_arguments, service_cache, kernel_cache, runtime_environment
 
 
 def run(config, image, output, tools, sdk, sources, leases, continuous):
@@ -59,6 +59,7 @@ def run(config, image, output, tools, sdk, sources, leases, continuous):
     logs = output / 'cann-logs'
     logs.mkdir()
     env['ASCEND_PROCESS_LOG_PATH'] = str(logs)
+    save(output / 'runtime-environment.json', runtime_environment(env))
     owned = Owned(output)
     receipt = dict(schema='deeplinkengine-official-native-arm/v1', baseline_id=lock['id'], started=time.time(),
                    status='starting', completed=False, model_ready=False, necessary_work_certified=False, efficiency_percent=None)
@@ -73,6 +74,12 @@ def run(config, image, output, tools, sdk, sources, leases, continuous):
         deadline, cache_released, next_sample = time.monotonic() + 14400, False, 0
         while process.poll() is None:
             owned.scan()
+            if not cache_released:
+                from startup_failure import inspect as inspect_startup_failure
+                fatal = inspect_startup_failure(output / 'native.log')
+                if fatal:
+                    save(output / 'startup-failure.json', fatal)
+                    raise RuntimeError('Official native startup failed: ' + (fatal['root_error'] or fatal['fatal']))
             check_memory(guard, initial, output)
             if not cache_released and (output / 'client/model-ready.json').is_file():
                 release_loaded_checkpoint_cache(Path(config['model']), weights, output / 'checkpoint-cache-after-load.json', guard.sample)

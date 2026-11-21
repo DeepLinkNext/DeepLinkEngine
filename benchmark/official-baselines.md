@@ -14,6 +14,8 @@ python run_all.py --official-baselines --config evaluation.json
 
 0.23 的 GDN 预编译覆盖当前 4096-token、24-sequence 调度范围内全部 87 种块数。脚本在计时前调用官方 Triton 的编译接口，共享同一镜像的编译缓存，再执行原 HTTP 预热与编译封存检查。官方后端对图模式的实际调整保存在原始服务日志中。
 
+0.30 会在启动 Python 前自动配置包内 FLA 自定义算子目录。初始化发生致命错误时，入口保存原始错误并清理自己的服务。
+
 完整题单为 MMLU 200、HLE 200、Frontier 160、SWE 64、Terminal 48，另测连续负载、4K/16K/32K、四租户及原生计时。HLE/Frontier 共用已安装的同一裁判，裁判流量不计入求解性能。源码计量适用性和新 F/T 未核验完成时，报告仍为未完成，不填效率或达标结论。失败不自动重试、不更改生成预算、不回退 eager。
 
 每个版本保存独立 `campaign.json`、原始输出、日志、`report.json` 和 `report.html`。本入口及其 CPU 检查不构成完整实机验收或独立第三方认证。
