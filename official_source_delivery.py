@@ -70,7 +70,7 @@ def prime(request):
             raise ValueError('Cache origin must be the canonical HTTPS wheel URL')
         if not parsed.path.endswith('.whl'):raise ValueError('A source/build origin cannot be substituted for a binary wheel')
         with zipfile.ZipFile(path) as archive:
-            members=[n for n in archive.namelist() if n.endswith('.dist-info/METADATA')]
+            members=[n for n in archive.namelist() if n.count('/')==1 and n.endswith('.dist-info/METADATA')]
             if len(members)!=1:raise ValueError('Ambiguous binary wheel metadata')
             metadata=email.message_from_bytes(archive.read(members[0]))
         name=canonicalize_name(metadata['Name']);version=Version(metadata['Version'])

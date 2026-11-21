@@ -77,6 +77,28 @@ class DeliveryTests(unittest.TestCase):
     def request(self,rows=None):
         return dict(pip_version='26.2',cache_root=str(self.cache),pip_caches=list(map(str,self.pip_caches)),artifacts=self.rows if rows is None else rows)
 
+    def add_metadata(self,row,member):
+        path=self.cache/'wheels'/row['filename']
+        with zipfile.ZipFile(path,'a') as archive:
+            archive.writestr(member,b'Metadata-Version: 2.1\nName: vendored-other-project\nVersion: 9.9\n')
+        row.update(bytes=path.stat().st_size,sha256=delivery.sha(path))
+
+    def test_nested_vendor_metadata_is_not_the_binary_wheel_identity(self):
+        row=self.rows[0]
+        self.add_metadata(row,'delivery_probe/_vendor/other-9.9.dist-info/METADATA')
+        result=delivery.prime(self.request([row]))
+        self.assertEqual(len(result['entries']),2)
+        before=len(self.requests)
+        for cache in self.pip_caches:self.resolve('1.0',cache)
+        self.assertNotIn('/packages/'+row['filename'],self.requests[before:])
+
+    def test_two_root_distribution_metadata_members_remain_ambiguous(self):
+        row=self.rows[0]
+        self.add_metadata(row,'other-9.9.dist-info/METADATA')
+        with self.assertRaisesRegex(ValueError,'Ambiguous binary wheel metadata'):
+            delivery.prime(self.request([row]))
+        self.assertTrue(all(not cache.exists() for cache in self.pip_caches))
+
     def resolve(self,version,cache):
         import pip
         env={k:v for k,v in os.environ.items() if not k.startswith('PIP_')}
