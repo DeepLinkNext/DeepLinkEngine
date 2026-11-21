@@ -3,6 +3,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import subprocess
 import sys
 from unittest.mock import patch
 
@@ -107,6 +108,28 @@ def test_current_process_is_live_but_recycled_pid_is_not():
     assert owner["pid"] == os.getpid()
     assert recovery_source.alive(owner)
     assert not recovery_source.alive(dict(owner, start_ticks="0"))
+
+
+def test_recovery_from_a_fresh_public_process_loads_its_own_audit_modules(tmp_path):
+    old, _, data = fixture(tmp_path)
+    change(tmp_path / "root-process.json", boot_id="previous-boot")
+    code = f"""
+import sys,json,types
+from pathlib import Path
+sys.path.insert(0, {str(ROOT)!r})
+import run_all
+from unittest.mock import patch
+source = Path({str(old)!r})
+module = types.ModuleType('reuse_campaign')
+module.source = lambda path: (source, {{}}, json.loads((source/'fixed-five/campaign.json').read_bytes()), {{}})
+module.audit_stage = lambda root, name: None
+with patch.dict(sys.modules, reuse_campaign=module), patch('release_selection.active', return_value=None):
+    result = run_all.completed_run_source({data!r}, source)
+assert result['completed_stages'] == ['mmlu-pair']
+assert sys.dont_write_bytecode and __import__('os').environ['PYTHONDONTWRITEBYTECODE'] == '1'
+"""
+    result = subprocess.run([sys.executable, "-B", "-c", code], capture_output=True, text=True, timeout=30)
+    assert result.returncode == 0, result.stderr
 
 
 def test_changed_devices_still_rejected_before_raw_audit(tmp_path):
