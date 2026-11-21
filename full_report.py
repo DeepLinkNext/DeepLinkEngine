@@ -166,6 +166,7 @@ def context_decisions(context, audits):
                 windows[m+'_'+p]<=limit for m,limit in [('ttft',Decimal('2')),('tpot',Decimal('1.25'))] for p in ('p95','p99'))
     return dict(milestone=decision(milestone,'16K/4K吞吐≥50%，TTFT P95/P99比值≤3，TPOT P95/P99比值≤2；两臂完整且无失败。'),
                 final=decision(final,'32K全部五个60秒窗口：吞吐max/min≤1.50，TTFT P95/P99≤2，TPOT P95/P99≤1.25；两臂完整且无失败。'),
+                percentile_method='nearest_rank',
                 blocking_errors={r:audits.get(r,{}).get('errors',[]) for r in ('B0','B1')},
                 measured_ratios={k:str(v) if v is not None else None for k,v in ratios.items()},
                 measured_window_ratios={k:str(v) if v is not None else None for k,v in windows.items()})
@@ -402,6 +403,130 @@ def context_sources(folder, stored):
     return result
 
 
+def v2_latency_tails(metrics, observations):
+    for column, metric in ((1, 'ttft_ms'), (2, 'tpot_ms')):
+        values = sorted(row[column] for row in observations if row[column] is not None)
+        for percentile in (95, 99):
+            rank = (percentile * len(values) + 99) // 100
+            metrics[metric][f'p{percentile}'] = values[rank - 1] if values else None
+
+
+def apply_v2_context_tails(context, arms):
+    """Project nearest-rank tails from the same audited request clocks."""
+    pairs = {row['phase']: row for row in context['comparison']}
+    for role, root in arms.items():
+        raw_seal = (root / 'checksums.json').read_bytes()
+        if hashlib.sha256(raw_seal).hexdigest() != context['arm_seals'][role]:
+            raise ValueError('Context source seal changed before V2 percentile projection')
+        seal = json.loads(raw_seal)
+
+        def read(relative):
+            raw = (root / relative).read_bytes()
+            if hashlib.sha256(raw).hexdigest() != seal.get(relative):
+                raise ValueError('Context request or clock is missing from the audited seal: ' + relative)
+            return json.loads(raw)
+
+        folder = 'service/acceptance/'
+        for phase in read(folder + 'execution.json')['phases']:
+            if phase['name'] not in pairs:
+                continue
+            observations = []
+            for request in phase['request_files']:
+                row = read(folder + request)
+                if not row['success']:
+                    continue
+                start = row['start']['monotonic']
+                first = row['first_token']['monotonic']
+                count = row['usage']['completion_tokens']
+                ttft = 1000 * (first - start)
+                tpot = 1000 * (row['end']['monotonic'] - first) / (count - 1) if count > 1 else None
+                observations.append((start, ttft, tpot, row['tenant']))
+            arm = pairs[phase['name']][role]
+            v2_latency_tails(arm['metrics'], observations)
+            for tenant, metrics in arm['per_tenant'].items():
+                v2_latency_tails(metrics, [row for row in observations if row[3] == tenant])
+            phase_start = phase['start']['monotonic']
+            for index, window in enumerate(arm['windows']):
+                low = phase_start + 60 * index
+                high = min(low + 60, phase['submission_deadline_monotonic'])
+                v2_latency_tails(window['metrics'], [row for row in observations if low <= row[0] < high])
+
+
+
+def workload_sources(fixed, context, b1):
+    plan = fixed['plan']
+    prepared = plan.get('prepared_datasets', {})
+    mmlu = plan.get('mmlu_inputs', {})
+    profiles = {
+        'mmlu': ('MMLU-Pro', 'TIGER-Lab/MMLU-Pro test 固定 200 题'),
+        'hle': ('HLE-Verified', 'SKYLENAGE-AI/HLE-Verified 固定 200 题，Gold 74、Revision 126'),
+        'frontier': ('FrontierScience', 'openai/frontierscience 固定 160 题，Olympiad 100、Research 60'),
+        'swe': ('SWE-bench Pro', '公开轨迹 32 项任务，64 条请求'),
+        'terminal': ('Terminal-Bench 2.1', '公开轨迹 32 项任务，48 条请求'),
+    }
+    fixed_five = {
+        key: dict(dataset=label, sample=sample, requests_per_arm=COUNTS[key],
+                  scope_or_contract_sha256=(mmlu.get('scope_file_sha256') if key == 'mmlu'
+                                else prepared.get(key, {}).get('contract_sha256')))
+        for key, (label, sample) in profiles.items()
+    }
+    contract = context['contract']
+    raw = (b1 / 'acceptance-inputs/acceptance-inputs.json').read_bytes()
+    digest = hashlib.sha256(raw).hexdigest()
+    if digest != contract['input_sha256']:
+        raise ValueError('Context data sources differ from the audited input digest')
+    inputs = json.loads(raw)
+    trace_names = {'swe': 'SWE-bench Pro', 'terminal': 'Terminal-Bench 2.1'}
+    bands = {str(row['min_tokens']): row['max_tokens_exclusive'] for row in contract['cohorts']}
+    cohorts = {}
+    for key, rows in inputs.items():
+        cases = []
+        for row in rows:
+            source, separator, name = row['task_id'].partition(':')
+            if not separator or not name or source not in trace_names:
+                raise ValueError('Unknown context source dataset')
+            cases.append(dict(dataset=trace_names[source], **{
+                field: row[field] for field in ('task_id', 'source_index', 'input_tokens',
+                                                'source_sha256', 'source_body_sha256', 'token_ids_sha256')
+            }))
+        cohorts[key] = dict(datasets=list(dict.fromkeys(case['dataset'] for case in cases)),
+                            input_tokens=dict(minimum=int(key), maximum_exclusive=bands[key]), cases=cases)
+    phases = {row['id'] + '-formal': {
+        field: row[field] for field in ('cohort', 'tenants', 'concurrency', 'warmup_seconds', 'formal_seconds')
+    } for row in contract['phases']}
+    capture = (fixed.get('current_compute_reference') or {}).get('capture_profile') or {}
+    return dict(fixed_five=fixed_five,
+                effective_compute=dict(dataset='MMLU-Pro', workload='mmlu', capture_profile=capture),
+                cost=dict(milestone_workload='mmlu', final_phase='multi-tenant-formal'),
+                continuous=dict(input_kind='synthetic', dataset=None, workload='4K/16K 连续合成 C8'),
+                context=dict(input_sha256=digest, source_protocol_sha256=contract['source_protocol_sha256'],
+                             percentile_method='nearest_rank', output_tokens=contract['output_tokens'],
+                             cohorts=cohorts, phases=phases))
+
+
+def workload_source_table(sources):
+    esc = html.escape
+    rows = [(value['dataset'], value['sample']) for value in sources['fixed_five'].values()]
+    profile = sources['effective_compute']['capture_profile']
+    native = 'MMLU-Pro 固定 200 题'
+    if profile.get('max_tokens') and profile.get('formal_repetitions'):
+        native += f"；最多输出 {profile['max_tokens']} 词元，每臂 {profile['formal_repetitions']} 轮"
+    rows.append(('4.1 原生 F/T', native))
+    rows.append(('连续 C8（4K／16K）', '合成输入'))
+    context = sources['context']
+    for name, phase in context['phases'].items():
+        cohort = context['cohorts'][phase['cohort']]
+        size = cohort['input_tokens']
+        label = '四租户 C24' if name == 'multi-tenant-formal' else f"{size['minimum'] // 1024}K 长上下文"
+        cases = '、'.join(case['task_id'] for case in cohort['cases'])
+        rows.append((label, f"{'、'.join(cohort['datasets'])}；[{size['minimum']}, {size['maximum_exclusive']}) "
+                    f"输入词元；{len(cohort['cases'])} 条公开任务历史；{cases}"))
+    return ('<h2>测试数据集与冻结输入</h2><table><tr><th>工况</th><th>数据来源与样本</th></tr>'
+            + ''.join(f'<tr><th>{esc(label)}</th><td>{esc(sample)}</td></tr>' for label, sample in rows)
+            + '</table><p>4.4 里程碑使用上表 MMLU-Pro 完整回答工况，结题使用上述四租户的 4K 历史。</p>')
+
+
+
 def collect(root, actual_cost=None):
     from release_selection import bind
     saved = Path(root) / 'engine-selection.json'
@@ -441,6 +566,7 @@ def collect(root, actual_cost=None):
         context = paired(arms)
     if stored!=context:
         raise ValueError('Context summary differs from independently re-audited originals')
+    apply_v2_context_tails(context, arms)
     stack_path=kit_path()/'mods'/('active-stack-'+fixed['plan']['engine_release'].rsplit('-',1)[1]+'.json')
     stack=json.loads(stack_path.read_text())
     if 'enabled_mods' not in stack:
@@ -475,6 +601,7 @@ def collect(root, actual_cost=None):
                 frozen_mods=[{k:m[k] for k in ('id','name','version')} for m in stack['enabled_mods']],
                 mod_catalog_sha256=hashlib.sha256(stack_path.read_bytes()).hexdigest(),
                 targets=targets(fixed,context,audits,actual_cost),workloads=workload_pairs(fixed),
+                workload_sources=workload_sources(fixed, context, arms['B1']),
                 **({'execution_devices': {
                     'fixed_five': fixed['execution_devices'],
                     'context': context.get('device_change'),
@@ -543,13 +670,14 @@ def render(root, out, actual_cost=None):
         f'<details><summary>{key} {LABELS[key]}：计算与判定详情</summary><pre>'
         + esc(json.dumps({k: v for k, v in value.items() if k != 'same_rate_estimate'}, ensure_ascii=False, indent=2))
         + '</pre></details>' for key, value in data['targets'].items())
+    input_sources = workload_source_table(data['workload_sources']) if 'workload_sources' in data else ''
     estimates = data['targets']['4.4']['same_rate_estimate']
     estimate_section = '<details><summary>4.4 同费率估算（参考）</summary><pre>' + esc(
         json.dumps(estimates, ensure_ascii=False, indent=2)) + '</pre></details>'
     device_note = ''
     if data.get('execution_devices'):
         device_note = '<p>跨卡比较保留各自的物理设备。差值包含设备更换的影响。</p><details><summary>原始与当前设备映射</summary><pre>' + esc(json.dumps(data['execution_devices'], ensure_ascii=False, indent=2)) + '</pre></details>'
-    document='''<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>DeepLinkEngine B0/B1完整测试</title><style>body{font:16px system-ui;max-width:1100px;margin:40px auto;padding:0 20px;color:#17212b;background:#f8fafc}table{border-collapse:collapse;width:100%;background:white}th,td{padding:16px;border-bottom:1px solid #cbd5e1;text-align:left}.yes{color:#087443}.no{color:#b42318}details{background:white;padding:16px;margin:14px 0;border:1px solid #cbd5e1;border-radius:8px}summary{cursor:pointer}pre{white-space:pre-wrap;overflow-wrap:anywhere}img{width:100%;height:auto}a{color:#175cd3}</style><h1>DeepLinkEngine B0/B1 完整测试</h1><p>MMLU 200 · HLE 分层200 · Frontier 160 · SWE 64请求 · Terminal 48请求</p>'''+device_note+'''<table><tr><th>指标</th><th>里程碑</th><th>项目最终目标</th></tr>'''+rows+'''</table><details><summary>冻结引擎与 MOD 组合</summary><pre>'''+esc(json.dumps(dict(release=data.get('engine_release'),mods=data.get('frozen_mods',[])),ensure_ascii=False,indent=2))+'''</pre></details><h2>固定五项配对结果</h2><img src="fixed-five.svg" alt="五数据集B0/B1吞吐和时延"><p>'''+esc(data['scoring'])+'''</p>'''+details+template_link+estimate_section+'''<details><summary>有效算力参考计算公式</summary><p>C本轮下界=ΣF本轮下界/(2×ΣT本轮×10¹²)；C参考上界=ΣF原参考上界/(2×ΣT原参考下界×10¹²)；η下界=100×C本轮下界/C参考上界。</p><p>'''+esc(data['reference_method'])+'''</p></details><details><summary>原始报告、采样与复算记录</summary><p><a href="../fixed-five-report/report.html">五数据集与参考报告</a> · <a href="../context-tenant/paired-report/report.html">上下文与四租户报告</a> · <a href="summary.json">本页判定与原件哈希</a></p><pre>'''+esc(json.dumps(data['context_audit'],ensure_ascii=False,indent=2))+'''</pre></details></html>'''
+    document='''<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>DeepLinkEngine B0/B1完整测试</title><style>body{font:16px system-ui;max-width:1100px;margin:40px auto;padding:0 20px;color:#17212b;background:#f8fafc}table{border-collapse:collapse;width:100%;background:white}th,td{padding:16px;border-bottom:1px solid #cbd5e1;text-align:left}.yes{color:#087443}.no{color:#b42318}details{background:white;padding:16px;margin:14px 0;border:1px solid #cbd5e1;border-radius:8px}summary{cursor:pointer}pre{white-space:pre-wrap;overflow-wrap:anywhere}img{width:100%;height:auto}a{color:#175cd3}</style><h1>DeepLinkEngine B0/B1 完整测试</h1><p>MMLU 200 · HLE 分层200 · Frontier 160 · SWE 64请求 · Terminal 48请求</p>'''+device_note+'''<table><tr><th>指标</th><th>里程碑</th><th>项目最终目标</th></tr>'''+rows+'''</table>'''+input_sources+'''<details><summary>冻结引擎与 MOD 组合</summary><pre>'''+esc(json.dumps(dict(release=data.get('engine_release'),mods=data.get('frozen_mods',[])),ensure_ascii=False,indent=2))+'''</pre></details><h2>固定五项配对结果</h2><img src="fixed-five.svg" alt="五数据集B0/B1吞吐和时延"><p>'''+esc(data['scoring'])+'''</p>'''+details+template_link+estimate_section+'''<details><summary>有效算力参考计算公式</summary><p>C本轮下界=ΣF本轮下界/(2×ΣT本轮×10¹²)；C参考上界=ΣF原参考上界/(2×ΣT原参考下界×10¹²)；η下界=100×C本轮下界/C参考上界。</p><p>'''+esc(data['reference_method'])+'''</p></details><details><summary>原始报告、采样与复算记录</summary><p><a href="../fixed-five-report/report.html">五数据集与参考报告</a> · <a href="../context-tenant/paired-report/report.html">上下文与四租户报告</a> · <a href="summary.json">本页判定与原件哈希</a></p><pre>'''+esc(json.dumps(data['context_audit'],ensure_ascii=False,indent=2))+'''</pre></details></html>'''
     (out/'report.html').write_text(document, encoding='utf-8')
     return data
 
