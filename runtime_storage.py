@@ -180,8 +180,8 @@ def ensure(logical, *, reuse=False, reuse_from=None):
                 raise ValueError('Incomplete direct installation requires a new output directory')
             target.rename(target.with_name('failed-installation-'+uuid.uuid4().hex))
         if not target.exists():
-            command=[sys.executable,'-c','from vllm_hust_engine.cli import main; raise SystemExit(main())',
-                     'install','--out',str(target)]
+            from producer_install_admission import command as producer_command
+            command=producer_command(target,logical.with_name(logical.name+'.producer-admission'))
             result=subprocess.run(command)
             if result.returncode:
                 raise RuntimeError('Runtime installation failed; original staging retained')

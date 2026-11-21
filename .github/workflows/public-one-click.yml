@@ -10,6 +10,17 @@ permissions:
   contents: read
 
 jobs:
+  producer-install-cpu:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -I -B tests/test_producer_install_admission.py
   windows-download:
     runs-on: windows-latest
     timeout-minutes: 5
@@ -27,6 +38,7 @@ jobs:
       - run: python -B tests/test_triton_backend_probe.py
       - run: python -B tests/test_official_protocol_data.py
       - run: python -B tests/test_sdk_dependency_probe.py
+      - run: python -B tests/test_producer_install_admission.py
       - run: python -B tests/test_native_sdk_controller.py
       - run: python -B tests/test_official_input_adapter.py
       - run: python -B tests/test_official_protocol_download.py
@@ -97,6 +109,7 @@ jobs:
       - run: python -B tests/test_official_protocol_bootstrap.py
       - run: python -B tests/test_official_execution.py
       - run: python -B tests/test_sdk_dependency_probe.py
+      - run: python -B tests/test_producer_install_admission.py
       - run: python -B tests/test_native_sdk_controller.py
       - run: python -B tests/test_official_input_adapter.py
       - run: python -B tests/test_official_protocol_download.py
