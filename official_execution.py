@@ -427,8 +427,20 @@ def sdk_popen(command, *, sdk, env, **kwargs):
 
 def enter_cli(sdk, script, arguments, *, cache=None, execution_root=None, extra_paths=()):
     """Replace this controller with SDK Python, retaining PID and birth time."""
+    inherited = context_identity()
     if not needed() and execution_root is None:
-        return False
+        if inherited is None:
+            return False
+        sdk = Path(sdk).resolve()
+        identity = sdk / 'installation.json'
+        if (not identity.is_file() or json.loads(identity.read_bytes()).get('schema') != 'deeplinkengine-official-sdk/v1'
+                or os.statvfs(sdk).f_flag & os.ST_RDONLY):
+            return False
+        from official_image import environment
+        python, env = environment(sdk, Path(cache or sdk.parent.parent / 'execution-controller'))
+        execute_inherited_anchor(dict(sdk=str(sdk), env=env, cwd=os.getcwd(),
+            command=[str(python), '-B', str(Path(script).resolve()), *arguments]))
+        raise AssertionError('Inherited anchor exec unexpectedly returned')
     from official_image import environment
     sdk = Path(sdk).resolve()
     root = Path(execution_root).resolve() if execution_root is not None else ensure_for_sdk(sdk)
@@ -459,6 +471,33 @@ def private_mounts():
         fields = line.split(' - ', 1)[0].split()
         if any(value.startswith(('shared:', 'master:', 'propagate_from:')) for value in fields[6:]):
             raise ValueError('Inherited execution context has non-private mount propagation')
+
+
+
+def execute_inherited_anchor(request):
+    """Protect another raw SDK without re-entering the inherited chroot."""
+    inherited = context_identity()
+    if inherited is None:
+        raise ValueError('SDK anchor switch requires a verified inherited private context')
+    private_mounts()
+    library = ctypes.CDLL(None, use_errno=True)
+    _call(library.unshare, CLONE_NEWNS)
+    private_mounts()
+    raw = dict(binds=[])
+    if not readonly_sdk_anchor(raw, request['sdk']):
+        raise ValueError('Only a completed raw official image is an inherited anchor')
+    for source, target, readonly in raw['binds']:
+        _bind(Path('/'), source, target, readonly)
+    if not os.statvfs(request['sdk']).f_flag & os.ST_RDONLY:
+        raise ValueError('Inherited SDK anchor did not become read-only')
+    context = dict(inherited, mount_namespace=os.readlink('/proc/self/ns/mnt'),
+                   readonly_sdk_anchor=raw['readonly_sdk_anchor'], sdk_anchor_readonly=True,
+                   inherited_private_root=True)
+    context['host'] = dict(inherited['host'], pid=os.getpid(),
+        start_ticks=Path('/proc/self/stat').read_text().rsplit(')', 1)[1].split()[19])
+    environment = dict(request['env'], DEEPLINK_EXECUTION_CONTEXT=json.dumps(context, separators=(',', ':')))
+    os.chdir(request['cwd'])
+    os.execve(request['command'][0], request['command'], environment)
 
 
 def execute_tokenizer_alias(request):
@@ -599,7 +638,7 @@ def maybe_enter_official(config, arguments):
 
 def maybe_enter_config(path, arguments):
     """Normal protocol/full CLI: enter before creating any output directory."""
-    if not needed():
+    if not needed() and context_identity() is None:
         return
     config = json.loads(Path(path).read_bytes())
     sdk = config.get('environment', {}).get('official_sdk')

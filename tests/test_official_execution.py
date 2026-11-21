@@ -190,9 +190,46 @@ class ExecutionContextTests(unittest.TestCase):
             receipt.write_text(json.dumps({'schema':'deeplinkengine-official-source-candidate/v1'}))
             request={'binds':[]};self.assertFalse(execution.readonly_sdk_anchor(request,sdk));self.assertEqual(request['binds'],[])
 
+    def test_explicit_candidate_tool_root_is_not_skipped_on_modern_host(self):
+        with tempfile.TemporaryDirectory() as folder:
+            sdk=Path(folder)/'sdk';sdk.mkdir();root=Path(folder)/'explicit-tools';root.mkdir()
+            request={'binds':[]}
+            class Entered(Exception):pass
+            with patch.object(execution,'needed',return_value=False),patch.object(execution,'context_identity',return_value=None),patch('official_image.environment',return_value=(sdk/'python',{})),patch.object(execution,'request_for',return_value=request) as plan,patch.object(execution,'readonly_sdk_anchor',return_value=False),patch.object(execution,'execute_request',side_effect=Entered),patch.object(execution,'execute_inherited_anchor',side_effect=AssertionError('explicit root ignored')):
+                with self.assertRaises(Entered):execution.enter_cli(sdk,Path(folder)/'run_all.py',[],execution_root=root)
+            self.assertEqual(plan.call_args.args[1],root.resolve())
+
     def test_tokenizer_alias_without_verified_context_does_not_mount_or_spawn(self):
         with patch.object(execution,'context_identity',return_value=None),patch.object(execution.subprocess,'run',side_effect=AssertionError('no child')):
             self.assertIsNone(execution.tokenizer_alias([],model='model',sdk='sdk',cache='cache',env={},cwd='.'))
+
+
+    @unittest.skipUnless(hasattr(os,'statvfs'), 'Linux private SDK mounts')
+    def test_inherited_compatible_context_protects_a_different_raw_sdk_before_exec(self):
+        class Handoff(Exception):pass
+        with tempfile.TemporaryDirectory() as temp:
+            sdk=Path(temp)/'sdk';sdk.mkdir();(sdk/'installation.json').write_text(json.dumps({'schema':'deeplinkengine-official-sdk/v1'}))
+            with patch.object(execution,'needed',return_value=False),patch.object(execution,'context_identity',return_value={'fixture':True}),patch.object(os,'statvfs',return_value=type('Mount',(),dict(f_flag=0))()),patch('official_image.environment',return_value=(sdk/'python',{})),patch.object(execution,'execute_inherited_anchor',side_effect=Handoff) as enter,patch.object(execution,'ensure_for_sdk',side_effect=AssertionError('no repeated chroot')),self.assertRaises(Handoff):
+                execution.enter_cli(sdk,Path(temp)/'controller.py',['--cpu'])
+            self.assertEqual(enter.call_args.args[0]['sdk'],str(sdk.resolve()))
+            self.assertIn('--cpu',enter.call_args.args[0]['command'])
+
+    @unittest.skipUnless(hasattr(os,'statvfs'), 'Linux private SDK mounts')
+    def test_already_readonly_anchor_or_derived_output_does_not_reenter(self):
+        with tempfile.TemporaryDirectory() as temp:
+            sdk=Path(temp)/'sdk';sdk.mkdir();receipt=sdk/'installation.json'
+            for schema,flag in [('deeplinkengine-official-sdk/v1',os.ST_RDONLY),('derived-output/v1',0)]:
+                receipt.write_text(json.dumps({'schema':schema}))
+                with patch.object(execution,'needed',return_value=False),patch.object(execution,'context_identity',return_value={'fixture':True}),patch.object(os,'statvfs',return_value=type('Mount',(),dict(f_flag=flag))()),patch.object(execution,'execute_inherited_anchor',side_effect=AssertionError('no exec')):
+                    self.assertFalse(execution.enter_cli(sdk,'script',[]))
+
+    def test_config_handoff_does_not_skip_a_verified_inherited_context(self):
+        with tempfile.TemporaryDirectory() as temp:
+            config=Path(temp)/'evaluation.json';sdk=Path(temp)/'sdk'
+            config.write_text(json.dumps({'environment':{'official_sdk':str(sdk)}}))
+            with patch.object(execution,'needed',return_value=False),patch.object(execution,'context_identity',return_value={'fixture':True}),patch.object(execution,'config_workspaces',return_value=()),patch.object(execution,'enter_cli') as enter:
+                execution.maybe_enter_config(config,['--config',str(config)])
+            self.assertEqual(enter.call_args.args[0],sdk)
 
 
 if __name__ == '__main__':
