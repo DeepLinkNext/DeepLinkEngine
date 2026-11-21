@@ -3,7 +3,7 @@
 网络较慢时，可在另一台电脑（含 Windows）只下载一个官方锁中已有的 OCI 文件，不解包、不安装、不启动模型。配置仅含 `cache`、新 `out` 和 `versions`：
 
 ```sh
-python run_all.py --official-baselines --config download.json --download-only --artifact-digest sha256:...
+python run_all.py --official-baselines --config download.json --download-only --download-transport curl --artifact-digest sha256:...
 ```
 
 逐个文件传入目标主机的独立缓存，按同一 SHA256 核验，再由目标主机的公开入口自动安装。下载结果不是实机测试结果。

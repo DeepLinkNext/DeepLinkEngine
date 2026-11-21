@@ -47,6 +47,15 @@ class Downloads(unittest.TestCase):
                 fetch.assert_not_called()
                 self.assertFalse(Path(config['out']).exists())
 
+    def test_explicit_missing_curl_and_unknown_transport_are_refused(self):
+        with tempfile.TemporaryDirectory() as d:
+            config=dict(versions=['0.23.0'],cache=str(Path(d)/'cache'),out=str(Path(d)/'out'))
+            with patch('official_download.shutil.which',return_value=None):
+                for transport in ('curl','unknown'):
+                    with self.assertRaises(ValueError):
+                        official_download.run(config,transport=transport)
+            self.assertFalse(Path(config['out']).exists())
+
     def test_download_lock_excludes_a_second_process(self):
         with tempfile.TemporaryDirectory() as d:
             root=Path(d)
