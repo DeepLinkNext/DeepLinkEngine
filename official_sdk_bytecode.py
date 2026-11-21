@@ -144,12 +144,14 @@ def original_bytes(lock, cache, wanted):
     selected = {}
     proofs = []
     for layer in lock['layers']:
+        print('SDK_BYTECODE_OCI_VERIFY', layer['digest'][:19], 'bytes', layer['size'], flush=True)
         blob = cache / layer['digest'].replace(':', '-')
         if (blob.is_symlink() or not blob.is_file() or blob.stat().st_size != layer['size']
                 or digest(blob) != layer['digest'].split(':')[1]):
             raise ValueError('Original whole OCI cache is missing or changed; no download attempted: ' + str(blob))
         replacements = {}
         deleted = []
+        print('SDK_BYTECODE_OCI_REPLAY', layer['digest'][:19], flush=True)
         with tarfile.open(blob, 'r|*') as archive:
             for member in archive:
                 pure = PurePosixPath(member.name)
@@ -177,6 +179,7 @@ def original_bytes(lock, cache, wanted):
         raw = selected.get(name)
         if raw is None or len(raw) != expected['bytes'] or hashlib.sha256(raw).hexdigest() != expected['sha256']:
             raise ValueError('Original OCI replay does not match the unchanged SDK manifest: ' + name)
+    print('SDK_BYTECODE_OCI_REPLAY_VERIFIED', 'layers', len(proofs), 'selected_files', len(selected), flush=True)
     return selected, proofs
 
 
@@ -203,11 +206,15 @@ def repair_locked(sdk, lock_path, cache, observed=None):
             or hashlib.sha256(original['installed-files.json']).hexdigest() != receipt.get('installed_files_sha256')):
         raise ValueError('SDK recovery requires the unchanged original image and installed manifest')
     expected = json.loads(original['installed-files.json'])
+    print('SDK_BYTECODE_VERIFY_START', str(sdk), 'files', len(expected), flush=True)
     observed = file_map(sdk) if observed is None else observed
     if observed == expected:
+        print('SDK_BYTECODE_VERIFIED', 'files', len(expected), flush=True)
         return None
     changed = classify(expected, observed)
+    print('SDK_BYTECODE_DRIFT', 'pyc_files', len(changed), flush=True)
     owner_state = preparation_state(sdk, lock, receipt, expected)
+    print('SDK_BYTECODE_USERS_CHECK', 'before_staging', flush=True)
     active = users(sdk)
     if active:
         raise ValueError('SDK is in use or quiescence is unproven; do not repair: ' + json.dumps(active))
@@ -227,6 +234,7 @@ def repair_locked(sdk, lock_path, cache, observed=None):
         wanted = {name[len('rootfs/'):]: expected[name] for name in changed if name in expected}
         restored, layers = original_bytes(lock, cache / 'official-oci', wanted)
         record['verified_original_layers'] = layers
+        print('SDK_BYTECODE_BACKUP', 'files', len(changed), flush=True)
         for name in changed:
             path = sdk / name
             if not path.resolve().is_relative_to((sdk / 'rootfs').resolve()) or path.is_symlink():
@@ -239,11 +247,14 @@ def repair_locked(sdk, lock_path, cache, observed=None):
                 saved.parent.mkdir(parents=True, exist_ok=True)
                 saved.write_bytes(raw)
         save(journal / 'result.json', record)
+        print('SDK_BYTECODE_USERS_CHECK', 'before_commit', flush=True)
         active = users(sdk)
         if active:
             raise ValueError('SDK acquired a user during recovery staging; originals retained: ' + json.dumps(active))
+        print('SDK_BYTECODE_VERIFY_BEFORE_COMMIT', 'files', len(expected), flush=True)
         if file_map(sdk) != observed:
             raise ValueError('SDK changed after staging; no restoration committed')
+        print('SDK_BYTECODE_COMMIT', 'files', len(changed), flush=True)
         for name in changed:
             path = sdk / name
             if name not in expected:
@@ -255,6 +266,7 @@ def repair_locked(sdk, lock_path, cache, observed=None):
                 temporary.write_bytes(restored[name[len('rootfs/'):]])
                 temporary.chmod(mode)
                 temporary.replace(path)
+        print('SDK_BYTECODE_VERIFY_AFTER_COMMIT', 'files', len(expected), flush=True)
         after = file_map(sdk)
         save(journal / 'after-file-map.json', after)
         if after != expected or any((sdk / name).read_bytes() != raw for name, raw in original.items()):
@@ -266,6 +278,7 @@ def repair_locked(sdk, lock_path, cache, observed=None):
     finally:
         record['ended'] = time.time()
         save(journal / 'result.json', record)
+    print('SDK_BYTECODE_RESTORED', 'files', len(changed), 'journal', str(journal / 'result.json'), flush=True)
     return dict(path=str(journal / 'result.json'), sha256=digest(journal / 'result.json'),
                 status=record['status'], sdk=str(sdk), files_restored=len(changed),
                 original_full_map_verified=True, original_manifest_rewritten=False,
