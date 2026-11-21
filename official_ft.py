@@ -178,9 +178,6 @@ def continue_closed(config, original, expected_seal, *, companion_source=None, c
     """Explicit public continuation: only companion and CPU work, new output."""
     import sys
     sys.path.insert(0, str(TOOLS / 'scripts'))
-    from official_image import prepare, read_lock, finish_restoration
-    from official_suite import source_bindings
-    from resource_guard import acquire, release, verify_mapping
     if not re.fullmatch('[0-9a-f]{64}', expected_seal or ''):
         raise ValueError('Provide the independently fixed original version seal SHA256')
     if companion_source is not None and not re.fullmatch('[0-9a-f]{64}', companion_seal or ''):
@@ -201,9 +198,52 @@ def continue_closed(config, original, expected_seal, *, companion_source=None, c
     if config['versions'] != [version]:
         raise ValueError('Select exactly the original source version')
     lock_path = ROOT / 'engine/official-baselines' / (version + '.json')
-    identity = read_lock(lock_path)
+    # Matching the public declared identity is sufficient to report a sealed
+    # counterexample. Full SDK admission and lock validation still follow any
+    # preflight which does not reject the input.
+    identity = json.loads(lock_path.read_bytes())
     if identity != campaign['baseline_image']:
         raise ValueError('Companion runtime source identity differs from the native original')
+    preflight = None
+    if companion_source is not None:
+        from official_ft_audit import prefix_preflight, prefix_rejection, SOURCE_DOMAINS_SHA256
+        from official_ft_inputs import OfficialDraftPrefixMismatch
+        native_evidence = Evidence(original / 'native-timing', source.seal['native-timing/checksums.json'])
+        retained = Evidence(companion_source, companion_seal)
+        try:
+            preflight = prefix_preflight(native_evidence, retained)
+        except OfficialDraftPrefixMismatch as error:
+            # A counterexample needs no SDK installation, device inspection,
+            # checkpoint reads, or new model calls. Passing this JSON check
+            # still enters every existing full-admission gate below.
+            out = Path(config['out'])
+            out.mkdir(parents=True, exist_ok=False)
+            audit_out = out / 'necessary-work/audit'
+            audit_out.mkdir(parents=True)
+            domains = json.loads((ROOT / 'engine/official-ft-source-domains.json').read_bytes())
+            if sha(ROOT / 'engine/official-ft-source-domains.json') != SOURCE_DOMAINS_SHA256:
+                raise ValueError('Reviewed official source domain changed')
+            prefix_rejection(audit_out, error, native_evidence, retained, domains['domains'][version],
+                             version_seal=expected_seal)
+            record = dict(schema='deeplinkengine-closed-official-ft-continuation/v1', status='failed',
+                completed=False, qualification_stage='sealed-json-preflight', error=str(error),
+                original=str(original), original_version_seal_sha256=expected_seal,
+                companion_source=str(companion_source), companion_source_seal_sha256=companion_seal,
+                original_campaign_status=campaign['status'], original_results_modified=False,
+                source_execution=campaigndata(campaign), sdk_and_model_admission_performed=False,
+                native_timing_repeated=False, dataset_solvers_repeated=False, companion_repeated=False,
+                new_F_T_qualification=False, necessary_work_certified=False, F_interval=None,
+                cpu_and_companion_source_sha256={p.name: sha(p) for p in ROOT.glob('official*.py')},
+                independent_third_party=False, ended=time.time())
+            finish(out, 'continuation.json', record)
+            raise
+    import platform
+    if platform.system() != 'Linux' or platform.machine() != 'aarch64':
+        raise ValueError('Full official Ascend F/T qualification requires Linux aarch64')
+    from official_image import prepare, read_lock, finish_restoration
+    identity = read_lock(lock_path)
+    from official_suite import source_bindings
+    from resource_guard import acquire, release, verify_mapping
     image = Path(config['cache']) / 'official-sdks' / (version + '-' + identity['manifest_digest'].split(':')[1][:16])
     if not (image / 'installation.json').is_file():
         if image.exists():
@@ -212,6 +252,8 @@ def continue_closed(config, original, expected_seal, *, companion_source=None, c
             prepare(lock_path, Path(config['cache']) / 'official-oci', image)
     out = Path(config['out'])
     out.mkdir(parents=True, exist_ok=False)
+    if preflight is not None:
+        save(out / 'sealed-json-preflight.json', preflight)
     admission = admit_image(image, identity, out)
     weights = source.read('model-weights.json')
     sdk = Path(config['protocol_deployment'])

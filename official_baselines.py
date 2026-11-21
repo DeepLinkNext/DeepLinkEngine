@@ -73,7 +73,7 @@ def main(arguments=None):
         if args.complete_ft:
             if args.prepare_environment or args.reuse_completed_continuous or len(config['versions']) != 1:
                 raise ValueError('F/T completion requires one explicit closed version and a new output')
-            if platform.system() != 'Linux' or platform.machine() != 'aarch64':
+            if not args.reuse_ft_companion and (platform.system() != 'Linux' or platform.machine() != 'aarch64'):
                 raise ValueError('Official Ascend F/T completion requires Linux aarch64')
             from official_ft import continue_closed
             return continue_closed(config, args.complete_ft, args.source_version_seal_sha256,

@@ -20,7 +20,7 @@ def seal(root):
             if path == root / 'checksums.json' or path.is_symlink() or not path.is_file():
                 continue
             with path.open('rb') as stream:
-                files[str(path.relative_to(root))] = hashlib.file_digest(stream, 'sha256').hexdigest()
+                files[path.relative_to(root).as_posix()] = hashlib.file_digest(stream, 'sha256').hexdigest()
     save(root / 'checksums.json', files)
     return files
 

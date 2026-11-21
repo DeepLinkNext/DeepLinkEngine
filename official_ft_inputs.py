@@ -7,10 +7,46 @@ stable upstream seq_lens/seq_lens_list arguments for both merged MTP steps.
 import copy
 
 
+class OfficialDraftPrefixMismatch(ValueError):
+    """A reproducible source-admission failure, not a rewritten length plane."""
+    def __init__(self, counterexample):
+        self.counterexample = counterexample
+        super().__init__('Observed official second-step KV extent is outside the selected-prefix producer closure'
+                         f" (call={counterexample['call']}, row={counterexample['row']},"
+                         f" expected={counterexample['expected_selected_prefix_kv_extent']},"
+                         f" observed={counterexample['observed_step1_kv_extent']})")
+
+
 def stable_lengths(record):
     before, after = record["length_planes_before"], record["length_planes_after"]
     if before != after or [p["step"] for p in before] != [0, 1]:
         raise ValueError("Official MTP kernel length arguments changed or are incomplete")
+    begin = 0
+    for row, request in enumerate(record['requests']):
+        sample = record['sample_indices'][row]
+        stop = before[0]['query_end_envelope'][row]
+        positions = record['first_pass_positions']
+        if (type(sample) is not int or type(stop) is not int
+                or not begin <= sample < stop <= record['actual_input_tokens']
+                or stop > len(positions)):
+            raise ValueError('Official draft sampling/query ownership is invalid')
+        selected = positions[sample]
+        if type(selected) is not int or selected < 0:
+            raise ValueError('Official draft selected position is invalid')
+        observed = before[1]['actual_kv_lengths'][row]
+        if observed != selected + 2:
+            raise OfficialDraftPrefixMismatch(dict(window=record['window'], call=record['call'],
+                wave=record['wave'], row=row, request=request, begin=begin,
+                sample_index=sample, query_stop=stop, selected_position=selected,
+                first_pass_query_positions=positions[begin:stop],
+                observed_step0_kv_extent=before[0]['actual_kv_lengths'][row],
+                observed_step1_kv_extent=observed, expected_selected_prefix_kv_extent=selected + 2,
+                observed_step0_query_end=stop,
+                observed_step1_query_end=before[1]['query_end_envelope'][row],
+                source_derived_second_step_write_position=selected + 1,
+                actual_slot_values_or_kernel_access_trace_observed=False,
+                raw_length_planes_modified=False))
+        begin = stop
     result = copy.deepcopy(record)
     result["first_pass_kv_extent_contract"] = "full_query_envelope"
     return result

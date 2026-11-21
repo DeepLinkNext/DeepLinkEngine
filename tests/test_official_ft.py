@@ -430,6 +430,135 @@ class FlaArithmeticTests(unittest.TestCase):
 
 
 class CompletionTests(unittest.TestCase):
+    def prefix_fixture(self, root, mismatch=True):
+        from official_report import seal
+        from official_baselines import save
+        original, companion = root / 'original', root / 'companion'
+        native = original / 'native-timing'
+        native.mkdir(parents=True)
+        (companion / 'client/raw-work').mkdir(parents=True)
+        identity = json.loads((ROOT / 'engine/official-baselines/0.23.0.json').read_bytes())
+        plan = dict(role='B0', formal_repetitions=3, baseline_id='official-vllm-0.23.0',
+                    expected_versions=dict(vllm='0.23.0', ascend='0.23.0'))
+        for path in (native, companion):
+            save(path / 'native-plan.json', plan)
+            save(path / 'receipt.json', dict(completed=True, quiescent=True, purpose='arithmetic-companion'))
+        save(companion / 'native-plan.json', dict(plan, purpose='arithmetic-companion'))
+        fixture = json.loads((ROOT / 'tests/fixtures/official-fixed200-tokens.json').read_bytes())
+        population = gzip.decompress(base64.b64decode(fixture['gzip_base64']))
+        self.assertEqual(hashlib.sha256(population).hexdigest(), fixture['prompt_tokens_sha256'])
+        for path in (native, companion):
+            save(path / 'token-workload.json', dict(request_token_ids=json.loads(population)))
+        save(companion / 'client/companion-receipt.json', dict(completed=True, timing_eligible=False,
+            requests=200, observers_detached=True, native_counts_or_times_replaced=False, window='a'*32))
+        raw = companion / 'client/raw-work'
+        save(raw / 'core-end.json', dict(completed=True, window='a'*32, waves=6))
+        save(raw / 'workers-end.json', [dict(completed=True, window='a'*32, rank=i, waves=6, draft_calls=6) for i in (0, 1)])
+        rows = []
+        for call in range(6):
+            positions = [call] if call < 5 or not mismatch else [1381, 1382, 1383]
+            planes = [dict(step=0, actual_kv_lengths=[positions[-1]+1], query_end_envelope=[len(positions)]),
+                      dict(step=1, actual_kv_lengths=[positions[-1]+2], query_end_envelope=[1])]
+            rows.append(dict(window='a'*32, call=call, wave=call, requests=['cpu-fixture-request'],
+                actual_input_tokens=len(positions), capacity=len(positions), sample_indices=[0],
+                first_pass_positions=positions, first_pass_input_ids=[10]*len(positions),
+                draft_token_ids=[[11, 12]], length_planes_before=planes, length_planes_after=planes))
+        for rank in (0, 1):
+            (raw / f'rank-{rank}-drafts.jsonl').write_text(''.join(json.dumps(row)+'\n' for row in rows), encoding='utf-8')
+        seal(native)
+        save(original / 'campaign.json', dict(status='measurements_collected', started=1, ended=2,
+            stages=[], baseline_image=identity, sources={}, qualification=dict(F_interval=None)))
+        seal(original)
+        seal(companion)
+        (root / 'empty-model').mkdir()
+        config = dict(model=str(root / 'empty-model'), cache=str(root / 'absent-cache'),
+            out=str(root / 'out'), physical_devices=[0, 7], versions=['0.23.0'])
+        save(root / 'evaluation.json', config)
+        return original, native, companion, config
+
+    def test_public_cli_reports_actual_prefix_counterexample_without_sdk_or_model(self):
+        import subprocess
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            original, native, companion, config = self.prefix_fixture(root)
+            result = subprocess.run([sys.executable, '-B', str(ROOT / 'run_all.py'), '--official-baselines',
+                '--config', str(root / 'evaluation.json'), '--complete-ft', str(original),
+                '--source-version-seal-sha256', hashlib.sha256((original / 'checksums.json').read_bytes()).hexdigest(),
+                '--reuse-ft-companion', str(companion), '--companion-seal-sha256',
+                hashlib.sha256((companion / 'checksums.json').read_bytes()).hexdigest()],
+                capture_output=True, text=True, timeout=30)
+            self.assertEqual(result.returncode, 2, result.stdout+result.stderr)
+            self.assertIn('expected=1383, observed=1385', result.stderr)
+            out = Path(config['out'])
+            record = Evidence(out).read('continuation.json')
+            report = Evidence(out).read('necessary-work/audit/producer-prefix-rejection.json')
+            self.assertEqual(record['status'], 'failed')
+            self.assertFalse(record['sdk_and_model_admission_performed'])
+            self.assertIsNone(report['F_interval'])
+            self.assertEqual(report['stage'], 'sealed-json-preflight')
+            self.assertEqual(report['first_counterexample']['call'], 5)
+            self.assertEqual(report['first_counterexample']['first_pass_query_positions'], [1381, 1382, 1383])
+            self.assertFalse(Path(config['cache']).exists())
+            self.assertEqual(list((root / 'empty-model').iterdir()), [])
+
+    def test_changed_sealed_prefix_cannot_produce_a_counterexample_report(self):
+        from official_ft_audit import prefix_preflight
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            original, native, companion, config = self.prefix_fixture(root)
+            (companion / 'client/raw-work/rank-0-drafts.jsonl').write_bytes(b'{}\n')
+            with self.assertRaisesRegex(ValueError, 'Unsealed or changed'):
+                prefix_preflight(Evidence(native), Evidence(companion))
+            self.assertFalse(Path(config['out']).exists())
+
+    def test_no_mismatch_preflight_never_claims_full_qualification(self):
+        from official_ft_audit import prefix_preflight
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            original, native, companion, config = self.prefix_fixture(root, mismatch=False)
+            value = prefix_preflight(Evidence(native), Evidence(companion))
+            self.assertEqual(value['status'], 'no_prefix_mismatch_found')
+            self.assertFalse(value['full_qualification_performed'])
+            self.assertTrue(value['requires_full_sdk_and_model_admission'])
+
+    def test_different_same_version_population_is_not_reported_as_this_counterexample(self):
+        from official_ft_audit import prefix_preflight
+        from official_report import seal
+        from official_baselines import save
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            original, native, companion, config = self.prefix_fixture(root)
+            tokens = json.loads((companion / 'token-workload.json').read_bytes())
+            tokens['request_token_ids'][0][0] += 1
+            save(companion / 'token-workload.json', tokens)
+            seal(companion)
+            with self.assertRaisesRegex(ValueError, 'same fixed200 token population'):
+                prefix_preflight(Evidence(native), Evidence(companion))
+            self.assertFalse(Path(config['out']).exists())
+
+    def test_preflight_without_mismatch_still_requires_actual_sdk_admission(self):
+        import official_ft
+        from types import SimpleNamespace
+        from unittest.mock import Mock
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            original, native, companion, config = self.prefix_fixture(root, mismatch=False)
+            identity = json.loads((ROOT / 'engine/official-baselines/0.23.0.json').read_bytes())
+            image = Path(config['cache']) / 'official-sdks' / ('0.23.0-'+identity['manifest_digest'].split(':')[1][:16])
+            image.mkdir(parents=True)
+            (image / 'installation.json').write_text('{}')
+            admission = Mock(side_effect=ValueError('actual SDK admission sentinel'))
+            modules = dict(official_image=SimpleNamespace(read_lock=lambda path: identity,
+                prepare=Mock(), finish_restoration=Mock()), official_suite=SimpleNamespace(source_bindings=Mock()),
+                resource_guard=SimpleNamespace(acquire=Mock(), release=Mock(), verify_mapping=Mock()))
+            with patch.dict(sys.modules, modules), patch('platform.system', return_value='Linux'), \
+                    patch('platform.machine', return_value='aarch64'), patch.object(official_ft, 'admit_image', admission):
+                with self.assertRaisesRegex(ValueError, 'actual SDK admission sentinel'):
+                    official_ft.continue_closed(config, original, official_ft.sha(original / 'checksums.json'),
+                        companion_source=companion, companion_seal=official_ft.sha(companion / 'checksums.json'))
+            admission.assert_called_once()
+            self.assertFalse((Path(config['out']) / 'qualified-m01.json').exists())
+
     def image_fixture(self, root):
         import official_ft
         sdk, out = root / 'sdk', root / 'out'

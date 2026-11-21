@@ -204,6 +204,87 @@ def companion(source, text, version):
     return proof, inventories, source.read('client/resolved-core.json')
 
 
+def prefix_preflight(native, observed):
+    """Fail early from externally sealed JSON only; never certify success."""
+    from official_ft_inputs import stable_lengths
+    sys.path.insert(0, str(KIT / 'third-party-test-kit'))
+    from draft_producer_geometry import canonical
+    plan, other = native.read('native-plan.json'), observed.read('native-plan.json')
+    native_receipt, receipt = native.read('receipt.json'), observed.read('receipt.json')
+    child = observed.read('client/companion-receipt.json')
+    if (plan['role'] != 'B0' or plan['formal_repetitions'] != 3
+            or other.get('purpose') != 'arithmetic-companion'
+            or any(plan[key] != other[key] for key in ('baseline_id', 'expected_versions'))
+            or native_receipt['completed'] is not True or native_receipt['quiescent'] is not True
+            or receipt['completed'] is not True or receipt['quiescent'] is not True
+            or receipt['purpose'] != 'arithmetic-companion' or child['completed'] is not True
+            or child['timing_eligible'] is not False or child['requests'] != 200
+            or child['native_counts_or_times_replaced'] is not False
+            or child['observers_detached'] is not True):
+        raise ValueError('Sealed JSON preflight requires matching closed native/companion identities')
+    from full_reference_reuse import domain as reference_domain
+    tokens = native.read('token-workload.json')['request_token_ids']
+    retained_tokens = observed.read('token-workload.json')['request_token_ids']
+    population = reference_domain()
+    token_sha = hashlib.sha256((json.dumps(tokens, separators=(',', ':'))+'\n').encode()).hexdigest()
+    if (tokens != retained_tokens or len(tokens) != population['requests']
+            or any(not isinstance(row, list) or not row or any(type(t) is not int or t < 0 for t in row) for row in tokens)
+            or sum(map(len, tokens)) != population['input_tokens']
+            or token_sha != population['prompt_tokens_sha256']):
+        raise ValueError('Sealed JSON preflight requires the same fixed200 token population')
+    window = child['window']
+    core = observed.read('client/raw-work/core-end.json')
+    workers = observed.read('client/raw-work/workers-end.json')
+    if (core['completed'] is not True or core['window'] != window or len(workers) != 2
+            or {row['rank'] for row in workers} != {0, 1}
+            or any(row['completed'] is not True or row['window'] != window for row in workers)):
+        raise ValueError('Sealed JSON preflight observer closures differ')
+    streams = [observed.lines(f'client/raw-work/rank-{rank}-drafts.jsonl') for rank in (0, 1)]
+    if (len(streams[0]) != len(streams[1]) or not streams[0]
+            or core['waves'] != len(streams[0])
+            or any(row['draft_calls'] != len(streams[0]) or row['waves'] != len(streams[0]) for row in workers)):
+        raise ValueError('Sealed JSON preflight draft counts differ')
+    for call, (left, right) in enumerate(zip(*streams, strict=True)):
+        if (left['window'] != window or left['call'] != call or left['wave'] != call
+                or canonical(left) != canonical(right)):
+            raise ValueError('Sealed JSON preflight TP producer identity/order differs')
+        stable_lengths(left)
+    return dict(status='no_prefix_mismatch_found', full_qualification_performed=False,
+        native_seal_sha256=sha(native.seal_path), companion_seal_sha256=sha(observed.seal_path),
+        selected_evidence_sha256=dict(observed.selected), source_runtime_applicability_certified=False,
+        prompt_tokens_sha256=token_sha, requests=len(tokens), input_tokens=sum(map(len, tokens)),
+        requires_full_sdk_and_model_admission=True)
+
+
+def prefix_rejection(out, error, native, observed, domain, sdk=None, *, version_seal=None):
+    """Preserve the first raw counterexample without inventing a producer."""
+    from official_baselines import save
+    names = ('vllm-workspace/vllm-ascend/vllm_ascend/spec_decode/llm_base_proposer.py',
+             'vllm-workspace/vllm-ascend/vllm_ascend/attention/attention_v1.py')
+    sources = {name: dict(expected_sha256=domain['source_sha256'][name],
+        actual_sdk_sha256=sha(Path(sdk) / 'rootfs' / name) if sdk is not None else None) for name in names}
+    report = dict(schema='deeplinkengine-official-producer-prefix-rejection/v1', status='ineligible',
+        failure_kind='observed-second-step-extent-outside-reviewed-producer-closure',
+        error=str(error), first_counterexample=error.counterexample,
+        source_family=domain['id'], diagnostic_sources=sources,
+        stage='full-admission-audit' if sdk is not None else 'sealed-json-preflight',
+        full_sdk_and_model_admission_performed=sdk is not None,
+        original_version_seal_sha256=version_seal,
+        native_original_seal_sha256=sha(native.seal_path),
+        companion_original_seal_sha256=sha(observed.seal_path),
+        selected_native_evidence_sha256=dict(native.selected),
+        selected_companion_evidence_sha256=dict(observed.selected),
+        fixed_population_preflight_verified=sdk is None,
+        cpu_source_sha256={name: sha(ROOT / name) for name in ('official_ft_inputs.py', 'official_ft_audit.py')},
+        interpretation='Observed upstream lengths are retained. The selected-prefix arithmetic adapter cannot certify this call; no missing suffix producer is replaced by zero.',
+        actual_kernel_memory_access_or_slot_values_observed=False,
+        upstream_runtime_correctness_certified=False, source_runtime_applicability_certified=False,
+        necessary_work_certified=False, F_interval=None, efficiency_percent=None,
+        original_native_timing_repeated=False, companion_repeated=False, original_evidence_modified=False)
+    save(Path(out) / 'producer-prefix-rejection.json', report)
+    return report
+
+
 def audit(native_root, companion_root, sdk, model_config, out, *, version, source_seal=None):
     sys.path[:0] = [str(KIT / 'scripts'), str(KIT / 'third-party-test-kit'),
                     str(KIT / 'third-party-test-kit/proc_capture')]
@@ -247,7 +328,12 @@ def audit(native_root, companion_root, sdk, model_config, out, *, version, sourc
     inventories = [native.read(f'rank-{rank}-loaded-inventory.json') for rank in (0, 1)]
     for inventory in inventories:
         validate(inventory, text)
-    proof, companion_inventories, core = companion(observed, text, version)
+    from official_ft_inputs import OfficialDraftPrefixMismatch
+    try:
+        proof, companion_inventories, core = companion(observed, text, version)
+    except OfficialDraftPrefixMismatch as error:
+        prefix_rejection(out, error, native, observed, domain, sdk)
+        raise
     for value in observed.read('client/loaded-inventory-bindings-after.json'):
         if value['resolved_configuration']['gdn_backend']['selected'] not in domain['supported_prefill_families']:
             raise ValueError('Actual companion GDN backend requires its arithmetic adapter')
