@@ -88,6 +88,56 @@ def classify(expected, observed):
     return changed
 
 
+def preparation_state(sdk, lock, receipt, expected):
+    """A completed legacy extraction need not have a later owner marker."""
+    from official_image import digest, matches_version
+    from official_sdk_state import refuse_active_owner
+    marker = sdk / 'preparation.json'
+    if os.path.lexists(marker):
+        if marker.is_symlink() or not marker.is_file():
+            raise ValueError('Existing SDK preparation marker is not an ordinary file')
+        # Never interpret an unreadable, unknown or live owner as legacy.
+        return refuse_active_owner(json.loads(marker.read_bytes()))
+    metadata = receipt.get('metadata', {})
+    flags = {'host_driver_retained': True, 'native_packages_imported': False,
+             'model_started': False, 'source_code_patched': False,
+             'distribution_versions_retained_exactly': True}
+    versions = metadata.get('versions', {}) if isinstance(metadata, dict) else {}
+    required = {'vllm', 'vllm-ascend', 'torch', 'torch-npu', 'transformers', 'triton-ascend'}
+    origins = metadata.get('origins', {}) if isinstance(metadata, dict) else {}
+    if (receipt.get('baseline_id') != lock['id'] or type(receipt.get('files')) is not int
+            or receipt['files'] != len(expected) or not expected
+            or any(receipt.get(name) is not value for name, value in flags.items())
+            or not isinstance(metadata, dict) or type(metadata.get('no_site')) is not int
+            or metadata['no_site'] != 1 or not isinstance(versions, dict)
+            or not required.issubset(versions) or any(not isinstance(versions[n], str) or not versions[n] for n in required)
+            or not matches_version('vllm', versions['vllm'], lock['upstream_version'])
+            or not matches_version('vllm-ascend', versions['vllm-ascend'], lock['ascend_version'])
+            or not isinstance(origins, dict) or set(origins) != {'torch', 'torch_npu', 'vllm', 'vllm_ascend'}):
+        raise ValueError('Missing preparation marker requires a complete original SDK installation receipt')
+    root = (sdk / 'rootfs').resolve()
+    for value in (metadata.get('python'), metadata.get('prefix'), *origins.values()):
+        if not isinstance(value, str) or not Path(value).is_absolute() or not Path(value).resolve().is_relative_to(root):
+            raise ValueError('Completed SDK metadata resolves outside its original rootfs')
+    if Path(metadata['python']).resolve().parent.parent != Path(metadata['prefix']).resolve():
+        raise ValueError('Completed SDK interpreter/prefix identity differs')
+    state = dict(mode='legacy-completed-sdk', preparation_marker_present=False,
+                 past_preparation_owner_inferred=False,
+                 installation_receipt_sha256=digest(sdk / 'installation.json'),
+                 original_installed_manifest_sha256=receipt['installed_files_sha256'])
+    auxiliary = sdk / 'restoration-recovery.json'
+    if os.path.lexists(auxiliary):
+        if auxiliary.is_symlink() or not auxiliary.is_file():
+            raise ValueError('Legacy completion auxiliary evidence is not an ordinary file')
+        proof = json.loads(auxiliary.read_bytes())
+        if (proof.get('all_original_extracted_files_reverified') is not True
+                or proof.get('source_code_patched') is not False or proof.get('model_started') is not False
+                or proof.get('installed_files_sha256') != receipt['installed_files_sha256']):
+            raise ValueError('Legacy completion auxiliary evidence differs from the original installation')
+        state['restoration_recovery_sha256'] = digest(auxiliary)
+    return state
+
+
 def original_bytes(lock, cache, wanted):
     """Apply the original ordered OCI overlay to selected regular files only."""
     from official_image import digest
@@ -133,14 +183,17 @@ def original_bytes(lock, cache, wanted):
 def repair_locked(sdk, lock_path, cache, observed=None):
     """Caller holds sdk_preparation for the complete verification and recovery."""
     from official_image import read_lock, digest, file_map
-    from official_sdk_state import refuse_active_owner, owner_info
+    from official_sdk_state import owner_info
     if Path(sdk).is_symlink():
         raise ValueError('SDK repair target must not be a symbolic link')
     sdk, cache, lock_path = Path(sdk).resolve(), Path(cache).resolve(), Path(lock_path)
     if sdk == Path('/') or (sdk / 'rootfs').is_symlink():
         raise ValueError('SDK repair requires its original ordinary rootfs directory')
     lock = read_lock(lock_path)
-    original = {name: (sdk / name).read_bytes() for name in ('image-lock.json', 'image-manifest.json', 'image-config.json', 'installed-files.json', 'installation.json')}
+    names = ('image-lock.json', 'image-manifest.json', 'image-config.json', 'installed-files.json', 'installation.json')
+    if any((sdk / name).is_symlink() or not (sdk / name).is_file() for name in names):
+        raise ValueError('SDK recovery requires ordinary original installation/image/manifest metadata')
+    original = {name: (sdk / name).read_bytes() for name in names}
     receipt = json.loads(original['installation.json'])
     if (original['image-lock.json'] != lock_path.read_bytes()
             or hashlib.sha256(original['image-manifest.json']).hexdigest() != lock['manifest_digest'].split(':')[1]
@@ -154,7 +207,7 @@ def repair_locked(sdk, lock_path, cache, observed=None):
     if observed == expected:
         return None
     changed = classify(expected, observed)
-    owner_state = refuse_active_owner(json.loads((sdk / 'preparation.json').read_bytes()))
+    owner_state = preparation_state(sdk, lock, receipt, expected)
     active = users(sdk)
     if active:
         raise ValueError('SDK is in use or quiescence is unproven; do not repair: ' + json.dumps(active))
