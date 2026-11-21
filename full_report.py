@@ -14,6 +14,8 @@ import sys
 ROOT = Path(__file__).resolve().parent
 ACTUAL_COST_SCHEMA = 'deeplinkengine-v2-actual-card-cost/v1'
 ACTUAL_COST_TEMPLATE = 'actual-cost.template.json'
+PUBLISHED_RENTAL_EVIDENCE = 'evidence/indicator-4.4-cost-estimate.json'
+COST_MONTH_DAYS = 30
 DATASETS = ('mmlu', 'hle', 'frontier', 'swe', 'terminal')
 COUNTS = dict(mmlu=200, hle=200, frontier=160, swe=64, terminal=48)
 NAMES = dict(mmlu='MMLU-Pro', hle='HLE-Verified', frontier='FrontierScience',
@@ -231,7 +233,8 @@ def context_decisions(context, audits):
 def metered_cost_arm(seconds, tokens, utilization, seal):
     seconds = number(seconds)
     cards = len(utilization.get('per_card_percent', {}))
-    if seconds is None or seconds <= 0 or type(tokens) is not int or tokens <= 0 or cards != 2:
+    if (seconds is None or seconds <= 0 or type(tokens) is not int or tokens <= 0 or cards != 2
+            or not isinstance(seal, str) or not re.fullmatch(r'[0-9a-f]{64}', seal)):
         return None
     return dict(window_seconds=str(seconds), successful_output_tokens=tokens, occupied_cards=cards,
                 measurement_seal_sha256=seal)
@@ -293,12 +296,22 @@ def actual_cost_inputs(path, measurements=None):
     return hashlib.sha256(raw).hexdigest(), admitted
 
 
+def published_rental():
+    raw = (ROOT / PUBLISHED_RENTAL_EVIDENCE).read_bytes()
+    evidence = json.loads(raw)
+    quote = evidence['quote']
+    rate = Fraction(quote['server_monthly_price'], quote['cards_per_server'])
+    return dict(quote, publisher='上海有色网（SMM）', currency=evidence['currency'],
+                monthly_cost_per_card_cny=decimal_text(rate), days_per_month=COST_MONTH_DAYS,
+                evidence_path=PUBLISHED_RENTAL_EVIDENCE, evidence_sha256=hashlib.sha256(raw).hexdigest())
+
+
 def cost_per_million(arms, rates):
     if not all(arms.values()):
         return None
     return {
         role: Fraction(rates[role]) * arm['occupied_cards'] * Fraction(arm['window_seconds']) * 10**6
-        / (30 * 86400 * arm['successful_output_tokens'])
+        / (COST_MONTH_DAYS * 86400 * arm['successful_output_tokens'])
         for role, arm in arms.items()
     }
 
@@ -335,19 +348,25 @@ def cost_decisions(fixed, pairs, context, audits, actual_cost):
             phase.get('utilization', {}), context_seals.get(role))
 
     manifest_sha, expense = actual_cost_inputs(actual_cost, measurements)
-    formal, estimates, actual_reductions = {}, {}, {}
+    rental = published_rental() if actual_cost is None else None
+    cost_basis = 'published_rental' if rental else 'actual_expense'
+    formal, estimates, reductions = {}, {}, {}
     for name, arms in measurements.items():
         estimates[name] = dict(
             reduction_percent=decimal_text(reduction(cost_per_million(arms, {'B0': Decimal(1), 'B1': Decimal(1)}))))
-        fees = expense.get(name)
-        actual = cost_per_million(arms, {r: Decimal(f['monthly_cost_per_card_cny']) for r, f in fees.items()}) if fees else None
-        actual_reductions[name] = reduction(actual)
+        fees = ({role: dict(monthly_cost_per_card_cny=rental['monthly_cost_per_card_cny']) for role in arms}
+                if rental else expense.get(name))
+        costs = cost_per_million(arms, {r: Decimal(f['monthly_cost_per_card_cny']) for r, f in fees.items()}) if fees else None
+        reductions[name] = reduction(costs)
+        evidence_status = cost_basis if rental else 'verified'
+        if not costs:
+            evidence_status = 'missing_measurement' if rental else 'missing'
         formal[name] = dict(
-            evidence_status='verified' if actual else 'missing',
-            reduction_percent=decimal_text(actual_reductions[name]),
+            evidence_status=evidence_status,
+            reduction_percent=decimal_text(reductions[name]),
             utilization=samples[name],
-            arms={r: dict(meter, **fees[r], cost_per_million_output_tokens_cny=decimal_text(actual[r]))
-                  if actual else meter for r, meter in arms.items()})
+            arms={r: dict(meter, **fees[r], cost_per_million_output_tokens_cny=decimal_text(costs[r]))
+                  if costs else meter for r, meter in arms.items()})
 
     def sampled(meters, samples):
         for role, meter in meters.items():
@@ -376,28 +395,33 @@ def cost_decisions(fixed, pairs, context, audits, actual_cost):
                    and all(audits.get(role, {}).get('clean') is True and complete_tenants(multi[role])
                            for role in ('B0', 'B1')))
     usage = number(multi_util['B1']['mean_percent']) if multi_ready else None
-    cost = actual_reductions['mmlu']
-    multi_cost = actual_reductions['four_tenant']
+    cost = reductions['mmlu']
+    multi_cost = reductions['four_tenant']
 
     def cost_gate(name, met, reason):
         status = formal[name]['evidence_status']
         if status == 'missing':
             reason = '缺少实际费用凭据。' + reason
+        elif status == 'missing_measurement':
+            reason = '缺少可核验的正式计量。' + reason
         return dict(decision(met, reason), evidence_status=status)
 
+    unit_cost = '按公开月租折算的单位成本' if rental else '实际单位成本'
     return dict(
         milestone=cost_gate('mmlu', cost is not None and gain is not None and cost >= 10 and gain >= 10,
-                            'MMLU200 完整回答满足质量和服务要求，实际单位成本下降≥10%，双卡 AI Core 提高≥10个百分点。'),
+                            f'MMLU200 完整回答满足质量和服务要求，{unit_cost}下降≥10%，双卡 AI Core 提高≥10个百分点。'),
         final=cost_gate('four_tenant', multi_cost is not None and usage is not None and multi_cost >= 30 and usage >= 80,
-                        '4K 四租户实际单位成本下降≥30%，B1 双卡 AI Core 均值≥80%，两臂各租户完整结束。'),
+                        f'4K 四租户{unit_cost}下降≥30%，B1 双卡 AI Core 均值≥80%，两臂各租户完整结束。'),
         utilization_gain_pp=decimal_text(gain),
         four_tenant_ai_core_mean_percent=decimal_text(usage),
         unit_cost_reduction_percent=decimal_text(cost),
         four_tenant_cost_reduction_percent=decimal_text(multi_cost),
+        cost_basis=cost_basis,
+        published_rental=rental,
         actual_cost_manifest_sha256=manifest_sha,
         formal_cost=formal,
         same_rate_estimate=estimates,
-        formula='实际成本/百万输出词元=10^6×实际每卡综合月费×占卡数×正式区间秒数/(30×86400×成功输出词元数)。',
+        formula=f'成本/百万输出词元=10^6×每卡月费×占卡数×正式区间秒数/({COST_MONTH_DAYS}×86400×成功输出词元数)。',
     )
 
 
@@ -603,9 +627,6 @@ def collect(root, actual_cost=None):
         bind(saved)
     """Re-audit sealed originals; generated summaries alone never authorize a pass."""
     root=Path(root).resolve()
-    default_cost = root / 'actual-cost.json'
-    if actual_cost is None and default_cost.exists():
-        actual_cost = default_cost
     from runtime_storage import restore_missing
     restore_missing(root/'installation')
     sys.path.insert(0,str(kit_path()/'scripts'))
@@ -721,7 +742,8 @@ def cost_template(cost):
 def render(root, out, actual_cost=None):
     data=collect(root, actual_cost);out=Path(out);out.mkdir(parents=True,exist_ok=False)
     charts(data,out)
-    template = cost_template(data['targets']['4.4'])
+    cost = data['targets']['4.4']
+    template = cost_template(cost)
     template_link = ''
     if template is not None:
         data['actual_cost_template'] = ACTUAL_COST_TEMPLATE
@@ -731,7 +753,8 @@ def render(root, out, actual_cost=None):
     (out/'summary.json').write_text(json.dumps(data,ensure_ascii=False,indent=2)+'\n', encoding='utf-8')
     esc=html.escape
     def goal_cell(goal):
-        status = '待实际费用凭据' if goal.get('evidence_status') == 'missing' else goal['status']
+        status = {'missing': '待实际费用凭据', 'missing_measurement': '测量证据不完整'}.get(
+            goal.get('evidence_status'), goal['status'])
         style = 'yes' if goal['met'] else 'no'
         return f'<td class="{style}">{esc(status)}</td>'
 
@@ -747,13 +770,23 @@ def render(root, out, actual_cost=None):
         context_details = '<details id="context-results"><summary>长上下文与四租户复算明细</summary><pre>' + esc(
             json.dumps(dict(receipt=data['context_receipt'], results=data['context_results']),
                        ensure_ascii=False, indent=2)) + '</pre></details>'
-    estimates = data['targets']['4.4']['same_rate_estimate']
-    estimate_section = '<details><summary>4.4 同费率估算（参考）</summary><pre>' + esc(
-        json.dumps(estimates, ensure_ascii=False, indent=2)) + '</pre></details>'
+    rental = cost['published_rental']
+    if rental:
+        quote_url = esc(rental['source_url'], quote=True)
+        rate = Decimal(rental['monthly_cost_per_card_cny'])
+        cost_section = (
+            f'<p>4.4 按公开租赁报价折算。{esc(rental["model"])} {rental["cards_per_server"]} 卡服务器'
+            f'月租 {rental["server_monthly_price"]:,} 元。B0 与 B1 均按 {rate:,} 元/卡月、'
+            f'每月 {rental["days_per_month"]} 天核算。'
+            f'<a href="{quote_url}">{esc(rental["publisher"])} {esc(rental["published_date"])} 报价</a></p>'
+        )
+    else:
+        cost_section = '<details><summary>4.4 同费率估算（参考）</summary><pre>' + esc(
+            json.dumps(cost['same_rate_estimate'], ensure_ascii=False, indent=2)) + '</pre></details>'
     device_note = ''
     if data.get('execution_devices'):
         device_note = '<p>跨卡比较保留各自的物理设备。差值包含设备更换的影响。</p><details><summary>原始与当前设备映射</summary><pre>' + esc(json.dumps(data['execution_devices'], ensure_ascii=False, indent=2)) + '</pre></details>'
-    document='''<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>DeepLinkEngine B0/B1完整测试</title><style>body{font:16px system-ui;max-width:1100px;margin:40px auto;padding:0 20px;color:#17212b;background:#f8fafc}table{border-collapse:collapse;width:100%;background:white}th,td{padding:16px;border-bottom:1px solid #cbd5e1;text-align:left}.yes{color:#087443}.no{color:#b42318}details{background:white;padding:16px;margin:14px 0;border:1px solid #cbd5e1;border-radius:8px}summary{cursor:pointer}pre{white-space:pre-wrap;overflow-wrap:anywhere}img{width:100%;height:auto}a{color:#175cd3}</style><h1>DeepLinkEngine B0/B1 完整测试</h1><p>MMLU 200 · HLE 分层200 · Frontier 160 · SWE 64请求 · Terminal 48请求</p>'''+device_note+'''<table><tr><th>指标</th><th>里程碑</th><th>项目最终目标</th></tr>'''+rows+'''</table>'''+input_sources+'''<details><summary>冻结引擎与 MOD 组合</summary><pre>'''+esc(json.dumps(dict(release=data.get('engine_release'),mods=data.get('frozen_mods',[])),ensure_ascii=False,indent=2))+'''</pre></details><h2>固定五项配对结果</h2><img src="fixed-five.svg" alt="五数据集B0/B1吞吐和时延"><p>'''+esc(data['scoring'])+'''</p>'''+details+context_details+template_link+estimate_section+'''<details><summary>有效算力参考计算公式</summary><p>C本轮下界=ΣF本轮下界/(2×ΣT本轮×10¹²)；C参考上界=ΣF原参考上界/(2×ΣT原参考下界×10¹²)；η下界=100×C本轮下界/C参考上界。</p><p>'''+esc(data['reference_method'])+'''</p></details><details><summary>原始报告、采样与复算记录</summary><p><a href="../fixed-five-report/report.html">五数据集与参考报告</a> · <a href="#context-results">长上下文与四租户复算明细</a> · <a href="summary.json">本页判定与原件哈希</a></p><pre>'''+esc(json.dumps(data['context_audit'],ensure_ascii=False,indent=2))+'''</pre></details></html>'''
+    document='''<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>DeepLinkEngine B0/B1完整测试</title><style>body{font:16px system-ui;max-width:1100px;margin:40px auto;padding:0 20px;color:#17212b;background:#f8fafc}table{border-collapse:collapse;width:100%;background:white}th,td{padding:16px;border-bottom:1px solid #cbd5e1;text-align:left}.yes{color:#087443}.no{color:#b42318}details{background:white;padding:16px;margin:14px 0;border:1px solid #cbd5e1;border-radius:8px}summary{cursor:pointer}pre{white-space:pre-wrap;overflow-wrap:anywhere}img{width:100%;height:auto}a{color:#175cd3}</style><h1>DeepLinkEngine B0/B1 完整测试</h1><p>MMLU 200 · HLE 分层200 · Frontier 160 · SWE 64请求 · Terminal 48请求</p>'''+device_note+'''<table><tr><th>指标</th><th>里程碑</th><th>项目最终目标</th></tr>'''+rows+'''</table>'''+cost_section+input_sources+'''<details><summary>冻结引擎与 MOD 组合</summary><pre>'''+esc(json.dumps(dict(release=data.get('engine_release'),mods=data.get('frozen_mods',[])),ensure_ascii=False,indent=2))+'''</pre></details><h2>固定五项配对结果</h2><img src="fixed-five.svg" alt="五数据集B0/B1吞吐和时延"><p>'''+esc(data['scoring'])+'''</p>'''+details+context_details+template_link+'''<details><summary>有效算力参考计算公式</summary><p>C本轮下界=ΣF本轮下界/(2×ΣT本轮×10¹²)；C参考上界=ΣF原参考上界/(2×ΣT原参考下界×10¹²)；η下界=100×C本轮下界/C参考上界。</p><p>'''+esc(data['reference_method'])+'''</p></details><details><summary>原始报告、采样与复算记录</summary><p><a href="../fixed-five-report/report.html">五数据集与参考报告</a> · <a href="#context-results">长上下文与四租户复算明细</a> · <a href="summary.json">本页判定与原件哈希</a></p><pre>'''+esc(json.dumps(data['context_audit'],ensure_ascii=False,indent=2))+'''</pre></details></html>'''
     (out/'report.html').write_text(document, encoding='utf-8')
     return data
 

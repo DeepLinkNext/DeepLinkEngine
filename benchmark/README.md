@@ -34,7 +34,7 @@ python run_all.py --config evaluation.json --rerun-b0
 | --- | --- | --- |
 | 公开材料快速复核 | `python tools/review_results.py` | 仓库汇总和固定清单。输出五项吞吐、TTFT、TPOT、答题正确数和四组专项成本、利用率对照。 |
 | 4.1 从已公开的标定记录复算 | `python benchmark/scripts/recompute_m01_qualified_pair.py --check` | [公开算量、计时和参考路径附件](reports/m01-qualified-pair-20261103/evidence)。逐项核验并复算每芯片 TFLOPS 和参考达成率。 |
-| 4.4 历史成本与利用率测算 | [费率、现场采集及历史复算](indicator-4.4.md) | 按公开八卡整机月租估算 1,875 元/卡月，以两臂封存的占卡时长、输出量和同窗采样复算。 |
+| 4.4 成本与利用率 | [费率、现场采集及历史复算](indicator-4.4.md) | 默认按公开八卡整机月租折算为 1,875 元/卡月，以两臂封存的占卡时长、输出量和同窗采样复算。 |
 | 从原始运行封存重新生成 4.2 汇总 | [固定五项摘要生成器](reports/r8-fixed-five-20261118/reproduce_publication.py) | 需要原始 `summary.json` 及它引用的封存目录，输出新生成的公开 JSON。 |
 | 从原始运行封存重新生成 4.3 和四租户汇总 | [上下文与四租户摘要生成器](reports/r8-context-tenant-20261119/reproduce_publication.py) | 需要原始专项 ZIP，输出 JSON 与配对曲线。 |
 
@@ -79,7 +79,7 @@ python one_click.py run --config /path/to/evaluation.json --rerun-b0
 python run_all.py --config evaluation.json --report-only
 ```
 
-输出为新的 `full-report-<标识>` 目录，保留原报告与封存数据。 CPU 入口只取报告所用的路径及费用清单字段。两臂原件与配对汇总均已封存时，绘图失败可进入完整报告独立重核并保留原失败回执。 4.4 正式成本使用按原臂封存绑定的实际费用凭据，里程碑固定为 MMLU200 完整回答。完整入口会生成带封存摘要的凭据模板。填写[实际费用清单](indicator-4.4.md#随封存回执提交实际费用)后，指定配置项 `actual_cost` 或存为运行目录内的 `actual-cost.json`，同一入口会自动读取。报告单列同费率估算。MMLU、HLE 总体和 Frontier 两赛道使用固定计划分母，正确率绝对下降上限为 5 个百分点；未决计非成功。上下文判定同时核查服务日志、OOM 事件和采样覆盖，写盘失败不能由吞吐曲线掩盖。
+输出为新的 `full-report-<标识>` 目录，保留原报告与封存数据。CPU 入口只取报告所用的路径及费用清单字段。两臂原件与配对汇总均已封存时，绘图失败可进入完整报告独立重核并保留原失败回执。4.4 默认按公开昇腾 910B2 租赁报价折算，里程碑使用 MMLU200 完整回答，结题使用 4K 四租户。可通过 `--actual-cost` 或配置项 `actual_cost` 选用[按原臂封存绑定的实际费用清单](indicator-4.4.md#选用实际费用复算)。MMLU、HLE 总体和 Frontier 两赛道使用固定计划分母，正确率绝对下降上限为 5 个百分点；未决计非成功。上下文判定同时核查服务日志、OOM 事件和采样覆盖，写盘失败不能由吞吐曲线掩盖。
 
 模型启动或预热失败、正式客户端尚未启动时，可用 `python run_all.py --config evaluation.json --resume-before-inference` 接续。入口核验封存原件、清理状态及零正式客户端记录，保留失败原件；已有正式客户端或请求记录时拒绝此模式。
 
