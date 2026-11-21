@@ -1,8 +1,9 @@
 """Restore the pinned image's system tools for private upstream source builds.
 
-Only system prefixes enter this root. Python/CANN/model SDKs retain their
-original absolute paths, and host PIDs, drivers and cooperative locks remain
-shared through the ordinary execution-context implementation.
+System tools enter this root. The pinned CANN package also has its original
+canonical path inside this private root because its unchanged setenv script
+uses that path. SDK bytes stay in their admitted directory; host PIDs, drivers
+and cooperative locks remain shared through the execution context.
 """
 import hashlib
 import json
@@ -23,6 +24,46 @@ SYSTEM_PREFIXES = ('bin', 'sbin', 'lib', 'lib64', 'usr/bin', 'usr/sbin', 'usr/li
                    'var/lib/dpkg', 'var/lib/apt', 'var/cache/apt')
 UBUNTU_PORTS_MIRRORS = ('https://mirrors.ustc.edu.cn/ubuntu-ports',
                         'https://mirrors.tuna.tsinghua.edu.cn/ubuntu-ports')
+CANN_CANONICAL_PREFIX = '/usr/local/Ascend/cann-9.1.0'
+
+
+def canonical_cann_view(root, base_sdk, *, create=False):
+    """Expose the fixed raw SDK package only in a new private system root."""
+    root, base_sdk = Path(root).resolve(), Path(base_sdk).resolve()
+    installed_path = base_sdk / 'installation.json'
+    installed = json.loads(installed_path.read_bytes())
+    manifest_path = base_sdk / 'installed-files.json'
+    manifest_sha = execution.sha(manifest_path)
+    if (installed.get('schema') != 'deeplinkengine-official-sdk/v1'
+            or installed.get('image_manifest') != BASE_MANIFEST
+            or installed.get('installed_files_sha256') != manifest_sha):
+        raise ValueError('Canonical CANN view requires the admitted fixed official base')
+    source = base_sdk / 'rootfs' / CANN_CANONICAL_PREFIX.lstrip('/')
+    if not source.is_dir() or not source.resolve().is_relative_to(base_sdk / 'rootfs'):
+        raise ValueError('Canonical CANN source escaped the fixed SDK')
+    script = (source / 'bin/setenv.bash').resolve()
+    if not script.is_relative_to(source.resolve()):
+        raise ValueError('Canonical CANN setenv escaped its package')
+    name = script.relative_to(base_sdk).as_posix()
+    record = json.loads(manifest_path.read_bytes()).get(name)
+    if record != dict(bytes=script.stat().st_size, sha256=execution.sha(script)):
+        raise ValueError('Canonical CANN setenv differs from the original installed manifest')
+    declarations = re.findall(r'^[ \t]*version_dirpath="([^"]+)"[ \t]*$', script.read_text(), re.MULTILINE)
+    if declarations != [CANN_CANONICAL_PREFIX]:
+        raise ValueError('Original CANN setenv canonical prefix is unrecognized')
+    target = execution.destination(root, CANN_CANONICAL_PREFIX.lstrip('/'))
+    if create:
+        if target.exists() or target.is_symlink():
+            raise ValueError('Canonical CANN target already exists in the new private root')
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.symlink_to(source, target_is_directory=True)
+    if not target.is_symlink() or os.readlink(target) != str(source):
+        raise ValueError('Canonical CANN view differs from its admitted SDK binding')
+    return dict(canonical_prefix=CANN_CANONICAL_PREFIX, source_sdk=str(base_sdk),
+        source_package=str(source), installation_sha256=execution.sha(installed_path),
+        installed_files_sha256=manifest_sha, original_setenv=dict(path=name, **record),
+        scope='private execution root only; original SDK bytes and vendor script retained',
+        host_global_path_modified=False)
 
 
 def private_apt_sources(root, logs):
@@ -231,6 +272,8 @@ def ensure(base_sdk):
                         or receipt.get('composer_sha256') != execution.sha(__file__)
                         or receipt.get('execution_controller_sha256') != execution_sha):
                     raise ValueError('Private build system root identity differs')
+                if receipt.get('canonical_cann_view') != canonical_cann_view(root, base_sdk):
+                    raise ValueError('Private build system root CANN binding differs')
                 return root
             blobs=[]
             for layer in lock['layers']:
@@ -249,13 +292,14 @@ def ensure(base_sdk):
             pending['source_build_system_root']=True
             (staging/'receipt.json').write_text(json.dumps(pending)+'\n')
             provision=provision_protobuf(root,staging)
+            cann_view=canonical_cann_view(root,base_sdk,create=True)
             values=inventory(root)
             (staging/'static-files.json').write_text(json.dumps(values,sort_keys=True)+'\n')
             receipt=dict(schema='deeplinkengine-private-glibc-base/v1',layer_sha256=execution.BASE_DIGEST,
                 static_inventory_sha256=execution.sha(staging/'static-files.json'),source_build_system_root=True,
                 image_manifest=BASE_MANIFEST,composer_sha256=execution.sha(__file__),execution_controller_sha256=execution_sha,
                 layers=[layer['digest'] for layer in lock['layers']],sdk_root_used_as_execution_root=False,
-                additional_build_packages=provision)
+                additional_build_packages=provision,canonical_cann_view=cann_view)
             (staging/'receipt.json').write_text(json.dumps(receipt,indent=2)+'\n')
             execution.verify_root(staging)
             staging.rename(output)

@@ -1,6 +1,7 @@
 import hashlib
 import io
 import json
+import os
 from pathlib import Path
 import sys
 import tarfile
@@ -15,6 +16,63 @@ import official_execution as execution
 
 
 class BuildContextTests(unittest.TestCase):
+    def cann_base(self, directory):
+        sdk=self.base(Path(directory))
+        cann=sdk/'rootfs'/build.CANN_CANONICAL_PREFIX.lstrip('/')
+        (cann/'bin').mkdir(parents=True)
+        script=cann/'set_env.sh'
+        script.write_text('    version_dirpath="'+build.CANN_CANONICAL_PREFIX+'"\n')
+        (cann/'bin/setenv.bash').symlink_to('../set_env.sh')
+        manifest={script.relative_to(sdk).as_posix():dict(bytes=script.stat().st_size,sha256=execution.sha(script))}
+        (sdk/'installed-files.json').write_text(json.dumps(manifest))
+        (sdk/'installation.json').write_text(json.dumps(dict(schema='deeplinkengine-official-sdk/v1',
+            image_manifest=build.BASE_MANIFEST,installed_files_sha256=execution.sha(sdk/'installed-files.json'))))
+        return sdk,cann,script
+
+    def test_canonical_package_view_keeps_original_bytes_and_inventories_only_link(self):
+        with tempfile.TemporaryDirectory() as directory:
+            sdk,cann,script=self.cann_base(directory)
+            root=Path(directory)/'private-root';root.mkdir()
+            original=script.read_bytes()
+            binding=build.canonical_cann_view(root,sdk,create=True)
+            self.assertEqual(binding,build.canonical_cann_view(root,sdk))
+            target=root/build.CANN_CANONICAL_PREFIX.lstrip('/')
+            self.assertEqual((target/'bin/setenv.bash').read_bytes(),original)
+            self.assertEqual(os.readlink(target),str(cann))
+            values=build.inventory(root)
+            self.assertEqual(values,{build.CANN_CANONICAL_PREFIX.lstrip('/'):{'symlink':str(cann)}})
+            self.assertFalse(binding['host_global_path_modified'])
+            self.assertEqual(script.read_bytes(),original)
+
+    def test_canonical_view_refuses_shadowing_existing_root_or_wrong_target(self):
+        with tempfile.TemporaryDirectory() as directory:
+            sdk,_,_=self.cann_base(directory);root=Path(directory)/'private-root'
+            target=root/build.CANN_CANONICAL_PREFIX.lstrip('/');target.mkdir(parents=True)
+            with self.assertRaisesRegex(ValueError,'already exists'):build.canonical_cann_view(root,sdk,create=True)
+            target.rmdir();target.symlink_to(sdk)
+            with self.assertRaisesRegex(ValueError,'differs'):build.canonical_cann_view(root,sdk)
+
+    def test_canonical_view_refuses_unadmitted_script_and_different_vendor_prefix(self):
+        with tempfile.TemporaryDirectory() as directory:
+            sdk,_,script=self.cann_base(directory);root=Path(directory)/'private-root';root.mkdir()
+            script.write_text('version_dirpath="/other/cann"\n')
+            with self.assertRaisesRegex(ValueError,'original installed manifest'):build.canonical_cann_view(root,sdk,create=True)
+            (sdk/'installed-files.json').write_text(json.dumps({script.relative_to(sdk).as_posix():dict(bytes=script.stat().st_size,sha256=execution.sha(script))}))
+            installed=json.loads((sdk/'installation.json').read_text());installed['installed_files_sha256']=execution.sha(sdk/'installed-files.json')
+            (sdk/'installation.json').write_text(json.dumps(installed))
+            with self.assertRaisesRegex(ValueError,'prefix is unrecognized'):build.canonical_cann_view(root,sdk,create=True)
+
+    def test_canonical_view_refuses_package_escape_and_changed_manifest(self):
+        with tempfile.TemporaryDirectory() as directory:
+            sdk,cann,_=self.cann_base(directory);root=Path(directory)/'private-root';root.mkdir()
+            (sdk/'installed-files.json').write_text('{}')
+            with self.assertRaisesRegex(ValueError,'admitted fixed'):build.canonical_cann_view(root,sdk,create=True)
+            installed=json.loads((sdk/'installation.json').read_text());installed['installed_files_sha256']=execution.sha(sdk/'installed-files.json')
+            (sdk/'installation.json').write_text(json.dumps(installed))
+            import shutil
+            shutil.rmtree(cann);cann.symlink_to(Path(directory),target_is_directory=True)
+            with self.assertRaisesRegex(ValueError,'escaped the fixed'):build.canonical_cann_view(root,sdk,create=True)
+
     def apt_root(self, directory):
         root=Path(directory)/'private-root';staging=Path(directory)/'staging'
         (root/'etc/apt').mkdir(parents=True);staging.mkdir()
