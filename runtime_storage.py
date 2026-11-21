@@ -42,7 +42,20 @@ def storage_target(logical, frozen):
         target = Path(saved['physical'])
         if target == logical and not logical.is_symlink():
             return target
-        origin = saved.get('reused_from') or str(logical)
+        origin = str(logical)
+        owner = saved
+        seen = {origin}
+        while owner.get('reused_from'):
+            origin = owner['reused_from']
+            if not isinstance(origin, str) or not Path(origin).is_absolute() or origin in seen or len(seen) >= 64:
+                raise ValueError('Managed runtime storage reuse chain differs')
+            seen.add(origin)
+            previous = json.loads(marker(Path(origin)).read_text())
+            if (previous.get('logical') != origin or previous.get('physical') != str(target)
+                    or any(previous.get(key) != saved.get(key) for key in (
+                        'schema', 'verified', 'python', 'package_version', 'release', 'archives'))):
+                raise ValueError('Managed runtime storage reuse chain identity differs')
+            owner = previous
         key = hashlib.sha256(json.dumps(dict(logical=origin, python=sys.executable,
             version=frozen['version'], archives=frozen['archives']), sort_keys=True).encode()).hexdigest()[:20]
         if (not target.is_absolute() or target.name != 'installation'
