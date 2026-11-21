@@ -141,16 +141,25 @@ def command(args, env, directory, name, report, report_path):
     report["steps"].append(record)
     save(report_path, report)
     try:
+        from pip_transport import plan, audit
+        args, child_env, source_audit = plan(args, env, directory)
+        if source_audit:
+            record['pip_source_audit'] = source_audit
         log_path = directory / (name + ".log")
         print("ENVIRONMENT_LOG", log_path, flush=True)
         with log_path.open("ab", buffering=0) as log, follow_log(log_path, log.tell()):
-            result = run_repair_stage(args, env, log)
+            result = run_repair_stage(args, child_env, log)
+        if result.returncode == 0 and source_audit:
+            record['status'] = 'verifying-source'
+            record['publisher_admission'] = audit(source_audit, runtime_lock(ROOT))
         record.update(status="completed" if result.returncode == 0 else "failed", returncode=result.returncode)
         if result.returncode:
             raise ValueError(name + " failed; see " + str(directory / (name + ".log"))
                              + ". Exact vendor wheels can be supplied with environment.wheelhouse or PIP_FIND_LINKS.")
     except BaseException as error:
-        if record["status"] == "running":
+        if record["status"] == 'verifying-source':
+            record.update(status='failed', error=type(error).__name__ + ': ' + str(error))
+        elif record["status"] == "running":
             record.update(status="interrupted" if isinstance(error, KeyboardInterrupt) else "launch_failed")
         raise
     finally:

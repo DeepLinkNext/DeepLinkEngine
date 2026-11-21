@@ -108,7 +108,9 @@ def resolve_runtime_dependencies(cache, *, wheelhouse=None):
                    "--only-binary=:all:", "--no-compile"]
         for wheel_directory in links:
             command += ["--find-links", wheel_directory]
-        completed = run_stage([*command, "-c", str(constraints), "-r", str(required)])
+        from pip_transport import run_stage as audited_pip
+        completed = audited_pip([*command, "-c", str(constraints), "-r", str(required)], cache=cache,
+                                phase='runtime-dependencies')
         if completed.returncode:
             raise RuntimeError("Engine Python dependency resolution failed: " + str(completed.returncode))
     integrity = vendor_integrity(sys.executable, lock["required_python_packages"], dict(os.environ))

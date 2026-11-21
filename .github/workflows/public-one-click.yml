@@ -23,6 +23,7 @@ jobs:
       - run: python -B tests/test_official_download.py
       - run: python -B tests/test_official_protocol_preparation.py
       - run: python -B tests/test_transport_trust.py
+      - run: python -B tests/test_pip_transport.py
       - run: python -B tests/test_official_protocol_data.py
       - run: python -B tests/test_official_protocol_download.py
       - run: python -B tests/test_dependency_resume.py
@@ -77,6 +78,7 @@ jobs:
       - run: python -B tests/test_official_protocol_download.py
       - run: python -B tests/test_official_protocol_preparation.py
       - run: python -B tests/test_transport_trust.py
+      - run: python -B tests/test_pip_transport.py
       - run: python -B tests/test_official_judge_endpoint.py
       - run: python -B tests/test_official_sdk_state.py
       - run: python -B tests/test_run_all.py
