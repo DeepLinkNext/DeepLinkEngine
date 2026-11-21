@@ -157,7 +157,9 @@ def environment(root, cache, *, devices=None):
                HF_HUB_OFFLINE='1', TRANSFORMERS_OFFLINE='1', VLLM_WORKER_MULTIPROC_METHOD='spawn',
                OMP_NUM_THREADS='4', OPENBLAS_NUM_THREADS='1')
     for key, name in [('XDG_CACHE_HOME', 'xdg'), ('ASCEND_CACHE_PATH', 'ascend'), ('TRITON_CACHE_DIR', 'triton'),
-                      ('TORCHINDUCTOR_CACHE_DIR', 'inductor'), ('NUMBA_CACHE_DIR', 'numba'), ('VLLM_CACHE_ROOT', 'vllm')]:
+                      ('TORCHINDUCTOR_CACHE_DIR', 'inductor'), ('NUMBA_CACHE_DIR', 'numba'), ('VLLM_CACHE_ROOT', 'vllm'),
+                      ('HF_HOME', 'huggingface'), ('TORCH_HOME', 'torch'), ('TORCH_EXTENSIONS_DIR', 'torch-extensions'),
+                      ('MPLCONFIGDIR', 'matplotlib'), ('TMPDIR', 'tmp')]:
         folder = cache / name
         folder.mkdir(parents=True, exist_ok=True)
         env[key] = str(folder)

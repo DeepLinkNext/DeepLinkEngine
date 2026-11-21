@@ -12,6 +12,7 @@ from unittest.mock import patch
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from official_baselines import configuration
 from official_image import destination, extract, read_lock, environment
+from official_storage import mounts, candidates
 
 
 class OfficialBaselines(unittest.TestCase):
@@ -110,6 +111,16 @@ class OfficialBaselines(unittest.TestCase):
         self.assertEqual(env['VLLM_PLUGINS'], 'ascend,ascend_model_loader,ascend_kv_connector')
         self.assertIn('/usr/local/Ascend/driver/lib64', env['LD_LIBRARY_PATH'])
         self.assertEqual(env['ASCEND_HOME_PATH'], str(image / 'rootfs/usr/local/Ascend/cann-9.1.0'))
+        self.assertEqual(env['TMPDIR'], str(self.root / 'cache/tmp'))
+        self.assertEqual(env['TORCH_EXTENSIONS_DIR'], str(self.root / 'cache/torch-extensions'))
+
+    def test_storage_alias_requires_same_export_namespace_and_server(self):
+        records = mounts('server:/data /shared nfs rw,vers=3 0 0\nserver:/data/workspace-a /fast nfs4 rw,vers=4.2 0 0\nother:/data/workspace-a /wrong-server nfs4 rw,vers=4.2 0 0\nserver:/data/workspace-b /wrong-workspace nfs4 rw,vers=4.2 0 0\n')
+        found = candidates(Path('/shared/workspace-a/task/cache'), records)
+        self.assertEqual(len(found), 1)
+        self.assertEqual(found[0]['preferred'], '/fast/task/cache')
+        self.assertEqual(found[0]['exact_remote_path'], '/data/workspace-a/task/cache')
+        self.assertEqual(candidates(Path('/fast/task/cache'), records), [])
 
 
 if __name__ == '__main__':

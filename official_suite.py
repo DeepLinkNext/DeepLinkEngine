@@ -153,6 +153,9 @@ def phase(config, image, phase_name, output, tools, sdk, sources, leases, contin
     from engine_entry import ipc_directory, temporary_directory
     env['VLLM_RPC_BASE_PATH'] = str(ipc_directory(service))
     env['TMPDIR'] = str(temporary_directory(service))
+    logs = output / 'cann-logs'
+    logs.mkdir()
+    env['ASCEND_PROCESS_LOG_PATH'] = str(logs)
     owned = Owned(service)
     receipt = dict(schema='deeplinkengine-official-arm/v1', baseline_id=lock['id'], phase=phase_name,
                    status='starting', started=time.time(), model_started=False, client_started=False,

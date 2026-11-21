@@ -50,6 +50,12 @@ def run(config, image, output, tools, sdk, sources, leases, continuous):
     env.update(PYTHONPATH=str(ROOT) + ':' + str(tools / 'scripts') + ':' + env['PYTHONPATH'],
                VLLM_HUST_TEST_OUTPUT=str(output), VLLM_ENABLE_V1_MULTIPROCESSING='1',
                VLLM_DISABLE_REQUEST_ID_RANDOMIZATION='1')
+    from engine_entry import ipc_directory, temporary_directory
+    env['VLLM_RPC_BASE_PATH'] = str(ipc_directory(output))
+    env['TMPDIR'] = str(temporary_directory(output))
+    logs = output / 'cann-logs'
+    logs.mkdir()
+    env['ASCEND_PROCESS_LOG_PATH'] = str(logs)
     owned = Owned(output)
     receipt = dict(schema='deeplinkengine-official-native-arm/v1', baseline_id=lock['id'], started=time.time(),
                    status='starting', completed=False, necessary_work_certified=False, efficiency_percent=None)

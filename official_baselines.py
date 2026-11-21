@@ -55,6 +55,13 @@ def main(arguments=None):
         config = configuration(args.config)
         if platform.system() != 'Linux' or platform.machine() != 'aarch64':
             raise ValueError('Official Ascend baselines require Linux aarch64')
+        from official_storage import prefer
+        storage = []
+        for key in ('cache', 'out'):
+            selected, identity = prefer(config[key])
+            config[key] = str(selected)
+            if identity:
+                storage.append(dict(field=key, **identity))
         if not args.prepare_environment:
             from official_suite import validate_configuration
             validate_configuration(config)
@@ -67,8 +74,9 @@ def main(arguments=None):
     record = dict(schema='deeplinkengine-official-baseline-campaign/v1',
                   status='preparing', started=time.time(), configuration=config,
                   model_execution_authorized=not args.prepare_environment,
+                  storage_selection=storage,
                   stages=[], source_files={p.name: hashlib.sha256(p.read_bytes()).hexdigest()
-                                          for p in [ROOT / 'run_all.py', ROOT / 'official_baselines.py', ROOT / 'official_image.py']})
+                                          for p in [ROOT / 'run_all.py', ROOT / 'official_baselines.py', ROOT / 'official_image.py', ROOT / 'official_storage.py']})
     save(out / 'results.json', record)
     failed = False
     try:
@@ -99,7 +107,8 @@ def main(arguments=None):
                 else:
                     installed = prepare(lock, cache / 'official-oci', sdk)
                 row.update(installation=str(sdk), installation_receipt=installed,
-                           status='prepared' if args.prepare_environment else 'running')
+                           status='prepared' if args.prepare_environment else 'running',
+                           model_started=False if args.prepare_environment else None)
                 save(out / 'results.json', record)
                 if not args.prepare_environment:
                     from official_suite import run
@@ -116,6 +125,8 @@ def main(arguments=None):
         return 1 if failed else 0
     except BaseException as error:
         record.update(status='interrupted', error=type(error).__name__ + ': ' + str(error))
+        if record['stages'] and record['stages'][-1]['status'] in ('preparing', 'running'):
+            record['stages'][-1].update(status='interrupted', ended=time.time())
         raise
     finally:
         record['ended'] = time.time()

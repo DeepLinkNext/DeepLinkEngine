@@ -22,6 +22,12 @@ def main():
         raise ValueError('Official native runtime package versions differ')
     from vllm.plugins import load_general_plugins
     load_general_plugins()
+    import vllm_ascend
+    ascend_config = Path(vllm_ascend.__file__).resolve().parent / 'ascend_config.py'
+    if ascend_config.is_file() and 'ascend_log_path' in ascend_config.read_text():
+        logs = Path(config['output']).parent / 'vllm-ascend-logs'
+        logs.mkdir()
+        config['serve_arguments'] += ['--additional-config', json.dumps(dict(ascend_log_path=str(logs)))]
     from vllm.entrypoints.cli.serve import ServeSubcommand
     from vllm.utils.argparse_utils import FlexibleArgumentParser
     from vllm.engine.arg_utils import EngineArgs
