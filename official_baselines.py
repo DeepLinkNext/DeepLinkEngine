@@ -18,14 +18,14 @@ def save(path, value):
     temporary.replace(path)
 
 
-def configuration(path):
+def configuration(path, *, download_only=False):
     path = Path(path).resolve()
     value = json.loads(path.read_bytes())
     allowed = {'model', 'physical_devices', 'cache', 'out', 'versions', 'protocol_run',
                'protocol_deployment', 'protocol_python', 'context_contract', 'judge_installation', 'model_manifest'}
     if not isinstance(value, dict) or set(value) - allowed:
         raise ValueError('Unknown official-baseline configuration fields')
-    for key in ('model', 'cache', 'out', 'physical_devices', 'versions'):
+    for key in (('cache', 'out', 'versions') if download_only else ('model', 'cache', 'out', 'physical_devices', 'versions')):
         if key not in value:
             raise ValueError('Missing official-baseline field: ' + key)
     for key in allowed - {'physical_devices', 'versions'}:
@@ -33,13 +33,13 @@ def configuration(path):
             if not isinstance(value[key], str) or not value[key].strip():
                 raise ValueError('Expected a path: ' + key)
             value[key] = os.path.abspath(path.parent / Path(value[key]).expanduser())
-    cards = value['physical_devices']
+    cards = value.get('physical_devices', [0, 1])
     if not isinstance(cards, list) or len(cards) != 2 or any(type(x) is not int or x < 0 for x in cards) or cards[0] == cards[1]:
         raise ValueError('Two distinct physical NPU indices are required')
     versions = value['versions']
     if not isinstance(versions, list) or not versions or any(v not in ('0.23.0', '0.28.0', '0.30.0') for v in versions) or len(set(versions)) != len(versions):
         raise ValueError('Select unique explicitly supported upstream versions')
-    if not Path(value['model']).is_dir() and 'model_manifest' not in value:
+    if not download_only and not Path(value['model']).is_dir() and 'model_manifest' not in value:
         raise ValueError('Model directory does not exist')
     if os.path.lexists(value['out']):
         raise ValueError('Choose a new output directory; previous failures are immutable')
@@ -50,9 +50,22 @@ def main(arguments=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--config', type=Path, required=True)
     parser.add_argument('--prepare-environment', action='store_true')
+    parser.add_argument('--download-only', action='store_true', help='Only download pinned official OCI artifacts; no extraction, Python repair or model execution')
+    parser.add_argument('--artifact-digest', help='Download one digest already present in the selected official locks')
+    parser.add_argument('--reuse-completed-continuous', type=Path,
+                        help='In a new output, retain sealed C8 after a later pre-model failure; preserve original clocks')
     args = parser.parse_args(arguments)
+    if (args.download_only and (args.prepare_environment or args.reuse_completed_continuous)) or (args.artifact_digest and not args.download_only):
+        parser.error('Artifact selection requires download-only, separate from environment preparation')
     try:
-        config = configuration(args.config)
+        config = configuration(args.config, download_only=args.download_only)
+        if args.download_only:
+            from official_download import run
+            return run(config, artifact=args.artifact_digest)
+        if args.reuse_completed_continuous:
+            if args.prepare_environment or len(config['versions']) != 1:
+                raise ValueError('Completed C8 recovery requires one explicit full-suite version')
+            config['reuse_completed_continuous'] = str(args.reuse_completed_continuous.resolve())
         if platform.system() != 'Linux' or platform.machine() != 'aarch64':
             raise ValueError('Official Ascend baselines require Linux aarch64')
         if config.get('model_manifest'):

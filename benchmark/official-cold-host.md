@@ -1,5 +1,13 @@
 # 从空白 Ascend 主机准备官方对照
 
+网络较慢时，可在另一台电脑（含 Windows）只下载一个官方锁中已有的 OCI 文件，不解包、不安装、不启动模型。配置仅含 `cache`、新 `out` 和 `versions`：
+
+```sh
+python run_all.py --official-baselines --config download.json --download-only --artifact-digest sha256:...
+```
+
+逐个文件传入目标主机的独立缓存，按同一 SHA256 核验，再由目标主机的公开入口自动安装。下载结果不是实机测试结果。
+
 不修改宿主驱动或共享 Python。宿主 Python 3.9 可先恢复私有官方镜像；`model_manifest` 可选，按固定修订和 SHA256 自动恢复模型：
 
 ```sh

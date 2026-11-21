@@ -1,6 +1,12 @@
 """Warm the pinned baseline OCI cache with bounded, resumable public downloads."""
 from concurrent.futures import ThreadPoolExecutor
-import fcntl
+from contextlib import contextmanager
+import errno
+import os
+try:
+    import fcntl
+except ImportError:
+    fcntl = None
 import hashlib
 import http.client
 import json
@@ -21,6 +27,36 @@ def digest(path):
         return hasher.hexdigest()
 
 
+@contextmanager
+def download_lock(stream):
+    if fcntl is not None:
+        fcntl.flock(stream, fcntl.LOCK_EX)
+        try:
+            yield
+        finally:
+            fcntl.flock(stream, fcntl.LOCK_UN)
+    elif os.name == 'nt':
+        import msvcrt
+        if os.fstat(stream.fileno()).st_size == 0:
+            stream.write(b'\0'); stream.flush()
+        while True:
+            stream.seek(0)
+            try:
+                msvcrt.locking(stream.fileno(), msvcrt.LK_NBLCK, 1)
+                break
+            except OSError as error:
+                if error.errno not in (errno.EACCES, errno.EAGAIN, errno.EDEADLK):
+                    raise
+                time.sleep(.1)
+        try:
+            yield
+        finally:
+            stream.seek(0)
+            msvcrt.locking(stream.fileno(), msvcrt.LK_UNLCK, 1)
+    else:
+        raise OSError('No supported exclusive download lock on this platform')
+
+
 def fetch(cache, registry, kind, identity, size=None, attempts=3):
     if not re.fullmatch(r'sha256:[0-9a-f]{64}', identity):
         raise ValueError('Invalid baseline OCI digest')
@@ -28,8 +64,7 @@ def fetch(cache, registry, kind, identity, size=None, attempts=3):
     cache.mkdir(parents=True, exist_ok=True)
     target = cache / identity.replace(':', '-')
     expected = identity.split(':')[1]
-    with target.with_suffix('.download.lock').open('a+b') as lock:
-        fcntl.flock(lock, fcntl.LOCK_EX)
+    with target.with_suffix('.download.lock').open('a+b') as lock, download_lock(lock):
         if target.is_symlink():
             raise ValueError('Cached OCI blob must not be a symlink')
         if target.exists():

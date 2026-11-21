@@ -47,8 +47,10 @@ jobs:
       - run: python -B tests/test_official_kernel_preparation.py
       - run: python -B tests/test_official_inventory.py
       - run: python -B tests/test_official_opp_environment.py
+      - run: python -B tests/test_official_phase_recovery.py
       - run: python -B tests/test_model_restore.py
       - run: python -B tests/test_cold_transfer.py
+      - run: python -B tests/test_official_download.py
       - run: python -B tests/test_official_protocol_bootstrap.py
       - run: python -B tests/test_run_all.py
       - run: python -B tests/test_environment_setup.py
