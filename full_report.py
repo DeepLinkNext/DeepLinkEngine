@@ -223,11 +223,16 @@ def attach_dataset_costs(fixed, root):
         if not pair.get('complete'):continue
         stage=lambda role: name+('-trace-' if name in ('swe','terminal') else '-solver-')+role
         samples={role:sealed_dataset_utilization(Path(fixed.get('reused_stage_sources',{}).get(stage(role),root/stage(role))),COUNTS[name]) for role in ('B0','B1')}
-        if set(samples['B0']['per_card_percent'])!=set(samples['B1']['per_card_percent']):
-            raise ValueError('Dataset cost pair requires identical physical cards')
+        cards = {role: sorted(samples[role]['per_card_percent']) for role in ('B0', 'B1')}
+        if cards['B0'] != cards['B1']:
+            stages = fixed.get('execution_devices', {}).get('stages', {})
+            if any(cards[role] != sorted(map(str, stages.get(stage(role), []))) for role in cards):
+                raise ValueError('Dataset cost pair requires declared original physical cards')
         speed=ratio(pair['arms']['B0'].get('output_tokens_per_second'),pair['arms']['B1'].get('output_tokens_per_second'))
         rows[name]=dict(unit_cost_reduction_percent=str(100*(1-speed)) if speed is not None else None,
             utilization_gain_pp=str(number(samples['B1']['mean_percent'])-number(samples['B0']['mean_percent'])),utilization=samples)
+        if fixed.get('execution_devices'):
+            rows[name]['physical_cards'] = cards
     fixed['current_cost_utilization']=rows
 
 
@@ -333,7 +338,14 @@ def collect(root):
         return {name:{key:row[key] for key in ('bytes','sha256')} for name,row in value.items()}
     if weights(arms['B1'])!=weights(mmlu_root):
         raise ValueError('Context model weight bytes differ from the fixed-five candidate')
-    context=paired(arms)
+    device_change = stored.get('device_change')
+    if device_change:
+        execution = json.loads((root/'context-tenant/execution.json').read_text())
+        if not fixed['plan'].get('device_reuse_mapping') or execution.get('device_change') != device_change:
+            raise ValueError('Context device change has no matching execution binding')
+        context = paired(arms, device_change=device_change)
+    else:
+        context = paired(arms)
     if stored!=context:
         raise ValueError('Context summary differs from independently re-audited originals')
     stack_path=kit_path()/'mods'/('active-stack-'+fixed['plan']['engine_release'].rsplit('-',1)[1]+'.json')
@@ -370,6 +382,11 @@ def collect(root):
                 frozen_mods=[{k:m[k] for k in ('id','name','version')} for m in stack['enabled_mods']],
                 mod_catalog_sha256=hashlib.sha256(stack_path.read_bytes()).hexdigest(),
                 targets=targets(fixed,context,audits),workloads=workload_pairs(fixed),
+                **({'execution_devices': {
+                    'fixed_five': fixed['execution_devices'],
+                    'context': context.get('device_change'),
+                    'native': (fixed.get('current_compute_reference') or {}).get('native_device_change'),
+                }} if fixed.get('execution_devices') else {}),
                 context_audit=audits,context_arm_sources={r:str(arms[r]) for r in ('B0','B1')},evidence_sha256=hashes,
                 source_sha256=hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
                 scoring='MMLU规则评分；HLE/Frontier使用同一模型辅助评分，未决计入固定分母；SWE/Terminal为公开轨迹性能。',
@@ -401,7 +418,10 @@ def render(root,out):
     esc=html.escape
     rows=''.join('<tr><th>'+key+' '+LABELS[key]+'</th><td class="'+('yes' if value['milestone']['met'] else 'no')+'">'+value['milestone']['status']+'</td><td class="'+('yes' if value['final']['met'] else 'no')+'">'+value['final']['status']+'</td></tr>' for key,value in data['targets'].items())
     details=''.join('<details><summary>'+key+' '+LABELS[key]+'：计算与判定详情</summary><pre>'+esc(json.dumps(value,ensure_ascii=False,indent=2))+'</pre></details>' for key,value in data['targets'].items())
-    document='''<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>DeepLinkEngine B0/B1完整测试</title><style>body{font:16px system-ui;max-width:1100px;margin:40px auto;padding:0 20px;color:#17212b;background:#f8fafc}table{border-collapse:collapse;width:100%;background:white}th,td{padding:16px;border-bottom:1px solid #cbd5e1;text-align:left}.yes{color:#087443}.no{color:#b42318}details{background:white;padding:16px;margin:14px 0;border:1px solid #cbd5e1;border-radius:8px}summary{cursor:pointer}pre{white-space:pre-wrap;overflow-wrap:anywhere}img{width:100%;height:auto}a{color:#175cd3}</style><h1>DeepLinkEngine B0/B1 完整测试</h1><p>MMLU 200 · HLE 分层200 · Frontier 160 · SWE 64请求 · Terminal 48请求</p><table><tr><th>指标</th><th>里程碑</th><th>项目最终目标</th></tr>'''+rows+'''</table><details><summary>冻结引擎与 MOD 组合</summary><pre>'''+esc(json.dumps(dict(release=data.get('engine_release'),mods=data.get('frozen_mods',[])),ensure_ascii=False,indent=2))+'''</pre></details><h2>固定五项配对结果</h2><img src="fixed-five.svg" alt="五数据集B0/B1吞吐和时延"><p>'''+esc(data['scoring'])+'''</p>'''+details+'''<details><summary>有效算力参考计算公式</summary><p>C本轮下界=ΣF本轮下界/(2×ΣT本轮×10¹²)；C参考上界=ΣF原参考上界/(2×ΣT原参考下界×10¹²)；η下界=100×C本轮下界/C参考上界。</p><p>'''+esc(data['reference_method'])+'''</p></details><details><summary>原始报告、采样与复算记录</summary><p><a href="../fixed-five-report/report.html">五数据集与参考报告</a> · <a href="../context-tenant/paired-report/report.html">上下文与四租户报告</a> · <a href="summary.json">本页判定与原件哈希</a></p><pre>'''+esc(json.dumps(data['context_audit'],ensure_ascii=False,indent=2))+'''</pre></details></html>'''
+    device_note = ''
+    if data.get('execution_devices'):
+        device_note = '<p>跨卡比较保留各自的物理设备。差值包含设备更换的影响。</p><details><summary>原始与当前设备映射</summary><pre>' + esc(json.dumps(data['execution_devices'], ensure_ascii=False, indent=2)) + '</pre></details>'
+    document='''<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>DeepLinkEngine B0/B1完整测试</title><style>body{font:16px system-ui;max-width:1100px;margin:40px auto;padding:0 20px;color:#17212b;background:#f8fafc}table{border-collapse:collapse;width:100%;background:white}th,td{padding:16px;border-bottom:1px solid #cbd5e1;text-align:left}.yes{color:#087443}.no{color:#b42318}details{background:white;padding:16px;margin:14px 0;border:1px solid #cbd5e1;border-radius:8px}summary{cursor:pointer}pre{white-space:pre-wrap;overflow-wrap:anywhere}img{width:100%;height:auto}a{color:#175cd3}</style><h1>DeepLinkEngine B0/B1 完整测试</h1><p>MMLU 200 · HLE 分层200 · Frontier 160 · SWE 64请求 · Terminal 48请求</p>'''+device_note+'''<table><tr><th>指标</th><th>里程碑</th><th>项目最终目标</th></tr>'''+rows+'''</table><details><summary>冻结引擎与 MOD 组合</summary><pre>'''+esc(json.dumps(dict(release=data.get('engine_release'),mods=data.get('frozen_mods',[])),ensure_ascii=False,indent=2))+'''</pre></details><h2>固定五项配对结果</h2><img src="fixed-five.svg" alt="五数据集B0/B1吞吐和时延"><p>'''+esc(data['scoring'])+'''</p>'''+details+'''<details><summary>有效算力参考计算公式</summary><p>C本轮下界=ΣF本轮下界/(2×ΣT本轮×10¹²)；C参考上界=ΣF原参考上界/(2×ΣT原参考下界×10¹²)；η下界=100×C本轮下界/C参考上界。</p><p>'''+esc(data['reference_method'])+'''</p></details><details><summary>原始报告、采样与复算记录</summary><p><a href="../fixed-five-report/report.html">五数据集与参考报告</a> · <a href="../context-tenant/paired-report/report.html">上下文与四租户报告</a> · <a href="summary.json">本页判定与原件哈希</a></p><pre>'''+esc(json.dumps(data['context_audit'],ensure_ascii=False,indent=2))+'''</pre></details></html>'''
     (out/'report.html').write_text(document)
     return data
 

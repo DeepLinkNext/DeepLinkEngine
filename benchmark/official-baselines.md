@@ -21,3 +21,13 @@ python run_all.py --official-baselines --config evaluation.json
 每个版本保存独立 `campaign.json`、原始输出、日志、`report.json` 和 `report.html`。本入口及其 CPU 检查不构成完整实机验收或独立第三方认证。
 
 连续负载已完成、随后 MMLU 在模型启动前失败时，可选择新输出目录和单个版本，增加 `--reuse-completed-continuous /原输出/版本/continuous`。入口核验完整封存、官方镜像、模型、输入、物理卡映射及源码适用性；原连续结果保留原时间，不重测或改写。已启动模型的后续失败不适用此恢复入口。
+
+仅重建已封存的 0.23 C8 报告，在普通 CPU 机器执行：
+
+```sh
+python run_all.py --official-baselines --report-only --config report-only.json
+```
+
+配置为 `{"source":"原输出/0.23.0","source_sha256":"原 checksums.json 的 SHA256","out":"新的报告目录"}`。输出包含 4K/16K 正式阶段、单列预热、网站观测 JSON 和 `portable-c8.tar.gz`。外部机器可将 `source` 换为该归档、摘要换为归档 SHA256，使用同一命令复算，无需模型、SDK 或 NPU。归档中的源码仅作来源核验，不执行。
+
+此模式保留原失败、未运行阶段和原时钟；命令成功只表示 CPU 重建完成，不代表全套通过。F、效率和第三方认证仍为空或未认证。

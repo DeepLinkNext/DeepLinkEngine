@@ -2,7 +2,6 @@
 import json
 import os
 from pathlib import Path
-import socket
 import subprocess
 import time
 import urllib.request
@@ -49,8 +48,8 @@ def run(config, dataset, output, tools, sdk, sources, leases, weights):
                    status='starting', fixed_judge=installed['release'], started=time.time(), completed=False,
                    solver_performance_includes_judge=False, original_judge_spec_sha256=digest(original_spec))
     try:
-        with socket.socket() as probe:
-            probe.bind(('127.0.0.1', 18390))
+        from official_endpoint import available
+        available()
         with (output / 'judge-service.log').open('xb') as stream:
             process = subprocess.Popen(command, env=env, stdout=stream, stderr=subprocess.STDOUT,
                                        pass_fds=tuple(v['fd'] for v in leases), start_new_session=True)

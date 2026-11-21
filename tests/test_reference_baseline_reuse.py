@@ -58,6 +58,15 @@ def test_complete_b0_reuse_retains_original_clock_dates_and_companion(original):
     assert [x['T_seconds'] for x in proof['repetitions']]==[.0001]*3
 
 
+def test_native_source_checks_follow_restored_sdk_but_keep_original_path(original):
+    source, plan, pin = original
+    with patch("qualify_baseline_capacity.qualify", return_value={"qualified": True}) as qualify:
+        proof = reuse.inspect(source, pin, plan)
+    assert proof["original_baseline_deployment"] == "/original/pinned-b0"
+    assert [call.args for call in qualify.call_args_list] == [(plan["baseline_deployment"], source)] * 3
+    assert [call.kwargs for call in qualify.call_args_list] == [{"repetition": n} for n in (1, 2, 3)]
+
+
 @pytest.mark.parametrize('changed',['role','incomplete','budget','profile','cards','weights','clock','repetitions','fences'])
 def test_resealed_but_incompatible_measurement_never_reuses(original,changed):
     source,plan,pin=original
