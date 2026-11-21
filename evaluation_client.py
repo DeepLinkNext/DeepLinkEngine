@@ -165,6 +165,59 @@ def baseline_location_bridge(result):
     result[key] = text.encode()
 
 
+HISTORICAL_BASELINE_LOCATION_HELPER = '''"""Allow a fixed B0 installation to move without changing its observed identity."""
+import hashlib
+import json
+from pathlib import Path
+
+
+def verify(recorded, deployment, *, prior_binding=None):
+    from baseline_admission import PINNED_SOURCE_MAP_SHA256
+    digest = lambda value: hashlib.sha256(json.dumps(value, sort_keys=True,
+        separators=(",", ":")).encode()).hexdigest()
+    if (recorded.get('source_map_sha256') != PINNED_SOURCE_MAP_SHA256
+            or digest(recorded['files']) != PINNED_SOURCE_MAP_SHA256):
+        raise ValueError('Reused B0 relocated fixed image/source inventory differs')
+    proof = dict(observed_deployment=recorded['deployment'],
+        requested_deployment=str(Path(deployment).resolve()),
+        source_map_sha256=PINNED_SOURCE_MAP_SHA256,
+        scope='Same pinned fixed B0 bytes; original execution path and dates retained.')
+    # A sealed historical pair may outlive its temporary SDK. Recheck its
+    # exact admission binding; live admission still requires the actual map.
+    inventory = Path(deployment) / 'sdk-files.json'
+    if prior_binding == proof and not Path(deployment).exists() and not Path(deployment).is_symlink():
+        return proof
+    current = json.loads(inventory.read_bytes())
+    if current != recorded['files']:
+        raise ValueError('Reused B0 relocated fixed image/source inventory differs')
+    return proof
+'''
+
+
+def historical_mmlu_location_bridge(result):
+    """Replay historical MMLU bindings after a temporary SDK expires."""
+    result['scripts/baseline_relocation.py'] = HISTORICAL_BASELINE_LOCATION_HELPER.encode()
+    key = 'scripts/arm_reuse.py'
+    text = result[key].decode()
+    text = once(text, 'def validate_conditions(root, role, conditions, inspected):',
+        'def validate_conditions(root, role, conditions, inspected, *, prior_location=None):')
+    text = once(text, 'def admit(root, role, conditions):',
+        'def admit(root, role, conditions, *, prior_location=None):')
+    text = once(text, '    validate_conditions(root, role, conditions, data)',
+        '    location = validate_conditions(root, role, conditions, data, prior_location=prior_location)')
+    text = once(text, "    current = admit(root, binding['role'], binding['conditions'])",
+        "    current = admit(root, binding['role'], binding['conditions'], prior_location=binding.get('baseline_location'))")
+    text = once(text, "            verify_relocation(baseline, conditions['baseline_deployment'])",
+        "            return verify_relocation(baseline, conditions['baseline_deployment'], prior_binding=prior_location)")
+    text = once(text,
+        "    if role == 'B0' and str(Path(read(root / 'baseline-source-admission.json')['deployment']).resolve()) != conditions['baseline_deployment']:\n"
+        "        from baseline_relocation import verify as verify_relocation\n"
+        "        binding['baseline_location'] = verify_relocation(read(root / 'baseline-source-admission.json'), conditions['baseline_deployment'])",
+        "    if location is not None:\n"
+        "        binding['baseline_location'] = location")
+    result[key] = text.encode()
+
+
 CONTEXT_BASELINE_HELPER = '''"""Admit the reviewed fixed-B0 context measurement without relabelling it."""
 import hashlib
 import json
@@ -586,6 +639,7 @@ def context_baseline_bridge(result):
         '            complete_original_phases_verified=True)\n'
         '        save(args.out / "reused-B0-context-provenance.json", source_binding)')
     result[key] = text.encode()
+    historical_mmlu_location_bridge(result)
     device_change_bridge(result)
     current = digest(scripts(result))
     result['scripts/context_baseline_reuse.py'] = CONTEXT_BASELINE_HELPER.replace('__CURRENT_SOURCES__', current).encode()

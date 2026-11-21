@@ -46,6 +46,33 @@ def test_relocated_b0_requires_equal_full_pinned_maps_and_preserves_original_pat
         with pytest.raises(ValueError):module['verify'](dict(observed,files={'altered':True}),tmp_path)
 
 
+def test_sealed_mmlu_location_can_be_rechecked_after_temporary_sdk_expires(tmp_path):
+    import hashlib
+    _, result = bridge()
+    helper = {}
+    exec(result["scripts/baseline_relocation.py"], helper)
+    source_map = {"runtime/file.py": {"sha256": "a" * 64, "bytes": 12}}
+    pin = hashlib.sha256(json.dumps(source_map, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+    observed = dict(deployment="/original", source_map_sha256=pin, files=source_map)
+    sdk = tmp_path / "temporary-sdk"
+    sdk.mkdir()
+    inventory = sdk / "sdk-files.json"
+    inventory.write_text(json.dumps(source_map))
+    with patch("baseline_admission.PINNED_SOURCE_MAP_SHA256", pin):
+        proof = helper["verify"](observed, sdk)
+        inventory.unlink()
+        sdk.rmdir()
+        with pytest.raises(FileNotFoundError):
+            helper["verify"](observed, sdk)
+        assert helper["verify"](observed, sdk, prior_binding=proof) == proof
+        with pytest.raises(FileNotFoundError):
+            helper["verify"](observed, sdk, prior_binding=dict(proof, observed_deployment="/other"))
+        sdk.mkdir()
+        inventory.write_text("{}")
+        with pytest.raises(ValueError, match="inventory differs"):
+            helper["verify"](observed, sdk, prior_binding=proof)
+
+
 def existing_runtime(tmp_path):
     source=tmp_path/'old/installation';source.mkdir(parents=True)
     frozen=dict(release='r9',version='9',archives={'sdk':{'sha256':'a'*64,'bytes':10}},runtime_files=100)
