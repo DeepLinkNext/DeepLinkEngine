@@ -42,7 +42,7 @@ def configuration(path, *, allow_existing=False):
         from environment_setup import OPTIONS
         options = data["environment"]
         if not isinstance(options, dict) or set(options) - OPTIONS:
-            raise ValueError("environment accepts only python, wheelhouse and cann_home")
+            raise ValueError("environment accepts only python, wheelhouse, cann_home and official_sdk")
         for name, value in options.items():
             if not isinstance(value, str) or not value.strip():
                 raise ValueError("environment." + name + " requires a path")
@@ -282,7 +282,7 @@ def completed_run_source(data, source):
                 results_sha256=hashlib.sha256((source / "results.json").read_bytes()).hexdigest())
 
 
-def run(data, *, resume_bootstrap=False, resume_before_model=False, resume_before_inference=False,
+def run(data, *, prepare_protocol_only=False, resume_bootstrap=False, resume_before_model=False, resume_before_inference=False,
         reuse_completed_run=None, reuse_completed_campaigns=(), reuse_mmlu_baseline_arm=None, reuse_context_baseline_arm=None, reuse_compute_baseline_arm=None):
     out = Path(data["out"])
     reused_run = completed_run_source(data, reuse_completed_run) if reuse_completed_run else None
@@ -416,6 +416,13 @@ def run(data, *, resume_bootstrap=False, resume_before_model=False, resume_befor
             stage("prepare-fixed-five", [*evaluate, "verify"], mode="verify_existing_preflight")
         else:
             stage("prepare-fixed-five", prepare_command)
+        if prepare_protocol_only:
+            receipt.update(status='prepared', protocol_preparation_complete=True,
+                           model_service_started=False, formal_client_started=False,
+                           protocol_run=str(out / 'fixed-five'),
+                           protocol_deployment=str(installation / 'sdk'),
+                           protocol_python=sys.executable)
+            return 0
         run_command = [*evaluate, "run", "--config", str(config)]
         if reused_run:
             # Translate the public configuration before adding a controller-only
@@ -510,6 +517,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--config", required=True, type=Path)
     parser.add_argument("--prepare-environment", action="store_true", help="Repair and verify the environment without starting model tests")
+    parser.add_argument('--prepare-protocol-only', action='store_true', help='Prepare datasets, SDK and fixed-five inputs; stop before any model service or evaluation client')
     parser.add_argument("--resume-bootstrap", action="store_true", help="Recover a failed preflight using its verified installation; refuses existing inference campaigns")
     parser.add_argument("--resume-before-model", action="store_true", help="Recover a sealed first-stage failure only when no service or inference ever started")
     parser.add_argument("--resume-before-inference", action="store_true", help="Recover a sealed failed model startup only if no formal client ever started; preserves startup originals")
@@ -521,6 +529,8 @@ def main():
     parser.add_argument("--reuse-compute-baseline-arm", type=Path, help="Reuse sealed fixed-B0 native timing repetitions; retain original clocks and sources instead of starting B0")
     parser.add_argument("--rerun-b0", action=argparse.BooleanOptionalAction, default=None, help="是否重跑固定 B0；默认否，复用已封存结果；首次测量显式开启")
     args = parser.parse_args()
+    if args.prepare_protocol_only and (args.prepare_environment or args.resume_bootstrap or args.resume_before_model or args.resume_before_inference or args.report_only or args.reuse_completed_run or args.reuse_completed_campaign or args.reuse_mmlu_baseline_arm or args.reuse_context_baseline_arm or args.reuse_compute_baseline_arm):
+        parser.error('Protocol preparation requires a fresh run and cannot combine with execution/recovery modes')
     try:
         data = configuration(args.config, allow_existing=args.resume_bootstrap or args.resume_before_model or args.resume_before_inference or args.report_only)
         if args.rerun_b0 is not None:
@@ -539,7 +549,7 @@ def main():
         recovery = args.resume_bootstrap or args.resume_before_model or args.resume_before_inference
         if (args.reuse_completed_campaign or args.reuse_mmlu_baseline_arm or args.reuse_context_baseline_arm or args.reuse_compute_baseline_arm) and not (args.reuse_completed_run or recovery):
             raise ValueError('Additional sealed sources require explicit completed-run recovery')
-        if not args.prepare_environment:
+        if not args.prepare_environment and not args.prepare_protocol_only:
             from b0_run_policy import full_entry_policy
             args.reuse_context_baseline_arm, args.reuse_compute_baseline_arm = full_entry_policy(
                 data, prior=args.reuse_completed_run, context=args.reuse_context_baseline_arm,
@@ -567,7 +577,7 @@ def main():
     if args.prepare_environment:
         print("ENVIRONMENT verified; no model tests started", flush=True)
         return 0
-    return run(data, resume_bootstrap=args.resume_bootstrap, resume_before_model=args.resume_before_model, resume_before_inference=args.resume_before_inference,
+    return run(data, prepare_protocol_only=args.prepare_protocol_only, resume_bootstrap=args.resume_bootstrap, resume_before_model=args.resume_before_model, resume_before_inference=args.resume_before_inference,
                reuse_completed_run=args.reuse_completed_run, reuse_completed_campaigns=args.reuse_completed_campaign,
                reuse_mmlu_baseline_arm=args.reuse_mmlu_baseline_arm, reuse_context_baseline_arm=args.reuse_context_baseline_arm, reuse_compute_baseline_arm=args.reuse_compute_baseline_arm)
 

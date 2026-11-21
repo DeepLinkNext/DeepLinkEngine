@@ -17,7 +17,7 @@ import urllib.error
 import sys
 
 ROOT = Path(__file__).resolve().parent
-OPTIONS = {"python", "wheelhouse", "cann_home"}
+OPTIONS = {"python", "wheelhouse", "cann_home", "official_sdk"}
 PROBE = """import importlib.metadata as m,json,platform,sys
 names=json.loads(sys.argv[1]);versions={}
 for n in names:
@@ -56,6 +56,11 @@ def select_python(options, packages):
 
 
 def cann_environment(options, inherited=None):
+    if options.get('official_sdk'):
+        if options.get('cann_home'):
+            raise ValueError('Choose official_sdk or cann_home, not both')
+        from official_protocol_bootstrap import cann_environment as private_cann
+        return private_cann(options['official_sdk'])
     env = dict(os.environ if inherited is None else inherited)
     expected = "9.1.0"
     roots = [options["cann_home"]] if options.get("cann_home") else [
@@ -300,6 +305,8 @@ def ensure_environment(data):
     required = lock["required_python_packages"]
     env, cann = cann_environment(options)
     selection = dict(options)
+    if cann.get('bootstrap_python') and not selection.get('python'):
+        selection['python'] = cann['bootstrap_python']
     if os.environ.get("DEEPLINKENGINE_MANAGED_PYTHON") == sys.executable:
         selection["python"] = sys.executable
     python, before = select_python(selection, required)

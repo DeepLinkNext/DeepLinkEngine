@@ -22,7 +22,7 @@ def configuration(path):
     path = Path(path).resolve()
     value = json.loads(path.read_bytes())
     allowed = {'model', 'physical_devices', 'cache', 'out', 'versions', 'protocol_run',
-               'protocol_deployment', 'protocol_python', 'context_contract', 'judge_installation'}
+               'protocol_deployment', 'protocol_python', 'context_contract', 'judge_installation', 'model_manifest'}
     if not isinstance(value, dict) or set(value) - allowed:
         raise ValueError('Unknown official-baseline configuration fields')
     for key in ('model', 'cache', 'out', 'physical_devices', 'versions'):
@@ -39,7 +39,7 @@ def configuration(path):
     versions = value['versions']
     if not isinstance(versions, list) or not versions or any(v not in ('0.23.0', '0.28.0', '0.30.0') for v in versions) or len(set(versions)) != len(versions):
         raise ValueError('Select unique explicitly supported upstream versions')
-    if not Path(value['model']).is_dir():
+    if not Path(value['model']).is_dir() and 'model_manifest' not in value:
         raise ValueError('Model directory does not exist')
     if os.path.lexists(value['out']):
         raise ValueError('Choose a new output directory; previous failures are immutable')
@@ -55,6 +55,9 @@ def main(arguments=None):
         config = configuration(args.config)
         if platform.system() != 'Linux' or platform.machine() != 'aarch64':
             raise ValueError('Official Ascend baselines require Linux aarch64')
+        if config.get('model_manifest'):
+            from model_restore import restore
+            restore(config['model_manifest'], config['model'])
         from official_storage import prefer
         storage = []
         for key in ('cache', 'out'):
@@ -77,6 +80,8 @@ def main(arguments=None):
                   storage_selection=storage,
                   stages=[], source_files={p.name: hashlib.sha256(p.read_bytes()).hexdigest()
                                           for p in [ROOT / 'run_all.py', ROOT / 'official_baselines.py', ROOT / 'official_image.py', ROOT / 'official_storage.py']})
+    from official_protocol_bootstrap import host_identity
+    record['host_identity'] = host_identity()
     save(out / 'results.json', record)
     failed = False
     try:

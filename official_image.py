@@ -20,7 +20,10 @@ SYSTEM_LIBS = ('libbz2.so', 'libnuma.so', 'libgomp.so', 'libffi.so', 'liblzma.so
 
 def digest(path):
     with Path(path).open('rb') as stream:
-        result = hashlib.file_digest(stream, 'sha256').hexdigest()
+        hasher = hashlib.sha256()
+        for block in iter(lambda: stream.read(4 * 1024**2), b''):
+            hasher.update(block)
+        result = hasher.hexdigest()
         if hasattr(os, 'posix_fadvise'):
             os.posix_fadvise(stream.fileno(), 0, 0, os.POSIX_FADV_DONTNEED)
         return result

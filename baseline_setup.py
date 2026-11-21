@@ -15,7 +15,10 @@ import urllib.request
 
 def digest(path):
     with path.open('rb') as stream:
-        return hashlib.file_digest(stream, 'sha256').hexdigest()
+        hasher = hashlib.sha256()
+        for block in iter(lambda: stream.read(4 * 1024**2), b''):
+            hasher.update(block)
+        return hasher.hexdigest()
 
 
 def fetch(cache, registry, kind, identity, size=None, attempts=3):
