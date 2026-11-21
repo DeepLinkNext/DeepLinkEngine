@@ -237,6 +237,29 @@ class DeliveryTests(unittest.TestCase):
         result=delivery.prime(self.request([merged]))
         self.assertTrue(all(not r['cache_key_has_hash'] for r in result['entries']))
 
+    def test_new_closure_row_primes_its_real_mirror_key_and_keeps_fixed_qualification(self):
+        import official_build_assets as assets
+        fixed=dict(self.rows[0],cache_aliases=[],no_hash_link_attestation=dict(cpu_fixture_preserved=True))
+        row=self.rows[1];alias=self.alias(row)
+        self.resolve('2.0',self.root/'unprimed-closure')
+        self.assertIn('/packages/'+row['filename'],self.requests)
+        proof=dict(index=alias['attestation']['index'],index_sha256=alias['attestation']['index_sha256'],matching_urls=[alias['url']])
+        def transports(item):
+            self.assertEqual(item['filename'],row['filename'])
+            return [alias['url']],[proof]
+        with patch.object(assets,'transports',side_effect=transports):
+            rows=delivery.closure_aliases([fixed,row],[fixed],self.root/'closure-index-receipts')
+        self.assertEqual(rows[0],fixed)
+        self.assertEqual(rows[1]['cache_aliases'][0]['url'],alias['url'])
+        receipt=json.loads((self.root/'closure-index-receipts/results.json').read_bytes())
+        self.assertEqual(receipt['scope'],'new-resolved-closure-binary-inputs')
+        result=delivery.prime(self.request([rows[1]]));self.assertEqual(len(result['entries']),4)
+        before=len(self.requests)
+        for cache in self.pip_caches:
+            item=self.resolve('2.0',cache)
+            self.assertEqual(item['download_info']['url'],row['url'])
+        self.assertNotIn('/packages/'+row['filename'],self.requests[before:])
+
     def test_existing_build_cache_requires_actual_publisher_whole_authority(self):
         import official_source_prefetch as prefetch
         environment=prefetch.runtime();row=self.rows[0];before={p.name:delivery.sha(p) for p in (self.cache/'wheels').glob('*.whl')}

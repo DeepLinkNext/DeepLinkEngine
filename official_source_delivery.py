@@ -236,7 +236,7 @@ def invoke_collection(python,env,sdk,cache,out,*,timeout=3600):
         save(control/'receipt.json',record)
 
 
-def primary_aliases(rows,out):
+def primary_aliases(rows,out,*,scope='fixed-primary-binary-inputs'):
     """Retain original wheel origins and attest only same-byte transport keys."""
     from official_build_assets import transports,_read
     out=Path(out);out.mkdir(parents=True,exist_ok=False);result=[];observations=[]
@@ -257,7 +257,7 @@ def primary_aliases(rows,out):
                 except (OSError,ValueError) as error:
                     observations.append(dict(filename=row['filename'],status='unavailable',index=proof['index'],error=type(error).__name__+': '+str(error)))
         result.append(dict(row,cache_aliases=aliases))
-    save(out/'results.json',dict(scope='fixed-primary-binary-inputs',observations=observations,
+    save(out/'results.json',dict(scope=scope,observations=observations,
         actual_mirror_body_download_claimed=False,canonical_origins_retained=True))
     return result
 
@@ -267,6 +267,15 @@ def retain_delivery_qualification(row,fixed):
     result=dict(row,cache_aliases=fixed.get('cache_aliases',[]))
     if fixed.get('no_hash_link_attestation'):result['no_hash_link_attestation']=fixed['no_hash_link_attestation']
     return result
+
+
+def closure_aliases(rows,primary,out):
+    """Attest new resolver transports while retaining earlier qualifications."""
+    fixed={(row['filename'],row['sha256']) for row in primary}
+    pending=[row for row in rows if (row['filename'],row['sha256']) not in fixed]
+    enriched=primary_aliases(pending,out,scope='new-resolved-closure-binary-inputs')
+    by_key={(row['filename'],row['sha256']):row for row in enriched}
+    return [by_key.get((row['filename'],row['sha256']),row) for row in rows]
 
 
 def prepare(cache,sdk,out):
@@ -325,7 +334,10 @@ def prepare(cache,sdk,out):
                 row=retain_delivery_qualification(row,fixed)
                 wheels[(row['filename'],row['sha256'])]=row
         record['steps'].append(dict(closure=str(closure/'results.json'),sha256=sha(closure/'results.json')))
-        record['steps'].append(invoke(python,env,base,cache,list(wheels.values()),caches,out/'closure-delivery'))
+        resolved=closure_aliases(list(wheels.values()),primary,out/'closure-alias-indices')
+        record['closure_alias_attestation']=dict(path=str(out/'closure-alias-indices/results.json'),
+            sha256=sha(out/'closure-alias-indices/results.json'))
+        record['steps'].append(invoke(python,env,base,cache,resolved,caches,out/'closure-delivery'))
         record['status']='completed'
     except BaseException as error:
         record.update(status='interrupted' if isinstance(error,KeyboardInterrupt) else 'failed',error=type(error).__name__+': '+str(error));raise
