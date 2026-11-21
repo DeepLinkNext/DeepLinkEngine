@@ -30,6 +30,7 @@ class Preparation(unittest.TestCase):
         self.assertIs(plan['rerun_b0'],False)
         output=Path(plan['out']);output.mkdir()
         run=output/'fixed-five';run.mkdir();(run/'plans').mkdir();(run/'continuous-B0/inputs').mkdir(parents=True)
+        (output/'evaluation.json').write_text(json.dumps(dict(model=plan['model'],out=str(run),cache=plan['cache'])))
         (run/'frozen-execution-plan.json').write_text(json.dumps(dict(datasets=['mmlu','hle','frontier','swe','terminal'],model=plan['model'])))
         (run/'continuous-B0/inputs/continuous-inputs-r1.json').write_text('{}')
         for dataset,count in [('frontier',160),('hle',200),('swe',64),('terminal',48)]:
@@ -59,6 +60,20 @@ class Preparation(unittest.TestCase):
         raw=Path(proof['path']).read_bytes();self.assertEqual(proof['sha256'],hashlib.sha256(raw).hexdigest())
         journal=json.loads(raw);self.assertEqual(journal['status'],'prepared')
         self.assertFalse(journal['model_service_started']);self.assertFalse(journal['formal_client_started'])
+        from official_suite import protocol_data_cache
+        self.assertEqual(protocol_data_cache(config),Path(self.config['cache']).resolve())
+
+    def test_saved_protocol_cache_rejects_a_different_model_or_campaign(self):
+        from official_suite import protocol_data_cache
+        (config,proof),unused=self.invoke()
+        saved=Path(config['protocol_run']).parent/'evaluation.json'
+        data=json.loads(saved.read_bytes());data['out']=str(self.root/'different-campaign');saved.write_text(json.dumps(data))
+        with self.assertRaisesRegex(ValueError,'differs'):protocol_data_cache(config)
+
+    def test_legacy_protocol_without_saved_config_retains_its_original_cache(self):
+        from official_suite import protocol_data_cache
+        campaign=self.root/'old/run/fixed-five'
+        self.assertEqual(protocol_data_cache(dict(protocol_run=str(campaign))),(self.root/'old/cache').resolve())
 
     def test_explicit_paths_skip_automatic_preparation(self):
         self.config.update(protocol_run='/existing/run',protocol_deployment='/existing/sdk',protocol_python='/existing/python')

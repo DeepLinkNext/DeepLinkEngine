@@ -43,7 +43,10 @@ def _prepared(config, output):
         if Path(result[name])!=value.resolve():raise ValueError('Prepared protocol output escaped its own run')
     from official_suite import validate_configuration
     validate_configuration(result)
-    files=[path,output.parent/'evaluation.json',output/'fixed-five/frozen-execution-plan.json',output/'installation/sdk/provenance/installed-files.json']
+    files=[path,output.parent/'evaluation.json',output/'evaluation.json',output/'fixed-five/frozen-execution-plan.json',output/'installation/sdk/provenance/installed-files.json']
+    from official_suite import protocol_data_cache
+    if protocol_data_cache(result)!=Path(config['cache']).resolve():
+        raise ValueError('Prepared protocol data cache differs from its public configuration')
     files+=sorted((output/'fixed-five/plans').glob('*.json'))
     files+=sorted((output/'fixed-five/continuous-B0/inputs').glob('*.json'))
     return result,{str(p):_sha(p) for p in files}
