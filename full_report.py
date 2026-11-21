@@ -2,6 +2,7 @@ from release_selection import kit_path, runtime_lock, profile as selected_profil
 """Build binary milestone/final decisions from independently audited run summaries."""
 import argparse
 from decimal import Decimal, InvalidOperation
+from fractions import Fraction
 import hashlib
 import html
 import json
@@ -168,75 +169,173 @@ def context_decisions(context, audits):
                 measured_window_ratios={k:str(v) if v is not None else None for k,v in windows.items()})
 
 
-def dataset_costs(fixed, pairs):
-    mmlu=fixed.get('current_mmlu_pair') or {}
-    mmlu_gains=mmlu.get('gains',{})
-    observations=dict(fixed.get('current_cost_utilization') or {})
-    observations['mmlu']=dict(unit_cost_reduction_percent=mmlu_gains.get('equal_rate_unit_cost_reduction_pct'),
-        utilization_gain_pp=mmlu_gains.get('ai_core_utilization_gain_pp'),utilization=mmlu.get('utilization',{}))
-    details={}
-    for name in DATASETS:
-        row=observations.get(name,{})
-        cost=number(row.get('unit_cost_reduction_percent'));util=number(row.get('utilization_gain_pp'))
-        samples=row.get('utilization',{})
-        pair=pairs.get(name,{})
-        met=bool(pair.get('complete') and pair.get('quality',{}).get('met')
-            and set(samples)=={'B0','B1'} and all(coverage(v) for v in samples.values())
-            and cost is not None and util is not None and cost>=10 and util>=10)
-        details[name]=dict(met=met,execution_complete=bool(pair.get('complete')),
-            quality=pair.get('quality'),unit_cost_reduction_percent=str(cost) if cost is not None else None,
-            utilization_gain_pp=str(util) if util is not None else None,utilization=samples)
-    winners=[n for n in DATASETS if details[n]['met']]
-    selected=winners[0] if winners else 'mmlu'
-    return winners,selected,details
+def metered_cost_arm(seconds, tokens, utilization, seal):
+    seconds = number(seconds)
+    cards = len(utilization.get('per_card_percent', {}))
+    if seconds is None or seconds <= 0 or type(tokens) is not int or tokens <= 0 or cards != 2:
+        return None
+    return dict(window_seconds=str(seconds), successful_output_tokens=tokens, occupied_cards=cards,
+                measurement_seal_sha256=seal)
 
 
-def sealed_dataset_utilization(root, expected_count):
-    """Use raw sealed request clocks and the same physical-card sampler window."""
-    from telemetry_audit import utilization
-    root=Path(root).resolve();seal=json.loads((root/'checksums.json').read_bytes())
-    consumed={}
-    def read(path):
-        relative=str(path.relative_to(root));raw=path.read_bytes()
-        digest=hashlib.sha256(raw).hexdigest()
-        if seal.get(relative)!=digest:raise ValueError('Dataset cost input has no matching seal: '+relative)
-        consumed[relative]=digest
-        return raw
-    clocks=[]
-    for path in sorted((root/'service/evaluation/requests').glob('*.json')):
-        record=json.loads(read(path));clocks.append((record['start']['monotonic'],record['end']['monotonic']))
-    if len(clocks)!=expected_count:raise ValueError('Dataset cost window requires every frozen request')
-    devices=json.loads(read(root/'resource-admission.json'))['physical_cards']
-    if len(devices)!=2 or len(set(devices))!=2:raise ValueError('Dataset cost requires the same two physical cards')
-    rows=[json.loads(line) for line in read(root/'device-samples.jsonl').splitlines() if line]
-    start=min(v[0] for v in clocks);end=max(v[1] for v in clocks)
-    result=utilization(rows,start,end,tuple(map(str,devices)))
-    result['request_window']=dict(start_monotonic=start,end_monotonic=end,requests=expected_count)
-    result['sealed_inputs']=consumed
-    return result
+def actual_cost_inputs(path, measurements):
+    if path is None:
+        return None, {}
+    path = Path(path)
+    raw = path.read_bytes()
+    manifest = json.loads(raw, parse_float=Decimal)
+    if (not isinstance(manifest, dict) or set(manifest) != {'schema', 'scenarios'}
+            or manifest['schema'] != 'deeplinkengine-v2-actual-card-cost/v1'):
+        raise ValueError('Invalid V2 actual cost manifest')
+    scenarios = manifest['scenarios']
+    if not isinstance(scenarios, dict) or not scenarios or set(scenarios) - measurements.keys():
+        raise ValueError('Actual cost manifest must identify MMLU and/or four_tenant')
+    admitted = {}
+    for name, arms in scenarios.items():
+        if not isinstance(arms, dict) or set(arms) != {'B0', 'B1'}:
+            raise ValueError(f'{name}: actual cost evidence must cover both arms')
+        admitted[name] = {}
+        for role, arm in arms.items():
+            label = f'{name}/{role}'
+            meter = measurements[name][role]
+            if not isinstance(arm, dict) or set(arm) != {
+                'measurement_seal_sha256', 'monthly_cost_per_card_cny', 'evidence',
+            }:
+                raise ValueError(f'{label}: invalid actual cost record')
+            seal = arm['measurement_seal_sha256']
+            if (not isinstance(seal, str) or not re.fullmatch(r'[0-9a-f]{64}', seal)
+                    or not meter or seal != meter['measurement_seal_sha256']):
+                raise ValueError(f'{label}: actual cost record does not match the sealed measurement')
+            rate = number(arm['monthly_cost_per_card_cny'])
+            if rate is None or rate <= 0:
+                raise ValueError(f'{label}: actual monthly cost must be positive and finite')
+            records = arm['evidence']
+            if not isinstance(records, list) or not records:
+                raise ValueError(f'{label}: actual cost requires supporting documents')
+            digests = []
+            for record in records:
+                if (not isinstance(record, dict) or set(record) != {'file', 'sha256'}
+                        or not isinstance(record['file'], str) or not record['file']):
+                    raise ValueError(f'{label}: invalid expense evidence record')
+                with (path.parent / record['file']).open('rb') as stream:
+                    digest = hashlib.file_digest(stream, 'sha256').hexdigest()
+                if digest != record['sha256'] or digest in digests:
+                    raise ValueError(f'{label}: altered or duplicate expense evidence')
+                digests.append(digest)
+            admitted[name][role] = dict(monthly_cost_per_card_cny=str(rate), expense_sha256=digests)
+    return hashlib.sha256(raw).hexdigest(), admitted
 
 
-def attach_dataset_costs(fixed, root):
-    pairs=workload_pairs(fixed);rows={}
-    for name in DATASETS[1:]:
-        pair=pairs.get(name,{})
-        if not pair.get('complete'):continue
-        stage=lambda role: name+('-trace-' if name in ('swe','terminal') else '-solver-')+role
-        samples={role:sealed_dataset_utilization(Path(fixed.get('reused_stage_sources',{}).get(stage(role),root/stage(role))),COUNTS[name]) for role in ('B0','B1')}
-        cards = {role: sorted(samples[role]['per_card_percent']) for role in ('B0', 'B1')}
-        if cards['B0'] != cards['B1']:
-            stages = fixed.get('execution_devices', {}).get('stages', {})
-            if any(cards[role] != sorted(map(str, stages.get(stage(role), []))) for role in cards):
-                raise ValueError('Dataset cost pair requires declared original physical cards')
-        speed=ratio(pair['arms']['B0'].get('output_tokens_per_second'),pair['arms']['B1'].get('output_tokens_per_second'))
-        rows[name]=dict(unit_cost_reduction_percent=str(100*(1-speed)) if speed is not None else None,
-            utilization_gain_pp=str(number(samples['B1']['mean_percent'])-number(samples['B0']['mean_percent'])),utilization=samples)
-        if fixed.get('execution_devices'):
-            rows[name]['physical_cards'] = cards
-    fixed['current_cost_utilization']=rows
+def cost_per_million(arms, rates):
+    if not all(arms.values()):
+        return None
+    return {
+        role: Fraction(rates[role]) * arm['occupied_cards'] * Fraction(arm['window_seconds']) * 10**6
+        / (30 * 86400 * arm['successful_output_tokens'])
+        for role, arm in arms.items()
+    }
 
 
-def targets(fixed, context, audits):
+def reduction(costs):
+    return 100 * (1 - costs['B1'] / costs['B0']) if costs else None
+
+
+def decimal_text(value):
+    if isinstance(value, Fraction):
+        value = Decimal(value.numerator) / value.denominator
+    return str(value) if value is not None else None
+
+
+def cost_decisions(fixed, pairs, context, audits, actual_cost):
+    mmlu = fixed.get('current_mmlu_pair') or {}
+    mmlu_arms = mmlu.get('arms', {})
+    mmlu_util = mmlu.get('utilization', {})
+    multi = next((r for r in (context or {}).get('comparison', []) if r['phase'] == 'multi-tenant-formal'), {})
+    context_seals = (context or {}).get('arm_seals', {})
+    multi_util = {role: multi.get(role, {}).get('utilization', {}) for role in ('B0', 'B1')}
+    samples = {'mmlu': mmlu_util, 'four_tenant': multi_util}
+    measurements = {'mmlu': {}, 'four_tenant': {}}
+    for role in ('B0', 'B1'):
+        arm = mmlu_arms.get(role, {})
+        group = arm.get('groups', {}).get('joint200', {})
+        measurements['mmlu'][role] = metered_cost_arm(
+            group.get('cohort_wall_seconds'), group.get('successful_output_tokens'),
+            mmlu_util.get(role, {}), arm.get('source_seal_sha256'))
+        phase = multi.get(role, {})
+        metrics = phase.get('metrics', {})
+        measurements['four_tenant'][role] = metered_cost_arm(
+            metrics.get('duration_seconds'), metrics.get('output_tokens'),
+            phase.get('utilization', {}), context_seals.get(role))
+
+    manifest_sha, expense = actual_cost_inputs(actual_cost, measurements)
+    formal, estimates, actual_reductions = {}, {}, {}
+    for name, arms in measurements.items():
+        estimates[name] = dict(
+            reduction_percent=decimal_text(reduction(cost_per_million(arms, {'B0': Decimal(1), 'B1': Decimal(1)}))))
+        fees = expense.get(name)
+        actual = cost_per_million(arms, {r: Decimal(f['monthly_cost_per_card_cny']) for r, f in fees.items()}) if fees else None
+        actual_reductions[name] = reduction(actual)
+        formal[name] = dict(
+            evidence_status='verified' if actual else 'missing',
+            reduction_percent=decimal_text(actual_reductions[name]),
+            utilization=samples[name],
+            arms={r: dict(meter, **fees[r], cost_per_million_output_tokens_cny=decimal_text(actual[r]))
+                  if actual else meter for r, meter in arms.items()})
+
+    def sampled(meters, samples):
+        for role, meter in meters.items():
+            util = samples.get(role, {})
+            if not meter or not coverage(util) or number(util.get('mean_percent')) is None:
+                return False
+            if abs(number(util['covered_seconds']) - Decimal(meter['window_seconds'])) > Decimal('0.000001'):
+                return False
+        return True
+
+    mmlu_ready = (pairs.get('mmlu', {}).get('complete') and pairs['mmlu']['quality']['met']
+                  and sampled(measurements['mmlu'], mmlu_util))
+    gain = (number(mmlu_util['B1']['mean_percent']) - number(mmlu_util['B0']['mean_percent'])
+            if mmlu_ready else None)
+
+    def complete_tenants(phase):
+        if not phase_valid(phase) or (phase.get('cohort'), phase.get('tenants'), phase.get('concurrency')) != ('4096', 4, 24):
+            return False
+        tenants = phase.get('per_tenant', {})
+        return (set(tenants) == {f'tenant-{i}' for i in range(4)}
+                and sum(t['requests'] for t in tenants.values()) == phase['metrics']['requests']
+                and all(t['requests'] > 0 and t['successful'] == t['requests'] and t['failed'] == 0
+                        for t in tenants.values()))
+
+    multi_ready = (sampled(measurements['four_tenant'], multi_util)
+                   and all(audits.get(role, {}).get('clean') is True and complete_tenants(multi[role])
+                           for role in ('B0', 'B1')))
+    usage = number(multi_util['B1']['mean_percent']) if multi_ready else None
+    cost = actual_reductions['mmlu']
+    multi_cost = actual_reductions['four_tenant']
+
+    def cost_gate(name, met, reason):
+        status = formal[name]['evidence_status']
+        if status == 'missing':
+            reason = '缺少实际费用凭据。' + reason
+        return dict(decision(met, reason), evidence_status=status)
+
+    return dict(
+        milestone=cost_gate('mmlu', cost is not None and gain is not None and cost >= 10 and gain >= 10,
+                            'MMLU200 完整回答满足质量和服务要求，实际单位成本下降≥10%，双卡 AI Core 提高≥10个百分点。'),
+        final=cost_gate('four_tenant', multi_cost is not None and usage is not None and multi_cost >= 30 and usage >= 80,
+                        '4K 四租户实际单位成本下降≥30%，B1 双卡 AI Core 均值≥80%，两臂各租户完整结束。'),
+        utilization_gain_pp=decimal_text(gain),
+        four_tenant_ai_core_mean_percent=decimal_text(usage),
+        unit_cost_reduction_percent=decimal_text(cost),
+        four_tenant_cost_reduction_percent=decimal_text(multi_cost),
+        actual_cost_manifest_sha256=manifest_sha,
+        formal_cost=formal,
+        same_rate_estimate=estimates,
+        formula='实际成本/百万输出词元=10^6×实际每卡综合月费×占卡数×正式区间秒数/(30×86400×成功输出词元数)。',
+    )
+
+
+
+def targets(fixed, context, audits, actual_cost=None):
     fixed=fixed or {}; ref=fixed.get('current_compute_reference') or {}
     value=None
     sys.path.insert(0, str(kit_path()/'scripts'))
@@ -250,25 +349,7 @@ def targets(fixed, context, audits):
     pairs=workload_pairs(fixed)
     milestone, details=performance(pairs,'1.10','.95'); final, final_details=performance(pairs,'2','.80')
     speed=dict(milestone=milestone,final=final,datasets=details,final_datasets=final_details)
-    cost_winners,cost_selected,cost_details=dataset_costs(fixed,pairs)
-    selected=cost_details[cost_selected]
-    cost=number(selected['unit_cost_reduction_percent']);util=number(selected['utilization_gain_pp'])
-    multi=next((r for r in (context or {}).get('comparison',[]) if r['phase']=='multi-tenant-formal'),None)
-    final_met=False;reduction=None;usage=None
-    if multi and all(phase_valid(multi[r]) and audits.get(r,{}).get('clean') is True and coverage(multi[r].get('utilization',{})) for r in ('B0','B1')):
-        tenants=multi['B1'].get('per_tenant',{})
-        reduction=number(multi.get('equal_rate_same_card_count_unit_cost_reduction_percent'))
-        usage=number(multi['B1'].get('utilization',{}).get('mean_percent'))
-        final_met=(reduction is not None and usage is not None and reduction>=30 and usage>=80
-                   and len(tenants)==4 and all(m.get('requests',0)>0 and m.get('successful')==m.get('requests') and m.get('failed')==0 for m in tenants.values()))
-    costs=dict(milestone=decision(bool(cost_winners),'同一固定数据集完整请求及质量门槛满足，单位输出token成本降低≥10%，同窗AI Core均值提高≥10个百分点。'),
-               datasets=cost_details,qualifying_datasets=cost_winners,display_dataset=cost_selected,
-               final=decision(final_met,'四租户：单位输出token成本降低≥30%，B1利用率≥80%，四个租户均成功且无失败。'),
-               unit_cost_reduction_percent=str(cost) if cost is not None else None,
-               utilization_gain_pp=str(util) if util is not None else None,
-               four_tenant_cost_reduction_percent=str(reduction) if reduction is not None else None,
-               four_tenant_ai_core_mean_percent=str(usage) if usage is not None else None,
-               formula='C_百万token=10^6×P×k×T/(30×86400×N)；同费率同卡数降低率=100×(1-Q_B0/Q_B1)。')
+    costs = cost_decisions(fixed, pairs, context, audits, actual_cost)
     return {'4.1':compute,'4.2':speed,'4.3':context_decisions(context, audits),'4.4':costs}
 
 
@@ -311,7 +392,7 @@ def context_sources(folder, stored):
     return result
 
 
-def collect(root):
+def collect(root, actual_cost=None):
     from release_selection import bind
     saved = Path(root) / 'engine-selection.json'
     if saved.is_file():
@@ -326,7 +407,6 @@ def collect(root):
     fixed=inspect(root/'fixed-five')
     if fixed['plan']['datasets']!=list(DATASETS):
         raise ValueError('Full report requires all five frozen datasets')
-    attach_dataset_costs(fixed,root/'fixed-five')
     stored=json.loads((root/'context-tenant/paired-summary.json').read_text())
     arms=context_sources(root/'context-tenant',stored)
     identity=json.loads((arms['B1']/'source-admission.json').read_text())
@@ -381,7 +461,7 @@ def collect(root):
                 engine_release=fixed['plan']['engine_release'],
                 frozen_mods=[{k:m[k] for k in ('id','name','version')} for m in stack['enabled_mods']],
                 mod_catalog_sha256=hashlib.sha256(stack_path.read_bytes()).hexdigest(),
-                targets=targets(fixed,context,audits),workloads=workload_pairs(fixed),
+                targets=targets(fixed,context,audits,actual_cost),workloads=workload_pairs(fixed),
                 **({'execution_devices': {
                     'fixed_five': fixed['execution_devices'],
                     'context': context.get('device_change'),
@@ -411,25 +491,38 @@ def charts(data,out):
     fig.tight_layout();fig.savefig(out/'fixed-five.svg',metadata={'Date':None});fig.savefig(out/'fixed-five.png',dpi=160);plt.close(fig)
 
 
-def render(root,out):
-    data=collect(root);out=Path(out);out.mkdir(parents=True,exist_ok=False)
+def render(root, out, actual_cost=None):
+    data=collect(root, actual_cost);out=Path(out);out.mkdir(parents=True,exist_ok=False)
     charts(data,out)
-    (out/'summary.json').write_text(json.dumps(data,ensure_ascii=False,indent=2)+'\n')
+    (out/'summary.json').write_text(json.dumps(data,ensure_ascii=False,indent=2)+'\n', encoding='utf-8')
     esc=html.escape
-    rows=''.join('<tr><th>'+key+' '+LABELS[key]+'</th><td class="'+('yes' if value['milestone']['met'] else 'no')+'">'+value['milestone']['status']+'</td><td class="'+('yes' if value['final']['met'] else 'no')+'">'+value['final']['status']+'</td></tr>' for key,value in data['targets'].items())
-    details=''.join('<details><summary>'+key+' '+LABELS[key]+'：计算与判定详情</summary><pre>'+esc(json.dumps(value,ensure_ascii=False,indent=2))+'</pre></details>' for key,value in data['targets'].items())
+    def goal_cell(goal):
+        status = '待实际费用凭据' if goal.get('evidence_status') == 'missing' else goal['status']
+        style = 'yes' if goal['met'] else 'no'
+        return f'<td class="{style}">{esc(status)}</td>'
+
+    rows = ''.join(f'<tr><th>{key} {LABELS[key]}</th>{goal_cell(value["milestone"])}'
+                   f'{goal_cell(value["final"])}</tr>' for key, value in data['targets'].items())
+    details = ''.join(
+        f'<details><summary>{key} {LABELS[key]}：计算与判定详情</summary><pre>'
+        + esc(json.dumps({k: v for k, v in value.items() if k != 'same_rate_estimate'}, ensure_ascii=False, indent=2))
+        + '</pre></details>' for key, value in data['targets'].items())
+    estimates = data['targets']['4.4']['same_rate_estimate']
+    estimate_section = '<details><summary>4.4 同费率估算（参考）</summary><pre>' + esc(
+        json.dumps(estimates, ensure_ascii=False, indent=2)) + '</pre></details>'
     device_note = ''
     if data.get('execution_devices'):
         device_note = '<p>跨卡比较保留各自的物理设备。差值包含设备更换的影响。</p><details><summary>原始与当前设备映射</summary><pre>' + esc(json.dumps(data['execution_devices'], ensure_ascii=False, indent=2)) + '</pre></details>'
-    document='''<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>DeepLinkEngine B0/B1完整测试</title><style>body{font:16px system-ui;max-width:1100px;margin:40px auto;padding:0 20px;color:#17212b;background:#f8fafc}table{border-collapse:collapse;width:100%;background:white}th,td{padding:16px;border-bottom:1px solid #cbd5e1;text-align:left}.yes{color:#087443}.no{color:#b42318}details{background:white;padding:16px;margin:14px 0;border:1px solid #cbd5e1;border-radius:8px}summary{cursor:pointer}pre{white-space:pre-wrap;overflow-wrap:anywhere}img{width:100%;height:auto}a{color:#175cd3}</style><h1>DeepLinkEngine B0/B1 完整测试</h1><p>MMLU 200 · HLE 分层200 · Frontier 160 · SWE 64请求 · Terminal 48请求</p>'''+device_note+'''<table><tr><th>指标</th><th>里程碑</th><th>项目最终目标</th></tr>'''+rows+'''</table><details><summary>冻结引擎与 MOD 组合</summary><pre>'''+esc(json.dumps(dict(release=data.get('engine_release'),mods=data.get('frozen_mods',[])),ensure_ascii=False,indent=2))+'''</pre></details><h2>固定五项配对结果</h2><img src="fixed-five.svg" alt="五数据集B0/B1吞吐和时延"><p>'''+esc(data['scoring'])+'''</p>'''+details+'''<details><summary>有效算力参考计算公式</summary><p>C本轮下界=ΣF本轮下界/(2×ΣT本轮×10¹²)；C参考上界=ΣF原参考上界/(2×ΣT原参考下界×10¹²)；η下界=100×C本轮下界/C参考上界。</p><p>'''+esc(data['reference_method'])+'''</p></details><details><summary>原始报告、采样与复算记录</summary><p><a href="../fixed-five-report/report.html">五数据集与参考报告</a> · <a href="../context-tenant/paired-report/report.html">上下文与四租户报告</a> · <a href="summary.json">本页判定与原件哈希</a></p><pre>'''+esc(json.dumps(data['context_audit'],ensure_ascii=False,indent=2))+'''</pre></details></html>'''
-    (out/'report.html').write_text(document)
+    document='''<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>DeepLinkEngine B0/B1完整测试</title><style>body{font:16px system-ui;max-width:1100px;margin:40px auto;padding:0 20px;color:#17212b;background:#f8fafc}table{border-collapse:collapse;width:100%;background:white}th,td{padding:16px;border-bottom:1px solid #cbd5e1;text-align:left}.yes{color:#087443}.no{color:#b42318}details{background:white;padding:16px;margin:14px 0;border:1px solid #cbd5e1;border-radius:8px}summary{cursor:pointer}pre{white-space:pre-wrap;overflow-wrap:anywhere}img{width:100%;height:auto}a{color:#175cd3}</style><h1>DeepLinkEngine B0/B1 完整测试</h1><p>MMLU 200 · HLE 分层200 · Frontier 160 · SWE 64请求 · Terminal 48请求</p>'''+device_note+'''<table><tr><th>指标</th><th>里程碑</th><th>项目最终目标</th></tr>'''+rows+'''</table><details><summary>冻结引擎与 MOD 组合</summary><pre>'''+esc(json.dumps(dict(release=data.get('engine_release'),mods=data.get('frozen_mods',[])),ensure_ascii=False,indent=2))+'''</pre></details><h2>固定五项配对结果</h2><img src="fixed-five.svg" alt="五数据集B0/B1吞吐和时延"><p>'''+esc(data['scoring'])+'''</p>'''+details+estimate_section+'''<details><summary>有效算力参考计算公式</summary><p>C本轮下界=ΣF本轮下界/(2×ΣT本轮×10¹²)；C参考上界=ΣF原参考上界/(2×ΣT原参考下界×10¹²)；η下界=100×C本轮下界/C参考上界。</p><p>'''+esc(data['reference_method'])+'''</p></details><details><summary>原始报告、采样与复算记录</summary><p><a href="../fixed-five-report/report.html">五数据集与参考报告</a> · <a href="../context-tenant/paired-report/report.html">上下文与四租户报告</a> · <a href="summary.json">本页判定与原件哈希</a></p><pre>'''+esc(json.dumps(data['context_audit'],ensure_ascii=False,indent=2))+'''</pre></details></html>'''
+    (out/'report.html').write_text(document, encoding='utf-8')
     return data
 
 
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--run',required=True,type=Path);parser.add_argument('--out',required=True,type=Path)
-    args=parser.parse_args();data=render(args.run,args.out)
+    parser.add_argument('--actual-cost', type=Path, help='V2 actual card cost manifest and expense evidence')
+    args=parser.parse_args();data=render(args.run,args.out,args.actual_cost)
     print('FULL_ACCEPTANCE_REPORT',args.out/'report.html',flush=True)
     return 0 if data['execution_complete'] else 2
 
