@@ -22,4 +22,32 @@ python run_all.py --official-baselines --config evaluation.json
 
 每个版本保存独立 `campaign.json`、原始输出、日志、`report.json` 和 `report.html`。本入口及其 CPU 检查不构成完整实机验收或独立第三方认证。
 
+原生计时后，入口自动运行计时之外的独立算术观察，核对实际源码、加载模型和缓存容量，分别重建三次本轮 F/T，再按公开固定来源复算原完整参考分母。已有封存原生计时只需续补时，使用新的输出目录：
+
+```sh
+python run_all.py --official-baselines --config evaluation.json --complete-ft 原版本目录 --source-version-seal-sha256 原checksums摘要
+```
+
+原三次计时和数据集结果保持不动。已有完整独立观察可加 `--reuse-ft-companion 观察目录 --companion-seal-sha256 观察checksums摘要`，仅做 CPU 审核；结果中的第三方独立见证状态仍单独保留。
+
 连续负载已完成、随后 MMLU 在模型启动前失败时，可选择新输出目录和单个版本，增加 `--reuse-completed-continuous /原输出/版本/continuous`。入口核验完整封存、官方镜像、模型、输入、物理卡映射及源码适用性；原连续结果保留原时间，不重测或改写。已启动模型的后续失败不适用此恢复入口。
+
+仅重建已封存的 0.23 C8 报告，在普通 CPU 机器执行：
+
+```sh
+python run_all.py --official-baselines --report-only --config report-only.json
+```
+
+配置为 `{"source":"原输出/0.23.0","source_sha256":"原 checksums.json 的 SHA256","out":"新的报告目录"}`。输出包含 4K/16K 正式阶段、单列预热、网站观测 JSON 和 `portable-c8.tar.gz`。外部机器将 `source` 换为该归档、`source_sha256` 换为归档摘要，并填写 `original_version_seal_sha256` 为原版本封存摘要，使用同一命令复算，无需模型、SDK 或 NPU。归档中的源码仅作来源核验，不执行。
+
+目录输入仍核验原版本全部封存文件。便携包仅附完整 C8、父轮身份及相关源码；未运行的真实上下文输入不分发，其原封存摘要保留于清单。便携复算核验完整 C8 闭包，不声称已复验未附文件的全部字节。
+
+此模式保留原失败、未运行阶段和原时钟；命令成功只表示 CPU 重建完成，不代表全套通过。F、效率和第三方认证仍为空或未认证。
+
+已有完整阶段报告只需派生新报告时，使用同一命令，配置显式选择：
+
+```json
+{"kind":"sealed-report-projection","source":"已结束的版本目录","report_sha256":"原report.json的SHA256","original_version_seal_sha256":"原checksums.json的SHA256","out":"新的CPU报告目录"}
+```
+
+该分支仅验证报告、campaign及所消费的小元数据，保留原状态、原数值和未测项，不重算全部SSE或验证未附payload。输入原件与旧曲线不改，输出另存选中原件、来源记录及未就绪的网站预览；不签新F/T或第三方认证。绘图先探测当前Matplotlib 3.10.8，缺失或损坏时自动修复独立CPU缓存环境，支持标准`PIP_INDEX_URL`/`PIP_FIND_LINKS`下载源，环境状态写入`plot-environment.json`。默认缓存在输出父目录的独立目录，避免HOME/XDG空间影响；`plot_cache`仍可显式指定报告目录外的缓存。仅投影JSON时可设`"plots":false`。最后发布的`projection-execution.json`绑定最终封存摘要，作为完成标记。原C8严格复算仍使用前述配置。

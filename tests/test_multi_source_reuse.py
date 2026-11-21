@@ -46,6 +46,33 @@ def test_relocated_b0_requires_equal_full_pinned_maps_and_preserves_original_pat
         with pytest.raises(ValueError):module['verify'](dict(observed,files={'altered':True}),tmp_path)
 
 
+def test_sealed_mmlu_location_can_be_rechecked_after_temporary_sdk_expires(tmp_path):
+    import hashlib
+    _, result = bridge()
+    helper = {}
+    exec(result["scripts/baseline_relocation.py"], helper)
+    source_map = {"runtime/file.py": {"sha256": "a" * 64, "bytes": 12}}
+    pin = hashlib.sha256(json.dumps(source_map, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+    observed = dict(deployment="/original", source_map_sha256=pin, files=source_map)
+    sdk = tmp_path / "temporary-sdk"
+    sdk.mkdir()
+    inventory = sdk / "sdk-files.json"
+    inventory.write_text(json.dumps(source_map))
+    with patch("baseline_admission.PINNED_SOURCE_MAP_SHA256", pin):
+        proof = helper["verify"](observed, sdk)
+        inventory.unlink()
+        sdk.rmdir()
+        with pytest.raises(FileNotFoundError):
+            helper["verify"](observed, sdk)
+        assert helper["verify"](observed, sdk, prior_binding=proof) == proof
+        with pytest.raises(FileNotFoundError):
+            helper["verify"](observed, sdk, prior_binding=dict(proof, observed_deployment="/other"))
+        sdk.mkdir()
+        inventory.write_text("{}")
+        with pytest.raises(ValueError, match="inventory differs"):
+            helper["verify"](observed, sdk, prior_binding=proof)
+
+
 def existing_runtime(tmp_path):
     source=tmp_path/'old/installation';source.mkdir(parents=True)
     frozen=dict(release='r9',version='9',archives={'sdk':{'sha256':'a'*64,'bytes':10}},runtime_files=100)
@@ -89,21 +116,23 @@ def test_new_root_forwards_all_explicit_sources_and_retains_full_scope():
         baseline=case.root/'mmlu-original200/B0'
         context=case.root/'context-original/B0'
         compute=case.root/'native-original/B0'
+        observation=case.root/'sealed-http-observation'
         def execute(argv,**kwargs):
             return case.execute([*argv,'run'] if '--reuse-completed-campaign' in argv else argv,**kwargs)
         with patch.object(workflow,'completed_run_source',return_value=dict(root=str(source),completed_stages=['continuous-B1'])),patch('release_selection.active',return_value=dict(version='9',client=None,engine_profile='r9')),patch('release_selection.save'),patch('one_click.configuration_arguments',return_value=['--datasets','mmlu,hle,frontier,swe,terminal']),patch('one_click.verify_kit'),patch('child_runner.run_stage',side_effect=execute),contextlib.redirect_stdout(io.StringIO()):
-            assert workflow.run(case.data,reuse_completed_run=source,reuse_completed_campaigns=aux,reuse_mmlu_baseline_arm=baseline,reuse_context_baseline_arm=context,reuse_compute_baseline_arm=compute)==0
+            assert workflow.run(case.data,reuse_completed_run=source,reuse_completed_campaigns=aux,reuse_mmlu_baseline_arm=baseline,reuse_context_baseline_arm=context,reuse_compute_baseline_arm=compute,reuse_compute_observation=observation)==0
         argv=next(c for c in case.calls if '--reuse-completed-campaign' in c)
         assert [argv[i+1] for i,x in enumerate(argv) if x=='--reuse-completed-campaign']==[str(source/'fixed-five'),*[str(p) for p in aux]]
         assert argv[argv.index('--reuse-mmlu-baseline-arm')+1]==str(baseline)
         assert argv[argv.index('--reference-baseline-source')+1]==str(compute)
+        assert argv[argv.index('--reference-observation-source')+1]==str(observation)
         assert argv[argv.index('--datasets')+1]=='mmlu,hle,frontier,swe,terminal'
         supplement=next(c for c in case.calls if '--context-tenant-only' in c)
         assert supplement[supplement.index('--reuse-b0')+1]==str(context)
         install=next(c for c in case.calls if len(c)>1 and Path(c[1]).name=='runtime_storage.py')
         assert install[install.index('--reuse-from')+1]==str(source/'installation')
         result=json.loads((Path(case.data['out'])/'results.json').read_text())
-        assert result['reuse_selection']==dict(campaigns=[str(p) for p in aux],mmlu_baseline_arm=str(baseline),context_baseline_arm=str(context),compute_baseline_arm=str(compute))
+        assert result['reuse_selection']==dict(campaigns=[str(p) for p in aux],mmlu_baseline_arm=str(baseline),context_baseline_arm=str(context),compute_baseline_arm=str(compute),compute_observation=str(observation))
     finally:case.doCleanups()
 
 

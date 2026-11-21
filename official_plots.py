@@ -5,6 +5,25 @@ from pathlib import Path
 import sys
 
 
+def measured_profile(result, key):
+    """Select existing measurements, retaining their original completion status.
+
+    The campaign admits reused sources before reporting. A reused measurement
+    also needs its original completed, quiescent arm receipt; plotting does not
+    re-audit raw payloads or turn a reuse into a new measurement.
+    """
+    phase = result['phases'].get(key, {})
+    if phase.get('status') == 'reused':
+        receipt = phase.get('receipt.json', {}).get('value', {})
+        if (receipt.get('status') != 'completed' or receipt.get('completed') is not True
+                or receipt.get('quiescent') is not True):
+            return None
+    elif phase.get('status') != 'completed':
+        return None
+    value = result['metrics'].get(key, {}).get('output_tokens_per_second')
+    return value if isinstance(value, (int, float)) and math.isfinite(value) and value > 0 else None
+
+
 def main():
     import matplotlib
     if matplotlib.__version__ != '3.10.8':
@@ -15,12 +34,11 @@ def main():
     result = json.loads(path.read_bytes())
     metrics = result['metrics']
     labels = [('mmlu', 'MMLU 200'), ('hle', 'HLE 200'), ('frontier', 'Frontier 160'),
-              ('swe', 'SWE 64'), ('terminal', 'Terminal 48')]
+              ('swe', 'SWE trace64'), ('terminal', 'Terminal trace48')]
     names, values = [], []
     for key, label in labels:
-        value = metrics.get(key, {}).get('output_tokens_per_second')
-        status = result['phases'].get(key, {}).get('status')
-        if status == 'completed' and isinstance(value, (int, float)) and math.isfinite(value) and value > 0:
+        value = measured_profile(result, key)
+        if value is not None:
             names.append(label)
             values.append(value)
     if values:

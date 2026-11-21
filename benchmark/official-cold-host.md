@@ -25,7 +25,7 @@ python3 run_all.py --official-baselines --config prepare-images.json --prepare-e
 在普通引擎配置的 `environment.official_sdk` 指向已恢复的 **0.23** SDK，固定 `engine_version` 为公共裁判/协议版本，然后只准备 SDK 和题单：
 
 ```sh
-python3 run_all.py --config prepare-protocol.json --prepare-protocol-only
+python3 run_all.py --config prepare-protocol.json --prepare-official-protocol-only
 ```
 
 此入口在 `prepare-fixed-five` 后退出；不启动 B0、B1、模型服务或正式评测。结果为 `prepared`，不是验收完成。其 `results.json` 给出 `protocol_run`、`protocol_deployment`、`protocol_python`，填入官方版本配置后执行原有 `--official-baselines` 完整入口。

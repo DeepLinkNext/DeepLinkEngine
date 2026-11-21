@@ -41,7 +41,7 @@ def configuration(path, *, download_only=False):
     if not isinstance(cards, list) or len(cards) != 2 or any(type(x) is not int or x < 0 for x in cards) or cards[0] == cards[1]:
         raise ValueError('Two distinct physical NPU indices are required')
     versions = value['versions']
-    if not isinstance(versions, list) or not versions or any(v not in ('0.23.0', '0.28.0', '0.30.0') for v in versions) or len(set(versions)) != len(versions):
+    if not isinstance(versions, list) or not versions or any(v not in ('0.23.0', '0.28.0', '0.28.0rc1-source', '0.30.0') for v in versions) or len(set(versions)) != len(versions):
         raise ValueError('Select unique explicitly supported upstream versions')
     if not download_only and not Path(value['model']).is_dir() and 'model_manifest' not in value:
         raise ValueError('Model directory does not exist')
@@ -54,6 +54,14 @@ def main(arguments=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--config', type=Path, required=True)
     parser.add_argument('--prepare-environment', action='store_true')
+    parser.add_argument('--report-only', action='store_true',
+                        help='CPU-only replay of closed C8 originals or explicit sealed-report projection')
+    parser.add_argument('--complete-ft', type=Path,
+                        help='Append only the independent arithmetic companion and CPU qualification to a closed version, in a new output')
+    parser.add_argument('--source-version-seal-sha256')
+    parser.add_argument('--reuse-ft-companion', type=Path,
+                        help='CPU re-audit a closed independent companion; no model requests')
+    parser.add_argument('--companion-seal-sha256')
     parser.add_argument('--download-only', action='store_true', help='Only download pinned official OCI artifacts; no extraction, Python repair or model execution')
     parser.add_argument('--download-protocol-dependencies', action='store_true', help='With download-only, fetch one digest-pinned common protocol asset, without installing or running it')
     parser.add_argument('--artifact-digest', help='Download one digest already present in the selected official locks')
@@ -66,8 +74,23 @@ def main(arguments=None):
     if (args.download_only and (args.prepare_environment or args.reuse_completed_continuous)) or ((args.artifact_digest or args.download_transport != 'auto') and not args.download_only):
         parser.error('Artifact selection requires download-only, separate from environment preparation')
     try:
+        if args.report_only:
+            if args.prepare_environment or args.reuse_completed_continuous or args.complete_ft or args.reuse_ft_companion or args.download_only or args.artifact_digest or args.download_protocol_dependencies:
+                raise ValueError('Report-only cannot prepare or resume a model campaign')
+            from official_rebuild import run
+            return run(args.config)
         protocol_preparation = None
         config = configuration(args.config, download_only=args.download_only)
+        if (args.source_version_seal_sha256 or args.reuse_ft_companion or args.companion_seal_sha256) and not args.complete_ft:
+            raise ValueError('F/T continuation options require --complete-ft')
+        if args.complete_ft:
+            if args.prepare_environment or args.reuse_completed_continuous or args.download_only or len(config['versions']) != 1:
+                raise ValueError('F/T completion requires one explicit closed version and a new output')
+            if not args.reuse_ft_companion and (platform.system() != 'Linux' or platform.machine() != 'aarch64'):
+                raise ValueError('Official Ascend F/T completion requires Linux aarch64')
+            from official_ft import continue_closed
+            return continue_closed(config, args.complete_ft, args.source_version_seal_sha256,
+                companion_source=args.reuse_ft_companion, companion_seal=args.companion_seal_sha256)
         if args.download_only:
             if args.download_protocol_dependencies:
                 from official_protocol_download import run

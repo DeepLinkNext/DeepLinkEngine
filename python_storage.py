@@ -95,7 +95,9 @@ def copy_verified(source,target):
 
 def ensure(managed, *, allow_current=False):
     managed=canonical(managed)
-    if filesystem(managed.parent) not in ('nfs','nfs4','cifs'):
+    # A restart can remount the same persistent workspace as a local filesystem.
+    # Existing managed aliases retain their recorded owner and original hashes.
+    if filesystem(managed.parent) not in ('nfs','nfs4','cifs') and not marker(managed).is_file():
         if managed.is_symlink():raise ValueError('Unmanaged private Python symlink')
         return managed
     if not os.path.lexists(managed):

@@ -27,6 +27,44 @@ def filesystem(path):
 def storage_target(logical, frozen):
     logical = Path(os.path.abspath(Path(logical).expanduser()))
     logical = logical.parent.resolve() / logical.name
+    # A persisted managed alias can outlive both /tmp and its old NFS mount.
+    # Reuse its exact owned target, including aliases of an earlier installation.
+    info = marker(logical)
+    if info.is_file():
+        saved = json.loads(info.read_text())
+        if (saved.get('schema') != 'deeplinkengine-runtime-storage/v1'
+                or saved.get('logical') != str(logical) or saved.get('verified') is not True
+                or saved.get('python') != sys.executable
+                or saved.get('package_version') != frozen['version']
+                or saved.get('release') != frozen['release']
+                or saved.get('archives') != frozen['archives']):
+            raise ValueError('Managed runtime storage identity differs')
+        target = Path(saved['physical'])
+        if target == logical and not logical.is_symlink():
+            return target
+        origin = str(logical)
+        owner = saved
+        seen = {origin}
+        while owner.get('reused_from'):
+            origin = owner['reused_from']
+            if not isinstance(origin, str) or not Path(origin).is_absolute() or origin in seen or len(seen) >= 64:
+                raise ValueError('Managed runtime storage reuse chain differs')
+            seen.add(origin)
+            previous = json.loads(marker(Path(origin)).read_text())
+            if (previous.get('logical') != origin or previous.get('physical') != str(target)
+                    or any(previous.get(key) != saved.get(key) for key in (
+                        'schema', 'verified', 'python', 'package_version', 'release', 'archives'))):
+                raise ValueError('Managed runtime storage reuse chain identity differs')
+            owner = previous
+        key = hashlib.sha256(json.dumps(dict(logical=origin, python=sys.executable,
+            version=frozen['version'], archives=frozen['archives']), sort_keys=True).encode()).hexdigest()[:20]
+        if (not target.is_absolute() or target.name != 'installation'
+                or target.parent.name != key
+                or target.parent.parent.name != 'deeplinkengine-runtime-'+str(os.getuid())
+                or target.parent.parent.is_symlink() or target.parent.is_symlink()):
+            raise ValueError('Managed runtime storage target differs')
+        target.parent.mkdir(parents=True, exist_ok=True)
+        return target
     if filesystem(logical.parent) not in ('nfs','nfs4','cifs'):
         return logical
     explicit = os.environ.get('DEEPLINKENGINE_RUNTIME_CACHE')

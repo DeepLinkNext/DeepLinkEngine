@@ -66,8 +66,19 @@ jobs:
       - run: python -B tests/test_official_baselines.py
       - run: python -B tests/test_official_kernel_preparation.py
       - run: python -B tests/test_official_inventory.py
+      - run: python -B -m pytest -q tests/test_managed_shutdown.py
+      - run: python -B tests/test_official_ft.py
+      - run: python -B tests/test_official_ft_candidate.py
       - run: python -B tests/test_official_opp_environment.py
       - run: python -B tests/test_official_phase_recovery.py
+      - run: python -B tests/test_official_judge_endpoint.py
+      - run: python -B tests/test_official_rebuild.py
+      - run: python -B tests/test_official_plots.py
+      - name: Download pinned CPU plotting wheels for the isolated repair test
+        run: python -m pip download --dest "${{ runner.temp }}/deeplink-plot-wheels" -r benchmark/one-click-kit/scripts/requirements-report.txt
+      - run: python -B tests/test_official_projection.py
+        env:
+          DEEPLINK_PLOT_TEST_WHEELS: ${{ runner.temp }}/deeplink-plot-wheels
       - run: python -B tests/test_model_restore.py
       - run: python -B tests/test_model_receiver.py
       - run: python -B tests/test_official_range_download.py
@@ -81,17 +92,17 @@ jobs:
       - run: python -B tests/test_transport_trust.py
       - run: python -B tests/test_pip_transport.py
       - run: python -B tests/test_triton_backend_probe.py
-      - run: python -B tests/test_official_judge_endpoint.py
       - run: python -B tests/test_official_sdk_state.py
       - run: python -B tests/test_official_sdk_bytecode.py
       - run: python -B tests/test_run_all.py
+      - run: python -B -m pytest -q tests/test_interrupted_root_recovery.py tests/test_device_reuse.py
       - run: python -B tests/test_environment_setup.py
       - run: python -B tests/test_dependency_resume.py
       - run: python -B tests/test_standalone.py
       - name: Verify early API logging against the pinned real upstream logger
         run: python -B tests/test_service_logging.py
       - name: Verify stable selection, runtime admission and preserved assessment fixes
-        run: python -B -m pytest -q tests/test_release_selection.py tests/test_versioned_reuse.py tests/test_multi_source_reuse.py tests/test_context_baseline_reuse.py tests/test_reference_baseline_reuse.py tests/test_warmup_memory_recovery.py tests/test_campaign_pair_weights.py tests/test_b0_run_policy.py tests/test_context_report_sources.py
+        run: python -B -m pytest -q tests/test_release_selection.py tests/test_versioned_reuse.py tests/test_multi_source_reuse.py tests/test_context_baseline_reuse.py tests/test_reference_baseline_reuse.py tests/test_warmup_memory_recovery.py tests/test_campaign_pair_weights.py tests/test_b0_run_policy.py tests/test_context_report_sources.py tests/test_startup_raw_headroom.py
       - run: python -B tests/test_runtime_storage.py
       - run: python -B tests/test_python_storage.py
       - name: Verify full acceptance decisions and real CPU report rendering
