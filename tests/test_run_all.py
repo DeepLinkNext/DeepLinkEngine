@@ -83,13 +83,13 @@ class WorkflowTests(unittest.TestCase):
         self.assertLess(names.index("verify-installed-tools"), names.index("run-context-tenant"))
 
     def test_plot_only_failure_continues_to_cpu_report_without_inference_retry(self):
-        from full_report import PLOT_FAILURE
         def execute(args, **kwargs):
             result = self.execute(args, **kwargs)
             if '--context-tenant-only' in args:
-                self.write('context-tenant/execution.json', dict(status='failed', failure=PLOT_FAILURE))
+                self.write('context-tenant/execution.json', dict(status='failed', failure='alternate rendering error',
+                           stages=[dict(role=r, status='completed', returncode=0) for r in ('B0', 'B1')]))
                 (self.root/'result/context-tenant/paired-report/report.html').unlink()
-                return types.SimpleNamespace(returncode=2)
+                return types.SimpleNamespace(returncode=7)
             return result
 
         with patch('full_report.context_sources') as admit:
@@ -99,8 +99,8 @@ class WorkflowTests(unittest.TestCase):
         self.assertEqual(receipt['status'], 'completed')
         rows = [row for row in receipt['stages'] if row['name'] == 'run-context-tenant']
         self.assertEqual(len(rows), 1)
-        self.assertEqual(rows[0]['returncode'], 2)
-        self.assertEqual(rows[0]['status'], 'sealed_with_plot_failure')
+        self.assertEqual(rows[0]['returncode'], 7)
+        self.assertEqual(rows[0]['status'], 'sealed_with_report_failure')
         self.assertEqual(receipt['reports']['context_tenant'], 'full-report/report.html#context-results')
 
     def test_completed_measurements_keep_report_when_actual_cost_is_missing(self):
@@ -121,7 +121,9 @@ class WorkflowTests(unittest.TestCase):
 
     def test_report_only_loads_fee_config_without_model_or_device_fields(self):
         config = self.root / 'evaluation.json'
-        config.write_text(json.dumps(dict(out='result', cache='cache', actual_cost='fees/configured.json')))
+        config.write_text(json.dumps(dict(out='result', cache='cache', actual_cost='fees/configured.json',
+                                          physical_devices='old-unavailable-device-schema',
+                                          environment={'future_vendor_option': None})))
         fees = self.root / 'fees'
         fees.mkdir()
         configured, override = fees / 'configured.json', fees / 'override with spaces.json'
@@ -163,6 +165,55 @@ class WorkflowTests(unittest.TestCase):
             self.assertEqual(workflow.main(), 0)
         self.assertEqual(run.call_args.kwargs['actual_cost'], expense)
         self.assertNotIn('actual_cost', run.call_args.args[0])
+
+    def test_recorded_installation_version_drives_recovery_without_selection_file(self):
+        out = self.root / 'old'
+        (out/'installation').mkdir(parents=True)
+        installed = out/'installation/installation.json'
+        installed.write_text(json.dumps(dict(package_version='9.42', release='recorded-B1')))
+        data = dict(self.data, out=str(out))
+        with patch('release_selection.select', return_value={'version':'9.42','release':'recorded-B1'}) as select:
+            self.assertEqual(workflow.select_run_engine(data, recovery=True)['version'], '9.42')
+        select.assert_called_once_with(data['cache'], version='9.42')
+        installed.write_text('{}')
+        with patch('release_selection.select') as select, self.assertRaisesRegex(ValueError, 'missing from preserved'):
+            workflow.select_run_engine(data, recovery=True)
+        select.assert_not_called()
+
+    def test_changed_engine_can_choose_b0_from_a_mixed_sealed_campaign_with_new_cache(self):
+        source = self.root/'previous'
+        source.mkdir()
+        before = dict(self.data, out=str(source), cache=str(self.root/'historical-cache'))
+        (source/'results.json').write_text(json.dumps(dict(configuration=before,
+                engine_selection=dict(version='1'))))
+        names = ('continuous-B0', 'continuous-B1', 'mmlu-pair', 'hle-judge-B0')
+        campaign = dict(status='completed', stages=[dict(name=n, status='completed') for n in names])
+        with patch('recovery_source.stopped'), patch('reuse_campaign.source',
+                return_value=(None, {'engine_release':'B1-old'}, campaign, {})), \
+             patch('reuse_campaign.audit_stage') as audit, \
+             patch('release_selection.active', return_value={'release':'B1-new','version':'2','client':None}):
+            result = workflow.completed_run_source(self.data, source)
+        self.assertEqual(result['completed_stages'], ['continuous-B0', 'mmlu-pair'])
+        audit.assert_called_once_with(source/'fixed-five', 'continuous-B0')
+        self.assertNotIn('compute_resume_source', result)
+
+    def test_continuation_verifies_historical_interpreter_against_source_cache(self):
+        source = self.root/'previous'
+        install = source/'installation'
+        install.mkdir(parents=True)
+        cache = self.root/'historical-cache'
+        python = cache/'environment/bin/python'
+        python.parent.mkdir(parents=True)
+        (python.parent.parent/'pyvenv.cfg').touch()
+        (install/'installation.json').write_text(json.dumps(dict(python=str(python))))
+        with patch('python_storage.admitted', return_value=True) as admitted, \
+             patch('python_storage.ensure'), patch('environment_setup.cann_environment', return_value=({}, None)), \
+             patch('environment_setup.probe', return_value={}), patch('environment_setup.compatible_python', return_value=True), \
+             patch('environment_setup.differences', return_value=[]), patch('environment_setup.vendor_integrity', return_value={'verified':True}), \
+             patch('environment_setup.runtime_imports'), patch.object(sys, 'executable', str(python)):
+            self.assertIsNone(workflow.recovery_environment(self.data, source=source, source_cache=str(cache)))
+        admitted.assert_called_once_with(python, str(cache))
+        self.assertFalse((source/'environment-recovery.json').exists())
 
     def test_sealed_stage_reuse_is_forwarded_and_failure_originals_are_untouched(self):
         self.data["rerun_b0"] = False

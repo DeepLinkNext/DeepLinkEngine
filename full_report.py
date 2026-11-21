@@ -73,7 +73,6 @@ HAZARD=re.compile(r'No space left on device|Disk quota exceeded|out of memory|Ou
 
 
 API_LOG = re.compile(r'^\(APIServer pid=(\d+)\) (?:INFO|ERROR) (\d\d-\d\d \d\d:\d\d:\d\d) ')
-PLOT_FAILURE = 'RuntimeError: Paired plotting failed; completed arm evidence retained for CPU-only recomputation'
 
 
 def recorded_shutdown_traces(root, cleanup, lines):
@@ -115,8 +114,12 @@ def recorded_shutdown_traces(root, cleanup, lines):
     return notices
 
 
-def context_plot_failure(execution):
-    return execution.get('status') == 'failed' and execution.get('failure') == PLOT_FAILURE
+def completed_context_after_error(execution, pair):
+    stages = execution.get('stages', [])
+    return (execution.get('status') == 'failed' and pair.get('execution_complete') is True
+            and [s.get('role') for s in stages] == ['B0', 'B1']
+            and all(s.get('status') == 'completed' and type(s.get('returncode')) is int
+                    and s['returncode'] == 0 for s in stages))
 
 
 
@@ -425,7 +428,7 @@ def context_sources(folder, stored):
     folder = Path(folder).resolve()
     execution = json.loads((folder / 'execution.json').read_text())
     rows = execution.get('stages', [])
-    if execution.get('status') != 'completed' and not context_plot_failure(execution):
+    if execution.get('status') != 'completed' and not completed_context_after_error(execution, stored):
         raise ValueError('Context execution failed before the plotting boundary')
     if (execution.get('schema') != 'vllm-hust-acceptance-supplement-execution/v1'
             or stored.get('schema') != 'vllm-hust-paired-context-tenant-supplement/v1'
@@ -582,6 +585,17 @@ def workload_source_table(sources):
 
 
 
+def measured_stack(directory, release):
+    matches = []
+    for path in sorted(directory.glob('active-stack-*.json')):
+        stack = json.loads(path.read_bytes())
+        if stack.get('release') == release:
+            matches.append((path, stack))
+    if len(matches) != 1:
+        raise ValueError('Expected exactly one MOD catalog for the measured release: ' + release)
+    return matches[0]
+
+
 def collect(root, actual_cost=None):
     from release_selection import bind
     saved = Path(root) / 'engine-selection.json'
@@ -623,8 +637,7 @@ def collect(root, actual_cost=None):
     if stored!=context:
         raise ValueError('Context summary differs from independently re-audited originals')
     apply_v2_context_tails(context, arms)
-    stack_path=kit_path()/'mods'/('active-stack-'+fixed['plan']['engine_release'].rsplit('-',1)[1]+'.json')
-    stack=json.loads(stack_path.read_text())
+    stack_path, stack = measured_stack(kit_path() / 'mods', fixed['plan']['engine_release'])
     if 'enabled_mods' not in stack:
         registry=json.loads((kit_path()/'mods/registry.json').read_text())
         rows=registry['entries']

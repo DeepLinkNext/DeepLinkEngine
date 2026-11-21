@@ -47,7 +47,7 @@ def test_campaign_reuse_binds_both_mappings_to_their_plans(tmp_path):
     assert proof == {"original": original, "current": current}
 
 
-def test_full_entry_only_waives_the_explicit_physical_device_difference(tmp_path):
+def test_full_entry_admits_new_cache_but_still_requires_device_admission(tmp_path):
     source = tmp_path / "source"
     source.mkdir()
     previous = dict(model="/model", cache="/cache", physical_devices=[1, 6], out=str(source))
@@ -61,8 +61,10 @@ def test_full_entry_only_waives_the_explicit_physical_device_difference(tmp_path
     ), patch("release_selection.active", return_value=None):
         result = run_all.completed_run_source(current, source)
         assert result["physical_device_change"] == dict(original=[1, 6], current=[0, 3])
-        with pytest.raises(ValueError, match="configuration differs: cache"):
-            run_all.completed_run_source(dict(current, cache="/other"), source)
+        relocated = run_all.completed_run_source(dict(current, cache="/other"), source)
+        assert relocated["physical_device_change"] == result["physical_device_change"]
+        with pytest.raises(ValueError, match="configuration differs: model"):
+            run_all.completed_run_source(dict(current, model="/other-model"), source)
     assert json.loads(ledger.read_bytes())["configuration"] == previous
 
 

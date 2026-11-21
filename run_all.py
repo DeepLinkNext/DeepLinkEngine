@@ -19,9 +19,11 @@ FIELDS = PATH_FIELDS | {"physical_devices", "devices", "environment", "engine_ve
 
 def configuration(path, *, allow_existing=False, report_only=False):
     path = Path(path).resolve()
-    data = json.loads(path.read_text())
-    if not isinstance(data, dict) or set(data) - FIELDS:
+    data = json.loads(path.read_bytes())
+    if not isinstance(data, dict) or (not report_only and set(data) - FIELDS):
         raise ValueError("Use the fields in benchmark/run-all.example.json")
+    if report_only:
+        data = {k: data[k] for k in ("cache", "out", "actual_cost") if k in data}
     required = ("cache", "out") if report_only else ("model", "physical_devices", "cache", "out")
     for name in required:
         if name not in data:
@@ -135,10 +137,10 @@ def before_model_resume(data, *, allow_model_startup=False):
     return prior
 
 
-def recovery_environment(data):
+def recovery_environment(data, *, source=None, source_cache=None):
     """Reuse the installation's private interpreter after fresh version/file probes."""
     from environment_setup import cann_environment, probe, differences, compatible_python, vendor_integrity, runtime_imports
-    out = Path(data["out"])
+    out = Path(source or data["out"])
     if (out / "installation/installation.json").is_file():
         info = json.loads((out / "installation/installation.json").read_text())
         python = Path(info["python"]).absolute()
@@ -146,7 +148,7 @@ def recovery_environment(data):
         info = json.loads((out / "environment.json").read_text())
         python = Path(info["after"]["python"]).absolute()
     from python_storage import admitted, ensure as restore_python
-    if not admitted(python, data["cache"]):
+    if not admitted(python, source_cache or data["cache"]):
         raise ValueError("Recovery requires the installation's private interpreter")
     restore_python(python.parent.parent)
     if not (python.parent.parent / "pyvenv.cfg").is_file():
@@ -163,8 +165,9 @@ def recovery_environment(data):
     if str(python) != sys.executable:
         return dict(python=str(python), env=env)
     imports = runtime_imports(python, lock["required_python_packages"], env)
-    (Path(data["out"]) / "environment-recovery.json").write_text(json.dumps(
-        dict(verified=True, observed=observed, vendor_integrity=integrity, runtime_imports=imports), indent=2) + "\n")
+    if source is None:
+        (out / "environment-recovery.json").write_text(json.dumps(
+            dict(verified=True, observed=observed, vendor_integrity=integrity, runtime_imports=imports), indent=2) + "\n")
     os.environ.update(env)
     return None
 
@@ -191,15 +194,15 @@ def completed_evidence(out):
     campaign = json.loads((out / "fixed-five/campaign.json").read_text())
     execution = json.loads((out / "context-tenant/execution.json").read_text())
     pair = json.loads((out / "context-tenant/paired-summary.json").read_text())
-    from full_report import context_plot_failure, context_sources
-    plot_failed = context_plot_failure(execution)
+    from full_report import completed_context_after_error, context_sources
+    report_failed = completed_context_after_error(execution, pair)
     phases = [row["phase"] for row in pair["comparison"]]
     if (campaign["status"] != "completed" or campaign["selected_execution_complete"] is not True
-        or (execution["status"] != "completed" and not plot_failed) or pair["execution_complete"] is not True
+        or (execution["status"] != "completed" and not report_failed) or pair["execution_complete"] is not True
         or phases != ["4096-formal", "16384-formal", "32768-formal", "multi-tenant-formal"]):
         raise ValueError("Campaign evidence does not show all planned tests completed")
     reports = {"fixed_five": "fixed-five-report/report.html"}
-    if plot_failed:
+    if report_failed:
         context_sources(out / "context-tenant", pair)
     else:
         reports["context_tenant"] = "context-tenant/paired-report/report.html"
@@ -258,7 +261,7 @@ def completed_run_source(data, source):
     if source == out or source.is_relative_to(out) or out.is_relative_to(source):
         raise ValueError("Reuse source and new output must be independent")
     prior = json.loads((source / "results.json").read_text())
-    comparable = lambda value: {k: v for k, v in value.items() if k not in ("out", "engine_version", "rerun_b0", "allow_device_change")}
+    comparable = lambda value: {k: v for k, v in value.items() if k not in ("out", "cache", "engine_version", "rerun_b0", "allow_device_change")}
     before, after = comparable(prior.get("configuration", {})), comparable(data)
     changed = {key for key in before.keys() | after.keys() if before.get(key) != after.get(key)}
     device_change = changed == {"physical_devices"} and data.get("allow_device_change") is True
@@ -266,7 +269,7 @@ def completed_run_source(data, source):
         detail = ", ".join(sorted(changed))
         if "physical_devices" in changed:
             detail += f" (original {before.get('physical_devices')}, current {after.get('physical_devices')}; explicit device-change admission is required)"
-        raise ValueError("Reuse model/device/cache configuration differs: " + detail)
+        raise ValueError("Reuse workload or runtime configuration differs: " + detail)
     sys.path.insert(0, str(kit_path() / "scripts"))
     from recovery_source import stopped
     interruption = stopped(source, prior)
@@ -276,32 +279,32 @@ def completed_run_source(data, source):
     if campaign.get("status") not in ("failed", "completed"):
         raise ValueError("Reuse campaign is not sealed and stopped")
     names = [row["name"] for row in campaign["stages"] if row["status"] == "completed"]
-    if not names:
-        raise ValueError("No completed sealed stages are available to reuse")
-    for name in names:
-        print("RECOVERY_AUDIT stage", name, flush=True)
-        audit_stage(source / "fixed-five", name)
-        print("RECOVERY_AUDIT verified", name, flush=True)
     from release_selection import active
     selected = active()
-    previous_release = previous_plan.get("engine_release", "full-answer-b1-20261030-r4")
     previous_selection = prior.get("engine_selection") or {}
     if (source / "engine-selection.json").is_file():
         previous_selection = json.loads((source / "engine-selection.json").read_bytes())
+    previous_release = previous_plan.get("engine_release") or previous_selection.get("release")
     changed_target = selected and (selected["release"] != previous_release or
         (previous_selection.get("version") and selected["version"] != previous_selection["version"]))
     if changed_target:
-        # A judge labelled B0 still runs on B1. Only independently measured
-        # baseline services can survive an explicit optimized-engine change.
-        baseline_only = {"continuous-B0", "frontier-solver-B0", "hle-solver-B0",
-                         "swe-trace-B0", "terminal-trace-B0"}
-        if any(name not in baseline_only for name in names):
-            raise ValueError("Changing engine version requires baseline-only completed stages")
+        # The campaign admits a whole MMLU pair's B0 arm independently.
+        # B1 services and their judge stages cannot follow a changed target.
+        names = [name for name in names
+                 if name == "mmlu-pair" or (name.endswith("-B0") and "-judge-" not in name)]
+    if not names:
+        raise ValueError("No compatible completed stages are available to reuse")
+    for name in names:
+        if changed_target and name == "mmlu-pair":
+            continue
+        print("RECOVERY_AUDIT stage", name, flush=True)
+        audit_stage(source / "fixed-five", name)
+        print("RECOVERY_AUDIT verified", name, flush=True)
     result = dict(root=str(source), completed_stages=names,
                   results_sha256=hashlib.sha256((source / "results.json").read_bytes()).hexdigest())
     reference = source / "fixed-five/compute-reference"
     native_seal = "compute-reference/native-current-timing/checksums.json"
-    if (campaign.get("selected_execution_complete") is True
+    if (not changed_target and campaign.get("selected_execution_complete") is True
             and "compute-reference/checksums.json" in bindings and native_seal in bindings
             and (reference / "automatic-result.json").is_file()):
         measured = json.loads((reference / "automatic-result.json").read_bytes())
@@ -401,13 +404,14 @@ def run(data, *, resume_bootstrap=False, resume_before_model=False, resume_befor
         record.update(returncode=result.returncode,
                       status="completed" if result.returncode == 0 else "failed")
         save()
-        if result.returncode == 2 and name == "run-context-tenant":
-            from full_report import context_plot_failure
-            path = out / "context-tenant/execution.json"
-            if path.is_file():
+        if result.returncode > 0 and name == "run-context-tenant":
+            from full_report import completed_context_after_error
+            folder = out / "context-tenant"
+            path, summary = folder / "execution.json", folder / "paired-summary.json"
+            if path.is_file() and summary.is_file():
                 execution = json.loads(path.read_bytes())
-                if context_plot_failure(execution):
-                    record.update(status="sealed_with_plot_failure", report_failure=execution["failure"])
+                if completed_context_after_error(execution, json.loads(summary.read_bytes())):
+                    record.update(status="sealed_with_report_failure", report_failure=execution.get("failure"))
                     save()
                     return
         if result.returncode:
@@ -554,9 +558,38 @@ def run(data, *, resume_bootstrap=False, resume_before_model=False, resume_befor
         print("RESULTS", out / "results.json", flush=True)
 
 
+def historical_engine(source):
+    def read(name):
+        path = source / name
+        return json.loads(path.read_bytes()) if path.is_file() else {}
+
+    prior = read("results.json")
+    selection = prior.get("engine_selection") or {}
+    installation = read("installation/installation.json")
+    plan = read("fixed-five/frozen-execution-plan.json")
+    versions = {value for value in (
+        selection.get("version"), installation.get("package_version"),
+        (prior.get("configuration") or {}).get("engine_version"),
+    ) if value}
+    releases = {value for value in (
+        selection.get("release"), installation.get("release"), plan.get("engine_release"),
+    ) if value}
+    if len(versions) > 1 or len(releases) > 1:
+        raise ValueError("Historical engine identity differs across preserved receipts")
+    release = next(iter(releases), None)
+    version = next(iter(versions), None)
+    if version is None:
+        legacy = json.loads((ROOT / "engine/r8-lock.json").read_bytes())
+        if release == legacy["upstream_release"]:
+            version = legacy["public_distribution"].split("==", 1)[1]
+    if version is None:
+        raise ValueError("Historical engine version is missing from preserved receipts")
+    return version, release
+
+
 def select_run_engine(data, *, recovery=False, reuse_completed_run=None):
     """Freeze a new target once; in-place recovery retains its original target."""
-    from release_selection import select, bind, active
+    from release_selection import select, bind
     saved = Path(data["out"]) / "engine-selection.json"
     if recovery or (reuse_completed_run and not data.get("engine_version")):
         if reuse_completed_run:
@@ -564,7 +597,10 @@ def select_run_engine(data, *, recovery=False, reuse_completed_run=None):
         if saved.is_file():
             record = bind(saved)
         else:
-            record = active() or select(data["cache"], version="2026.11.17.8.post2")
+            version, release = historical_engine(saved.parent)
+            record = select(data["cache"], version=version)
+            if release is not None and record["release"] != release:
+                raise ValueError("Selected engine release differs from the preserved historical receipt")
         if data.get("engine_version") and record["version"] != data["engine_version"]:
             raise ValueError("In-place recovery cannot change the frozen engine version")
         return record
@@ -645,8 +681,14 @@ def main():
         if args.resume_bootstrap:
             bootstrap_resume(data)
         from environment_setup import ensure_environment
-        recovery_data = dict(data, out=str(args.reuse_completed_run.resolve())) if args.reuse_completed_run else data
-        prepared = recovery_environment(recovery_data) if (args.resume_before_model or args.resume_before_inference or args.resume_bootstrap or args.reuse_completed_run) else ensure_environment(data)
+        if args.reuse_completed_run:
+            source = args.reuse_completed_run.resolve()
+            saved_configuration = json.loads((source / "results.json").read_bytes()).get("configuration", {})
+            prepared = recovery_environment(data, source=source, source_cache=saved_configuration.get("cache"))
+        elif recovery:
+            prepared = recovery_environment(data)
+        else:
+            prepared = ensure_environment(data)
         if prepared is not None:
             os.execve(prepared["python"], [prepared["python"], str(Path(__file__).resolve()), *sys.argv[1:]], prepared["env"])
             raise ValueError("Could not hand off to the prepared Python environment")

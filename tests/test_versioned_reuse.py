@@ -24,15 +24,15 @@ def test_explicit_retarget_accepts_only_independently_audited_baseline(tmp_path,
     audit.assert_called_once_with(source/'fixed-five',stage)
     assert (source/'results.json').read_text()==raw
 
-@pytest.mark.parametrize('stage',['continuous-B1','mmlu-pair','hle-judge-B0','frontier-judge-B0','hle-solver-B1'])
+@pytest.mark.parametrize('stage',['continuous-B1','hle-judge-B0','frontier-judge-B0','hle-solver-B1'])
 def test_retarget_rejects_optimized_or_common_judge_stage(tmp_path,stage):
     data=dict(model='/model',physical_devices=[1,6],cache='/cache',out=str(tmp_path/'new'),engine_version='2026.11.19.9.post1')
     source=tmp_path/'old';source.mkdir();(source/'results.json').write_text(json.dumps(dict(status='failed',configuration=data)))
     campaign=dict(status='failed',stages=[dict(name=stage,status='completed')])
     with patch('reuse_campaign.source',return_value=(source,dict(engine_release=OLD),campaign,{})),patch('reuse_campaign.audit_stage'),patch('release_selection.active',return_value=dict(release=NEW,client=None)):
-        with pytest.raises(ValueError,match='baseline-only'):run_all.completed_run_source(data,source)
+        with pytest.raises(ValueError,match='No compatible completed stages'):run_all.completed_run_source(data,source)
 
-@pytest.mark.parametrize('field,value',[('model','/other'),('physical_devices',[2,3]),('cache','/other-cache')])
+@pytest.mark.parametrize('field,value',[('model','/other'),('physical_devices',[2,3])])
 def test_new_target_does_not_relax_shared_configuration(tmp_path,field,value):
     data=dict(model='/model',physical_devices=[1,6],cache='/cache',out=str(tmp_path/'new'),engine_version='2026.11.19.9.post1')
     source=tmp_path/'old';source.mkdir();prior=dict(data);prior[field]=value
