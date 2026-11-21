@@ -131,32 +131,43 @@ def _one(name,row,origin,url,pin,output,stages,stop,report):
     checkpoint();failures=0;opener=urllib.request.build_opener(urllib.request.ProxyHandler({})) if urlsplit(url).scheme=='http' else urllib.request.build_opener()
     while offset<row['bytes']:
         if stop.is_set():raise InterruptedError('Model restoration interrupted; prefix retained')
-        end=min(row['bytes']-1,offset+RANGE_BYTES-1);part=folder/('range-'+str(offset)+'-'+uuid.uuid4().hex+'.partial');count=0;error=None;valid=False;began=time.monotonic()
-        request=dict(start=offset,end=end,total=row['bytes'],origin_url=origin,transport_url=url,file=part.name,status='requesting',started=time.time());state['attempts'].append(request);checkpoint()
+        whole_small=row['bytes']<=RANGE_BYTES;start=0 if whole_small else offset
+        end=min(row['bytes']-1,start+RANGE_BYTES-1);part=folder/('range-'+str(start)+'-'+uuid.uuid4().hex+'.partial');count=0;error=None;valid=False;began=time.monotonic()
+        request=dict(start=start,end=end,total=row['bytes'],origin_url=origin,transport_url=url,file=part.name,status='requesting',started=time.time(),retained_prefix_before_request=offset);state['attempts'].append(request);checkpoint()
         try:
-            req=urllib.request.Request(url,headers={'Range':f'bytes={offset}-{end}','Accept-Encoding':'identity'})
+            req=urllib.request.Request(url,headers={'Range':f'bytes={start}-{end}','Accept-Encoding':'identity'})
             with opener.open(req,timeout=NETWORK_TIMEOUT) as response:
                 request.update(response_status=response.status,content_range=response.headers.get('Content-Range'),content_length=response.headers.get('Content-Length'))
-                if response.status!=206 or response.headers.get('Content-Range')!=f'bytes {offset}-{end}/{row["bytes"]}' or response.headers.get('Content-Length')!=str(end-offset+1):raise ValueError('Model response requires exact HTTP206/Content-Range/total size')
-                valid=True;request.update(status='receiving',headers_validated=True);checkpoint()
+                expected_range=f'bytes {start}-{end}/{row["bytes"]}'
+                bounded_whole_200=(whole_small and start==0 and end==row['bytes']-1 and response.status==200 and response.headers.get('Content-Range') in (None,expected_range))
+                if ((not bounded_whole_200 and (response.status!=206 or response.headers.get('Content-Range')!=expected_range)) or response.headers.get('Content-Length')!=str(end-start+1)):raise ValueError('Model response requires exact HTTP206/Content-Range/total size or bounded whole-small HTTP200')
+                valid=True;request.update(status='receiving',headers_validated=True,response_mode='bounded-whole-small-200' if bounded_whole_200 else 'exact-range-206');checkpoint()
                 with part.open('xb') as stream:
                     try:
-                        while count<end-offset+1:
+                        while count<end-start+1:
                             if stop.is_set():raise InterruptedError('Model restoration interrupted; retain range prefix')
-                            b=getattr(response,'read1',response.read)(min(1024**2,end-offset+1-count))
+                            b=getattr(response,'read1',response.read)(min(1024**2,end-start+1-count))
                             if not b:raise OSError('Model response truncated; retain range prefix')
                             stream.write(b);count+=len(b);elapsed=time.monotonic()-began
                             if elapsed>=45 and count/elapsed<1024:raise TimeoutError('Model source below 1 KiB/s; retain range prefix')
                     finally:stream.flush();os.fsync(stream.fileno())
         except BaseException as failure:error=failure
         if valid and part.exists() and part.stat().st_size:
-            n=part.stat().st_size
-            if n>end-offset+1:raise ValueError('Model range exceeded requested extent')
-            state['segments'].append(dict(start=offset,bytes=n,sha256=digest(part),file=part.name,kind='range-response',transport_url=url,request_index=len(state['attempts'])-1,interrupted=error is not None));offset+=n
+            n=part.stat().st_size;h=digest(part);request['received_sha256']=h
+            if n>end-start+1:raise ValueError('Model range exceeded requested extent')
+            if whole_small:
+                # A small provider object may use HTTP200. It is never appended
+                # to a prefix: retain old pieces, then admit only a whole hash.
+                if n==row['bytes'] and h==row['sha256']:
+                    if state['segments']:state.setdefault('superseded_small_prefixes',[]).append(state['segments'])
+                    state['segments']=[dict(start=0,bytes=n,sha256=h,file=part.name,kind='range-response',transport_url=url,request_index=len(state['attempts'])-1,interrupted=error is not None)];offset=n
+                elif error is None:error=ValueError('Small whole response SHA-256 mismatch; preserved without prefix append')
+            else:
+                state['segments'].append(dict(start=offset,bytes=n,sha256=h,file=part.name,kind='range-response',transport_url=url,request_index=len(state['attempts'])-1,interrupted=error is not None));offset+=n
         request.update(status='completed' if error is None else 'failed-prefix-retained',ended=time.time(),received_bytes=count,error=None if error is None else type(error).__name__+': '+str(error));state['status']='downloading';checkpoint()
         if error is not None:
             if isinstance(error,(KeyboardInterrupt,SystemExit,InterruptedError)):raise error
-            failures=0 if count>=1024**2 else failures+1
+            failures=failures+1 if whole_small else (0 if count>=1024**2 else failures+1)
             if failures>=MAX_FAILURES:raise OSError('Model transport failed; prefix and request facts preserved: '+str(error)) from error
         else:failures=0
     assembly=folder/('assembled-'+uuid.uuid4().hex+'.partial');state.update(status='assembling',assembly=assembly.name);checkpoint()
