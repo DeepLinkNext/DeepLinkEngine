@@ -17,6 +17,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 import release_selection as selection
 import evaluation_client as client
+from managed_shutdown import MANAGED_STOP, without_managed_stop
 
 
 def row(version, **kw):
@@ -73,6 +74,8 @@ def test_model_client_bridge_keeps_reference_and_startup_fixes():
              '        release_startup_headroom(startup_reserve, lambda: check_memory(guard, initial, root))\n')
     controller = combined['scripts/run_b1_r4.py'].decode()
     assert controller.count(added) == 1
+    assert controller.count(MANAGED_STOP) == 1
+    controller = without_managed_stop(controller.encode()).decode()
     old_controller = original['scripts/run_b1_r4.py'].decode()
     assert remove_device_admission(controller.replace(added, ''), old_controller) == old_controller
     # The only startup-cache change is the declared idle-before-warmup
@@ -96,6 +99,28 @@ def test_model_client_bridge_keeps_reference_and_startup_fixes():
     assert module['capacity36']('full-answer-b1-20261119-r9')
     assert module['R9_CONFIG']['execution_seats']==36
     assert b'"r9"' in combined['scripts/runtime_overlay.py']
+
+
+def test_shutdown_only_reference_reuse_checks_the_original_source_pin(tmp_path, monkeypatch):
+    root = ROOT / 'benchmark/one-click-kit'
+    keys = ['scripts/run_b1_r4.py', 'scripts/reference_evidence.py', 'scripts/reference_observation_reuse.py']
+    files = {name: (root / name).read_bytes() for name in keys}
+    old = tmp_path / 'original.py'
+    current = tmp_path / 'current.py'
+    old.write_bytes(files[keys[0]])
+    pin = client.sha(old.read_bytes())
+    client.managed_shutdown_bridge(files)
+    current.write_bytes(files[keys[0]])
+    monkeypatch.syspath_prepend(str(root / 'scripts'))
+    evidence = {}
+    exec(files[keys[1]], evidence)
+    compatible = evidence['http_scope_fix_only']
+    assert compatible(old, current, pin)
+    assert not compatible(old, current, '0' * 64)
+    changed = files[keys[0]].replace(b'child.wait(timeout=10)', b'child.wait(timeout=1)')
+    assert changed != files[keys[0]]
+    current.write_bytes(changed)
+    assert not compatible(old, current, pin)
 
 
 def test_client_inventory_rejects_added_changed_and_symlinked_files(tmp_path):

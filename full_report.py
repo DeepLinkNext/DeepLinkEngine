@@ -92,6 +92,13 @@ def recorded_shutdown_traces(root, cleanup, lines):
     end = phases[-1]['end']['wall']
     year = datetime.fromtimestamp(end, timezone.utc).year
     terminated = {str(action['pid']) for action in cleanup.get('actions', []) if action.get('signal') == 15}
+    process_path = root / 'service-process.json'
+    if receipt.get('role') == 'B1' and process_path.is_file():
+        process = json.loads(process_path.read_bytes())
+        for action in cleanup.get('actions', []):
+            if (action.get('signal') == 15 and action['pid'] == process['pid']
+                    and action.get('start_ticks') == process['start_ticks']):
+                terminated.update(str(child['pid']) for child in action.get('managed_children', []))
     triggers, notices = set(), set()
 
     for index, line in enumerate(lines):
