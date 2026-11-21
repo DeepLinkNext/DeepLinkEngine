@@ -710,6 +710,38 @@ def http_replay_bridge(result):
     result[key] = text.encode()
 
 
+def managed_shutdown_bridge(result):
+    """Change only completed B1 HTTP cleanup and preserve prior source bindings."""
+    from managed_shutdown import DIRECT_STOP, MANAGED_STOP
+
+    module = 'scripts/managed_shutdown.py'
+    result[module] = (ROOT / 'managed_shutdown.py').read_bytes()
+    key = 'scripts/run_b1_r4.py'
+    result[key] = once(result[key].decode(), DIRECT_STOP, MANAGED_STOP).encode()
+
+    key = 'scripts/reference_evidence.py'
+    result[key] = once(result[key].decode(),
+        '    old, new = ast.parse(original.read_text()), ast.parse(current.read_text())\n    removed = 0',
+        '    from managed_shutdown import without_managed_stop\n'
+        '    original_body, current_body = original.read_bytes(), current.read_bytes()\n'
+        '    if without_managed_stop(original_body) == original_body:\n'
+        '        current_body = without_managed_stop(current_body)\n'
+        '        if current_body == original_body:\n'
+        '            return True\n'
+        '    old, new = ast.parse(original_body), ast.parse(current_body)\n'
+        '    removed = 0').encode()
+
+    key = 'scripts/reference_observation_reuse.py'
+    text = once(result[key].decode(), 'from dataset_contract import sha',
+        'from dataset_contract import sha\nfrom managed_shutdown import matches_pre_shutdown_controller')
+    result[key] = once(text,
+        '        if Path(name).is_absolute() or not path.resolve().is_relative_to(current_root) or sha(path) != pin:',
+        '        if Path(name).is_absolute() or not path.resolve().is_relative_to(current_root):\n'
+        '            raise ValueError("HTTP observation implementation escapes client: " + name)\n'
+        '        if (sha(path) != pin and (name != "scripts/run_b1_r4.py"\n'
+        '                or not matches_pre_shutdown_controller(path, pin))):').encode()
+
+
 def context_baseline_bridge(result):
     """Preserve completed fixed-B0 context phases across a B1-only change."""
     def scripts(files):
@@ -761,8 +793,14 @@ def context_baseline_bridge(result):
     device_change_bridge(result)
     http_state_drain_bridge(result)
     http_replay_bridge(result)
+    key = 'scripts/context_baseline_reuse.py'
+    previous = scripts(result)
+    previous[key] = sha(CONTEXT_BASELINE_HELPER.replace('__CURRENT_SOURCES__', digest(previous)).encode())
+    managed_shutdown_bridge(result)
     current = digest(scripts(result))
-    result['scripts/context_baseline_reuse.py'] = CONTEXT_BASELINE_HELPER.replace('__CURRENT_SOURCES__', current).encode()
+    helper = once(CONTEXT_BASELINE_HELPER, 'digest(previous) != OLD_SOURCES',
+                  'digest(previous) not in (OLD_SOURCES, ' + repr(digest(previous)) + ')')
+    result[key] = helper.replace('__CURRENT_SOURCES__', current).encode()
 
 
 def bridge(client, provider):

@@ -155,6 +155,17 @@ class Decisions(unittest.TestCase):
             self.assertFalse(report.audit_context(root)['clean'])
             log.write_text('\n'.join(lines+['No space left on device']))
             self.assertFalse(report.audit_context(root)['clean'])
+            log.write_text('\n'.join(lines))
+            (root/'receipt.json').write_text(json.dumps(dict(role='B1', completed=True, quiescent=True, ended=end+20)))
+            (root/'service-process.json').write_text(json.dumps(dict(pid=30, start_ticks='1234')))
+            action = dict(pid=30, start_ticks='1234', signal=15,
+                          managed_children=[dict(pid=37, start_ticks='1235')])
+            cleanup = root/'cleanup.json'
+            cleanup.write_text(json.dumps(dict(quiescent=True, actions=[action])))
+            self.assertEqual(report.audit_context(root), original)
+            action['start_ticks'] = '1236'
+            cleanup.write_text(json.dumps(dict(quiescent=True, actions=[action])))
+            self.assertFalse(report.audit_context(root)['clean'])
 
 
 class CostTests(unittest.TestCase):
