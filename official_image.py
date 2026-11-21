@@ -175,7 +175,8 @@ def environment(root, cache, *, devices=None):
                LD_LIBRARY_PATH=env.get('LD_LIBRARY_PATH', '') + ':' + ':'.join(map(str, libs)),
                HF_HUB_OFFLINE='1', TRANSFORMERS_OFFLINE='1', VLLM_WORKER_MULTIPROC_METHOD='spawn',
                OMP_NUM_THREADS='4', OPENBLAS_NUM_THREADS='1')
-    for key, name in [('XDG_CACHE_HOME', 'xdg'), ('ASCEND_CACHE_PATH', 'ascend'), ('TRITON_CACHE_DIR', 'triton'),
+    for key, name in [('XDG_CACHE_HOME', 'xdg'), ('XDG_CONFIG_HOME', 'config'),
+                      ('VLLM_CONFIG_ROOT', 'config/vllm'), ('ASCEND_CACHE_PATH', 'ascend'), ('TRITON_CACHE_DIR', 'triton'),
                       ('TORCHINDUCTOR_CACHE_DIR', 'inductor'), ('NUMBA_CACHE_DIR', 'numba'), ('VLLM_CACHE_ROOT', 'vllm'),
                       ('HF_HOME', 'huggingface'), ('TORCH_HOME', 'torch'), ('TORCH_EXTENSIONS_DIR', 'torch-extensions'),
                       ('MPLCONFIGDIR', 'matplotlib'), ('TMPDIR', 'tmp')]:
