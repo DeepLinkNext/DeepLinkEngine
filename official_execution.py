@@ -15,6 +15,7 @@ import shutil
 import subprocess
 import sys
 import tarfile
+import tempfile
 import time
 
 BASE_DIGEST = '119d19e001bafa21919289095e1dbfac64f1e16d2469dd14c2d2a520039d26d9'
@@ -79,7 +80,14 @@ def prepare_root(blob, output):
         raise ValueError('Official Ubuntu execution base digest differs')
     if output.exists():
         raise ValueError('Execution-root output already exists')
-    output.mkdir(parents=True)
+    from official_sdk_state import owner_info
+    output.parent.mkdir(parents=True, exist_ok=True)
+    stage = Path(tempfile.mkdtemp(prefix=output.name + '.preparing-', dir=output.parent))
+    marker = dict(schema='deeplinkengine-private-glibc-preparation/v1',
+                  layer_sha256=BASE_DIGEST, destination=str(output), owner=owner_info())
+    (stage / 'preparation.json').write_text(json.dumps(marker, indent=2) + '\n')
+    # Publish the owner marker with the directory, before any extraction starts.
+    stage.rename(output)
     root = output / 'rootfs'
     root.mkdir()
     links = []
@@ -154,8 +162,23 @@ def ensure_for_sdk(sdk):
     import fcntl
     with (output.parent / (output.name + '.lock')).open('a+b') as stream:
         fcntl.flock(stream, fcntl.LOCK_EX)
+        if output.is_symlink():
+            raise ValueError('Execution-root output must not be a link')
         if output.exists():
-            return verify_root(output)
+            if (output / 'receipt.json').exists():
+                # Completed roots may already be in use. Never repair drift in place.
+                return verify_root(output)
+            from official_sdk_state import refuse_active_owner
+            marker = json.loads((output / 'preparation.json').read_bytes())
+            if (marker.get('schema') != 'deeplinkengine-private-glibc-preparation/v1'
+                    or marker.get('layer_sha256') != BASE_DIGEST
+                    or marker.get('destination') != str(output)):
+                raise ValueError('Unknown partial execution root; preserve original directory')
+            stopped = refuse_active_owner(marker)
+            quarantine = output.with_name(output.name + '.interrupted-' + str(time.time_ns()))
+            output.rename(quarantine)
+            (quarantine / 'interrupted-recovery.json').write_text(json.dumps(
+                dict(original=str(output), preserved=str(quarantine), **stopped), indent=2) + '\n')
         from baseline_setup import fetch
         lock = json.loads((Path(__file__).parent / 'engine/official-baselines/0.23.0.json').read_bytes())
         layers = [item for item in lock['layers'] if item['digest'] == 'sha256:' + BASE_DIGEST]

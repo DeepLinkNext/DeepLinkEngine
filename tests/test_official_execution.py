@@ -85,6 +85,50 @@ class ExecutionContextTests(unittest.TestCase):
                  patch.object(execution, 'maybe_enter_official', side_effect=AssertionError('download entered context')):
                 self.assertEqual(official_baselines.main(['--config', str(path), '--download-only']), 0)
 
+    @unittest.skipUnless(sys.platform == 'linux', 'Linux execution-root lock')
+    def test_only_known_stopped_partial_root_is_preserved_and_rebuilt(self):
+        with tempfile.TemporaryDirectory() as directory:
+            cache=Path(directory);sdk=cache/'official-sdks/sdk'
+            output=cache/'execution-contexts'/('ubuntu-'+execution.BASE_DIGEST[:16])
+            output.mkdir(parents=True);(output/'original').write_bytes(b'partial')
+            marker=dict(schema='deeplinkengine-private-glibc-preparation/v1',
+                        layer_sha256=execution.BASE_DIGEST,destination=str(output),owner={'fixture': True})
+            (output/'preparation.json').write_text(json.dumps(marker))
+            with patch('official_sdk_state.refuse_active_owner', return_value={'reason':'process_absent'}), \
+                 patch('baseline_setup.fetch', return_value=cache/'layer'), \
+                 patch.object(execution,'prepare_root',return_value=Path('/rebuilt')) as prepare:
+                self.assertEqual(execution.ensure_for_sdk(sdk),Path('/rebuilt'))
+            preserved=list(output.parent.glob(output.name+'.interrupted-*'))
+            self.assertEqual(len(preserved),1)
+            self.assertEqual((preserved[0]/'original').read_bytes(),b'partial')
+            self.assertTrue((preserved[0]/'interrupted-recovery.json').exists())
+            prepare.assert_called_once_with(cache/'layer',output)
+
+    @unittest.skipUnless(sys.platform == 'linux', 'Linux execution-root lock')
+    def test_live_partial_root_is_not_moved(self):
+        with tempfile.TemporaryDirectory() as directory:
+            cache=Path(directory);sdk=cache/'official-sdks/sdk'
+            output=cache/'execution-contexts'/('ubuntu-'+execution.BASE_DIGEST[:16]);output.mkdir(parents=True)
+            marker=dict(schema='deeplinkengine-private-glibc-preparation/v1',
+                        layer_sha256=execution.BASE_DIGEST,destination=str(output),owner={})
+            (output/'preparation.json').write_text(json.dumps(marker))
+            with patch('official_sdk_state.refuse_active_owner',side_effect=ValueError('active')):
+                with self.assertRaisesRegex(ValueError,'active'):
+                    execution.ensure_for_sdk(sdk)
+            self.assertTrue(output.exists());self.assertEqual(list(output.parent.glob('*.interrupted-*')),[])
+
+    @unittest.skipUnless(sys.platform == 'linux', 'Linux execution-root lock')
+    def test_completed_root_drift_does_not_quarantine_or_rebuild(self):
+        with tempfile.TemporaryDirectory() as directory:
+            cache=Path(directory);sdk=cache/'official-sdks/sdk'
+            output=cache/'execution-contexts'/('ubuntu-'+execution.BASE_DIGEST[:16]);output.mkdir(parents=True)
+            (output/'receipt.json').write_text('{}')
+            with patch.object(execution,'verify_root',side_effect=ValueError('drift')), \
+                 patch.object(execution,'prepare_root') as prepare:
+                with self.assertRaisesRegex(ValueError,'drift'):
+                    execution.ensure_for_sdk(sdk)
+            self.assertTrue(output.exists());prepare.assert_not_called()
+
 
 if __name__ == '__main__':
     unittest.main()
