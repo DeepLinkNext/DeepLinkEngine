@@ -69,11 +69,17 @@ def fetch(cache, registry, kind, identity, size=None, attempts=3):
                         mode = 'wb'
                     else:
                         raise ValueError('Unexpected baseline HTTP status: ' + str(response.status))
+                    transfer_started, transferred = time.monotonic(), 0
+                    read = getattr(response, 'read1', response.read)
                     with partial.open(mode) as stream:
-                        while block := response.read(4 * 1024 * 1024):
+                        while block := read(4 * 1024 * 1024):
                             stream.write(block)
+                            transferred += len(block)
                             if stream.tell() > (size if size is not None else 5 * 1024 * 1024):
                                 raise ValueError('Baseline download exceeds pinned size')
+                            elapsed = time.monotonic() - transfer_started
+                            if elapsed > 1800 or (elapsed >= 45 and transferred / elapsed < 64 * 1024):
+                                raise OSError('Baseline Python transfer is slow; retain verified-contract partial and retry transport')
                 if size is not None and partial.stat().st_size != size:
                     raise OSError('Incomplete baseline OCI download')
                 if digest(partial) != expected:
