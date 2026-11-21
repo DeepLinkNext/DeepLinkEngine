@@ -50,9 +50,9 @@ def report(root, config=None):
     document = dict(schema='deeplinkengine-official-baseline-report/v1',
                     baseline=campaign['baseline_image']['id'], status=campaign['status'],
                     planned_denominators=campaign['fixed_five_denominators'], phases=summaries,
-                    metrics=metrics, quality=quality,
+                    metrics=metrics, quality=quality, runtime_identity=campaign.get('runtime_identity'),
                     new_F_T_qualification=False, qualified_efficiency_percent=None,
-                    scope='Original official-runtime measurements. Incomplete and failed phases remain explicit; archived 0.18 data and conclusions are unchanged.')
+                    scope='Selected upstream-runtime measurements. Incomplete and failed phases remain explicit; archived 0.18 data and conclusions are unchanged.')
     save(root / 'report.json', document)
     figures = []
     if config is not None and metrics:

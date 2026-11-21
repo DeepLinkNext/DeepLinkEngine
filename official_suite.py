@@ -14,6 +14,7 @@ import urllib.request
 
 from official_baselines import save
 from official_image import digest, environment
+from official_runtime_identity import runtime_identity
 
 ROOT = Path(__file__).resolve().parent
 TOOLS = ROOT / 'benchmark/one-click-kit'
@@ -172,8 +173,8 @@ def phase(config, image, phase_name, output, tools, sdk, sources, leases, contin
     kind = 'dataset' if phase_name in ('frontier', 'hle', 'swe', 'terminal') else 'context' if phase_name == 'context' else 'continuous' if phase_name == 'continuous' else 'joint'
     installed = json.loads((image / 'installation.json').read_bytes())
     lock = json.loads((image / 'image-lock.json').read_bytes())
-    save(output / 'deployment.json', dict(release=lock['id'], official_image_manifest=lock['manifest_digest'],
-                                         official_runtime=True, source_code_patched=False))
+    runtime = runtime_identity(image)
+    save(output / 'deployment.json', dict(release=lock['id'], **runtime))
     shutil.copyfile(output.parent / 'resource-admission.json', output / 'resource-admission.json')
     plan = dict(schema='deeplinkengine-official-service-plan/v1', baseline_id=lock['id'], role='B0',
                 kind=kind, sdk=str(image), model=config['model'], output=str(service),
@@ -185,9 +186,10 @@ def phase(config, image, phase_name, output, tools, sdk, sources, leases, contin
                 quality_plan=str(sdk / 'inputs/mmlu-quality018-r2/quality-request-plan.json'),
                 scorer=str(sdk / 'scorers/mmlu_pro_pyramidkv.py'),
                 serve_arguments=public_arguments(kind), engine_release=lock['id'],
-                original_baseline_018_relabelled=False, necessary_work_certified=False)
+                original_baseline_018_relabelled=False, necessary_work_certified=False, runtime_identity=runtime)
     plan['worker_sources'][str(ROOT / 'official_worker.py')] = sources[str(ROOT / 'official_worker.py')]
     plan['worker_sources'][str(ROOT / 'official_kernel_preparation.py')] = sources[str(ROOT / 'official_kernel_preparation.py')]
+    plan['worker_sources'][str(ROOT / 'official_runtime_identity.py')] = sources[str(ROOT / 'official_runtime_identity.py')]
     inventory = tools / 'third-party-test-kit/proc_capture/m01_model_inventory.py'
     plan['worker_sources'][str(inventory)] = sources[str(inventory)]
     if kind == 'dataset':
@@ -309,10 +311,10 @@ def run(config, image, output):
     sources.update({str(ROOT / name): digest(ROOT / name) for name in
                     ('official_suite.py', 'official_http.py', 'official_serve.py', 'official_worker.py',
                      'official_judge.py', 'official_native.py', 'official_native_entry.py', 'official_report.py', 'official_plots.py',
-                     'official_kernel_preparation.py', 'official_endpoint.py', 'official_reuse.py')})
+                     'official_kernel_preparation.py', 'official_endpoint.py', 'official_reuse.py', 'official_runtime_identity.py')})
     frozen = dict(schema='deeplinkengine-official-full-suite/v1', baseline_image=json.loads((image / 'image-lock.json').read_bytes()),
                   status='preparing', prepared_before_model_start=True, started=time.time(),
-                  sources=sources, physical_mapping=mapping,
+                  sources=sources, physical_mapping=mapping, runtime_identity=runtime_identity(image),
                   stages=[dict(name=name, status='planned') for name in PHASES],
                   fixed_five_denominators=dict(mmlu=200, hle=200, frontier=160, swe=64, terminal=48),
                   no_retries_or_eager_fallback=True, original_results_modified=False,

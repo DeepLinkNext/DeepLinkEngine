@@ -14,6 +14,19 @@ import official_download
 
 
 class Downloads(unittest.TestCase):
+    def test_windows_download_uses_native_transport_without_loading_runtime(self):
+        import hashlib
+        with tempfile.TemporaryDirectory() as d:
+            root=Path(d);blob=root/'blob';blob.write_bytes(b'official')
+            identity='sha256:'+hashlib.sha256(b'official').hexdigest()
+            row=dict(registry='https://example.invalid/',kind='blobs',digest=identity,bytes=8)
+            with patch('official_download.artifacts',return_value={identity:row}), \
+                 patch('official_download.platform.system',return_value='Windows'), \
+                 patch('official_download.shutil.which',return_value='curl.exe'), \
+                 patch('baseline_setup.fetch',return_value=blob) as fetch:
+                self.assertEqual(official_download.run(dict(versions=['0.23.0'],cache=str(root/'cache'),out=str(root/'out')),artifact=identity),0)
+                self.assertEqual(fetch.call_args.kwargs['attempts'],0)
+
     def test_download_configuration_needs_no_model_or_device(self):
         with tempfile.TemporaryDirectory() as d:
             p = Path(d) / 'download.json'
@@ -33,6 +46,15 @@ class Downloads(unittest.TestCase):
                     official_download.run(config, artifact='sha256:'+'a'*64)
                 fetch.assert_not_called()
                 self.assertFalse(Path(config['out']).exists())
+
+    def test_explicit_missing_curl_and_unknown_transport_are_refused(self):
+        with tempfile.TemporaryDirectory() as d:
+            config=dict(versions=['0.23.0'],cache=str(Path(d)/'cache'),out=str(Path(d)/'out'))
+            with patch('official_download.shutil.which',return_value=None):
+                for transport in ('curl','unknown'):
+                    with self.assertRaises(ValueError):
+                        official_download.run(config,transport=transport)
+            self.assertFalse(Path(config['out']).exists())
 
     def test_download_lock_excludes_a_second_process(self):
         with tempfile.TemporaryDirectory() as d:

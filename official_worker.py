@@ -25,10 +25,13 @@ class OfficialWorker(WorkerExtension):
     def hust_native_observer_audit(self):
         preparation = self.hust_official_kernel_prepare()
         from runtime_identity import identity
+        import os
+        from official_runtime_identity import runtime_identity, observer_basis
+        runtime = runtime_identity(os.environ['VLLMHUST_OFFICIAL_SDK'])
         result = dict(identity(self), role='B0', native_per_step_observer=False,
                     kernel_preparation=preparation,
                     observer_removal_required=False,
-                    observer_basis='Unmodified official image; no optimized-engine MODs or per-step counting hooks')
+                    runtime_identity=runtime, observer_basis=observer_basis(runtime))
         # Preserve actual loaded dimensions, dispatch and method sources once,
         # outside every timed interval. This observes no tensor values or routes
         # and does not install forward hooks or replace upstream methods.

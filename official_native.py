@@ -41,7 +41,8 @@ def run(config, image, output, tools, sdk, sources, leases, continuous):
                 reference_capture_profile='submission-v2', formal_repetitions=capture['formal_repetitions'],
                 max_tokens=capture['max_tokens'], sampling=dict(max_tokens=capture['max_tokens'], temperature=0,
                     seed=0, ignore_eos=capture['ignore_eos'], top_p=1.0, top_k=-1, presence_penalty=0.0, detokenize=False),
-                necessary_work_certified=False, efficiency_percent=None)
+                necessary_work_certified=False, efficiency_percent=None,
+                runtime_identity=__import__('official_runtime_identity').runtime_identity(image))
     save(output / 'native-plan.json', plan)
     weights = json.loads((output.parent / 'model-weights.json').read_bytes())
     guard = load(sdk / 'mods/packed-host/memory_guard.py', 'official_native_memory_guard')

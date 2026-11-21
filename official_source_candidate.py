@@ -113,11 +113,16 @@ def command(argv, env, cwd, output, name, timeout=7200):
     process = None
     try:
         with (output / (name + '.log')).open('xb') as stream:
-            process = subprocess.Popen(argv, env=env, cwd=cwd, stdout=stream,
-                                       stderr=subprocess.STDOUT, start_new_session=True)
+            from official_execution import sdk_popen
+            executable = shutil.which(str(argv[0]), path=env['PATH'])
+            if executable is None:
+                raise ValueError('Build executable is unavailable: ' + str(argv[0]))
+            process = sdk_popen([executable, *argv[1:]], sdk=output.parent, env=env, cwd=cwd, stdout=stream,
+                                stderr=subprocess.STDOUT, start_new_session=True)
         receipt['pid'] = process.pid
         receipt['start_ticks'] = Path('/proc', str(process.pid), 'stat').read_text().rsplit(')', 1)[1].split()[19]
         save(output / (name + '.json'), receipt)
+
         code = process.wait(timeout=timeout)
         receipt['returncode'] = code
         if code:
@@ -136,6 +141,40 @@ def command(argv, env, cwd, output, name, timeout=7200):
         receipt['ended'] = time.time()
         receipt['quiescent'] = process is None or process.poll() is not None
         save(output / (name + '.json'), receipt)
+
+
+def toolchain_evidence(sdk, env, sources, build):
+    """Record actual compilers and retained download bytes, not just a cache key."""
+    from official_execution import sdk_run
+    from official_image import digest
+    evidence = dict(versions={}, lock_files={}, retained_downloads={}, binaries={}, rust_channel_manifests={},
+                    download_validation='Rustup performs its own archive verification; only retained download bytes are independently hashed here')
+    neutral = dict(env, RUSTUP_AUTO_INSTALL='0')
+    for name, arguments in (('gcc', ['--version']), ('rustc', ['-Vv']), ('cargo', ['-V'])):
+        executable = shutil.which(name, path=env['PATH'])
+        if executable is None:
+            evidence['versions'][name] = dict(available=False)
+            continue
+        result = sdk_run([executable, *arguments], sdk=sdk, env=neutral, capture_output=True, text=True, timeout=30)
+        evidence['versions'][name] = dict(path=executable, returncode=result.returncode,
+                                          stdout=result.stdout, stderr=result.stderr)
+        evidence['binaries'][str(Path(executable).resolve())] = digest(Path(executable).resolve())
+    for source in sources:
+        for pattern in ('Cargo.lock', 'rust-toolchain', 'rust-toolchain.toml'):
+            for path in source.rglob(pattern):
+                if not path.is_symlink() and path.is_file():
+                    evidence['lock_files'][str(path.relative_to(sdk))] = digest(path)
+    for directory in (Path(env['CARGO_HOME'])/'registry/cache', Path(env['RUSTUP_HOME'])/'downloads'):
+        if directory.is_dir():
+            for path in directory.rglob('*'):
+                if path.is_file() and not path.is_symlink():
+                    evidence['retained_downloads'][str(path.relative_to(sdk))] = dict(bytes=path.stat().st_size, sha256=digest(path))
+    for path in Path(env['RUSTUP_HOME']).rglob('multirust-channel-manifest.toml'):
+        if path.is_file() and not path.is_symlink():
+            evidence['rust_channel_manifests'][str(path.relative_to(sdk))] = dict(sha256=digest(path),
+                expected_archive_sha256=sorted(set(re.findall(r'(?:xz_|zst_)?hash\s*=\s*"([0-9a-f]{64})"',path.read_text()))))
+    save(build/'toolchain.json', evidence)
+    return dict(path=str(build/'toolchain.json'), sha256=digest(build/'toolchain.json'))
 
 
 def remove_old_editables(out, site):
@@ -186,14 +225,20 @@ def prepare(base_lock_path, cache, output):
     if base_lock['manifest_digest'] != BASE_MANIFEST:
         raise ValueError('Source candidate requires its exact official CANN9.1 base')
     base = cache / 'official-sdks/0.23.0-4ee78def8f33d59d'
-    if not base.exists():
-        prepare_image(base_lock_path, cache / 'official-oci', base)
-    record = json.loads((base / 'installation.json').read_bytes())
-    if (record['image_manifest'] != BASE_MANIFEST
-            or (base / 'image-lock.json').read_bytes() != Path(base_lock_path).read_bytes()
-            or digest(base / 'installed-files.json') != record['installed_files_sha256']
-            or file_map(base) != json.loads((base / 'installed-files.json').read_bytes())):
-        raise ValueError('Official source candidate base integrity failed')
+    from official_sdk_state import sdk_preparation
+    from official_image import quarantine_partial_sdk, finish_restoration
+    with sdk_preparation(base):
+        quarantine_partial_sdk(base_lock_path, base)
+        if not base.exists():
+            prepare_image(base_lock_path, cache / 'official-oci', base)
+        elif not (base/'installation.json').is_file():
+            finish_restoration(base_lock_path, base)
+        record = json.loads((base / 'installation.json').read_bytes())
+        if (record['image_manifest'] != BASE_MANIFEST
+                or (base / 'image-lock.json').read_bytes() != Path(base_lock_path).read_bytes()
+                or digest(base / 'installed-files.json') != record['installed_files_sha256']
+                or file_map(base) != json.loads((base / 'installed-files.json').read_bytes())):
+            raise ValueError('Official source candidate base integrity failed')
     if shutil.disk_usage(cache).free < 100 * 1024**3:
         raise ValueError('Source builds require 100 GiB free in the private cache')
     output.parent.mkdir(parents=True, exist_ok=True)
@@ -235,6 +280,11 @@ def prepare(base_lock_path, cache, output):
         env['PATH'] = str(python.parent) + ':' + env['CARGO_HOME'] + '/bin:' + env['PATH']
         core = output / 'rootfs/vllm-workspace/vllm'
         ascend = output / 'rootfs/vllm-workspace/vllm-ascend'
+        receipt['official_build_only_environment'] = dict(VLLM_BATCH_INVARIANT='1',
+            recipe='vllm-project/vllm-ascend@96df623103f921df1a4488170d106f36689acb59/Dockerfile:125-131',
+            serving_environment_inherits_build_overrides=False)
+        receipt['toolchain'] = toolchain_evidence(output, env, (core,ascend), build)
+        save(build/'receipt.json', receipt)
         command([str(python), '-S', '-m', 'pip', 'install', '-e', str(core) + '[audio]',
                  '--extra-index-url', 'https://download.pytorch.org/whl/cpu/'], env, core, build, '01-core')
         command([str(python), '-S', '-m', 'pip', 'uninstall', '-y', 'triton'], env, core, build, '02-remove-base-triton')
@@ -257,10 +307,12 @@ def prepare(base_lock_path, cache, output):
             command(['sh', str(build / 'rustup-init.sh'), '-y', '--no-modify-path', '--default-toolchain', 'none'],
                     env, core, build, '08-rust-bootstrap')
         command(['bash', str(core / 'build_rust.sh')], env, core, build, '09-upstream-rust')
+        receipt['toolchain'] = toolchain_evidence(output, env, (core,ascend), build)
         # Preserve dependency inconsistencies produced by the original ordered
         # recipe. Their exact diagnostics must remain visible to reviewers.
-        result = subprocess.run([str(python), '-S', '-m', 'pip', 'check'], env=env,
-                                capture_output=True, text=True, timeout=120)
+        from official_execution import sdk_run
+        result = sdk_run([str(python), '-S', '-m', 'pip', 'check'], sdk=output, env=env,
+                         capture_output=True, text=True, timeout=120)
         (build / 'dependency-check.log').write_text(result.stdout + result.stderr)
         receipt['dependency_check_returncode'] = result.returncode
         observed = probe(output, build / 'metadata-probe', selection)
@@ -276,6 +328,11 @@ def prepare(base_lock_path, cache, output):
         return installed
     except BaseException as error:
         receipt.update(status='failed', error=type(error).__name__ + ': ' + str(error))
+        if 'env' in locals():
+            try:
+                receipt['toolchain'] = toolchain_evidence(output, env, (core,ascend), build)
+            except Exception as inventory_error:
+                receipt['toolchain_inventory_error'] = type(inventory_error).__name__ + ': ' + str(inventory_error)
         raise
     finally:
         receipt['ended'] = time.time()

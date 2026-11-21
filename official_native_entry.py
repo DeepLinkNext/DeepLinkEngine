@@ -47,8 +47,12 @@ def main():
     from engine_entry import check_pinned_host_memory
     check_pinned_host_memory(output, dict(os.environ))
     save(output / 'effective-engine-args.json', encode({field.name: getattr(args, field.name) for field in dataclasses.fields(args)}))
+    from official_runtime_identity import runtime_identity
+    observed_runtime = runtime_identity(config['sdk'])
+    if observed_runtime != config['runtime_identity']:
+        raise ValueError('Native runtime source/build identity differs')
     save(output / 'actual-identity.json', dict(versions=actual, python=sys.executable,
-         baseline_id=config['baseline_id'], official_sources_patched=False,
+         baseline_id=config['baseline_id'], runtime_identity=observed_runtime, upstream_source_patched=False,
          no_optimized_mods=True, native_per_step_observer=False))
     from baseline_native_entry import reset_prefix_cache
     from native_timing_session import run

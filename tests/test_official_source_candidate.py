@@ -24,6 +24,11 @@ class CandidateTests(unittest.TestCase):
         source = patch.object(public_entry, 'ROOT', Path(official_storage.__file__).parent)
         source.start()
         self.addCleanup(source.stop)
+        if sys.platform != 'linux':
+            # The platform-mocked CLI fixture has no Linux /proc owner.
+            owner = patch('official_sdk_state.owner_info', return_value={'cpu_fixture': True})
+            owner.start()
+            self.addCleanup(owner.stop)
 
     def archive(self, directory, names):
         path = Path(directory) / 'package.tar.gz'
@@ -70,6 +75,18 @@ class CandidateTests(unittest.TestCase):
         self.assertNotEqual(identity['version'], '0.28.0')
         self.assertFalse(identity['sdist_git_file_equivalence_certified'])
         self.assertEqual(len(candidate.key()), 64)
+
+    def test_build_only_batch_override_is_absent_from_serving_environment(self):
+        from official_image import environment
+        import os
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);sdk=root/'sdk';home=sdk/'rootfs/usr/local/python3.12.13'
+            (home/'bin').mkdir(parents=True);(home/'bin/python3').write_text('CPU fixture')
+            (sdk/'image-config.json').write_text(json.dumps({'config':{'Env':[]}}))
+            (sdk/'image-lock.json').write_text(json.dumps({'upstream_version':'0.28.0'}))
+            with patch.dict(os.environ,{'VLLM_BATCH_INVARIANT':'1'}):
+                _,env=environment(sdk,root/'cache')
+            self.assertNotIn('VLLM_BATCH_INVARIANT',env)
 
     def test_remove_only_copied_editable_metadata(self):
         with tempfile.TemporaryDirectory() as temp:
