@@ -11,6 +11,7 @@ import re
 import shutil
 import signal
 import subprocess
+import shlex
 import tarfile
 import tempfile
 import time
@@ -144,6 +145,32 @@ def command(argv, env, cwd, output, name, timeout=7200):
         receipt['ended'] = time.time()
         receipt['quiescent'] = process is None or process.poll() is not None
         save(output / (name + '.json'), receipt)
+
+
+def build_console_launchers(python, directory):
+    """Relocate only the copied CMake package's original Python entry points."""
+    from official_image import digest
+    python=Path(python).resolve()
+    # This candidate uses the exact fixed upstream Python prefix.
+    prefix='/usr/local/python3.12.13/bin/'
+    accepted={('#!'+prefix+name).encode() for name in ('python','python3','python3.12')}
+    directory.mkdir()
+    bindings={}
+    for name in ('cmake','ctest','cpack'):
+        script=python.parent/name
+        if not script.is_file() or script.is_symlink():
+            raise ValueError('Expected original CMake Python console entry point: '+str(script))
+        with script.open('rb') as stream:header=stream.readline(512).rstrip(b'\r\n')
+        if header not in accepted:
+            raise ValueError('Unexpected upstream CMake console interpreter: '+str(script))
+        launcher=directory/name
+        launcher.write_text('#!/bin/sh\nexec '+shlex.quote(str(python))+' -S '+shlex.quote(str(script))+' "$@"\n')
+        launcher.chmod(0o755)
+        bindings[name]=dict(original_script=str(script),original_script_sha256=digest(script),
+            original_shebang=header.decode(),launcher=str(launcher),launcher_sha256=digest(launcher),
+            private_interpreter=str(python),private_interpreter_sha256=digest(python),
+            build_only=True,original_script_modified=False)
+    return bindings
 
 
 def toolchain_evidence(sdk, env, sources, build):
@@ -345,6 +372,8 @@ def prepare(base_lock_path, cache, output):
                    RUSTUP_HOME=str(cache / 'source-build-downloads' / key() / 'rustup'),
                    CMAKE_BUILD_PARALLEL_LEVEL='16', MAX_JOBS='16', PROTOC_INCLUDE='/usr/include')
         env['PATH'] = str(python.parent) + ':' + env['CARGO_HOME'] + '/bin:' + env['PATH']
+        receipt['build_console_launchers']=build_console_launchers(python,build/'console-launchers')
+        env['PATH']=str(build/'console-launchers')+':'+env['PATH']
         core = output / 'rootfs/vllm-workspace/vllm'
         ascend = output / 'rootfs/vllm-workspace/vllm-ascend'
         core_env = dict(env, VLLM_TARGET_DEVICE='empty')

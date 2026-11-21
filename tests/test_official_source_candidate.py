@@ -17,6 +17,31 @@ import official_storage
 
 
 class CandidateTests(unittest.TestCase):
+    def test_build_cmake_launchers_keep_scripts_and_bind_private_interpreter(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory)/"private python's tools";root.mkdir()
+            python=root/'python3';python.write_bytes(b'private interpreter fixture')
+            originals={}
+            for name in ('cmake','ctest','cpack'):
+                body=b'#!/usr/local/python3.12.13/bin/python3\nprint("copied package")\n'
+                (root/name).write_bytes(body);originals[name]=body
+            out=Path(directory)/'build-launchers';records=candidate.build_console_launchers(python,out)
+            self.assertEqual(set(records),{'cmake','ctest','cpack'})
+            import shlex
+            for name,row in records.items():
+                self.assertEqual((root/name).read_bytes(),originals[name])
+                self.assertEqual(row['original_script_sha256'],hashlib.sha256(originals[name]).hexdigest())
+                self.assertEqual(shlex.split((out/name).read_text().splitlines()[1])[:4],['exec',str(python.resolve()),'-S',str(root/name)])
+                self.assertTrue(row['build_only']);self.assertFalse(row['original_script_modified'])
+
+    def test_unknown_cmake_shebang_refused_without_sdk_changes(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);python=root/'python3';python.write_bytes(b'fixture')
+            original=b'#!/different/python\nprint(1)\n'
+            (root/'cmake').write_bytes(original)
+            with self.assertRaisesRegex(ValueError,'Unexpected upstream CMake console'):candidate.build_console_launchers(python,root/'launchers')
+            self.assertEqual((root/'cmake').read_bytes(),original)
+
     def setUp(self):
         storage = patch.object(official_storage, 'prefer', side_effect=lambda p: (Path(p), None))
         storage.start()
@@ -153,6 +178,7 @@ class CandidateTests(unittest.TestCase):
                  patch.object(candidate,'source_archive',return_value=root/'unused-archive'), \
                  patch.object(candidate,'safe_extract',side_effect=extract),patch.object(candidate,'command') as commands, \
                  patch.object(candidate,'toolchain_evidence',return_value={'cpu_fixture':True}), \
+                 patch.object(candidate,'build_console_launchers',return_value={'cpu_fixture':True}), \
                  patch.object(candidate.shutil,'which',return_value='/cpu-rustup'), \
                  patch.object(candidate.shutil,'disk_usage',return_value=SimpleNamespace(free=200*1024**3)):
                 installed=candidate.prepare(lock,cache,output)
