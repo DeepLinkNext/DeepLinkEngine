@@ -39,6 +39,21 @@ def report(root, config=None):
             if path.is_file():
                 summaries[phase['name']][name] = dict(path=str(path.relative_to(root)),
                     sha256=hashlib.sha256(path.read_bytes()).hexdigest(), value=json.loads(path.read_bytes()))
+    qualification = None
+    directory = root / 'necessary-work'
+    if (directory / 'qualified-m01.json').is_file():
+        from official_ft_audit import Evidence
+        evidence = Evidence(directory)
+        receipt = evidence.read('receipt.json')
+        value = evidence.read('qualified-m01.json')
+        if (receipt['completed'] is True and receipt['qualification_sha256'] == evidence.selected['qualified-m01.json']
+                and value['new_F_T_qualification'] is True
+                and value['source_native_seal_sha256'] == hashlib.sha256((root / 'native-timing/checksums.json').read_bytes()).hexdigest()):
+            qualification = value
+        else:
+            raise ValueError('Official F/T qualification does not bind to this run')
+        summaries['necessary-work']['qualified-m01.json'] = dict(path='necessary-work/qualified-m01.json',
+            sha256=evidence.selected['qualified-m01.json'], value=value)
     metrics, quality = {}, {}
     for name, summary in summaries.items():
         if 'performance-summary.json' in summary:
@@ -51,7 +66,9 @@ def report(root, config=None):
                     baseline=campaign['baseline_image']['id'], status=campaign['status'],
                     planned_denominators=campaign['fixed_five_denominators'], phases=summaries,
                     metrics=metrics, quality=quality,
-                    new_F_T_qualification=False, qualified_efficiency_percent=None,
+                    new_F_T_qualification=qualification is not None,
+                    qualified_efficiency_percent=qualification['efficiency_lower_percent'] if qualification else None,
+                    F_T_qualification=qualification,
                     scope='Original official-runtime measurements. Incomplete and failed phases remain explicit; archived 0.18 data and conclusions are unchanged.')
     save(root / 'report.json', document)
     figures = []
@@ -83,6 +100,10 @@ def report(root, config=None):
     text = '<!doctype html><html lang="zh"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>' + html.escape(document['baseline']) + '</title><h1>' + html.escape(document['baseline']) + '</h1><p>' + html.escape(document['status']) + '</p><p>完整分母：MMLU 200 / HLE 200 / Frontier 160 / SWE 64 / Terminal 48。未完成项保留；不签发效率或第三方认证结论。</p><table><thead><tr><th>阶段</th><th>状态</th><th>原始结果</th></tr></thead><tbody>' + rows + '</tbody></table><p><a href="report.json">JSON / hashes</a></p></html>'
     if figures:
         text = text.replace('</html>', ''.join('<figure><img style="max-width:100%" src="' + html.escape(name, quote=True) + '" alt="Original official baseline measurements"></figure>' for name in figures) + '</html>')
+    if qualification:
+        text = text.replace('不签发效率或第三方认证结论。',
+            '独立 F/T 达成率下界 ≥' + html.escape(qualification['efficiency_lower_percent'])
+            + '%；第三方独立见证尚未完成。')
     (root / 'report.html').write_text(text, encoding='utf-8')
     seal(root)
     return document

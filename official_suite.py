@@ -17,7 +17,7 @@ from official_image import digest, environment
 
 ROOT = Path(__file__).resolve().parent
 TOOLS = ROOT / 'benchmark/one-click-kit'
-PHASES = ('continuous', 'mmlu', 'frontier', 'hle', 'swe', 'terminal', 'frontier-judge', 'hle-judge', 'context', 'native-timing')
+PHASES = ('continuous', 'mmlu', 'frontier', 'hle', 'swe', 'terminal', 'frontier-judge', 'hle-judge', 'context', 'native-timing', 'necessary-work')
 
 
 def validate_configuration(config):
@@ -312,6 +312,8 @@ def run(config, image, output):
                      'official_judge.py', 'official_native.py', 'official_native_entry.py', 'official_report.py', 'official_plots.py',
                      'official_kernel_preparation.py', 'official_endpoint.py', 'official_reuse.py',
                      'service_logging.py', 'logging_entry.py', 'engine/service.py')})
+    sources.update({str(p): digest(p) for p in ROOT.glob('official_ft*.py')})
+    sources.update({str(p): digest(p) for p in (ROOT / 'deeplinkengine_official_ft-1.0.dist-info').iterdir()})
     frozen = dict(schema='deeplinkengine-official-full-suite/v1', baseline_image=json.loads((image / 'image-lock.json').read_bytes()),
                   status='preparing', prepared_before_model_start=True, started=time.time(),
                   sources=sources, physical_mapping=mapping,
@@ -371,6 +373,11 @@ def run(config, image, output):
                 if row['name'] == 'native-timing':
                     from official_native import run as native_run
                     result = native_run(config, image, output / row['name'], tools, sdk, sources, leases, output / 'continuous')
+                elif row['name'] == 'necessary-work':
+                    from official_ft import complete_native
+                    result = complete_native(config, image, output / 'native-timing', output / row['name'],
+                        tools, sdk, sources, leases, output / 'continuous', mapping=mapping, weights=weights)
+                    frozen['qualification']['new_F_T_qualification'] = result['new_F_T_qualification']
                 elif row['name'].endswith('-judge'):
                     from official_judge import run as judge_run
                     result = judge_run(config, row['name'].split('-')[0], output / row['name'], tools, sdk, sources, leases, weights)
@@ -386,7 +393,7 @@ def run(config, image, output):
             finally:
                 save(output / 'campaign.json', frozen)
         frozen['status'] = 'measurements_collected'
-        return dict(status='incomplete', reason='Execution and fixed-judge outputs collected; complete F/T source applicability remains unqualified', campaign=str(output / 'campaign.json'))
+        return dict(status='incomplete', reason='Measured phases and automatic F/T qualification are recorded; quality coverage and independent witnessing remain explicit', campaign=str(output / 'campaign.json'))
     except BaseException as error:
         frozen.update(status='failed', error=type(error).__name__ + ': ' + str(error))
         raise

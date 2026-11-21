@@ -6,8 +6,7 @@ from pathlib import Path
 import sys
 
 
-def main():
-    config = json.loads(Path(sys.argv[1]).read_bytes())
+def prepare(config):
     sys.path.insert(0, str(Path(config['client_tools']) / 'scripts'))
     from dataset_contract import save, sha
     from reference_capture_profile import validate_native_plan
@@ -49,7 +48,14 @@ def main():
     save(output / 'effective-engine-args.json', encode({field.name: getattr(args, field.name) for field in dataclasses.fields(args)}))
     save(output / 'actual-identity.json', dict(versions=actual, python=sys.executable,
          baseline_id=config['baseline_id'], official_sources_patched=False,
-         no_optimized_mods=True, native_per_step_observer=False))
+         no_optimized_mods=True, native_per_step_observer=False,
+         arithmetic_companion=config.get('purpose') == 'arithmetic-companion'))
+    return args
+
+
+def main():
+    config = json.loads(Path(sys.argv[1]).read_bytes())
+    args = prepare(config)
     from baseline_native_entry import reset_prefix_cache
     from native_timing_session import run
     run(config, args, reset_prefix_cache)
