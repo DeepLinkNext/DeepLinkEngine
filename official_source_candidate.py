@@ -113,7 +113,8 @@ def identity():
                 controller_sha256=hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
                 preparation_sources={name: hashlib.sha256(Path(__file__).with_name(name).read_bytes()).hexdigest()
                                      for name in ('official_execution.py','official_build_context.py',
-                                                  'official_build_assets.py','transport_trust.py')},
+                                                  'official_build_assets.py','transport_trust.py',
+                                                  'official_range_download.py')},
                 soc_version='ascend910b1', sources=SOURCES,
                 recipe='vllm-project/vllm-ascend@96df623103f921df1a4488170d106f36689acb59/Dockerfile',
                 published_sdists=True, upstream_source_patched=False,

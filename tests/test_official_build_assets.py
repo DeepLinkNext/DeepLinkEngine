@@ -94,6 +94,17 @@ class BuildAssetsTests(unittest.TestCase):
                 self.assertEqual(path.read_bytes(),body);self.assertEqual(offsets,[271]);self.assertFalse(proof['cached']);self.assertNotIn('torch',sys.modules)
         finally:server.shutdown();server.server_close();thread.join(timeout=5)
 
+    def test_large_asset_uses_public_four_worker_ranges_and_preserves_old_prefix(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);body=b'x'*(16*1024**2);source=root/'ranged-complete';source.write_bytes(body);cache=root/'wheels';cache.mkdir()
+            row=dict(filename='large.whl',bytes=len(body),sha256=hashlib.sha256(body).hexdigest(),url='https://mirror.invalid/large.whl',package='large')
+            prefix=cache/'large.whl.download.partial';prefix.write_bytes(b'old unqualified prefix')
+            with patch.object(assets,'transports',return_value=([row['url']],[])),patch.object(assets.shutil,'which',return_value='/usr/bin/curl'),patch('official_range_download.fetch',return_value=source) as ranged:
+                target,proof=assets.fetch(row,cache)
+            self.assertEqual(target.read_bytes(),body);self.assertEqual(prefix.read_bytes(),b'old unqualified prefix')
+            self.assertEqual(ranged.call_args.kwargs['workers'],4);self.assertEqual(ranged.call_args.kwargs['source_url'],row['url']);self.assertEqual(proof['kind'],'verified-public-four-worker-ranges')
+            self.assertTrue(target.with_name('large.whl.source-ranges.json').is_file())
+
     def test_full_plan_preserves_original_requirements_and_only_creates_build_constraint(self):
         with tempfile.TemporaryDirectory() as directory:
             root=Path(directory);core=root/'core';core.mkdir();build=root/'build';build.mkdir()

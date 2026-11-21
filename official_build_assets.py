@@ -84,9 +84,39 @@ def fetch(row,cache):
         if shutil.disk_usage(cache).free<row['bytes']+2*1024**3:
             raise OSError('Build artifact prefetch requires one whole artifact plus 2 GiB free')
         urls,proof=transports(row)
+        if row['bytes']>=16*1024**2 and shutil.which('curl'):
+            return fetch_ranges(row,cache,target,urls,proof)
         path=_download_dependency(row,target,urls,valid)
         if not valid(path):raise ValueError('Build artifact failed fresh whole SHA admission')
         return path,dict(cached=False,filename=row['filename'],sha256=row['sha256'],mirror_indexes=proof)
+
+
+def fetch_ranges(row,cache,target,urls,index_proof):
+    """Reuse the public four-worker verified downloader for large build assets."""
+    from official_range_download import fetch as ranged
+    import tempfile
+    attempts=[]
+    for url in urls:
+        folder=cache.parent/'source-build-downloads/ranges'/hashlib.sha256(url.encode()).hexdigest()[:20]
+        try:
+            path=ranged(folder,'','','sha256:'+row['sha256'],row['bytes'],workers=4,source_url=url)
+            if path.stat().st_size!=row['bytes'] or sha(path)!=row['sha256']:
+                raise ValueError('Ranged build artifact differs from its publisher whole SHA')
+            with tempfile.NamedTemporaryFile(dir=cache,prefix=row['filename']+'.ranged-',delete=False) as stream:
+                temporary=Path(stream.name)
+                with path.open('rb') as reader:shutil.copyfileobj(reader,stream,1024**2)
+            if temporary.stat().st_size!=row['bytes'] or sha(temporary)!=row['sha256']:
+                raise ValueError('Ranged cache copy changed; preserve '+str(temporary))
+            temporary.replace(target)
+            proof=dict(cached=False,kind='verified-public-four-worker-ranges',filename=row['filename'],
+                sha256=row['sha256'],source_url=url,source_path=str(path),workers=4,mirror_indexes=index_proof,
+                attempts=attempts,sequential_prefix_preserved=str(target.with_name(row['filename']+'.download.partial')))
+            from official_baselines import save
+            save(target.with_name(row['filename']+'.source-ranges.json'),proof)
+            return target,proof
+        except (OSError,ValueError,subprocess.SubprocessError) as error:
+            attempts.append(dict(url=url,error=type(error).__name__+': '+str(error)))
+    raise OSError('Pinned build artifact failed all bounded Range transports: '+row['filename']+'; '+str(attempts))
 
 
 def admit_pip_cache(row,cache,*,pip_cache,report_url):
