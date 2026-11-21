@@ -100,24 +100,65 @@ class C8Replay(unittest.TestCase):
 
     def evidence(self):
         path = self.root / 'source'; path.mkdir()
-        (path/'raw').write_bytes(b'original')
-        self.dump(path/'checksums.json', {'raw':replay.digest(path/'raw')})
+        (path/'continuous').mkdir();(path/'context-inputs').mkdir()
+        (path/'continuous/raw').write_bytes(b'original')
+        (path/'context-inputs/private.json').write_bytes(b'private-unrun-task')
+        for name in ('campaign.json','model-weights.json','resource-admission.json'):
+            self.dump(path/name, {'synthetic': True})
+        self.dump(path/'continuous/checksums.json', {'raw':replay.digest(path/'continuous/raw')})
+        self.dump(path/'checksums.json', {p.relative_to(path).as_posix():replay.digest(p) for p in path.rglob('*') if p.is_file()})
         return replay.Evidence(path)
 
     def test_changed_raw_cannot_pass_old_seal(self):
-        evidence = self.evidence(); (evidence.root/'raw').write_bytes(b'changed')
+        evidence = self.evidence(); (evidence.root/'continuous/raw').write_bytes(b'changed')
         with self.assertRaises(ValueError):replay.Evidence(evidence.root)
-        with self.assertRaises(ValueError):evidence.raw('raw')
+        with self.assertRaises(ValueError):evidence.raw('continuous/raw')
 
     def test_portable_roundtrip_preserves_original_bytes(self):
         evidence = self.evidence(); source = self.root/'support.py'; source.write_bytes(b'original source')
         archive = self.root/'portable.tar.gz'
         replay.package(evidence, {'/old/host/support.py':source}, archive)
         output = self.root/'restored'; output.mkdir()
-        restored = replay.unpack(archive, output)
-        self.assertEqual(restored.raw('raw'), b'original')
+        restored = replay.unpack(archive, output, evidence.seal_sha256)
+        self.assertEqual(restored.raw('continuous/raw'), b'original')
         self.assertEqual(restored.logical_root, evidence.logical_root)
         self.assertEqual(restored.auxiliary('/old/host/support.py', replay.digest(source)).read_bytes(), b'original source')
+        self.assertEqual((restored.root/'checksums.json').read_bytes(),(evidence.root/'checksums.json').read_bytes())
+        self.assertIn('context-inputs/private.json',restored.seal)
+        self.assertNotIn('context-inputs/private.json',restored.available)
+        self.assertFalse((restored.root/'context-inputs/private.json').exists())
+        self.assertEqual(evidence.available,set(evidence.seal))
+
+    def test_directory_still_requires_all_original_member_bytes(self):
+        evidence=self.evidence();(evidence.root/'context-inputs/private.json').unlink()
+        with self.assertRaises(OSError):replay.Evidence(evidence.root)
+
+    def test_portable_requires_external_original_seal_and_exact_c8_closure(self):
+        evidence=self.evidence();archive=self.root/'portable.tar.gz';replay.package(evidence,{},archive)
+        with tarfile.open(archive) as stream:
+            original={row.name:stream.extractfile(row).read() for row in stream if row.isfile()}
+        for expected in (None,'0'*64):
+            with tempfile.TemporaryDirectory(dir=self.root) as output,self.assertRaisesRegex(ValueError,'External original'):
+                replay.unpack(archive,Path(output),expected)
+        for mode in ('missing-c8','extra-private-payload','wrong-omitted-map','changed-outer-seal'):
+            files=dict(original);manifest=json.loads(files['manifest.json'])
+            if mode=='missing-c8':
+                del files['evidence/continuous/raw'];del manifest['files']['evidence/continuous/raw']
+            elif mode=='extra-private-payload':
+                files['evidence/context-inputs/private.json']=b'private-unrun-task'
+                manifest['files']['evidence/context-inputs/private.json']=replay.digest(evidence.root/'context-inputs/private.json')
+            elif mode=='wrong-omitted-map':manifest['omitted_original_members']={}
+            else:
+                seal=json.loads(files['evidence/checksums.json']);seal['context-inputs/private.json']='0'*64
+                files['evidence/checksums.json']=json.dumps(seal).encode()
+                import hashlib
+                manifest['files']['evidence/checksums.json']=hashlib.sha256(files['evidence/checksums.json']).hexdigest()
+            files['manifest.json']=json.dumps(manifest).encode();changed=self.root/(mode+'.tar.gz')
+            with tarfile.open(changed,'x:gz') as stream:
+                for name,raw in files.items():
+                    item=tarfile.TarInfo(name);item.size=len(raw);stream.addfile(item,io.BytesIO(raw))
+            with self.subTest(mode=mode),tempfile.TemporaryDirectory(dir=self.root) as output,self.assertRaises(ValueError):
+                replay.unpack(changed,Path(output),evidence.seal_sha256)
 
     def test_unsafe_or_duplicate_tar_members_refused(self):
         for name, kind in [('../escape', None), ('/absolute', None), ('C:/drive', None),
@@ -155,7 +196,7 @@ class C8Replay(unittest.TestCase):
         self.assertFalse((evidence.root/'new').exists())
 
     def test_changed_outer_seal_cannot_be_exported(self):
-        evidence=self.evidence();self.dump(evidence.root/'checksums.json', {'raw':'0'*64})
+        evidence=self.evidence();changed=dict(evidence.seal);changed['campaign.json']='0'*64;self.dump(evidence.root/'checksums.json',changed)
         with self.assertRaisesRegex(ValueError, 'changed while archiving'):
             replay.package(evidence,{},self.root/'new.tar.gz')
 
