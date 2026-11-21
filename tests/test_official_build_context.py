@@ -15,6 +15,82 @@ import official_execution as execution
 
 
 class BuildContextTests(unittest.TestCase):
+    def apt_root(self, directory):
+        root=Path(directory)/'private-root';staging=Path(directory)/'staging'
+        (root/'etc/apt').mkdir(parents=True);staging.mkdir()
+        (root/'etc/apt/sources.list').write_text('deb [signed-by=/usr/share/keyrings/ubuntu-archive-keyring.gpg] http://ports.ubuntu.com/ubuntu-ports/ jammy universe\n')
+        return root,staging
+
+    def test_private_mirror_preserves_signature_key_suite_and_original(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root,staging=self.apt_root(directory);logs=staging/'logs';logs.mkdir()
+            source=root/'etc/apt/sources.list';original=source.read_bytes()
+            sources=build.private_apt_sources(root,logs)
+            hashes=build.set_private_mirror(root,sources,build.UBUNTU_PORTS_MIRRORS[0])
+            text=source.read_text()
+            self.assertIn('signed-by=/usr/share/keyrings/ubuntu-archive-keyring.gpg',text)
+            self.assertIn('jammy universe',text)
+            self.assertIn('https://mirrors.ustc.edu.cn/ubuntu-ports/',text)
+            self.assertEqual(hashes['etc/apt/sources.list']['original_sha256'],hashlib.sha256(original).hexdigest())
+            self.assertEqual(json.loads((logs/'original-sources.json').read_text())['etc/apt/sources.list'],original.decode())
+            with self.assertRaises(ValueError):build.set_private_mirror(root,sources,'http://untrusted.invalid')
+
+    def test_private_apt_unknown_source_refuses_before_network(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root,staging=self.apt_root(directory)
+            (root/'etc/apt/sources.list').write_text('deb https://unknown.invalid jammy main\n')
+            with patch.object(execution,'popen_in_context') as launch:
+                with self.assertRaisesRegex(ValueError,'recognized Ubuntu ports'):build.provision_protobuf(root,staging)
+                launch.assert_not_called()
+
+    def test_mirror_failure_journal_then_bounded_fallback_and_package_receipt(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root,staging=self.apt_root(directory);codes=iter([100,0,0]);seen=[]
+            def launch(command,*args,**kwargs):
+                journal=json.loads((staging/'provision/commands.json').read_text())
+                self.assertEqual(journal[-1]['status'],'running')
+                seen.append(journal[-1])
+                self.assertLessEqual(journal[-1]['timeout_seconds'],180)
+                self.assertIn('APT::Update::Error-Mode=any',command)
+                self.assertNotIn('trusted=yes',' '.join(command))
+                code=next(codes)
+                class Process:
+                    def wait(self,timeout):return code
+                    def poll(self):return code
+                return Process()
+            with patch.object(execution,'popen_in_context',side_effect=launch),patch.object(execution,'run_in_context',return_value=subprocess.CompletedProcess([],0,stdout='protobuf-compiler\t3.12.4\n')):
+                receipt=build.provision_protobuf(root,staging)
+            self.assertEqual([r['mirror'] for r in seen],[build.UBUNTU_PORTS_MIRRORS[0]]+[build.UBUNTU_PORTS_MIRRORS[1]]*2)
+            self.assertEqual([r['status'] for r in receipt['commands']],['failed','completed','completed'])
+            self.assertIn('3.12.4',receipt['package_versions'])
+            self.assertFalse(receipt['host_packages_modified'])
+
+    def test_apt_timeout_is_recorded_and_owned_group_reaped(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root,staging=self.apt_root(directory)
+            class Process:
+                pid=123456
+                done=False
+                def wait(self,timeout):
+                    if not self.done:
+                        self.done=True
+                        raise subprocess.TimeoutExpired('controlled fixture',timeout)
+                    return -15
+                def poll(self):return -15 if self.done else None
+            # Explicitly model a still-live child after the initial wait timeout.
+            class AliveProcess(Process):
+                waits=0
+                def wait(self,timeout):
+                    self.waits+=1
+                    if self.waits==1:raise subprocess.TimeoutExpired('controlled fixture',timeout)
+                    self.done=True;return -15
+            with patch.object(execution,'popen_in_context',side_effect=lambda *a,**k:AliveProcess()),patch.object(build.os,'killpg') as kill:
+                with self.assertRaisesRegex(RuntimeError,'bounded mirror'):build.provision_protobuf(root,staging)
+            self.assertEqual(kill.call_count,2)
+            rows=json.loads((staging/'provision/commands.json').read_text())
+            self.assertEqual([r['status'] for r in rows],['timeout','timeout'])
+            self.assertTrue(all(r['process_reaped'] for r in rows))
+
     def archive(self,directory,items):
         path=Path(directory)/'layer.tar'
         with tarfile.open(path,'w') as archive:

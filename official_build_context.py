@@ -7,11 +7,13 @@ shared through the ordinary execution-context implementation.
 import hashlib
 import json
 import os
+import re
 from pathlib import Path, PurePosixPath
 import shutil
 import signal
 import subprocess
 import tempfile
+import time
 
 import official_execution as execution
 
@@ -19,6 +21,43 @@ BASE_MANIFEST = 'sha256:4ee78def8f33d59d48f116d1dfa793332c23c99ecab4f0d7dd5cd62d
 SYSTEM_PREFIXES = ('bin', 'sbin', 'lib', 'lib64', 'usr/bin', 'usr/sbin', 'usr/lib',
                    'usr/lib64', 'usr/libexec', 'usr/include', 'usr/share', 'etc',
                    'var/lib/dpkg', 'var/lib/apt', 'var/cache/apt')
+UBUNTU_PORTS_MIRRORS = ('https://mirrors.ustc.edu.cn/ubuntu-ports',
+                        'https://mirrors.tuna.tsinghua.edu.cn/ubuntu-ports')
+
+
+def private_apt_sources(root, logs):
+    """Keep suites/components/keyrings; replace only the upstream ports URI."""
+    root = Path(root).resolve()
+    paths = [root/'etc/apt/sources.list']
+    paths += sorted((root/'etc/apt/sources.list.d').glob('*.list'))
+    paths += sorted((root/'etc/apt/sources.list.d').glob('*.sources'))
+    sources = {}
+    for path in paths:
+        if not path.exists():
+            continue
+        if path.is_symlink() or not path.resolve().is_relative_to(root):
+            raise ValueError('APT source escaped the private build root')
+        sources[str(path.relative_to(root))] = path.read_text()
+    if not any(re.search(r'https?://ports\.ubuntu\.com/ubuntu-ports/?', text)
+               for text in sources.values()):
+        raise ValueError('Pinned build image has no recognized Ubuntu ports source')
+    (logs/'original-sources.json').write_text(json.dumps(sources, indent=2)+'\n')
+    return sources
+
+
+def set_private_mirror(root, sources, mirror):
+    if mirror not in UBUNTU_PORTS_MIRRORS:
+        raise ValueError('Unrecognized Ubuntu ports mirror')
+    hashes = {}
+    for name, original in sources.items():
+        path = execution.destination(root, name)
+        if path.is_symlink():
+            raise ValueError('APT source became a link')
+        text = re.sub(r'https?://ports\.ubuntu\.com/ubuntu-ports/?', mirror+'/', original)
+        path.write_text(text)
+        hashes[name] = dict(original_sha256=hashlib.sha256(original.encode()).hexdigest(),
+                           effective_sha256=execution.sha(path))
+    return hashes
 
 
 def selected(name):
@@ -101,39 +140,67 @@ def provision_protobuf(root, staging):
         return dict(already_in_official_image=True)
     logs=staging/'provision';logs.mkdir()
     archives=logs/'apt-archives';archives.mkdir();(archives/'partial').mkdir()
+    sources=private_apt_sources(root,logs)
     environment=execution._neutral_environment()
     environment.update(PATH='/usr/sbin:/usr/bin:/sbin:/bin',DEBIAN_FRONTEND='noninteractive',
                        HOME=str(logs),TMPDIR=str(logs))
     common=['apt-get','-o','APT::Keep-Downloaded-Packages=true',
-            '-o','Dir::Cache::archives='+str(archives),'-o','Acquire::Retries=2',
-            '-o','Acquire::http::Timeout=45','-o','Acquire::https::Timeout=45']
+            '-o','Dir::Cache::archives='+str(archives),'-o','Acquire::Retries=1',
+            '-o','Acquire::http::Timeout=15','-o','Acquire::https::Timeout=15',
+            '-o','APT::Update::Error-Mode=any']
     commands=[common+['update'],common+['install','--yes','--no-install-recommends',
                                       'protobuf-compiler','libprotobuf-dev']]
     records=[]
-    for index,command in enumerate(commands):
-        process=None
-        with (logs/('apt-'+str(index)+'.log')).open('xb') as stream:
-            try:
-                process=execution.popen_in_context(command,root,env=environment,
-                    extra_paths=(staging,Path(__file__).parent),stdout=stream,stderr=subprocess.STDOUT,start_new_session=True)
-                code=process.wait(timeout=900)
-                records.append(dict(command=command,returncode=code,model_started=False))
-                (logs/'commands.json').write_text(json.dumps(records,indent=2)+'\n')
-                if code:
-                    raise RuntimeError('Private Ubuntu build-package preparation failed; preserve '+str(logs))
-            finally:
-                if process is not None and process.poll() is None:
-                    os.killpg(process.pid,signal.SIGTERM)
-                    try:process.wait(timeout=15)
-                    except subprocess.TimeoutExpired:
-                        os.killpg(process.pid,signal.SIGKILL);process.wait(timeout=10)
+    deadline=time.monotonic()+600
+    completed=False
+    for attempt,mirror in enumerate(UBUNTU_PORTS_MIRRORS):
+        source_hashes=set_private_mirror(root,sources,mirror)
+        for index,command in enumerate(commands):
+            budget=min(180 if index==0 else 120,deadline-time.monotonic())
+            if budget<=0:
+                break
+            record=dict(command=command,mirror=mirror,source_files=source_hashes,
+                        timeout_seconds=budget,status='running',model_started=False)
+            records.append(record)
+            (logs/'commands.json').write_text(json.dumps(records,indent=2)+'\n')
+            print('Private Ubuntu build packages:',mirror,'update' if index==0 else 'install',
+                  'timeout='+str(round(budget,1))+'s','log='+str(logs),flush=True)
+            process=None
+            with (logs/('apt-'+str(attempt)+'-'+str(index)+'.log')).open('xb') as stream:
+                try:
+                    process=execution.popen_in_context(command,root,env=environment,
+                        extra_paths=(staging,Path(__file__).parent),stdout=stream,stderr=subprocess.STDOUT,start_new_session=True)
+                    record['returncode']=process.wait(timeout=budget)
+                    record['status']='completed' if record['returncode']==0 else 'failed'
+                except subprocess.TimeoutExpired:
+                    record['status']='timeout'
+                except BaseException as error:
+                    record.update(status='error',error=repr(error))
+                    raise
+                finally:
+                    if process is not None and process.poll() is None:
+                        os.killpg(process.pid,signal.SIGTERM)
+                        try:process.wait(timeout=15)
+                        except subprocess.TimeoutExpired:
+                            os.killpg(process.pid,signal.SIGKILL);process.wait(timeout=10)
+                    record['process_reaped']=process is None or process.poll() is not None
+                    (logs/'commands.json').write_text(json.dumps(records,indent=2)+'\n')
+            if record['status']!='completed':
+                break
+            if index==1:
+                completed=True
+        if completed:
+            break
+    if not completed:
+        raise RuntimeError('Private Ubuntu build-package preparation failed within its bounded mirror attempts; preserve '+str(logs))
     packages=execution.run_in_context(['dpkg-query','-W','-f=${binary:Package}\t${Version}\n',
         'protobuf-compiler','libprotobuf-dev','libprotobuf23','libprotoc23'],root,
         env=environment,extra_paths=(staging,),capture_output=True,text=True,timeout=30)
     if packages.returncode:
         raise ValueError('Private build-package version readback failed')
     return dict(already_in_official_image=False,package_versions=packages.stdout,
-        source='Official Ubuntu apt repositories configured in the pinned upstream image; apt signature/hash verification retained',
+        source='Ubuntu ports mirror transport for original image suites/components/keyring; apt signature/hash verification retained',
+        mirror=mirror,original_sources_sha256=execution.sha(logs/'original-sources.json'),
         archives={path.name:dict(bytes=path.stat().st_size,sha256=execution.sha(path)) for path in archives.glob('*.deb')},
         commands=records,host_packages_modified=False)
 
