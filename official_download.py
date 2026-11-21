@@ -4,6 +4,7 @@ from pathlib import Path
 import time
 import platform
 import shutil
+import os
 
 
 def artifacts(versions):
@@ -31,6 +32,14 @@ def run(config, *, artifact=None, transport='auto'):
     from baseline_setup import fetch, digest
     if transport not in ('auto', 'curl'):
         raise ValueError('Unknown official download transport')
+    try:
+        range_workers=int(os.environ.get('DEEPLINKENGINE_DOWNLOAD_RANGE_WORKERS','1'))
+    except ValueError as error:
+        raise ValueError('Range workers must be an integer between 1 and 4') from error
+    if not 1<=range_workers<=4:
+        raise ValueError('Range workers must be between 1 and 4')
+    if range_workers>1 and not shutil.which('curl'):
+        raise ValueError('Parallel official ranges require native curl')
     use_curl = transport == 'curl' or (platform.system() == 'Windows' and shutil.which('curl'))
     if use_curl and not shutil.which('curl'):
         raise ValueError('Requested native curl transport is unavailable')
@@ -43,14 +52,19 @@ def run(config, *, artifact=None, transport='auto'):
     out.mkdir(parents=True, exist_ok=False)
     record = dict(schema='deeplinkengine-official-download/v1', started=time.time(), status='running',
                   model_execution_authorized=False, extraction_performed=False,
-                  transport='native-curl' if use_curl else 'python-with-curl-fallback', files=[])
+                  transport='native-curl' if use_curl else 'python-with-curl-fallback',
+                  range_workers_requested=range_workers,files=[])
     try:
         save(out / 'results.json', record)
         for identity, row in selected.items():
             # Native Windows curl uses the system TLS transport. Python TLS
             # can trickle through the same configured proxy without timing out.
             attempts = 0 if use_curl else 3
-            path = fetch(Path(config['cache']) / 'official-oci', row['registry'], row['kind'], identity, row['bytes'], attempts=attempts)
+            if range_workers>1 and row['bytes']>=2*1024**2:
+                from official_range_download import fetch as ranges
+                path=ranges(Path(config['cache'])/'official-oci',row['registry'],row['kind'],identity,row['bytes'],workers=range_workers)
+            else:
+                path = fetch(Path(config['cache']) / 'official-oci', row['registry'], row['kind'], identity, row['bytes'], attempts=attempts)
             record['files'].append(dict(row, path=str(path), sha256=digest(path)))
             save(out / 'results.json', record)
         record['status'] = 'completed'
