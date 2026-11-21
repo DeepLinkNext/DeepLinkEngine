@@ -191,13 +191,18 @@ def completed_evidence(out):
     campaign = json.loads((out / "fixed-five/campaign.json").read_text())
     execution = json.loads((out / "context-tenant/execution.json").read_text())
     pair = json.loads((out / "context-tenant/paired-summary.json").read_text())
+    from full_report import context_plot_failure, context_sources
+    plot_failed = context_plot_failure(execution)
     phases = [row["phase"] for row in pair["comparison"]]
     if (campaign["status"] != "completed" or campaign["selected_execution_complete"] is not True
-        or execution["status"] != "completed" or pair["execution_complete"] is not True
+        or (execution["status"] != "completed" and not plot_failed) or pair["execution_complete"] is not True
         or phases != ["4096-formal", "16384-formal", "32768-formal", "multi-tenant-formal"]):
         raise ValueError("Campaign evidence does not show all planned tests completed")
-    reports = {"fixed_five": "fixed-five-report/report.html",
-               "context_tenant": "context-tenant/paired-report/report.html"}
+    reports = {"fixed_five": "fixed-five-report/report.html"}
+    if plot_failed:
+        context_sources(out / "context-tenant", pair)
+    else:
+        reports["context_tenant"] = "context-tenant/paired-report/report.html"
     for path in reports.values():
         if not (out / path).is_file():
             raise ValueError("Missing generated report: " + path)
@@ -396,6 +401,15 @@ def run(data, *, resume_bootstrap=False, resume_before_model=False, resume_befor
         record.update(returncode=result.returncode,
                       status="completed" if result.returncode == 0 else "failed")
         save()
+        if result.returncode == 2 and name == "run-context-tenant":
+            from full_report import context_plot_failure
+            path = out / "context-tenant/execution.json"
+            if path.is_file():
+                execution = json.loads(path.read_bytes())
+                if context_plot_failure(execution):
+                    record.update(status="sealed_with_plot_failure", report_failure=execution["failure"])
+                    save()
+                    return
         if result.returncode:
             raise RuntimeError(name + " failed; original results retained, no automatic retry")
 
@@ -513,6 +527,8 @@ def run(data, *, resume_bootstrap=False, resume_before_model=False, resume_befor
                    for goal in overview.get("targets", {}).values() for level in ("milestone", "final"))):
             raise ValueError("The full report does not contain four completed acceptance decisions")
         reports["overview"] = "full-report/report.html"
+        if "context_tenant" not in reports:
+            reports["context_tenant"] = "full-report/report.html#context-results"
         for name in ("full-report/summary.json", "full-report/report.html", "full-report/fixed-five.svg", "full-report/fixed-five.png"):
             with (out/name).open("rb") as stream:
                 hashes[name] = hashlib.file_digest(stream,"sha256").hexdigest()

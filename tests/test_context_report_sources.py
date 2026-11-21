@@ -216,3 +216,14 @@ def test_formal_context_rank_replays_sealed_whole_and_window_clocks(tmp_path):
     (folder / requests[0]).write_text('{}')
     with pytest.raises(ValueError, match='missing from the audited seal'):
         report.apply_v2_context_tails(context, {'B1': tmp_path})
+
+
+def test_plot_only_failure_admits_sealed_context_but_other_failures_do_not(tmp_path):
+    _, folder, arms, state, stored = fixture(tmp_path)
+    state.update(status='failed', failure=report.PLOT_FAILURE)
+    (folder/'execution.json').write_text(json.dumps(state))
+    assert report.context_sources(folder, stored) == arms
+    state['failure'] = 'unexpected service failure'
+    (folder/'execution.json').write_text(json.dumps(state))
+    with pytest.raises(ValueError, match='before the plotting boundary'):
+        report.context_sources(folder, stored)
