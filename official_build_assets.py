@@ -126,20 +126,23 @@ def admit_pip_cache(row,cache,*,pip_cache,report_url):
 def authority(install,primary):
     """Check a resolver choice against the original publisher's artifact list."""
     info=install['download_info'];url=info['url'];filename=urllib.parse.unquote(urllib.parse.urlsplit(url).path.rsplit('/',1)[-1]);meta=install['metadata'];name=re.sub(r'[-_.]+','-',meta['name']).lower();version=meta['version'];digest=info.get('archive_info',{}).get('hashes',{}).get('sha256')
-    if not re.fullmatch(r'[0-9a-f]{64}',digest or ''):raise ValueError('Resolver artifact has no whole SHA-256')
+    if digest is not None and not re.fullmatch(r'[0-9a-f]{64}',digest):raise ValueError('Resolver artifact has an invalid whole SHA-256')
     if filename in primary:
         row=dict(primary[filename]);
-        if row['sha256']!=digest:raise ValueError('Resolver changed a fixed stage artifact')
-        return row
+        if digest is not None and row['sha256']!=digest:raise ValueError('Resolver changed a fixed stage artifact')
+        return dict(row,resolver_advertised_sha256=digest is not None)
     if not re.fullmatch(r'[a-z0-9][a-z0-9_.-]*',name):raise ValueError('Unsafe resolved package name')
     source='https://pypi.org/pypi/'+urllib.parse.quote(name,safe='')+'/'+urllib.parse.quote(version,safe='')+'/json'
     try:
-        raw=_read(source);data=json.loads(raw);matches=[r for r in data['urls'] if r['filename']==filename and r['digests']['sha256']==digest]
+        raw=_read(source);data=json.loads(raw);matches=[r for r in data['urls'] if r['filename']==filename and (digest is None or r['digests']['sha256']==digest)]
         if len(matches)!=1:raise ValueError('Resolver artifact is absent from the official PyPI release')
-        selected=matches[0]
-        return dict(filename=filename,bytes=selected['size'],sha256=digest,url=selected['url'],upstream_url=selected['url'],package=name,version=version,publisher_metadata_url=source,publisher_metadata_sha256=hashlib.sha256(raw).hexdigest())
+        selected=matches[0];publisher_digest=selected['digests']['sha256']
+        if not re.fullmatch(r'[0-9a-f]{64}',publisher_digest):raise ValueError('Publisher artifact has an invalid whole SHA-256')
+        return dict(filename=filename,bytes=selected['size'],sha256=publisher_digest,url=selected['url'],upstream_url=selected['url'],package=name,version=version,publisher_metadata_url=source,publisher_metadata_sha256=hashlib.sha256(raw).hexdigest(),resolver_advertised_sha256=digest is not None,publisher_digest_advertised=True)
     except urllib.error.HTTPError as error:
         if error.code!=404:raise
+    if digest is None:
+        raise ValueError('Resolver and official PyPI publisher supply no unique pinned artifact SHA-256: '+filename)
     # CPU variants and Triton-Ascend are also published in the exact upstream
     # indexes used by the Docker recipe. They must advertise the same digest.
     row=dict(filename=filename,sha256=digest,package=name)

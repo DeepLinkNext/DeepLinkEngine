@@ -36,6 +36,16 @@ class BuildAssetsTests(unittest.TestCase):
         with patch.object(assets,'_read',return_value=raw):
             with self.assertRaisesRegex(ValueError,'absent from the official'):assets.authority(item,{})
 
+    def test_missing_report_hash_requires_unique_exact_publisher_filename(self):
+        item=dict(metadata=dict(name='sample',version='1.0'),download_info=dict(url='https://mirror.invalid/sample.whl',archive_info={}))
+        row=dict(filename='sample.whl',size=12,url='https://files.pythonhosted.org/sample.whl',digests=dict(sha256='a'*64))
+        with patch.object(assets,'_read',return_value=json.dumps(dict(urls=[row])).encode()):
+            result=assets.authority(item,{})
+        self.assertEqual(result['sha256'],'a'*64);self.assertFalse(result['resolver_advertised_sha256']);self.assertTrue(result['publisher_digest_advertised'])
+        for rows in ([],[row,row]):
+            with patch.object(assets,'_read',return_value=json.dumps(dict(urls=rows)).encode()):
+                with self.assertRaisesRegex(ValueError,'absent from the official'):assets.authority(item,{})
+
     def test_wheel_metadata_is_checked_after_whole_admission(self):
         with tempfile.TemporaryDirectory() as directory:
             path=self.wheel(Path(directory),'sample','1.0',['leaf>=2'])
