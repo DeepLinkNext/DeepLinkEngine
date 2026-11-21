@@ -533,6 +533,8 @@ def main():
         parser.error('Protocol preparation requires a fresh run and cannot combine with execution/recovery modes')
     try:
         data = configuration(args.config, allow_existing=args.resume_bootstrap or args.resume_before_model or args.resume_before_inference or args.report_only)
+        from official_execution import maybe_enter_config
+        maybe_enter_config(args.config, sys.argv[1:])
         if args.rerun_b0 is not None:
             data["rerun_b0"] = args.rerun_b0
         os.environ["XDG_CACHE_HOME"] = os.environ.get("XDG_CACHE_HOME") or str(Path(data["cache"]) / "xdg")

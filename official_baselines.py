@@ -69,6 +69,9 @@ def main(arguments=None):
             config['reuse_completed_continuous'] = str(args.reuse_completed_continuous.resolve())
         if platform.system() != 'Linux' or platform.machine() != 'aarch64':
             raise ValueError('Official Ascend baselines require Linux aarch64')
+        if not args.prepare_environment:
+            from official_execution import maybe_enter_official
+            maybe_enter_official(config, list(arguments) if arguments is not None else sys.argv[1:])
         if config.get('model_manifest'):
             from model_restore import restore
             restore(config['model_manifest'], config['model'])
@@ -114,32 +117,36 @@ def main(arguments=None):
             identity = read_lock(lock)
             sdk = cache / 'official-sdks' / (version + '-' + identity['manifest_digest'].split(':')[1][:16])
             try:
-                recovered = quarantine_partial_sdk(lock, sdk)
-                if recovered:
-                    row['interrupted_restoration'] = recovered
-                    save(out / 'results.json', record)
-                if sdk.exists():
-                    was_complete = (sdk / 'installation.json').is_file()
-                    if not was_complete:
-                        installed = finish_restoration(lock, sdk)
+                from official_sdk_state import sdk_preparation
+                with sdk_preparation(sdk):
+                    recovered = quarantine_partial_sdk(lock, sdk)
+                    if recovered:
+                        row['interrupted_restoration'] = recovered
+                        save(out / 'results.json', record)
+                    if sdk.exists():
+                        was_complete = (sdk / 'installation.json').is_file()
+                        if not was_complete:
+                            installed = finish_restoration(lock, sdk)
+                        else:
+                            installed = json.loads((sdk / 'installation.json').read_bytes())
+                        if installed['image_manifest'] != identity['manifest_digest'] or (sdk / 'image-lock.json').read_bytes() != lock.read_bytes():
+                            raise ValueError('Cached official SDK selection differs')
+                        if digest(sdk / 'installed-files.json') != installed['installed_files_sha256']:
+                            raise ValueError('Cached official SDK file manifest differs')
+                        if was_complete:
+                            if file_map(sdk) != json.loads((sdk / 'installed-files.json').read_bytes()):
+                                raise ValueError('Cached official SDK files differ')
+                            installed['metadata'] = probe(sdk, out / (version + '-probe-cache'), identity)
                     else:
-                        installed = json.loads((sdk / 'installation.json').read_bytes())
-                    if installed['image_manifest'] != identity['manifest_digest'] or (sdk / 'image-lock.json').read_bytes() != lock.read_bytes():
-                        raise ValueError('Cached official SDK selection differs')
-                    if digest(sdk / 'installed-files.json') != installed['installed_files_sha256']:
-                        raise ValueError('Cached official SDK file manifest differs')
-                    if was_complete:
-                        if file_map(sdk) != json.loads((sdk / 'installed-files.json').read_bytes()):
-                            raise ValueError('Cached official SDK files differ')
-                        installed['metadata'] = probe(sdk, out / (version + '-probe-cache'), identity)
-                else:
-                    installed = prepare(lock, cache / 'official-oci', sdk)
+                        installed = prepare(lock, cache / 'official-oci', sdk)
                 row.update(installation=str(sdk), installation_receipt=installed,
                            status='prepared' if args.prepare_environment else 'running',
                            model_started=False if args.prepare_environment else None)
                 save(out / 'results.json', record)
                 if not args.prepare_environment:
                     from official_suite import run
+                    record['status'] = 'running'
+                    save(out / 'results.json', record)
                     result = run(config, sdk, out / version)
                     row.update(result)
                     failed |= row['status'] != 'completed'

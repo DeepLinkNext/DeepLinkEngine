@@ -67,6 +67,8 @@ jobs:
       - run: python -B tests/test_official_download.py
       - run: python -B tests/test_official_image_recovery.py
       - run: python -B tests/test_official_protocol_bootstrap.py
+      - run: python -B tests/test_official_execution.py
+      - run: python -B tests/test_official_sdk_state.py
       - run: python -B tests/test_run_all.py
       - run: python -B tests/test_environment_setup.py
       - run: python -B tests/test_standalone.py

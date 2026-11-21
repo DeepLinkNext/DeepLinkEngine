@@ -10,8 +10,14 @@ def host_identity():
                  '/usr/local/Ascend/driver/version.info', '/usr/local/Ascend/firmware/version.info'):
         path = Path(name)
         files[name] = path.read_text(errors='replace') if path.is_file() else None
-    return dict(hostname=platform.node(), architecture=platform.machine(),
-                kernel=platform.release(), source_files=files)
+    result = dict(hostname=platform.node(), architecture=platform.machine(),
+                  kernel=platform.release(), source_files=files)
+    from official_execution import context_identity
+    context = context_identity()
+    if context is not None:
+        result.update(execution_context=context, host_os_release=context['host']['os_release'],
+                      execution_os_release=context['execution_os_release'])
+    return result
 
 
 def cann_environment(sdk):
