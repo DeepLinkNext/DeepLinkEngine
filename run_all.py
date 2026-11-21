@@ -263,7 +263,7 @@ def completed_run_source(data, source):
     interruption = stopped(source, prior)
     from reuse_campaign import source as audit_source, audit_stage
     print("RECOVERY_AUDIT campaign", source / "fixed-five", flush=True)
-    _, previous_plan, campaign, _ = audit_source(source / "fixed-five")
+    _, previous_plan, campaign, bindings = audit_source(source / "fixed-five")
     if campaign.get("status") not in ("failed", "completed"):
         raise ValueError("Reuse campaign is not sealed and stopped")
     names = [row["name"] for row in campaign["stages"] if row["status"] == "completed"]
@@ -290,6 +290,15 @@ def completed_run_source(data, source):
             raise ValueError("Changing engine version requires baseline-only completed stages")
     result = dict(root=str(source), completed_stages=names,
                   results_sha256=hashlib.sha256((source / "results.json").read_bytes()).hexdigest())
+    reference = source / "fixed-five/compute-reference"
+    native_seal = "compute-reference/native-current-timing/checksums.json"
+    if (campaign.get("selected_execution_complete") is True
+            and "compute-reference/checksums.json" in bindings and native_seal in bindings
+            and (reference / "automatic-result.json").is_file()):
+        measured = json.loads((reference / "automatic-result.json").read_bytes())
+        if any(row.get("id") == "current-native-synchronized-timing"
+               and row.get("status") == "completed" for row in measured["stages"]):
+            result["compute_resume_source"] = str(reference)
     if device_change:
         result["physical_device_change"] = dict(original=before["physical_devices"], current=after["physical_devices"])
     if interruption:
@@ -449,6 +458,8 @@ def run(data, *, resume_bootstrap=False, resume_before_model=False, resume_befor
                 run_command += ['--reuse-completed-campaign', campaign]
             if reuse_selection['mmlu_baseline_arm']:
                 run_command += ['--reuse-mmlu-baseline-arm', reuse_selection['mmlu_baseline_arm']]
+        if reused_run and reused_run.get("compute_resume_source"):
+            run_command += ["--reference-resume-source", reused_run["compute_resume_source"]]
         if reuse_selection.get("compute_baseline_arm"):
             run_command += ["--reference-baseline-source", reuse_selection["compute_baseline_arm"]]
         if data.get("rerun_b0", False):

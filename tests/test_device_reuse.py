@@ -84,3 +84,24 @@ def test_whole_mmlu_pair_survives_a_device_change_with_the_same_runtime(tmp_path
     with pytest.raises(ValueError, match="scorer"):
         module["compatible"]("mmlu-pair", previous, dict(plan, mmlu_inputs=dict(
             quality_plan_sha256="plan", scorer_sha256="modified")), tmp_path)
+
+def test_completed_run_carries_only_sealed_native_progress(tmp_path):
+    source = tmp_path / "source"
+    compute = source / "fixed-five/compute-reference"
+    compute.mkdir(parents=True)
+    configured = dict(model="/model", cache="/cache", physical_devices=[0, 3], out=str(source))
+    (source / "results.json").write_text(json.dumps(dict(status="failed", configuration=configured)))
+    (compute / "automatic-result.json").write_text(json.dumps(dict(stages=[
+        dict(id="current-native-synchronized-timing", status="completed")
+    ])))
+    current = dict(configured, out=str(tmp_path / "new"), allow_device_change=True)
+    campaign = dict(status="completed", selected_execution_complete=True, stages=[
+        dict(name="hle-solver-B1", status="completed")
+    ])
+    bindings = {"compute-reference/checksums.json": "sealed",
+                "compute-reference/native-current-timing/checksums.json": "sealed"}
+    with patch("reuse_campaign.audit_stage"), patch("reuse_campaign.source",
+            return_value=(compute.parent, {}, campaign, bindings)), patch("release_selection.active", return_value=None):
+        assert run_all.completed_run_source(current, source)["compute_resume_source"] == str(compute)
+        bindings.pop("compute-reference/native-current-timing/checksums.json")
+        assert "compute_resume_source" not in run_all.completed_run_source(current, source)

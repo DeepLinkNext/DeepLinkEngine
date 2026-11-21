@@ -130,3 +130,36 @@ def test_actual_reference_coordinator_never_launches_b0_when_reuse_was_selected(
         assert rows[0]['status']=='failed'
         assert 'seal changed' in result['blockers'][0]
         assert not (out/'compute-reference/baseline-native-reuse.json').exists()
+
+
+@pytest.mark.parametrize("device_change", [False, True])
+def test_http_observation_launch_receives_the_frozen_device_change_option(tmp_path, device_change):
+    from test_context_baseline_reuse import combined
+    out = tmp_path / "campaign"
+    sdk = tmp_path / "sdk"
+    write(sdk / "deployment.json", {})
+    write(out / "frozen-stages.json", [dict(name="mmlu-pair",
+        args=["--qualified-continuous", str(tmp_path / "original-c8")])])
+    stage = dict(id="current-http-work-observation", implementation="scripts/reference_observation.py")
+    plan = dict(deployment=str(sdk), deployment_sha256=reuse.sha(sdk / "deployment.json"), files={},
+        stages=[stage], binding=dict(model="/model"), physical_cards=[0, 3], logical_devices="0,1",
+        capture_profile=dict(id="submission-v2"), baseline_reuse={"source": "/fixed-b0"})
+    if device_change:
+        plan["device_reuse_mapping"] = {"physical_cards": [0, 3]}
+    path = out / "plans/automatic-plan.json"
+    write(path, plan)
+    (out / "compute-reference").mkdir()
+    namespace = {"__file__": str(ROOT / "benchmark/one-click-kit/scripts/automatic_reference.py")}
+    exec(combined()["scripts/automatic_reference.py"], namespace)
+
+    def launch(command, **kwargs):
+        assert ("--allow-device-change" in command) == device_change
+        assert command[command.index("--qualified-continuous") + 1] == str(tmp_path / "original-c8")
+        folder = Path(command[command.index("--out") + 1])
+        write(folder / "receipt.json", dict(warmup_started=False, client_started=False, failure="fixture"))
+        return SimpleNamespace(returncode=2)
+
+    admission = dict(plan="plans/automatic-plan.json", plan_sha256=reuse.sha(path))
+    with patch.dict(sys.modules, engine_entry=SimpleNamespace(environment=lambda *a: {})), patch.dict(namespace, run_stage=launch):
+        result = namespace["execute"](out, admission)
+    assert result["blockers"] == ["Current HTTP observation failed: fixture"]

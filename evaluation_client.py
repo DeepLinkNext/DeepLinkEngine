@@ -284,9 +284,7 @@ def native_baseline_bridge(result):
         '            identity = dict(source=str(baseline_source), checksums_sha256=sha(baseline_source / "checksums.json"))\n'
         '            inspect_baseline(identity["source"], identity["checksums_sha256"], plan)\n'
         '            plan["baseline_reuse"] = identity\n'
-        '        resume_source = getattr(args, "reference_resume_source", None)\n'
-        '        if baseline_source and resume_source:\n'
-        '            raise ValueError("Choose fixed-B0 reuse or complete model-stage continuation")')
+        '        resume_source = getattr(args, "reference_resume_source", None)')
     text = once(text, '            if resumed_models and stage["id"] in resumed_models["stages"]:',
         '            if stage["id"] == "baseline-native-synchronized-timing" and plan.get("baseline_reuse"):\n'
         '                row["status"] = "running"\n'
@@ -522,10 +520,34 @@ def device_change_bridge(result):
          '        if frozen.get("device_reuse_mapping") is not None:\n'
          '            plan["device_reuse_mapping"] = frozen["device_reuse_mapping"]\n'
          '        baseline_source = getattr(args, "reference_baseline_source", None)'),
+        ('                with (folder / "http-current-work.log").open("x") as log:',
+         '                if plan.get("device_reuse_mapping"):\n'
+         '                    command.append("--allow-device-change")\n'
+         '                with (folder / "http-current-work.log").open("x") as log:'),
         ('                if baseline_native:\n                    command +=',
          '                if not baseline_native and plan.get("device_reuse_mapping"):\n'
          '                    command.append("--allow-device-change")\n'
          '                if baseline_native:\n                    command +='),
+    ])
+    # The generated context-only verifier changes whenever the selected
+    # scripts inventory changes. It is outside both reference launch paths.
+    for name in ('reference_model_reuse', 'reference_qualification_reuse'):
+        edit(name, [
+            ('"scripts/live_console.py",',
+             '"scripts/live_console.py", "scripts/context_baseline_reuse.py",'),
+        ])
+    edit('reference_model_reuse', [
+        ('        path = source / directory / "receipt.json"',
+         '        if stage == "baseline-native-synchronized-timing" and old.get("baseline_reuse"):\n'
+         '            from reference_baseline_reuse import resolve\n\n'
+         '            if "baseline-native-reuse.json" not in seal or row.get("status") != "completed":\n'
+         '                raise ValueError("Prior fixed B0 native reuse is unsealed or incomplete")\n'
+         '            proof = resolve(source)\n'
+         '            if (not proof or row.get("receipt_sha256") != proof["receipt_sha256"]\n'
+         '                    or row.get("original_stage_source") != proof["source"]):\n'
+         '                raise ValueError("Prior fixed B0 native reuse receipt differs")\n'
+         '            continue\n'
+         '        path = source / directory / "receipt.json"'),
     ])
     edit('full_reference_reuse', [
         ('    save(folder / "matched-reference-pair.json", result)',
