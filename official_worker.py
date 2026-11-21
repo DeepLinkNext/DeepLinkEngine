@@ -32,6 +32,8 @@ class OfficialWorker(WorkerExtension):
                     kernel_preparation=preparation,
                     observer_removal_required=False,
                     runtime_identity=runtime, observer_basis=observer_basis(runtime))
+        from official_ft_runtime import configuration
+        result['resolved_configuration'] = configuration(self)
         # Preserve actual loaded dimensions, dispatch and method sources once,
         # outside every timed interval. This observes no tensor values or routes
         # and does not install forward hooks or replace upstream methods.

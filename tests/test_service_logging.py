@@ -209,11 +209,13 @@ import sys,os,json
 from pathlib import Path
 from unittest.mock import patch
 sys.path.insert(0,sys.argv[1]);import official_serve
-out=Path(sys.argv[3]).resolve();plan=dict(sdk=sys.argv[2],output=str(out),runtime_versions={n:'pinned' for n in ('vllm','vllm-ascend','torch','torch-npu')},runtime_identity={'kind':'cpu-fixture'},worker_sources={},baseline_id='cpu',serve_arguments=[],model='/cpu-only')
+out=Path(sys.argv[3]).resolve();plan=dict(sdk=sys.argv[2],output=str(out),runtime_versions={n:'pinned' for n in ('vllm','vllm-ascend','torch','torch-npu')},worker_sources={},baseline_id='cpu',serve_arguments=[],model='/cpu-only')
+sdk=Path(plan['sdk']);(sdk/'image-lock.json').write_text(json.dumps(dict(manifest_digest='sha256:'+'a'*64)))
+from official_runtime_identity import runtime_identity
+plan['runtime_identity']=runtime_identity(sdk)
 path=out/'official.json';path.write_text(json.dumps(plan));sys.argv=['official_serve',str(path)]
 import types
 sys.modules['engine_entry']=types.SimpleNamespace(check_pinned_host_memory=lambda *a:None)
-sys.modules['official_runtime_identity']=types.SimpleNamespace(runtime_identity=lambda root:plan['runtime_identity'])
 with patch.object(official_serve.metadata,'version',return_value='pinned'),patch.object(sys,'prefix',plan['sdk']),patch.object(official_serve.runpy,'run_module') as cli:
  official_serve.main();cli.assert_called_once()
 receipt=json.loads((out/'service-logging-receipt.json').read_bytes())

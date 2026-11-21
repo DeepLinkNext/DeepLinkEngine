@@ -27,6 +27,44 @@ def filesystem(path):
 def storage_target(logical, frozen):
     logical = Path(os.path.abspath(Path(logical).expanduser()))
     logical = logical.parent.resolve() / logical.name
+    # A persisted managed alias can outlive both /tmp and its old NFS mount.
+    # Reuse its exact owned target, including aliases of an earlier installation.
+    info = marker(logical)
+    if info.is_file():
+        saved = json.loads(info.read_text())
+        if (saved.get('schema') != 'deeplinkengine-runtime-storage/v1'
+                or saved.get('logical') != str(logical) or saved.get('verified') is not True
+                or saved.get('python') != sys.executable
+                or saved.get('package_version') != frozen['version']
+                or saved.get('release') != frozen['release']
+                or saved.get('archives') != frozen['archives']):
+            raise ValueError('Managed runtime storage identity differs')
+        target = Path(saved['physical'])
+        if target == logical and not logical.is_symlink():
+            return target
+        origin = str(logical)
+        owner = saved
+        seen = {origin}
+        while owner.get('reused_from'):
+            origin = owner['reused_from']
+            if not isinstance(origin, str) or not Path(origin).is_absolute() or origin in seen or len(seen) >= 64:
+                raise ValueError('Managed runtime storage reuse chain differs')
+            seen.add(origin)
+            previous = json.loads(marker(Path(origin)).read_text())
+            if (previous.get('logical') != origin or previous.get('physical') != str(target)
+                    or any(previous.get(key) != saved.get(key) for key in (
+                        'schema', 'verified', 'python', 'package_version', 'release', 'archives'))):
+                raise ValueError('Managed runtime storage reuse chain identity differs')
+            owner = previous
+        key = hashlib.sha256(json.dumps(dict(logical=origin, python=sys.executable,
+            version=frozen['version'], archives=frozen['archives']), sort_keys=True).encode()).hexdigest()[:20]
+        if (not target.is_absolute() or target.name != 'installation'
+                or target.parent.name != key
+                or target.parent.parent.name != 'deeplinkengine-runtime-'+str(os.getuid())
+                or target.parent.parent.is_symlink() or target.parent.is_symlink()):
+            raise ValueError('Managed runtime storage target differs')
+        target.parent.mkdir(parents=True, exist_ok=True)
+        return target
     if filesystem(logical.parent) not in ('nfs','nfs4','cifs'):
         return logical
     explicit = os.environ.get('DEEPLINKENGINE_RUNTIME_CACHE')
@@ -64,12 +102,14 @@ import json,sys
 from pathlib import Path
 sys.path.insert(0,str(Path(sys.argv[2])/'scripts'))
 from restore_b1_r4 import verify_installed_sources
-from dependency_admission import admit_dependencies
+sys.path.insert(0,sys.argv[3])
+from sdk_dependency_probe import admit_dependencies
 root=Path(sys.argv[1])
 sources=verify_installed_sources(root)
-dependencies=admit_dependencies(root)
+dependencies=admit_dependencies(root, tools=Path(sys.argv[2]), receipt=Path(sys.argv[4]))
 assert not {'torch','torch_npu','vllm','vllm_ascend'} & set(sys.modules)
-print(json.dumps({'verified_runtime_files':len(sources),'dependencies':dependencies}))
+print(json.dumps({'verified_runtime_files':len(sources),'dependencies':dependencies,
+                  'cpu_metadata_admission':json.loads(Path(sys.argv[4]).read_bytes())}))
 """
 
 
@@ -78,8 +118,10 @@ def audit_sources(sdk, tools):
                  for path in (sdk, tools, Path(sys.executable).parent))
     timeout = 1800 if remote else 180
     print('RUNTIME_AUDIT preparation_timeout_seconds', timeout, flush=True)
+    from sdk_dependency_probe import receipt_path
+    admission = receipt_path(Path(os.environ.get('XDG_CACHE_HOME', str(Path.home()/'.cache'))) / 'deeplinkengine')
     result = subprocess.run(
-        [sys.executable, '-B', '-c', SOURCE_AUDIT_CODE, str(sdk), str(tools)],
+        [sys.executable, '-B', '-c', SOURCE_AUDIT_CODE, str(sdk), str(tools), str(Path(__file__).resolve().parent), str(admission)],
         env=dict(os.environ, PYTHONDONTWRITEBYTECODE='1', PYTHONPATH=''),
         capture_output=True, text=True, check=True, timeout=timeout)
     return json.loads(result.stdout)

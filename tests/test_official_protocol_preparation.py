@@ -20,10 +20,14 @@ class Preparation(unittest.TestCase):
         self.root=Path(self.temp.name);(self.root/'model').mkdir()
         self.config=dict(model=str(self.root/'model'),physical_devices=[0,1],cache=str(self.root/'cache'),out=str(self.root/'full'),versions=['0.30.0'])
         self.commands=[];self.fixture=None
+        # These cases isolate orchestration/cache sealing. Real scientific input
+        # generation is verified separately by the public on-host cold run.
+        self.scientific=patch('official_protocol_data.verify_prepared_inputs',return_value={'fixture_only':True})
+        self.scientific.start();self.addCleanup(self.scientific.stop)
 
     def child(self,args,**kwargs):
         self.commands.append(args)
-        self.assertIn('--prepare-protocol-only',args)
+        self.assertIn('--prepare-official-protocol-only',args)
         self.assertNotIn('--rerun-b0',args)
         plan=json.loads(Path(args[args.index('--config')+1]).read_bytes());self.fixture=plan
         self.assertEqual(plan['engine_version'],preparation.VERSION)
@@ -33,12 +37,15 @@ class Preparation(unittest.TestCase):
         (output/'evaluation.json').write_text(json.dumps(dict(model=plan['model'],out=str(run),cache=plan['cache'])))
         (run/'frozen-execution-plan.json').write_text(json.dumps(dict(datasets=['mmlu','hle','frontier','swe','terminal'],model=plan['model'])))
         (run/'continuous-B0/inputs/continuous-inputs-r1.json').write_text('{}')
+        (run/'official-protocol-preparation.json').write_text('{}')
+        (run/'native-token-workload.json').write_text('{}')
         for dataset,count in [('frontier',160),('hle',200),('swe',64),('terminal',48)]:
             suffix='trace' if dataset in ('swe','terminal') else 'solver'
             (run/'plans'/(dataset+'-'+suffix+'-B0.json')).write_text(json.dumps(dict(diagnostic=False,case_ids=list(range(count)))))
         sdk=output/'installation/sdk';(sdk/'provenance').mkdir(parents=True);(sdk/'provenance/installed-files.json').write_text('{}')
         python=output/'protocol-python';python.write_text('fixture-only')
         result=dict(status='prepared',protocol_preparation_complete=True,automated_acceptance_complete=False,
+            protocol_preparation_mode='official-inputs-only',
             model_service_started=False,formal_client_started=False,engine_selection=dict(version=preparation.VERSION),
             stages=[dict(name=name,status='completed') for name in preparation.PHASES],
             protocol_run=str(run),protocol_deployment=str(sdk),protocol_python=str(python))

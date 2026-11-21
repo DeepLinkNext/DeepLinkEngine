@@ -81,6 +81,24 @@ class Trust(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, 'No verified public CA'):
                 trust.configure(self.root / 'missing', env={})
 
+    def test_public_protocol_entry_selects_trust_before_private_handoff(self):
+        import run_all
+        model = self.root / 'model'
+        model.mkdir()
+        config = self.root / 'evaluation.json'
+        config.write_text(json.dumps(dict(model=str(model), cache=str(self.root / 'cache'), out=str(self.root / 'out'), physical_devices=[0, 1], environment=dict(official_sdk=str(self.root / 'sdk')))))
+        events = []
+        class Handoff(Exception):
+            pass
+        def configure(*args):
+            events.append(('trust', args))
+        def enter(*args):
+            events.append(('enter', args))
+            raise Handoff()
+        with patch('official_sdk_bytecode.verify_or_repair', return_value=None), patch.object(sys, 'argv', ['run_all.py', '--config', str(config), '--prepare-official-protocol-only']), patch('official_execution.needed', return_value=True), patch('transport_trust.configure', side_effect=configure), patch('official_execution.maybe_enter_config', side_effect=enter), self.assertRaises(Handoff):
+            run_all.main()
+        self.assertEqual([e[0] for e in events], ['trust', 'enter'])
+        self.assertFalse((self.root / 'out').exists())
 
 
 if __name__ == '__main__':

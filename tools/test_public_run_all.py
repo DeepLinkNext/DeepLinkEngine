@@ -64,7 +64,7 @@ class FullSuiteEntryTests(unittest.TestCase):
                 report.write_text("fixture only")
             if len(args)>2 and "report_python" in args[2]:
                 folder=out/"full-report";folder.mkdir()
-                (folder/"summary.json").write_text(json.dumps(dict(schema="deeplinkengine-full-acceptance-report/v1",execution_complete=True,targets={k:dict(milestone=dict(met=True,status="达成目标"),final=dict(met=False,status="未达成目标")) for k in ("4.1","4.2","4.3","4.4")})))
+                (folder/"summary.json").write_text(json.dumps(dict(schema="deeplinkengine-full-acceptance-report/v1",execution_complete=True,targets={k:dict(milestone=dict(met=True,status="达成目标",evidence_status="verified"),final=dict(met=False,status="未达成目标",evidence_status="verified")) for k in ("4.1","4.2","4.3","4.4")})))
                 for name in ("report.html","fixed-five.svg","fixed-five.png"):(folder/name).write_text("fixture only")
             return SimpleNamespace(returncode=0)
 

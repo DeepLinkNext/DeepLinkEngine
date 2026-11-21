@@ -35,6 +35,14 @@ def verify(record):
     data = json.loads(manifest.read_bytes())
     if any(p.is_symlink() for p in root.rglob('*')) or inventory(root) != data['files']:
         raise ValueError('Selected evaluation client source inventory changed')
+    if data.get('cpu_metadata_admission'):
+        from sdk_dependency_probe import derive
+        _, expected = derive((root / 'scripts/dependency_admission.py').read_bytes())
+        declared = data['cpu_metadata_admission']
+        if (declared != json.loads((root / 'adapters/sdk-metadata-admission.json').read_bytes())
+                or any(declared.get(k) != v for k, v in expected.items())
+                or sha((root / 'adapters/sdk_dependency_probe.py').read_bytes()) != declared['owned_adapter_source_sha256']):
+            raise ValueError('Declared CPU metadata source/PROBE adapter differs')
     return data
 
 
@@ -165,6 +173,61 @@ def baseline_location_bridge(result):
     result[key] = text.encode()
 
 
+HISTORICAL_BASELINE_LOCATION_HELPER = '''"""Allow a fixed B0 installation to move without changing its observed identity."""
+import hashlib
+import json
+from pathlib import Path
+
+
+def verify(recorded, deployment, *, prior_binding=None):
+    from baseline_admission import PINNED_SOURCE_MAP_SHA256
+    digest = lambda value: hashlib.sha256(json.dumps(value, sort_keys=True,
+        separators=(",", ":")).encode()).hexdigest()
+    if (recorded.get('source_map_sha256') != PINNED_SOURCE_MAP_SHA256
+            or digest(recorded['files']) != PINNED_SOURCE_MAP_SHA256):
+        raise ValueError('Reused B0 relocated fixed image/source inventory differs')
+    proof = dict(observed_deployment=recorded['deployment'],
+        requested_deployment=str(Path(deployment).resolve()),
+        source_map_sha256=PINNED_SOURCE_MAP_SHA256,
+        scope='Same pinned fixed B0 bytes; original execution path and dates retained.')
+    # A sealed historical pair may outlive its temporary SDK. Recheck its
+    # exact admission binding; live admission still requires the actual map.
+    inventory = Path(deployment) / 'sdk-files.json'
+    if prior_binding == proof and not Path(deployment).exists() and not Path(deployment).is_symlink():
+        return proof
+    current = json.loads(inventory.read_bytes())
+    if current != recorded['files']:
+        raise ValueError('Reused B0 relocated fixed image/source inventory differs')
+    return proof
+'''
+
+
+def historical_mmlu_location_bridge(result):
+    """Replay historical MMLU bindings after a temporary SDK expires."""
+    result['scripts/baseline_relocation.py'] = HISTORICAL_BASELINE_LOCATION_HELPER.encode()
+    key = 'scripts/arm_reuse.py'
+    text = result[key].decode()
+    text = once(text, 'def validate_conditions(root, role, conditions, inspected):',
+        'def validate_conditions(root, role, conditions, inspected, *, prior_location=None):')
+    text = once(text, 'def admit(root, role, conditions):',
+        'def admit(root, role, conditions, *, prior_location=None):')
+    text = once(text, '    validate_conditions(root, role, conditions, data)',
+        '    location = validate_conditions(root, role, conditions, data, prior_location=prior_location)')
+    text = once(text, "    current = admit(root, binding['role'], binding['conditions'])",
+        "    location = binding.get('baseline_location')\n"
+        "    options = {'prior_location': location} if location else {}\n"
+        "    current = admit(root, binding['role'], binding['conditions'], **options)")
+    text = once(text, "            verify_relocation(baseline, conditions['baseline_deployment'])",
+        "            return verify_relocation(baseline, conditions['baseline_deployment'], prior_binding=prior_location)")
+    text = once(text,
+        "    if role == 'B0' and str(Path(read(root / 'baseline-source-admission.json')['deployment']).resolve()) != conditions['baseline_deployment']:\n"
+        "        from baseline_relocation import verify as verify_relocation\n"
+        "        binding['baseline_location'] = verify_relocation(read(root / 'baseline-source-admission.json'), conditions['baseline_deployment'])",
+        "    if location is not None:\n"
+        "        binding['baseline_location'] = location")
+    result[key] = text.encode()
+
+
 CONTEXT_BASELINE_HELPER = '''"""Admit the reviewed fixed-B0 context measurement without relabelling it."""
 import hashlib
 import json
@@ -229,9 +292,7 @@ def native_baseline_bridge(result):
         '            identity = dict(source=str(baseline_source), checksums_sha256=sha(baseline_source / "checksums.json"))\n'
         '            inspect_baseline(identity["source"], identity["checksums_sha256"], plan)\n'
         '            plan["baseline_reuse"] = identity\n'
-        '        resume_source = getattr(args, "reference_resume_source", None)\n'
-        '        if baseline_source and resume_source:\n'
-        '            raise ValueError("Choose fixed-B0 reuse or complete model-stage continuation")')
+        '        resume_source = getattr(args, "reference_resume_source", None)')
     text = once(text, '            if resumed_models and stage["id"] in resumed_models["stages"]:',
         '            if stage["id"] == "baseline-native-synchronized-timing" and plan.get("baseline_reuse"):\n'
         '                row["status"] = "running"\n'
@@ -255,12 +316,29 @@ def native_baseline_bridge(result):
         '    proof = resolve(folder)\n'
         '    return dict(B0=Path(proof["source"]) if proof else Path(folder) / "native-baseline-timing",\n'
         '                B1=Path(folder) / "native-current-timing")')
-    text = once(text, '        keywords = dict(baseline_deployment=plan["baseline_deployment"]) if role == "B0" else {}',
-        '        baseline = plan["baseline_deployment"]\n'
-        '        if role == "B0" and (origin / "baseline-native-reuse.json").exists():\n'
-        '            from reference_baseline_reuse import resolve\n'
-        '            baseline = resolve(origin)["original_baseline_deployment"]\n'
-        '        keywords = dict(baseline_deployment=baseline) if role == "B0" else {}')
+    result[key] = text.encode()
+
+
+    # Check the observed paths against the original layout and re-hash the
+    # reviewed implementation from its fully admitted, byte-identical copy.
+    key = 'third-party-test-kit/qualify_baseline_capacity.py'
+    text = result[key].decode()
+    text = once(text, '    arguments = read("service/client/effective-engine-args.json")',
+        '    observed_root = Path(plan["baseline_deployment"]).resolve()\n'
+        '    arguments = read("service/client/effective-engine-args.json")')
+    text = once(text, '            or Path(plan["baseline_deployment"]).resolve() != root\n',
+        '')
+    text = once(text, '            or Path(admitted["deployment"]).resolve() != root',
+        '            or Path(admitted["deployment"]).resolve() != observed_root')
+    text = once(text, '    for package, relative in (("vllm",',
+        '    if observed_root != root:\n'
+        '        from baseline_relocation import verify as verify_relocation\n'
+        '        verify_relocation(admitted, root)\n'
+        '    for package, relative in (("vllm",')
+    text = once(text, 'Path(admitted["origins"][package]).resolve() != root / relative',
+        'Path(admitted["origins"][package]).resolve() != observed_root / relative')
+    text = once(text, 'Path(composition["identity"][observed]).resolve() != root / relative',
+        'Path(composition["identity"][observed]).resolve() != observed_root / relative')
     result[key] = text.encode()
 
 
@@ -293,6 +371,19 @@ def warmup_memory_bridge(result):
            '        if value[\'limit\']-value[\'current\'] < required:\n'
            '            raise RuntimeError(\'Less than24GiB raw memory before warmup after idle cache recovery; no formal request submitted\')')
     text = once(text, old, new)
+    result[key] = text.encode()
+    # Raw pressure can exhaust the driver's pinned allocator while the original
+    # cache-adjusted working-set gate still passes. Return only our optional
+    # startup pages early; retain every original memory and OOM check.
+    result['scripts/startup_memory_recovery.py'] = (ROOT / 'startup_memory_recovery.py').read_bytes()
+    key = 'scripts/run_b1_r4.py'
+    text = result[key].decode()
+    anchor = '    # A later warmup still requires the original raw-headroom admission, even\n'
+    text = once(text, anchor,
+        '    if startup_reserve is not None and not startup_reserve.record["released"]:\n'
+        '        from startup_memory_recovery import release_startup_headroom\n'
+        '        release_startup_headroom(startup_reserve, lambda: check_memory(guard, initial, root))\n'
+        + anchor)
     result[key] = text.encode()
 
 
@@ -349,6 +440,316 @@ def b0_run_policy_bridge(result):
     result[key] = text.encode()
 
 
+def device_change_bridge(result):
+    """Bind changed physical pairs while retaining each original measurement."""
+    result['scripts/device_reuse.py'] = (ROOT / 'device_reuse.py').read_bytes()
+
+    def edit(name, replacements):
+        key = 'scripts/' + name + '.py'
+        text = result[key].decode()
+        for old, new in replacements:
+            text = once(text, old, new)
+        ast.parse(text)
+        result[key] = text.encode()
+
+    option = '    parser.add_argument("--allow-device-change", action="store_true")\n'
+    physical = '    parser.add_argument("--physical-devices",'
+    edit('third_party', [
+        (physical, option + physical),
+        ('    from compute_reference import prepare as prepare_reference',
+         '    if getattr(args, "allow_device_change", False):\n'
+         '        frozen["device_reuse_mapping"] = json.loads((out / "device-mapping.json").read_bytes())\n'
+         '    from compute_reference import prepare as prepare_reference'),
+        ('            wire_dependencies(out, stages, reused)',
+         '            wire_dependencies(out, stages, reused, allow_device_change=getattr(args, "allow_device_change", False))'),
+        ('                new_inference_stages=len(stages) - len(reused),',
+         '                new_inference_stages=len(stages) - len(reused),\n'
+         '                **({"device_reuse": "explicit_ascend_910b2_continuation"} if getattr(args, "allow_device_change", False) else {}),'),
+    ])
+    edit('reuse_campaign', [
+        ('def identity(plan):', 'def identity(plan, *, compare_devices=True):'),
+        ('    result["engine_release"] =',
+         '    if not compare_devices:\n        result.pop("physical_cards")\n    result["engine_release"] ='),
+        ('    if identity(previous) != identity(current):',
+         '    from device_reuse import for_campaign\n\n'
+         '    device_change = for_campaign(root, previous, current)\n'
+         '    if identity(previous, compare_devices=not device_change) != identity(current, compare_devices=not device_change):'),
+        ('        keys = ("model", "physical_cards", "logical_devices",',
+         '        keys = ("model", "logical_devices",'),
+        ('        for row in receipt["stages"]:',
+         '        compare_devices = plan.get("device_reuse_mapping") is None\n'
+         '        different_runtime = identity(previous, compare_devices=compare_devices) != identity(plan, compare_devices=compare_devices)\n'
+         '        for row in receipt["stages"]:'),
+        ('            if identity(previous) != identity(plan) and name == "mmlu-pair":',
+         '            if different_runtime and name == "mmlu-pair":'),
+        ('            if identity(previous) != identity(plan) and not name.endswith("-B0"):',
+         '            if different_runtime and not name.endswith("-B0"):'),
+        ('            if identity(previous) != identity(plan) and "-judge-" in name:',
+         '            if different_runtime and "-judge-" in name:'),
+        ('            origin["stages"].append(name)',
+         '            origin["stages"].append(name)\n'
+         '        if origin["stages"] or origin.get("paired_arms"):\n'
+         '            from device_reuse import for_campaign\n'
+         '            device_change = for_campaign(root, previous, plan)\n'
+         '            if device_change:\n                origin["device_change"] = device_change'),
+        ('"scope": "Same-host composition of earlier sealed native stages; not one new uninterrupted inference run.",',
+         '"scope": "Composition of earlier sealed native stages with each source retaining its original device mapping.",'),
+        ('        for role in origin.get("paired_arms", []):',
+         '        if origin["stages"] or origin.get("paired_arms"):\n'
+         '            from device_reuse import for_campaign\n'
+         '            if origin.get("device_change") != for_campaign(source_root, previous, plan):\n'
+         '                raise ValueError("Reused stage device provenance differs")\n'
+         '        for role in origin.get("paired_arms", []):'),
+        ('def wire_dependencies(out, stages, reused):',
+         'def wire_dependencies(out, stages, reused, *, allow_device_change=False):'),
+        ('            args[index] = str(Path(entry["source_root"]) / "continuous-B1")',
+         '            args[index] = str(Path(entry["source_root"]) / "continuous-B1")\n'
+         '            if allow_device_change and stage["name"] not in reused and stage["script"] == "run_b1_r4.py":\n'
+         '                args.append("--allow-device-change")'),
+    ])
+    for name, indent, error in (
+        ('run_b1_r4', '        ', 'Continuous qualification belongs to another physical NPU pair'),
+        ('run_native_reference', '        ', 'Current native qualification is bound to another physical pair'),
+    ):
+        failure = ('            raise ValueError(\n'
+                   '                "' + error + '"\n'
+                   '            )') if name == 'run_b1_r4' else '            raise ValueError("' + error + '")'
+        edit(name, [
+            ('    parser.add_argument("--qualified-continuous",', option + '    parser.add_argument("--qualified-continuous",'),
+            ('        if qualification["physical_cards"] != cards():\n' + failure,
+             indent + 'from device_reuse import for_continuous\n'
+             + indent + 'device_change = for_continuous(args.qualified_continuous, qualification, args.devices,\n'
+             + indent + '                               allowed=getattr(args, "allow_device_change", False))\n'
+             + indent + 'if device_change:\n'
+             + indent + '    save(root / "continuous-device-reuse.json", device_change)'),
+        ])
+    edit('automatic_reference', [
+        ('        baseline_source = getattr(args, "reference_baseline_source", None)',
+         '        if frozen.get("device_reuse_mapping") is not None:\n'
+         '            plan["device_reuse_mapping"] = frozen["device_reuse_mapping"]\n'
+         '        baseline_source = getattr(args, "reference_baseline_source", None)'),
+        ('                with (folder / "http-current-work.log").open("x") as log:',
+         '                if plan.get("device_reuse_mapping"):\n'
+         '                    command.append("--allow-device-change")\n'
+         '                with (folder / "http-current-work.log").open("x") as log:'),
+        ('                if baseline_native:\n                    command +=',
+         '                if not baseline_native and plan.get("device_reuse_mapping"):\n'
+         '                    command.append("--allow-device-change")\n'
+         '                if baseline_native:\n                    command +='),
+    ])
+    # Context verification and plotting do not contribute to reference measurements.
+    for name in ('reference_model_reuse', 'reference_qualification_reuse'):
+        edit(name, [
+            ('"scripts/live_console.py",',
+             '"scripts/live_console.py", "scripts/context_baseline_reuse.py", "scripts/acceptance_report.py",'),
+        ])
+    edit('reference_model_reuse', [
+        ('        path = source / directory / "receipt.json"',
+         '        if stage == "baseline-native-synchronized-timing" and old.get("baseline_reuse"):\n'
+         '            from reference_baseline_reuse import resolve\n\n'
+         '            if "baseline-native-reuse.json" not in seal or row.get("status") != "completed":\n'
+         '                raise ValueError("Prior fixed B0 native reuse is unsealed or incomplete")\n'
+         '            proof = resolve(source)\n'
+         '            if (not proof or row.get("receipt_sha256") != proof["receipt_sha256"]\n'
+         '                    or row.get("original_stage_source") != proof["source"]):\n'
+         '                raise ValueError("Prior fixed B0 native reuse receipt differs")\n'
+         '            continue\n'
+         '        path = source / directory / "receipt.json"'),
+    ])
+    edit('full_reference_reuse', [
+        ('    save(folder / "matched-reference-pair.json", result)',
+         '    if plan.get("device_reuse_mapping"):\n'
+         '        from device_reuse import compare, read_mapping\n'
+         '        b0 = read_mapping(native_sources["B0"])\n'
+         '        b1 = read_mapping(native_sources["B1"])\n'
+         '        if any(b1[key] != plan["device_reuse_mapping"][key] for key in ("physical_cards", "logical_cards")):\n'
+         '            raise ValueError("Current native timing used a different frozen device pair")\n'
+         '        device_change = compare(b0, b1, allowed=True)\n'
+         '        if device_change:\n'
+         '            result["native_device_change"] = device_change\n'
+         '            result["reference_reuse_scope"] = "Original complete reference denominator; original B0 and new B1 work and timing independently audited on the recorded Ascend 910B2 pairs."\n'
+         '    save(folder / "matched-reference-pair.json", result)'),
+    ])
+    edit('acceptance_suite', [
+        ('    p.add_argument("--reuse-b0", type=Path)', '    p.add_argument("--allow-device-change", action="store_true")\n    p.add_argument("--reuse-b0", type=Path)'),
+        ('    if list(map(int, args.physical_devices.split(","))) != cards:\n'
+         '        raise ValueError("Reuse uses another physical card pair")',
+         '    if list(map(int, args.physical_devices.split(","))) != cards:\n'
+         '        if role != "B0" or not getattr(args, "allow_device_change", False):\n'
+         '            raise ValueError("Reuse uses another physical card pair")\n'
+         '        from device_reuse import compare, read_mapping\n'
+         '        from resource_guard import verify_mapping\n\n'
+         '        original = read_mapping(prior)\n'
+         '        if original["physical_cards"] != cards:\n'
+         '            raise ValueError("Original context mapping differs from its resource admission")\n'
+         '        source_binding["device_change"] = compare(original, verify_mapping(args.devices), allowed=True)'),
+        ('def paired(arms):', 'def paired(arms, *, device_change=None):\n    proof = None'),
+        ('        if name == "resource-admission.json":\n'
+         '            left, right = left["physical_cards"], right["physical_cards"]\n'
+         '        if left != right:\n'
+         '            raise ValueError("Paired cards or model weights differ")',
+         '        if name == "resource-admission.json":\n'
+         '            left, right = left["physical_cards"], right["physical_cards"]\n'
+         '            if left != right and device_change:\n'
+         '                from device_reuse import compare, read_mapping\n\n'
+         '                original, current = (read_mapping(arms[role]) for role in ("B0", "B1"))\n'
+         '                proof = compare(original, current, allowed=True)\n'
+         '                if (not proof or original["physical_cards"] != left or current["physical_cards"] != right\n'
+         '                        or any(proof[side][key] != device_change[side][key]\n'
+         '                               for side in ("original", "current") for key in ("physical_cards", "logical_cards"))):\n'
+         '                    raise ValueError("Paired context device provenance differs")\n'
+         '                continue\n'
+         '        if left != right:\n'
+         '            raise ValueError("Paired cards or model weights differ")'),
+        ('        acceptance="Measurements collected;', '        **({"device_change": proof} if proof else {}),\n'
+         '        acceptance="Measurements collected;'),
+        ('    from b0_run_policy import require_context_reuse\n    require_context_reuse(args)',
+         '    from b0_run_policy import require_context_reuse\n    require_context_reuse(args)\n'
+         '    if getattr(args, "allow_device_change", False):\n'
+         '        os.environ["VLLM_HUST_PHYSICAL_DEVICES"] = args.physical_devices'),
+        ('        save(output / "paired-summary.json", paired(arms))',
+         '        binding = output / "reused-B0-context-provenance.json"\n'
+         '        device_change = json.loads(binding.read_bytes()).get("device_change") if binding.is_file() else None\n'
+         '        if device_change:\n'
+         '            state["device_change"] = device_change\n'
+         '        save(output / "paired-summary.json", paired(arms, device_change=device_change) if device_change else paired(arms))'),
+    ])
+    edit('acceptance_report', [
+        ('    checked = paired({role: Path(path) for role, path in data["arms"].items()})',
+         '    arms = {role: Path(path) for role, path in data["arms"].items()}\n'
+         '    checked = paired(arms, device_change=data.get("device_change"))'),
+    ])
+    edit('third_party_report', [
+        ('        "current_mmlu_pair": pair,',
+         '        **({"execution_devices": {\n'
+         '            "current": plan["physical_cards"],\n'
+         '            "stages": {row["name"]: (\n'
+         '                row.get("source", {}).get("physical_cards", plan["physical_cards"])) for row in observed},\n'
+         '        }} if plan and plan.get("device_reuse_mapping") else {}),\n'
+         '        "current_mmlu_pair": pair,'),
+        ('    scope_complete = (set(',
+         '    device_note = ""\n'
+         '    if data.get("execution_devices"):\n'
+         '        device_note = "<h2>物理设备</h2><p>跨卡阶段保留各自原始设备。跨卡差值包含设备更换的影响。</p><pre>" + esc(json.dumps(data["execution_devices"], ensure_ascii=False, indent=2)) + "</pre>"\n'
+         '    scope_complete = (set('),
+        ('<h2>本次执行清单</h2>', '{device_note}<h2>本次执行清单</h2>'),
+    ])
+    edit('reuse_campaign', [
+        ('                "source_stage_receipt": row,\n                "verified_at": time.time(),',
+         '                "source_stage_receipt": row,\n'
+         '                **({"physical_cards": previous["physical_cards"]} if not compare_devices else {}),\n'
+         '                "verified_at": time.time(),'),
+        ('                or rows[name]["status"] != "completed"',
+         '                or rows[name]["status"] != "completed"\n'
+         '                or entry.get("physical_cards", previous["physical_cards"]) != previous["physical_cards"]'),
+    ])
+
+
+def http_state_drain_bridge(result):
+    """Recheck the existing cold-state boundary when a new cache operation wins the RPC race."""
+    key = 'third-party-test-kit/proc_capture/m01_http_capture.py'
+    old = '                operation = await self.core("state_cache", {"kind": "drop", "key": key})'
+    new = (
+        '                try:\n'
+        '                    operation = await self.core("state_cache", {"kind": "drop", "key": key})\n'
+        '                except Exception as error:\n'
+        '                    if str(error) != "Call to state_cache method failed: incremental cache transaction is still in flight":\n'
+        '                        raise\n'
+        '                    # The scheduler rejected this command before queuing a drop.\n'
+        '                    # A new snapshot must retire any reappearing State operations.\n'
+        '                    record.setdefault("drop_dispatch_conflicts", []).append(key)\n'
+        '                    await asyncio.sleep(.05)\n'
+        '                    continue'
+    )
+    result[key] = once(result[key].decode(), old, new).encode()
+    evidence_key = 'scripts/reference_evidence.py'
+    result[evidence_key] += (
+        '\n\ndef http_state_drain_fix_only(original, current, pin):\n'
+        '    """Qualify only the reviewed pre-capture change against the original source pin."""\n'
+        '    if not original.is_file() or sha(original) != pin:\n'
+        '        return False\n'
+        '    source = original.read_text()\n'
+        f'    old, new = {old!r}, {new!r}\n'
+        '    return source.count(old) == 1 and current.read_text() == source.replace(old, new)\n'
+    ).encode()
+    for name in ('reference_model_reuse', 'reference_qualification_reuse'):
+        script = 'scripts/' + name + '.py'
+        text = result[script].decode()
+        text = once(text, 'from reference_evidence import transient_cache,',
+                    'from reference_evidence import http_state_drain_fix_only, transient_cache,')
+        anchor = '            if (relative == "scripts/run_b1_r4.py" and current_pin == sha(current)'
+        source_pin = 'pin' if name == 'reference_model_reuse' else 'expected'
+        text = once(text, anchor,
+            f'            if (relative == "{key}" and current_pin == sha(current)\n'
+            f'                    and http_state_drain_fix_only(path, current, {source_pin})):\n'
+            '                continue\n' + anchor)
+        result[script] = text.encode()
+
+
+def http_replay_bridge(result):
+    """Reuse an independently sealed HTTP observation with prior native clocks."""
+    key = 'third-party-test-kit/public_output_binding.py'
+    text = result[key].decode()
+    text = once(text, 'plan["engine_release"] != "full-answer-b1-20261117-r8"',
+        'plan["engine_release"] not in ("full-answer-b1-20261117-r8", "full-answer-b1-20261119-r9")')
+    result[key] = text.encode()
+
+    key = 'scripts/reference_model_reuse.py'
+    text = result[key].decode()
+    text = once(text, '"qualification_reuse", "stage_resume", "canonical_reuse")',
+                '"qualification_reuse", "stage_resume", "canonical_reuse", "observation_reuse")')
+    result[key] = text.encode()
+
+    key = 'scripts/reference_observation_reuse.py'
+    text = result[key].decode()
+    text = once(text, '    "scripts/reference_qualification_reuse.py", "scripts/run_native_reference.py", "scripts/third_party.py",',
+        '    "scripts/reference_qualification_reuse.py", "scripts/run_native_reference.py", "scripts/third_party.py",\n'
+        '    "scripts/reference_observation_reuse.py", "scripts/context_baseline_reuse.py", "scripts/acceptance_report.py",')
+    result[key] = text.encode()
+
+    key = 'scripts/automatic_reference.py'
+    text = result[key].decode()
+    text = once(text, '            if resume_source:\n                raise ValueError("Choose a completed model-stage source or a separate HTTP observation source")',
+        '            if resume and "current-http-work-observation" in resume["stages"]:\n'
+        '                raise ValueError("Completed model-stage continuation already supplies a sealed HTTP observation")')
+    text = once(text, '                    if "current-http-work-observation" not in resumed_models["stages"]:',
+        '                    if ("current-http-work-observation" not in resumed_models["stages"]\n'
+        '                            and not plan.get("observation_reuse")):')
+    result[key] = text.encode()
+
+
+def managed_shutdown_bridge(result):
+    """Change only completed B1 HTTP cleanup and preserve prior source bindings."""
+    from managed_shutdown import DIRECT_STOP, MANAGED_STOP
+
+    module = 'scripts/managed_shutdown.py'
+    result[module] = (ROOT / 'managed_shutdown.py').read_bytes()
+    key = 'scripts/run_b1_r4.py'
+    result[key] = once(result[key].decode(), DIRECT_STOP, MANAGED_STOP).encode()
+
+    key = 'scripts/reference_evidence.py'
+    result[key] = once(result[key].decode(),
+        '    old, new = ast.parse(original.read_text()), ast.parse(current.read_text())\n    removed = 0',
+        '    from managed_shutdown import without_managed_stop\n'
+        '    original_body, current_body = original.read_bytes(), current.read_bytes()\n'
+        '    if without_managed_stop(original_body) == original_body:\n'
+        '        current_body = without_managed_stop(current_body)\n'
+        '        if current_body == original_body:\n'
+        '            return True\n'
+        '    old, new = ast.parse(original_body), ast.parse(current_body)\n'
+        '    removed = 0').encode()
+
+    key = 'scripts/reference_observation_reuse.py'
+    text = once(result[key].decode(), 'from dataset_contract import sha',
+        'from dataset_contract import sha\nfrom managed_shutdown import matches_pre_shutdown_controller')
+    result[key] = once(text,
+        '        if Path(name).is_absolute() or not path.resolve().is_relative_to(current_root) or sha(path) != pin:',
+        '        if Path(name).is_absolute() or not path.resolve().is_relative_to(current_root):\n'
+        '            raise ValueError("HTTP observation implementation escapes client: " + name)\n'
+        '        if (sha(path) != pin and (name != "scripts/run_b1_r4.py"\n'
+        '                or not matches_pre_shutdown_controller(path, pin))):').encode()
+
+
 def context_baseline_bridge(result):
     """Preserve completed fixed-B0 context phases across a B1-only change."""
     def scripts(files):
@@ -396,8 +797,18 @@ def context_baseline_bridge(result):
         '            complete_original_phases_verified=True)\n'
         '        save(args.out / "reused-B0-context-provenance.json", source_binding)')
     result[key] = text.encode()
+    historical_mmlu_location_bridge(result)
+    device_change_bridge(result)
+    http_state_drain_bridge(result)
+    http_replay_bridge(result)
+    key = 'scripts/context_baseline_reuse.py'
+    previous = scripts(result)
+    previous[key] = sha(CONTEXT_BASELINE_HELPER.replace('__CURRENT_SOURCES__', digest(previous)).encode())
+    managed_shutdown_bridge(result)
     current = digest(scripts(result))
-    result['scripts/context_baseline_reuse.py'] = CONTEXT_BASELINE_HELPER.replace('__CURRENT_SOURCES__', current).encode()
+    helper = once(CONTEXT_BASELINE_HELPER, 'digest(previous) != OLD_SOURCES',
+                  'digest(previous) not in (OLD_SOURCES, ' + repr(digest(previous)) + ')')
+    result[key] = helper.replace('__CURRENT_SOURCES__', current).encode()
 
 
 def bridge(client, provider):
@@ -475,6 +886,8 @@ def bridge(client, provider):
     result[key] = (json.dumps(compat, indent=2) + '\n').encode()
     baseline_location_bridge(result)
     context_baseline_bridge(result)
+    from sdk_dependency_probe import client_bridge
+    client_bridge(result)
     return result
 
 
@@ -505,6 +918,7 @@ def prepare(cache, archive, frozen):
                     files={n: sha(b) for n, b in files.items()},
                     bridges={n: dict(before_sha256=sha(client[n]) if n in client else None, after_sha256=sha(b))
                              for n, b in files.items() if client.get(n) != b})
+    manifest['cpu_metadata_admission'] = json.loads(files['adapters/sdk-metadata-admission.json'])
     raw_manifest = (json.dumps(manifest, sort_keys=True, indent=2) + '\n').encode()
     key = sha(raw_manifest)
     parent = Path(cache) / 'assessment-clients'
@@ -528,3 +942,53 @@ def prepare(cache, archive, frozen):
             pass
     verify(record)
     return record
+
+
+def metadata_client(cache, *, release, record=None):
+    """Upgrade only CPU metadata admission; retain the old client and selection."""
+    from sdk_dependency_probe import client_bridge
+    if record:
+        prior = verify(record)
+        if prior.get('cpu_metadata_admission'):
+            return record
+        root = Path(record['path'])
+        files = {n: (root / n).read_bytes() for n in prior['files']}
+        manifest = {k: v for k, v in prior.items() if k not in ('files', 'bridges')}
+        old_bridges = prior.get('bridges', {})
+    else:
+        from one_click import verify_kit
+        lock = verify_kit(legacy=True)
+        root = ROOT / 'benchmark/one-click-kit'
+        originals = json.loads((root / 'DEPLOYMENT-TOOLS.json').read_bytes())
+        files = {n: (root / n).read_bytes() for n in originals['files']}
+        files['DEPLOYMENT-TOOLS.json'] = (root / 'DEPLOYMENT-TOOLS.json').read_bytes()
+        manifest = dict(schema='deeplinkengine-selected-assessment-client/v1', release=release,
+                        assessment_manifest_sha256=lock['tools']['manifest_sha256'],
+                        legacy_metadata_only=True)
+        old_bridges = {}
+    before = dict(files)
+    guard = client_bridge(files)
+    manifest.update(files={n: sha(b) for n, b in files.items()},
+        cpu_metadata_admission=guard, parent_client=record,
+        bridges={**old_bridges, **{n: dict(before_sha256=sha(before[n]) if n in before else None,
+                    after_sha256=sha(b)) for n, b in files.items() if before.get(n) != b}})
+    raw = (json.dumps(manifest, sort_keys=True, indent=2) + '\n').encode()
+    parent = Path(cache) / 'assessment-clients'
+    parent.mkdir(parents=True, exist_ok=True)
+    output = parent / sha(raw)
+    result = dict(path=str(output), manifest_sha256=sha(raw), release=release)
+    if not output.exists():
+        with tempfile.TemporaryDirectory(prefix='metadata-', dir=parent) as folder:
+            attempt = Path(folder) / 'client'
+            attempt.mkdir()
+            for name, body in files.items():
+                target = attempt / name
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_bytes(body)
+            (attempt / 'CLIENT-MANIFEST.json').write_bytes(raw)
+            try:
+                attempt.rename(output)
+            except FileExistsError:
+                pass
+    verify(result)
+    return result

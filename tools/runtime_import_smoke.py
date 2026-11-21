@@ -5,7 +5,15 @@ from pathlib import Path
 import traceback
 
 
-def check():
+def check(triton_wheel=None, triton_sha256=None):
+    triton_backend = None
+    if triton_wheel is not None:
+        import importlib.util
+        helper = Path(__file__).with_name('triton_backend_probe.py')
+        spec = importlib.util.spec_from_file_location('triton_backend_probe', helper)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        triton_backend = module.check(triton_wheel, triton_sha256)
     import numpy as np
     import cv2
     import torch
@@ -30,6 +38,7 @@ def check():
     return dict(verified=True, model_loaded=False, numpy=np.__version__,
                 opencv=cv2.__version__, torch=torch.__version__,
                 torchvision=torchvision.__version__, processor=AutoProcessor.__name__,
+                triton_backend=triton_backend,
                 checks=["opencv_png", "torchvision_png", "torchvision_nms", "auto_processor_import",
                         "flashlb_replica_allocation"])
 
@@ -37,9 +46,13 @@ def check():
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--out", type=Path, required=True)
+    parser.add_argument('--triton-wheel', type=Path)
+    parser.add_argument('--triton-sha256')
     args = parser.parse_args()
+    if bool(args.triton_wheel) != bool(args.triton_sha256):
+        parser.error('Ascend backend qualification requires both locked wheel and SHA')
     try:
-        result = check()
+        result = check(args.triton_wheel, args.triton_sha256)
     except Exception:
         result = dict(verified=False, error=traceback.format_exc(), model_loaded=False)
     args.out.parent.mkdir(parents=True, exist_ok=True)

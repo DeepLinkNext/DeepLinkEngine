@@ -58,6 +58,15 @@ def test_complete_b0_reuse_retains_original_clock_dates_and_companion(original):
     assert [x['T_seconds'] for x in proof['repetitions']]==[.0001]*3
 
 
+def test_native_source_checks_follow_restored_sdk_but_keep_original_path(original):
+    source, plan, pin = original
+    with patch("qualify_baseline_capacity.qualify", return_value={"qualified": True}) as qualify:
+        proof = reuse.inspect(source, pin, plan)
+    assert proof["original_baseline_deployment"] == "/original/pinned-b0"
+    assert [call.args for call in qualify.call_args_list] == [(plan["baseline_deployment"], source)] * 3
+    assert [call.kwargs for call in qualify.call_args_list] == [{"repetition": n} for n in (1, 2, 3)]
+
+
 @pytest.mark.parametrize('changed',['role','incomplete','budget','profile','cards','weights','clock','repetitions','fences'])
 def test_resealed_but_incompatible_measurement_never_reuses(original,changed):
     source,plan,pin=original
@@ -121,3 +130,117 @@ def test_actual_reference_coordinator_never_launches_b0_when_reuse_was_selected(
         assert rows[0]['status']=='failed'
         assert 'seal changed' in result['blockers'][0]
         assert not (out/'compute-reference/baseline-native-reuse.json').exists()
+
+
+@pytest.mark.parametrize("device_change", [False, True])
+def test_http_observation_launch_receives_the_frozen_device_change_option(tmp_path, device_change):
+    from test_context_baseline_reuse import combined
+    out = tmp_path / "campaign"
+    sdk = tmp_path / "sdk"
+    write(sdk / "deployment.json", {})
+    write(out / "frozen-stages.json", [dict(name="mmlu-pair",
+        args=["--qualified-continuous", str(tmp_path / "original-c8")])])
+    stage = dict(id="current-http-work-observation", implementation="scripts/reference_observation.py")
+    plan = dict(deployment=str(sdk), deployment_sha256=reuse.sha(sdk / "deployment.json"), files={},
+        stages=[stage], binding=dict(model="/model"), physical_cards=[0, 3], logical_devices="0,1",
+        capture_profile=dict(id="submission-v2"), baseline_reuse={"source": "/fixed-b0"})
+    if device_change:
+        plan["device_reuse_mapping"] = {"physical_cards": [0, 3]}
+    path = out / "plans/automatic-plan.json"
+    write(path, plan)
+    (out / "compute-reference").mkdir()
+    namespace = {"__file__": str(ROOT / "benchmark/one-click-kit/scripts/automatic_reference.py")}
+    exec(combined()["scripts/automatic_reference.py"], namespace)
+
+    def launch(command, **kwargs):
+        assert ("--allow-device-change" in command) == device_change
+        assert command[command.index("--qualified-continuous") + 1] == str(tmp_path / "original-c8")
+        folder = Path(command[command.index("--out") + 1])
+        write(folder / "receipt.json", dict(warmup_started=False, client_started=False, failure="fixture"))
+        return SimpleNamespace(returncode=2)
+
+    admission = dict(plan="plans/automatic-plan.json", plan_sha256=reuse.sha(path))
+    with patch.dict(sys.modules, engine_entry=SimpleNamespace(environment=lambda *a: {})), patch.dict(namespace, run_stage=launch):
+        result = namespace["execute"](out, admission)
+    assert result["blockers"] == ["Current HTTP observation failed: fixture"]
+
+
+@pytest.mark.parametrize("known_conflict", [True, False])
+def test_http_state_drain_refreshes_after_the_exact_scheduler_conflict(tmp_path, monkeypatch, known_conflict):
+    import asyncio
+
+    from test_context_baseline_reuse import combined
+    kit = ROOT / "benchmark/one-click-kit"
+    monkeypatch.syspath_prepend(str(kit / "tests"))
+    from test_reference_http_observation import Client
+
+    files = combined()
+    namespace = {}
+    exec(files["third-party-test-kit/proc_capture/m01_http_capture.py"], namespace)
+    original = kit / "third-party-test-kit/proc_capture/m01_http_capture.py"
+    reviewed = tmp_path / "reviewed.py"
+    reviewed.write_bytes(files["third-party-test-kit/proc_capture/m01_http_capture.py"])
+    evidence = {}
+    exec(files["scripts/reference_evidence.py"], evidence)
+    assert evidence["http_state_drain_fix_only"](original, reviewed, reuse.sha(original))
+    reviewed.write_bytes(reviewed.read_bytes() + b"\n# A different change\n")
+    assert not evidence["http_state_drain_fix_only"](original, reviewed, reuse.sha(original))
+
+    class Contended(Client):
+        drop_attempts = 0
+        resumed_snapshots = 0
+
+        async def call_utility_async(self, name, *args):
+            if name == "state_cache":
+                command = args[0]
+                if command["kind"] == "drop":
+                    self.drop_attempts += 1
+                    if self.drop_attempts == 1:
+                        self.calls.append((name, args))
+                        detail = "incremental cache transaction is still in flight" if known_conflict else "unexpected cache failure"
+                        raise Exception("Call to state_cache method failed: " + detail)
+                    assert self.resumed_snapshots >= 2
+                elif self.drop_attempts == 1:
+                    self.resumed_snapshots += 1
+                    if self.resumed_snapshots == 1:
+                        result = await super().call_utility_async(name, *args)
+                        return dict(result, pending=[17])
+            return await super().call_utility_async(name, *args)
+
+    async def check():
+        client = Contended()
+        control = namespace["Control"](client, tmp_path / "raw")
+        if known_conflict:
+            begin = await control.call("begin")
+            drain = begin["cache_drain"]
+            assert drain["completed"] and drain["prefix_reset"]
+            assert drain["drop_dispatch_conflicts"] == ["owned-warmup-checkpoint"]
+            assert drain["drops"][0]["receipt"]["ranks"] == [0, 1]
+            assert client.drop_attempts == 2
+        else:
+            with pytest.raises(Exception, match="unexpected cache failure"):
+                await control.call("begin")
+            assert not client.active and client.drop_attempts == 1
+    asyncio.run(check())
+
+
+def test_r9_native_publication_domain_preserves_exact_fixed_controls(original):
+    from test_context_baseline_reuse import combined
+
+    source, _, _ = original
+    plan = reuse.read(source / "service/native-plan.json")
+    plan.update(role="B1", schema="current-native-m01-timing/v1",
+                engine_release="full-answer-b1-20261119-r9")
+    arguments = dict(tensor_parallel_size=2, pipeline_parallel_size=1, data_parallel_size=1,
+        stream_interval=1, async_scheduling=True, disable_log_stats=True,
+        per_request_spec_decode_metrics="none",
+        scheduler_cls="betterscale.models.qwen35.seat_scheduler.LiveStateScheduler",
+        speculative_config=dict(method="mtp", num_speculative_tokens=2))
+    namespace = {}
+    exec(combined()["third-party-test-kit/public_output_binding.py"], namespace)
+    validate = namespace["validate_effective_contract"]
+    validate(arguments, plan)
+    with pytest.raises(ValueError, match="publication configuration"):
+        validate(dict(arguments, stream_interval=2), plan)
+    with pytest.raises(ValueError, match="input/output contract"):
+        validate(arguments, dict(plan, engine_release="full-answer-b1-20261120-r10"))

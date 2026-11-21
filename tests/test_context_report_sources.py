@@ -85,8 +85,15 @@ def test_changed_original_seal_is_rejected(tmp_path):
         report.context_sources(folder, stored)
 
 
-def collect_fixture(tmp_path, changed=None):
+def collect_fixture(tmp_path, changed=None, actual_cost=None):
     run, folder, arms, state, stored = fixture(tmp_path)
+    cost_path = None
+    if actual_cost:
+        default = run / 'actual-cost.json'
+        default.write_text('{}')
+        cost_path = tmp_path / 'override.json' if actual_cost == 'override' else None
+        if cost_path:
+            cost_path.write_text('{}')
     fixed = run / 'fixed-five'; fixed.mkdir()
     for name in ['campaign-checksums.json', 'frozen-execution-plan.json']:
         (fixed / name).write_text('{}')
@@ -118,9 +125,11 @@ def collect_fixture(tmp_path, changed=None):
     with patch('runtime_storage.restore_missing'), patch.object(report, 'kit_path', return_value=kit), \
             patch('third_party_report.inspect', return_value=observed), \
             patch('acceptance_suite.paired', side_effect=paired), \
-            patch.object(report, 'attach_dataset_costs'), patch.object(report, 'audit_context', side_effect=audit), \
-            patch.object(report, 'targets', return_value={}), patch.object(report, 'workload_pairs', return_value={}):
-        result = report.collect(run)
+            patch.object(report, 'audit_context', side_effect=audit), \
+            patch.object(report, 'targets', return_value={}) as targets, patch.object(report, 'workload_pairs', return_value={}), \
+            patch.object(report, 'workload_sources', return_value={}), patch.object(report, 'apply_v2_context_tails'):
+        result = report.collect(run, cost_path)
+        assert targets.call_args.args[-1] == cost_path
     return result, audits, arms, folder, stored
 
 
@@ -138,3 +147,92 @@ def test_collect_replays_audits_and_hashes_the_original_external_arm(tmp_path):
 def test_other_candidate_or_model_cannot_supply_context_results(tmp_path,changed):
     with pytest.raises(ValueError,match='differ[s]? from the fixed-five candidate'):
         collect_fixture(tmp_path,changed)
+
+
+@pytest.mark.parametrize('mode', ['unselected', 'override'])
+def test_sealed_report_only_selects_an_explicit_fee_file(tmp_path, mode):
+    collect_fixture(tmp_path, actual_cost=mode)
+
+
+def test_dataset_source_is_taken_from_the_audited_cohort(tmp_path):
+    base = tmp_path / 'acceptance-inputs'
+    base.mkdir()
+    def case(task_id, tokens):
+        return dict(task_id=task_id, input_tokens=tokens, source_index=7, source_sha256='a'*64,
+                    source_body_sha256='b'*64, token_ids_sha256='c'*64, request={'secret': 'unpublished body'})
+    inputs = {'4096': [case('terminal:dna-insert', 7366)], '16384': [case('swe:repo-issue', 19500)]}
+    path = base / 'acceptance-inputs.json'
+    path.write_bytes(json.dumps(inputs).encode())
+    contract = dict(input_sha256=hashlib.sha256(path.read_bytes()).hexdigest(), source_protocol_sha256='d'*64,
+                    output_tokens=256,
+                    cohorts=[dict(min_tokens=4096, max_tokens_exclusive=8192),
+                             dict(min_tokens=16384, max_tokens_exclusive=24576)],
+                    phases=[dict(id='multi-tenant', cohort='4096', tenants=4, concurrency=24,
+                                 warmup_seconds=60, formal_seconds=300)])
+    sources = report.workload_sources(dict(plan={}), dict(contract=contract), tmp_path)
+    phases = sources['context']['phases']
+    assert phases['multi-tenant-formal']['cohort'] == '4096'
+    cohorts = sources['context']['cohorts']
+    assert cohorts['4096']['datasets'] == ['Terminal-Bench 2.1']
+    assert cohorts['16384']['datasets'] == ['SWE-bench Pro']
+    assert cohorts['4096']['cases'][0]['task_id'] == 'terminal:dna-insert'
+    assert 'unpublished body' not in json.dumps(sources)
+    table = report.workload_source_table(sources)
+    assert '四租户 C24</th><td>Terminal-Bench 2.1' in table
+    assert 'terminal:dna-insert' in table
+    path.write_bytes(path.read_bytes()+b' ')
+    with pytest.raises(ValueError, match='audited input digest'):
+        report.workload_sources(dict(plan={}), dict(contract=contract), tmp_path)
+
+
+def test_formal_context_rank_replays_sealed_whole_and_window_clocks(tmp_path):
+    folder = tmp_path / 'service/acceptance'
+    folder.mkdir(parents=True)
+    requests = []
+    for i, (start, ttft) in enumerate(((1, 1), (2, 2), (3, 3), (4, 10), (61, 5))):
+        name = f'request-{i}.json'
+        first = start + ttft
+        (folder / name).write_text(json.dumps(dict(
+            success=True, start=dict(monotonic=start), first_token=dict(monotonic=first),
+            end=dict(monotonic=first + 2), usage=dict(completion_tokens=3), tenant='tenant-0')))
+        requests.append(name)
+    (folder / 'execution.json').write_text(json.dumps(dict(phases=[dict(
+        name='32768-formal', start=dict(monotonic=0), submission_deadline_monotonic=120, request_files=requests)])))
+    seal = {path.relative_to(tmp_path).as_posix(): hashlib.sha256(path.read_bytes()).hexdigest()
+            for path in folder.iterdir()}
+    (tmp_path / 'checksums.json').write_text(json.dumps(seal))
+    def metrics():
+        return dict(ttft_ms=dict(p95=1, p99=2), tpot_ms=dict(p95=3, p99=4))
+    arm = dict(metrics=metrics(), per_tenant={'tenant-0': metrics()},
+               windows=[dict(metrics=metrics()), dict(metrics=metrics())])
+    context = dict(comparison=[{'phase': '32768-formal', 'B1': arm}],
+                   arm_seals={'B1': hashlib.sha256((tmp_path / 'checksums.json').read_bytes()).hexdigest()})
+    report.apply_v2_context_tails(context, {'B1': tmp_path})
+    assert arm['metrics']['ttft_ms'] == {'p95': 10000, 'p99': 10000}
+    assert arm['per_tenant']['tenant-0']['tpot_ms']['p99'] == 1000
+    assert arm['windows'][0]['metrics']['ttft_ms']['p99'] == 10000
+    assert arm['windows'][1]['metrics']['ttft_ms']['p99'] == 5000
+    (folder / requests[0]).write_text('{}')
+    with pytest.raises(ValueError, match='missing from the audited seal'):
+        report.apply_v2_context_tails(context, {'B1': tmp_path})
+
+
+def test_plot_only_failure_admits_sealed_context_but_other_failures_do_not(tmp_path):
+    _, folder, arms, state, stored = fixture(tmp_path)
+    state.update(status='failed', failure='An alternate renderer exited while formatting the graph')
+    (folder/'execution.json').write_text(json.dumps(state))
+    assert report.context_sources(folder, stored) == arms
+    state['stages'][1].update(status='failed', returncode=1)
+    (folder/'execution.json').write_text(json.dumps(state))
+    with pytest.raises(ValueError, match='before the plotting boundary'):
+        report.context_sources(folder, stored)
+
+
+def test_mod_catalog_is_selected_by_recorded_release_not_filename(tmp_path):
+    file = tmp_path / 'active-stack-other-profile-name.json'
+    release = 'full-answer-stage-renamed-profile'
+    file.write_text(json.dumps(dict(release=release, enabled_mods=[])))
+    assert report.measured_stack(tmp_path, release)[0] == file
+    (tmp_path / 'active-stack-duplicate.json').write_bytes(file.read_bytes())
+    with pytest.raises(ValueError, match='exactly one MOD catalog'):
+        report.measured_stack(tmp_path, release)

@@ -56,29 +56,60 @@ def main(arguments=None):
     parser.add_argument('--prepare-environment', action='store_true')
     parser.add_argument('--download-only', action='store_true', help='Only download pinned official OCI artifacts; no extraction, Python repair or model execution')
     parser.add_argument('--download-protocol-dependencies', action='store_true', help='With download-only, fetch one digest-pinned common protocol asset, without installing or running it')
-    parser.add_argument('--download-source-build-dependencies', action='store_true', help='With download-only, fetch one pinned source-build wheel, without installing or extracting it')
+    parser.add_argument('--download-source-build-dependencies', action='store_true', help='With download-only, fetch one pinned source-build artifact, without installing or extracting it')
     parser.add_argument('--artifact-digest', help='Download one digest already present in the selected official locks')
     parser.add_argument('--download-transport', choices=('auto', 'curl'), default='auto', help='Transport for download-only; preserve the same official URL and digest')
+    parser.add_argument('--report-only', action='store_true',
+                        help='CPU-only replay of closed C8 originals or explicit sealed-report projection')
+    parser.add_argument('--complete-ft', type=Path,
+                        help='Append only the independent arithmetic companion and CPU qualification to a closed version, in a new output')
+    parser.add_argument('--source-version-seal-sha256')
+    parser.add_argument('--reuse-ft-companion', type=Path,
+                        help='CPU re-audit a closed independent companion; no model requests')
+    parser.add_argument('--companion-seal-sha256')
     parser.add_argument('--reuse-completed-continuous', type=Path,
                         help='In a new output, retain sealed C8 after a later pre-model failure; preserve original clocks')
     args = parser.parse_args(arguments)
     if args.download_source_build_dependencies and (not args.download_only or args.download_protocol_dependencies):
         parser.error('Source-build prefetch requires download-only, separate from protocol prefetch')
+    if args.download_only and (args.report_only or args.complete_ft or args.reuse_ft_companion):
+        parser.error('Download-only cannot continue or replay a model campaign')
     if args.download_protocol_dependencies and (not args.download_only or not args.artifact_digest or args.download_transport!='auto'):
         parser.error('Protocol dependency prefetch requires download-only, one artifact digest and the default Python transport')
     if (args.download_only and (args.prepare_environment or args.reuse_completed_continuous)) or ((args.artifact_digest or args.download_transport != 'auto') and not args.download_only):
         parser.error('Artifact selection requires download-only, separate from environment preparation')
     try:
+        if args.report_only:
+            if args.prepare_environment or args.reuse_completed_continuous or args.complete_ft or args.reuse_ft_companion or args.download_only or args.artifact_digest or args.download_protocol_dependencies:
+                raise ValueError('Report-only cannot prepare or resume a model campaign')
+            from official_rebuild import run
+            return run(args.config)
         protocol_preparation = None
         config = configuration(args.config, download_only=args.download_only)
+        if (args.source_version_seal_sha256 or args.reuse_ft_companion or args.companion_seal_sha256) and not args.complete_ft:
+            raise ValueError('F/T continuation options require --complete-ft')
+        if args.complete_ft:
+            if args.prepare_environment or args.reuse_completed_continuous or args.download_only or len(config['versions']) != 1:
+                raise ValueError('F/T completion requires one explicit closed version and a new output')
+            if not args.reuse_ft_companion and (platform.system() != 'Linux' or platform.machine() != 'aarch64'):
+                raise ValueError('Official Ascend F/T completion requires Linux aarch64')
+            if not args.reuse_ft_companion:
+                from official_execution import maybe_enter_official, needed
+                if needed():
+                    from transport_trust import configure
+                    configure(config['cache'])
+                maybe_enter_official(config, list(arguments) if arguments is not None else sys.argv[1:])
+            from official_ft import continue_closed
+            return continue_closed(config, args.complete_ft, args.source_version_seal_sha256,
+                companion_source=args.reuse_ft_companion, companion_seal=args.companion_seal_sha256)
         if args.download_only:
             if args.download_source_build_dependencies:
                 from official_source_download import run
-                return run(config,artifact=args.artifact_digest,transport=args.download_transport,
+                return run(config, artifact=args.artifact_digest, transport=args.download_transport,
                            arguments=list(arguments) if arguments is not None else sys.argv[1:])
             if args.download_protocol_dependencies:
                 from official_protocol_download import run
-                return run(config,artifact=args.artifact_digest)
+                return run(config, artifact=args.artifact_digest)
             if '0.28.0rc1-source' in config['versions']:
                 raise ValueError('Source candidates require environment preparation; download-only selects official OCI images')
             from official_download import run
@@ -92,6 +123,8 @@ def main(arguments=None):
         if not args.prepare_environment:
             from official_protocol_preparation import selection
             selection(config)
+            from native_sdk_controller import maybe_enter_official as native_controller
+            native_controller(config,list(arguments) if arguments is not None else sys.argv[1:])
         if not args.prepare_environment or '0.28.0rc1-source' in config['versions']:
             from official_execution import maybe_enter_official, needed
             if needed():
@@ -108,6 +141,7 @@ def main(arguments=None):
             config[key] = str(selected)
             if identity:
                 storage.append(dict(field=key, **identity))
+        protocol_preparation = None
         if not args.prepare_environment:
             from official_protocol_preparation import ensure
             config, protocol_preparation = ensure(config)
@@ -127,6 +161,8 @@ def main(arguments=None):
                                           for p in [ROOT / 'run_all.py', ROOT / 'official_baselines.py', ROOT / 'official_image.py', ROOT / 'official_storage.py']})
     from official_protocol_bootstrap import host_identity
     record['host_identity'] = host_identity()
+    from native_sdk_controller import ENV as native_marker
+    if os.environ.get(native_marker):record['native_controller_handoff']=json.loads(os.environ[native_marker])
     if protocol_preparation is not None:
         record['protocol_preparation'] = protocol_preparation
     save(out / 'results.json', record)

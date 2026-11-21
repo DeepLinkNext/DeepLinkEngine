@@ -1,0 +1,471 @@
+{
+  "schema": "deeplinkengine-official-fla-a2-arithmetic-domain/v1",
+  "id": "fla-npu-a2-phase6-WY64/v1",
+  "public_repo": "flashserve/flash-linear-attention-npu",
+  "public_commit": "5cc699069c7f91a35aabd583032c8720a0b626fa",
+  "public_wheel": {
+    "url": "https://github.com/flashserve/flash-linear-attention-npu/releases/download/v26.9.1-release/flash_linear_attention_npu_a2-26.9.1-py3-none-manylinux_2_34_aarch64.whl",
+    "bytes": 60747295,
+    "sha256": "aefe29fe3f021db45276b289b1f9882f85a34ce1f9900ba94251bda490af4b6e"
+  },
+  "public_spec": {
+    "path": "fla/ops/ascendc/gdn/chunk_gdn_fwd/chunk_gated_delta_rule_fwd/README.md",
+    "sha256": "828b1a743fd44da261d17ad8529c03b9bb3129dd209144350bebc722afd788ce"
+  },
+  "source_stamp": "2475f6a7321ee164f3c211bbe101c3e5",
+  "operator_function": "npu_chunk_gated_delta_rule_fwd",
+  "stable_function_source_sha256": "6c42858b43e32a8ed2582862814729c06a11420a6cb4c52361a4cf4e226a81bf",
+  "runtime_files": {
+    "fla_npu/libfla_npu_stable.so": {
+      "sha256": "14975c7993acfb1568bb0d42b68e7aff33809cd53f9a95c48559d729babe98b1",
+      "bytes": 748504
+    },
+    "fla_npu/opp/vendors/fla_npu_transformer/op_api/lib/libcust_opapi.so": {
+      "sha256": "6c6bbd60713807e22023037b10c2428683735e8fc162b28336a2c12db4c15e1c",
+      "bytes": 1486960
+    },
+    "fla_npu/opp/vendors/fla_npu_transformer/op_impl/ai_core/tbe/op_tiling/liboptiling.so": {
+      "sha256": "5179003a4bfa8c5ea66ef4a1454d0bfb66d8abca46c5f95d1da73e8052b9d422",
+      "bytes": 2771680
+    },
+    "fla_npu/opp/vendors/fla_npu_transformer/op_impl/ai_core/tbe/op_tiling/lib/linux/aarch64/libcust_opmaster_rt2.0.so": {
+      "sha256": "5179003a4bfa8c5ea66ef4a1454d0bfb66d8abca46c5f95d1da73e8052b9d422",
+      "bytes": 2771680
+    },
+    "fla_npu/opp/vendors/fla_npu_transformer/op_proto/es/lib/linux/aarch64/libes_transformer_cust.so": {
+      "sha256": "10dd7c4ff24efc07475bf40a5e60ec98b3aaeff759e4af3049cf99659111678a",
+      "bytes": 259944
+    },
+    "fla_npu/opp/vendors/fla_npu_transformer/op_proto/lib/linux/aarch64/libcust_opsproto_rt2.0.so": {
+      "sha256": "fe128a73e62d1ad3763c7edf90e8b3d15d6c6ff4810871ab09f21d037cb6d40a",
+      "bytes": 612304
+    },
+    "fla_npu/opp/vendors/fla_npu_transformer/op_impl/ai_core/tbe/kernel/ascend910b/chunk_gated_delta_rule_fwd/ChunkGatedDeltaRuleFwd_108784e696cfde12557bb5cc26ca7849.json": {
+      "sha256": "35daf87ac6bbf6efc34513e274e9f935bf6c0fbd20e552253f0687abb848d6b0",
+      "bytes": 5673
+    },
+    "fla_npu/opp/vendors/fla_npu_transformer/op_impl/ai_core/tbe/kernel/ascend910b/chunk_gated_delta_rule_fwd/ChunkGatedDeltaRuleFwd_108784e696cfde12557bb5cc26ca7849.o": {
+      "sha256": "de700f9405a37848eaf94b3ca0a1f04fa767738b06d99f5861a9a416cb1a6f8c",
+      "bytes": 1852680
+    },
+    "fla_npu/opp/vendors/fla_npu_transformer/op_impl/ai_core/tbe/kernel/ascend910b/chunk_gated_delta_rule_fwd/ChunkGatedDeltaRuleFwd_8e1448a288413d13daf8c8d8bd33591c.json": {
+      "sha256": "b0ffb398e8d0e9cbd3ec5b8a6b05cc8f8e5c91171b55e04ff99fac3d22272370",
+      "bytes": 5637
+    },
+    "fla_npu/opp/vendors/fla_npu_transformer/op_impl/ai_core/tbe/kernel/ascend910b/chunk_gated_delta_rule_fwd/ChunkGatedDeltaRuleFwd_8e1448a288413d13daf8c8d8bd33591c.o": {
+      "sha256": "a495d2f4f8b8c428b5f17640f099db9187e925f457b9b2f384144f231c6b39ec",
+      "bytes": 1852680
+    },
+    "fla_npu/opp/vendors/fla_npu_transformer/op_impl/ai_core/tbe/kernel/ascend910b/chunk_gated_delta_rule_fwd/ChunkGatedDeltaRuleFwd_b5c7ec78f0547117c2c76649f889e6e8.json": {
+      "sha256": "01d152cf9d751b220b9821d3a04756d1f221bc9d044bc5f3a2422853196278f3",
+      "bytes": 5637
+    },
+    "fla_npu/opp/vendors/fla_npu_transformer/op_impl/ai_core/tbe/kernel/ascend910b/chunk_gated_delta_rule_fwd/ChunkGatedDeltaRuleFwd_b5c7ec78f0547117c2c76649f889e6e8.o": {
+      "sha256": "4a4bfb0a438e606f4f15fa0aab0d62ae05b3dadd2f5c24957a5d9818ac79e7d7",
+      "bytes": 1852680
+    },
+    "fla_npu/opp/vendors/fla_npu_transformer/op_impl/ai_core/tbe/kernel/ascend910b/chunk_gated_delta_rule_fwd/ChunkGatedDeltaRuleFwd_bd8b785ed0021c1f77342451f418d8f3.json": {
+      "sha256": "43bf88904c27ce79761c80b97049a40c21a0df627baf5822e3a86e4ac0fbf6f5",
+      "bytes": 5667
+    },
+    "fla_npu/opp/vendors/fla_npu_transformer/op_impl/ai_core/tbe/kernel/ascend910b/chunk_gated_delta_rule_fwd/ChunkGatedDeltaRuleFwd_bd8b785ed0021c1f77342451f418d8f3.o": {
+      "sha256": "f4b1edbe14ba953715f51bc3dce6afed1d2a001711d28a1336e2df2ba456cc8d",
+      "bytes": 1852680
+    },
+    "fla_npu/opp/vendors/fla_npu_transformer/op_impl/ai_core/tbe/kernel/config/ascend910b/chunk_gated_delta_rule_fwd.json": {
+      "sha256": "6bc9e3e15434e24b6b732b46b6581c9a495c347cd66f761396f5ba910a589979",
+      "bytes": 21475
+    }
+  },
+  "packaged_kernel_sources": {
+    "fla_npu/opp/vendors/fla_npu_transformer/op_impl/ai_core/tbe/fla_npu_transformer_impl/ascendc/chunk_gated_delta_rule_fwd/chunk_gated_delta_rule_fwd.cpp": {
+      "sha256": "1c2e80b6ad01ec72af805520a634179f3fa49ddaad91b89e545f519c836ad4a9",
+      "normalized_public_git_blob": "6f2545084d3ab619a4de0b9b54c4a108eed18da5"
+    },
+    "fla_npu/opp/vendors/fla_npu_transformer/op_impl/ai_core/tbe/fla_npu_transformer_impl/ascendc/chunk_gated_delta_rule_fwd/chunk_gated_delta_rule_fwd_struct.h": {
+      "sha256": "223582027f64fdb592e79a3aa2e133222d43f3508964ecb3fb5ed6279420b6ec",
+      "normalized_public_git_blob": "59f4826205d6a6d02aa6d007cd6c542f764bed34"
+    },
+    "fla_npu/opp/vendors/fla_npu_transformer/op_impl/ai_core/tbe/fla_npu_transformer_impl/ascendc/chunk_gated_delta_rule_fwd/internal/arch22/chunk_gated_delta_rule_fwd_arch22.cpp": {
+      "sha256": "a2956189e1227f7fad224569a26949398e442c9f2e551a619e7857ff8d4b29c6",
+      "normalized_public_git_blob": "0ddb76bdffdd3fe881878a4f4ab69fc3b1aae55d"
+    },
+    "fla_npu/opp/vendors/fla_npu_transformer/op_impl/ai_core/tbe/fla_npu_transformer_impl/ascendc/chunk_gated_delta_rule_fwd/internal/arch22/chunk_gated_delta_rule_fwd_arch22_struct.h": {
+      "sha256": "35f0ea38b6c5249316bba838258a93f66c01983edeaa879fbb99c9c0215b86b3",
+      "normalized_public_git_blob": "d960fb28187005d9ff3d889ba1974e6e4b132bbf"
+    },
+    "fla_npu/opp/vendors/fla_npu_transformer/op_impl/ai_core/tbe/fla_npu_transformer_impl/ascendc/chunk_gated_delta_rule_fwd/internal/arch22/chunk_gated_delta_rule_ho_pipeline.h": {
+      "sha256": "6d6dd5e59e3085b89043facd2cbabbfc1ed937812c5a1ea48b87af5eb2a16660",
+      "normalized_public_git_blob": "cecaf2123aa506b2b31f32ad6a0b0043407c70d8"
+    },
+    "fla_npu/opp/vendors/fla_npu_transformer/op_impl/ai_core/tbe/fla_npu_transformer_impl/ascendc/chunk_gated_delta_rule_fwd/internal/arch22/gdn_cumsum_prepare.hpp": {
+      "sha256": "9fa29f3cf26da7b1ff0131ab37a13dfd5f4e6d9b8954c0109227d2058dfb5ffc",
+      "normalized_public_git_blob": "21bfbe3ab8ead66aafcfc5eb1b74bcc8f76757b8"
+    },
+    "fla_npu/opp/vendors/fla_npu_transformer/op_impl/ai_core/tbe/fla_npu_transformer_impl/ascendc/chunk_gated_delta_rule_fwd/internal/arch22/operators/chunk_fwd_o/op_kernel/chunk_fwd_o_struct.h": {
+      "sha256": "ebe5f8cfcff897a030cf4b7d45c15dc2bbd1612e2679ee2acc654b6d0c6f67d3",
+      "normalized_public_git_blob": "cba5f7360ce860d831b7b3f225d54356ccd69c41"
+    },
+    "fla_npu/opp/vendors/fla_npu_transformer/op_impl/ai_core/tbe/fla_npu_transformer_impl/ascendc/chunk_gated_delta_rule_fwd/internal/arch22/operators/chunk_fwd_o/op_kernel/epilogue/block/block_epilogue_gdn_fwdo_output.hpp": {
+      "sha256": "517a88ad9bb4a7ab810ac8c715fe1405316538af24cd38fa125905fd24608b00",
+      "normalized_public_git_blob": "bf44395311846df51ada812f95e1ab11a7740865"
+    },
+    "fla_npu/opp/vendors/fla_npu_transformer/op_impl/ai_core/tbe/fla_npu_transformer_impl/ascendc/chunk_gated_delta_rule_fwd/internal/arch22/operators/chunk_fwd_o/op_kernel/epilogue/block/block_epilogue_gdn_fwdo_qkmask.hpp": {
+      "sha256": "47d2cfa56c592e136638b415ef14202b51c811ebbb4642b294054fce5cc92a72",
+      "normalized_public_git_blob": "42e86c251a76a1f1665a6197e84a6436928036b7"
+    },
+    "fla_npu/opp/vendors/fla_npu_transformer/op_impl/ai_core/tbe/fla_npu_transformer_impl/ascendc/chunk_gated_delta_rule_fwd/internal/arch22/operators/chunk_fwd_o/op_kernel/epilogue/gdn_fwd_o_epilogue_policies.hpp": {
+      "sha256": "de922aee1be9258e7f877126e67985eb8df3dab2eed7d673aa723abd1e0ea0f2",
+      "normalized_public_git_blob": "c800a3af30d148a0a715334b8deb5091aaf5a6d4"
+    },
+    "fla_npu/opp/vendors/fla_npu_transformer/op_impl/ai_core/tbe/fla_npu_transformer_impl/ascendc/chunk_gated_delta_rule_fwd/internal/arch22/operators/chunk_fwd_o/op_kernel/gemm/block/block_scheduler_gdn_fwd_o.hpp": {
+      "sha256": "d2154021e2553976acc51bc974fd17ad9ab0b90c1a55f5efa14397a3bb7ba473",
+      "normalized_public_git_blob": "3f4c00f07a76459089078b2a89b215c24bb02bc2"
+    },
+    "fla_npu/opp/vendors/fla_npu_transformer/op_impl/ai_core/tbe/fla_npu_transformer_impl/ascendc/chunk_gated_delta_rule_fwd/internal/arch22/operators/chunk_fwd_o/op_kernel/gemm/kernel/gdn_fwd_o_kernel.hpp": {
+      "sha256": "bc81aa5a8c0f33ca2d73422c5cbefe144b24e27752be4ac2b06309269e7e60f4",
+      "normalized_public_git_blob": "f1fa5a71f1892afe30c3939e2a5267ba87867450"
+    },
+    "fla_npu/opp/vendors/fla_npu_transformer/op_impl/ai_core/tbe/fla_npu_transformer_impl/ascendc/chunk_gated_delta_rule_fwd/internal/arch22/operators/chunk_gated_delta_rule_fwd_h/op_host/chunk_gated_delta_rule_fwd_h_tiling.h": {
+      "sha256": "596256658e5970c6b61fc110cfc94095800b9f3986f11a2514b39e76b068fa2e",
+      "normalized_public_git_blob": "90cbd1b950083bb215231afc41c0dc25a9c3953d"
+    },
+    "fla_npu/opp/vendors/fla_npu_transformer/op_impl/ai_core/tbe/fla_npu_transformer_impl/ascendc/chunk_gated_delta_rule_fwd/internal/arch22/operators/chunk_gated_delta_rule_fwd_h/op_host/chunk_gated_delta_rule_fwd_h_tiling_processor.h": {
+      "sha256": "8bcd780f9e5444cd3c9f4fa3553df58a1b6c5ea403bddcbe6d89e05f869f4525",
+      "normalized_public_git_blob": "c93a26a14208c273426d216edebeaffc71ff628e"
+    },
+    "fla_npu/opp/vendors/fla_npu_transformer/op_impl/ai_core/tbe/fla_npu_transformer_impl/ascendc/chunk_gated_delta_rule_fwd/internal/arch22/operators/chunk_gated_delta_rule_fwd_h/op_kernel/chunk_gated_delta_rule_fwd_h_struct.h": {
+      "sha256": "7832255a8f1a67ec858f216b0127e740424af7a046dd0ae40d8d0a902445ce1a",
+      "normalized_public_git_blob": "3db9a33797be37b49f40b976d32b881447898775"
+    },
+    "fla_npu/opp/vendors/fla_npu_transformer/op_impl/ai_core/tbe/fla_npu_transformer_impl/ascendc/chunk_gated_delta_rule_fwd/internal/arch22/operators/chunk_gated_delta_rule_fwd_h/op_kernel/epilogue/block/block_epilogue_gdn_fwdh_update.hpp": {
+      "sha256": "e0950411a5bc7ef80a390dfd31a47957d7564ec5d0f58db5ba0dd75f31f7163d",
+      "normalized_public_git_blob": "973b02e361ffe1da198dd1f8b3bc602f2a637a26"
+    },
+    "fla_npu/opp/vendors/fla_npu_transformer/op_impl/ai_core/tbe/fla_npu_transformer_impl/ascendc/chunk_gated_delta_rule_fwd/internal/arch22/operators/chunk_gated_delta_rule_fwd_h/op_kernel/epilogue/block/block_epilogue_gdn_fwdh_vnew.hpp": {
+      "sha256": "cfa04e5492449e39f38b823a9ec1729e62b662b55f01ee7fe98bc5e028823e47",
+      "normalized_public_git_blob": "694c48cf47df677e4ffaff44a64574f60d595725"
+    },
+    "fla_npu/opp/vendors/fla_npu_transformer/op_impl/ai_core/tbe/fla_npu_transformer_impl/ascendc/chunk_gated_delta_rule_fwd/internal/arch22/operators/chunk_gated_delta_rule_fwd_h/op_kernel/epilogue/gdn_fwd_h_epilogue_policies.hpp": {
+      "sha256": "83585d64801e618732cd8eac9c8cbadf927284028663315cfce99679bacb0701",
+      "normalized_public_git_blob": "d5287d55defd5a066d99ae7f571f6090d191517b"
+    },
+    "fla_npu/opp/vendors/fla_npu_transformer/op_impl/ai_core/tbe/fla_npu_transformer_impl/ascendc/chunk_gated_delta_rule_fwd/internal/arch22/operators/chunk_gated_delta_rule_fwd_h/op_kernel/gemm/block/block_scheduler_gdn_fwd_h.hpp": {
+      "sha256": "8500e4b58c6504e945855eb4269913e818b96f6b8d12767a1982a1e647fcdd8d",
+      "normalized_public_git_blob": "5045e6c03f9bc051ae52ec82b37c641c808ec738"
+    },
+    "fla_npu/opp/vendors/fla_npu_transformer/op_impl/ai_core/tbe/fla_npu_transformer_impl/ascendc/chunk_gated_delta_rule_fwd/internal/arch22/operators/chunk_gated_delta_rule_fwd_h/op_kernel/gemm/kernel/gdn_fwd_h_kernel.hpp": {
+      "sha256": "21bc1874a59232f36c05fbeb1ce1823a1c3f9d18624b5b271a6122655a38a2c7",
+      "normalized_public_git_blob": "5d55f956f690cfcce9865318d6a31fd66edd7d46"
+    },
+    "fla_npu/opp/vendors/fla_npu_transformer/op_impl/ai_core/tbe/fla_npu_transformer_impl/ascendc/chunk_gated_delta_rule_fwd/internal/arch22/operators/chunk_kkt_solve_tri/op_kernel/chunk_cumsum_kkt_solve_tri.cpp": {
+      "sha256": "3a8ca77f003bcaf8c0cc7cd870c3b56a9bd367b51f022f9ce00161e32a77fb77",
+      "normalized_public_git_blob": "f7e11a1711832dc177b73fd9f170a23993af3e65"
+    },
+    "fla_npu/opp/vendors/fla_npu_transformer/op_impl/ai_core/tbe/fla_npu_transformer_impl/ascendc/chunk_gated_delta_rule_fwd/internal/arch22/operators/chunk_kkt_solve_tri/op_kernel/chunk_kkt_cube.h": {
+      "sha256": "ce4c7a5b04631db2677778f782adfa7c8f8bd1836c901420c48990722220caa4",
+      "normalized_public_git_blob": "7a073aab8b45b6018f46916a0b00d61515cfe832"
+    },
+    "fla_npu/opp/vendors/fla_npu_transformer/op_impl/ai_core/tbe/fla_npu_transformer_impl/ascendc/chunk_gated_delta_rule_fwd/internal/arch22/operators/chunk_kkt_solve_tri/op_kernel/solve_layout_staging.h": {
+      "sha256": "8b24b10cc4edcdbf10acfe9f40861701665aa9dbe67ff4ed73ff9a0def4a6614",
+      "normalized_public_git_blob": "21f5ca1b1fb0cff99e5da455709a4d7c0bab4041"
+    },
+    "fla_npu/opp/vendors/fla_npu_transformer/op_impl/ai_core/tbe/fla_npu_transformer_impl/ascendc/chunk_gated_delta_rule_fwd/internal/arch22/operators/chunk_recompute_wu_fwd_ho/op_host/chunk_recompute_wu_fwd_ho_tiling.h": {
+      "sha256": "b6d2e472f3c0980f0f1f905de5d134553d69a4a8cae3ee3d2d81ddca992607cc",
+      "normalized_public_git_blob": "e732a0497457c55dbd3e803b8f3d2c34d5856900"
+    },
+    "fla_npu/opp/vendors/fla_npu_transformer/op_impl/ai_core/tbe/fla_npu_transformer_impl/ascendc/chunk_gated_delta_rule_fwd/internal/arch22/operators/chunk_recompute_wu_fwd_ho/op_kernel/chunk_recompute_wu_fwd_ho.cpp": {
+      "sha256": "949b784e8aaaa363a99bbd80891ae7de393d648d0d301213c0ab32e7b8c87698",
+      "normalized_public_git_blob": "0d74ded8b1605cb9e2dd64c22cd95f2511bac5bc"
+    },
+    "fla_npu/opp/vendors/fla_npu_transformer/op_impl/ai_core/tbe/fla_npu_transformer_impl/ascendc/chunk_gated_delta_rule_fwd/internal/arch22/operators/chunk_recompute_wu_fwd_ho/op_kernel/chunk_recompute_wu_fwd_ho_struct.h": {
+      "sha256": "1fbc2e75a5c78a1e01a72691be6f6ddaa360ff7c8c86ce2180ab2beca9fb36ca",
+      "normalized_public_git_blob": "e29037a47c83b29217a75b3b268519889399de83"
+    },
+    "fla_npu/opp/vendors/fla_npu_transformer/op_impl/ai_core/tbe/fla_npu_transformer_impl/ascendc/chunk_gated_delta_rule_fwd/internal/arch22/operators/chunk_scaled_dot_kkt/op_kernel/chunk_scaled_dot_kkt.h": {
+      "sha256": "53043d40f43b0a3b4194774aa67b556520f143c483aeab6d3dc63dd0af66a2cc",
+      "normalized_public_git_blob": "a4e07b7dca1672d020f8bd5f036189790773a22c"
+    },
+    "fla_npu/opp/vendors/fla_npu_transformer/op_impl/ai_core/tbe/fla_npu_transformer_impl/ascendc/chunk_gated_delta_rule_fwd/internal/arch22/operators/recompute_w_u_fwd/op_host/op_tiling/recompute_w_u_fwd_tiling.h": {
+      "sha256": "de74995fc666922af96b3a4c2caa2ccd5b9af9d418e475cd38bf3d22154df417",
+      "normalized_public_git_blob": "94f40b098b710945bed54e0acd0ded464e422d81"
+    },
+    "fla_npu/opp/vendors/fla_npu_transformer/op_impl/ai_core/tbe/fla_npu_transformer_impl/ascendc/chunk_gated_delta_rule_fwd/internal/arch22/operators/recompute_w_u_fwd/op_host/op_tiling/recompute_w_u_fwd_tiling_processor.h": {
+      "sha256": "76081fc7101e926f1f0848b66f4881cc8c0405f209bd4f99af1b8938418ff707",
+      "normalized_public_git_blob": "ba136aacc07498db41b853adb52acf49121394f8"
+    },
+    "fla_npu/opp/vendors/fla_npu_transformer/op_impl/ai_core/tbe/fla_npu_transformer_impl/ascendc/chunk_gated_delta_rule_fwd/internal/arch22/operators/recompute_w_u_fwd/op_kernel/recompute_w_u_fwd_common.h": {
+      "sha256": "ade306b989c794b2ccd3e3feee45e923ad71a55d81e196e30617badee1e662e7",
+      "normalized_public_git_blob": "afbe8fe90ac61743bc4d7e2c7246bc787b6e93d5"
+    },
+    "fla_npu/opp/vendors/fla_npu_transformer/op_impl/ai_core/tbe/fla_npu_transformer_impl/ascendc/chunk_gated_delta_rule_fwd/internal/arch22/operators/recompute_w_u_fwd/op_kernel/recompute_w_u_fwd_cube.h": {
+      "sha256": "d1d6b58a2ae796b58014d3cbc39420524d0f1b141c4136dfc337140a70d391a8",
+      "normalized_public_git_blob": "0799fa362aed6aecf6996a951e8833bd1817a5e5"
+    },
+    "fla_npu/opp/vendors/fla_npu_transformer/op_impl/ai_core/tbe/fla_npu_transformer_impl/ascendc/chunk_gated_delta_rule_fwd/internal/arch22/operators/recompute_w_u_fwd/op_kernel/recompute_w_u_fwd_struct.h": {
+      "sha256": "35a9cab37af246084fb01d1a9b3cfcabe012d6ef44eae86a09fa31e4918f677c",
+      "normalized_public_git_blob": "c15eb6eaaf7f014700d1f8749721a761218c3a7c"
+    },
+    "fla_npu/opp/vendors/fla_npu_transformer/op_impl/ai_core/tbe/fla_npu_transformer_impl/ascendc/chunk_gated_delta_rule_fwd/internal/arch22/operators/recompute_w_u_fwd/op_kernel/recompute_w_u_fwd_vector.h": {
+      "sha256": "9a1779342ec617c7b6fcde2c7df5cc2b43cc7a057929df1df308d04350130b3e",
+      "normalized_public_git_blob": "241e59aa97ac6ee714e1cc7cbcd036ec717b0f46"
+    },
+    "fla_npu/opp/vendors/fla_npu_transformer/op_impl/ai_core/tbe/fla_npu_transformer_impl/ascendc/chunk_gated_delta_rule_fwd/internal/arch22/operators/solve_tri/op_kernel/solve_tri_common.h": {
+      "sha256": "637666105ec47ef4f21a2336c990b23da4972e3a4afc5d8d23892bb61387306f",
+      "normalized_public_git_blob": "4f1f4bc3bd678aec0a66cecc9b261e8617591429"
+    },
+    "fla_npu/opp/vendors/fla_npu_transformer/op_impl/ai_core/tbe/fla_npu_transformer_impl/ascendc/chunk_gated_delta_rule_fwd/internal/arch22/operators/solve_tri/op_kernel/solve_tri_cube.h": {
+      "sha256": "db80f92cdb6691bbfdd71726f6f8a7c1eab285abf785d1aa15d59b8cefdc08da",
+      "normalized_public_git_blob": "e537aecdc9f289f1fd0e96e00a00e4133bb22e4b"
+    },
+    "fla_npu/opp/vendors/fla_npu_transformer/op_impl/ai_core/tbe/fla_npu_transformer_impl/ascendc/chunk_gated_delta_rule_fwd/internal/arch22/operators/solve_tri/op_kernel/solve_tri_vector.h": {
+      "sha256": "d35fc9ca99f36e7d35e258cc66911b1f1359148b2baf2f4a57487e37e1ea9a3e",
+      "normalized_public_git_blob": "2b151298d837551b68081975486c7ffffb67f26f"
+    },
+    "fla_npu/opp/vendors/fla_npu_transformer/op_impl/ai_core/tbe/fla_npu_transformer_impl/ascendc/chunk_gated_delta_rule_fwd/internal/arch22/operators/solve_tri_fp32/solve_tri_pipeline.h": {
+      "sha256": "49b70c96edff4a42bd6591a56c2701523c9f71e7fe0f595f7f43a0d0e9ff9fa0",
+      "normalized_public_git_blob": "af85854278e56edf581e26b82e9d9c535f160373"
+    },
+    "fla_npu/opp/vendors/fla_npu_transformer/op_impl/ai_core/tbe/fla_npu_transformer_impl/ascendc/chunk_gated_delta_rule_fwd/internal/arch22/qkv_input_layout.h": {
+      "sha256": "a782238ad9277166b89de628ebc016a3c00685d9deec45281e91ca33b1ccb986",
+      "normalized_public_git_blob": "70d51bfb03aded95080fb6a14feb076b67261ca0"
+    },
+    "fla_npu/opp/vendors/fla_npu_transformer/op_impl/ai_core/tbe/fla_npu_transformer_impl/ascendc/chunk_gated_delta_rule_fwd/internal/arch35/chunk_gated_delta_rule_fwd_arch35.cpp": {
+      "sha256": "8c0d433e52e45e9671e1a40e3912981b8d590dbd5df5ed693e26a36ca2a87f7f",
+      "normalized_public_git_blob": "19ef7b7254d4f53f724c315f23ec81185eb4aa62"
+    },
+    "fla_npu/opp/vendors/fla_npu_transformer/op_impl/ai_core/tbe/fla_npu_transformer_impl/ascendc/chunk_gated_delta_rule_fwd/internal/arch35/chunk_gated_delta_rule_fwd_arch35_struct.h": {
+      "sha256": "27a32a386bfb53d7336d3dd5684ae57d40ded3f59a5a4b0067c5b3a00f55ac0e",
+      "normalized_public_git_blob": "4f18201ae52a5a5e657dda68072f98f9c8928b06"
+    },
+    "fla_npu/opp/vendors/fla_npu_transformer/op_impl/ai_core/tbe/fla_npu_transformer_impl/ascendc/chunk_gated_delta_rule_fwd/internal/coefficient_generation/chunk_gated_delta_rule_coefficient_generation.cpp": {
+      "sha256": "fca327dadfbe640905efcd5ff1a935dc0811ae91f781060f2da8d0a5d53859ef",
+      "normalized_public_git_blob": "fd9523ae576dc5137a230683cf8504c5dc81d74b"
+    },
+    "fla_npu/opp/vendors/fla_npu_transformer/op_impl/ai_core/tbe/fla_npu_transformer_impl/ascendc/chunk_gated_delta_rule_fwd/internal/coefficient_generation/chunk_gated_delta_rule_cumsum_kkt.h": {
+      "sha256": "e0a3009a62f7f57fefa1a0678c37055a44d095333a85dbbdc953ca8a6c892bc4",
+      "normalized_public_git_blob": "7777743a18e50c8812c78d3280451b8e197b6b84"
+    },
+    "fla_npu/opp/vendors/fla_npu_transformer/op_impl/ai_core/tbe/fla_npu_transformer_impl/ascendc/chunk_gated_delta_rule_fwd/internal/coefficient_generation/chunk_gated_delta_rule_kkt_cube.h": {
+      "sha256": "601a01c5e69e24fcadb000e468d24819faac04f288b08286c8d1e506c8a4281d",
+      "normalized_public_git_blob": "fb64703a771460f5cd3c615d38eced75497e87dd"
+    },
+    "fla_npu/opp/vendors/fla_npu_transformer/op_impl/ai_core/tbe/fla_npu_transformer_impl/ascendc/chunk_gated_delta_rule_fwd/internal/coefficient_generation/chunk_gated_delta_rule_kkt_vector.h": {
+      "sha256": "02afbe942165b8111cd4f34436cfc6e9d731abaca59cb712c134aaf75257eef7",
+      "normalized_public_git_blob": "2ac25c7f25ccb55abcb8406a031b74d726fc2b7f"
+    },
+    "fla_npu/opp/vendors/fla_npu_transformer/op_impl/ai_core/tbe/fla_npu_transformer_impl/ascendc/chunk_gated_delta_rule_fwd/internal/coefficient_generation/gated_delta_rule_solve_tri/arch35/mem.h": {
+      "sha256": "7182a84927dd4d5a22bd924ef719cb71c71a59dbe36893af054153869a4d82f3",
+      "normalized_public_git_blob": "f281ba10b77a783b6b6e15fb71656ef756022422"
+    },
+    "fla_npu/opp/vendors/fla_npu_transformer/op_impl/ai_core/tbe/fla_npu_transformer_impl/ascendc/chunk_gated_delta_rule_fwd/internal/coefficient_generation/gated_delta_rule_solve_tri/arch35/solve_tri_ascend950.h": {
+      "sha256": "8628c6520d27d971c95df27f2d03b76077fd776550c7ba0d0f6d7595d61ffd38",
+      "normalized_public_git_blob": "221af7c2d28f8de8f02e2f91b5c4a806f194a1c4"
+    },
+    "fla_npu/opp/vendors/fla_npu_transformer/op_impl/ai_core/tbe/fla_npu_transformer_impl/ascendc/chunk_gated_delta_rule_fwd/internal/coefficient_generation/gated_delta_rule_solve_tri/arch35/solve_tri_ascend950_128.h": {
+      "sha256": "22603a12e8ad02b120ced24fbe68b05c173e20549c3c47c123f3fc8e61a640e7",
+      "normalized_public_git_blob": "4f4bd9e28da4a5272d22863cb3e76ae82b760140"
+    },
+    "fla_npu/opp/vendors/fla_npu_transformer/op_impl/ai_core/tbe/fla_npu_transformer_impl/ascendc/chunk_gated_delta_rule_fwd/internal/coefficient_generation/gated_delta_rule_solve_tri/arch35/solve_tri_ascend950_16.h": {
+      "sha256": "537ad6a4afe1165ade18daa7fdf84c5ca58f02662c59395bd4b16b14ad3aaea7",
+      "normalized_public_git_blob": "d837dedc67e69e1eacf24ee6893eef371348a4b8"
+    },
+    "fla_npu/opp/vendors/fla_npu_transformer/op_impl/ai_core/tbe/fla_npu_transformer_impl/ascendc/chunk_gated_delta_rule_fwd/internal/coefficient_generation/gated_delta_rule_solve_tri/arch35/solve_tri_ascend950_32.h": {
+      "sha256": "183e9e5e22fe447224cbb3b70aad1da1348dfbb45c384c79303e4e554c595762",
+      "normalized_public_git_blob": "8d34685a7e68d7fadda9d52c464019ded65d1933"
+    },
+    "fla_npu/opp/vendors/fla_npu_transformer/op_impl/ai_core/tbe/fla_npu_transformer_impl/ascendc/chunk_gated_delta_rule_fwd/internal/coefficient_generation/gated_delta_rule_solve_tri/arch35/solve_tri_ascend950_64.h": {
+      "sha256": "a0791e7353ffb1ee91ad8bfba34c47d767613a13d80df823c8b44dd6bae361e4",
+      "normalized_public_git_blob": "5809ce3b1dd1cca6858b83d0c29890189d6e1e32"
+    },
+    "fla_npu/opp/vendors/fla_npu_transformer/op_impl/ai_core/tbe/fla_npu_transformer_impl/ascendc/chunk_gated_delta_rule_fwd/internal/coefficient_generation/gated_delta_rule_solve_tri/arch35/solve_tri_ascend950_common.h": {
+      "sha256": "5e9190fcbba3eb1edee56b02afd2e3cf2d74633b5b9a7a31a32a623df9f77b1e",
+      "normalized_public_git_blob": "045e3778244fe30ec34eabe9286dee9b1050094f"
+    },
+    "fla_npu/opp/vendors/fla_npu_transformer/op_impl/ai_core/tbe/fla_npu_transformer_impl/ascendc/chunk_gated_delta_rule_fwd/internal/coefficient_generation/gated_delta_rule_solve_tri/solve_tri_common.h": {
+      "sha256": "637666105ec47ef4f21a2336c990b23da4972e3a4afc5d8d23892bb61387306f",
+      "normalized_public_git_blob": "4f1f4bc3bd678aec0a66cecc9b261e8617591429"
+    },
+    "fla_npu/opp/vendors/fla_npu_transformer/op_impl/ai_core/tbe/fla_npu_transformer_impl/ascendc/chunk_gated_delta_rule_fwd/internal/coefficient_generation/gated_delta_rule_solve_tri/solve_tri_cube.h": {
+      "sha256": "ee30dd74a026c5dab71dba92b7c1c06b7b8fb4fd78db34cc728c9aa2e67f8cdd",
+      "normalized_public_git_blob": "6f732d835b4710547d0740341c5e511177cbcb35"
+    },
+    "fla_npu/opp/vendors/fla_npu_transformer/op_impl/ai_core/tbe/fla_npu_transformer_impl/ascendc/chunk_gated_delta_rule_fwd/internal/coefficient_generation/gated_delta_rule_solve_tri/solve_tri_vector.h": {
+      "sha256": "d35fc9ca99f36e7d35e258cc66911b1f1359148b2baf2f4a57487e37e1ea9a3e",
+      "normalized_public_git_blob": "2b151298d837551b68081975486c7ffffb67f26f"
+    },
+    "fla_npu/opp/vendors/fla_npu_transformer/op_impl/ai_core/tbe/fla_npu_transformer_impl/ascendc/chunk_gated_delta_rule_fwd/internal/gated_delta_rule_state_update_output/chunk_gated_delta_rule_state_update_output.cpp": {
+      "sha256": "adcaf7c0d9676eade118a247608496ae2ac3affd17d2dd65787b95456a8c65e6",
+      "normalized_public_git_blob": "13cc2c835b58df74c43a862af6253f32c781fda5"
+    },
+    "fla_npu/opp/vendors/fla_npu_transformer/op_impl/ai_core/tbe/fla_npu_transformer_impl/ascendc/chunk_gated_delta_rule_fwd/internal/gated_delta_rule_state_update_output/chunk_gated_delta_rule_state_update_output_struct.h": {
+      "sha256": "f1ebdbfd8120d18f19c2ddfc5d476bf7067e3b614451fa39ef7783a28ac2f278",
+      "normalized_public_git_blob": "94255705c680996dfd5f39c984f934c4243af32b"
+    },
+    "fla_npu/opp/vendors/fla_npu_transformer/op_impl/ai_core/tbe/fla_npu_transformer_impl/ascendc/chunk_gated_delta_rule_fwd/internal/operators/chunk_fwd_o/op_kernel/arch35/epilogue/block/block_epilogue_gdn_fwdo_output.hpp": {
+      "sha256": "7c774e25ab5d977a98a65487f5ed79b29fbea098d134658b8d0e41432a1f9ec8",
+      "normalized_public_git_blob": "48f5b4099cb994566dfa599b3e06c00e538e325d"
+    },
+    "fla_npu/opp/vendors/fla_npu_transformer/op_impl/ai_core/tbe/fla_npu_transformer_impl/ascendc/chunk_gated_delta_rule_fwd/internal/operators/chunk_fwd_o/op_kernel/arch35/epilogue/block/block_epilogue_gdn_fwdo_qkmask.hpp": {
+      "sha256": "13d28cb4ffe282c7da3699eaf00a1d951cf8668a5822301a30a61ba1ef944edd",
+      "normalized_public_git_blob": "de293f03a9c16ccfb71d45c6da88c3f6b2e50f7d"
+    },
+    "fla_npu/opp/vendors/fla_npu_transformer/op_impl/ai_core/tbe/fla_npu_transformer_impl/ascendc/chunk_gated_delta_rule_fwd/internal/operators/chunk_fwd_o/op_kernel/arch35/epilogue/gdn_fwd_o_epilogue_policies.hpp": {
+      "sha256": "376b7fd685a511dc0cd4ed818babe953987341d489b170f914d4e7a639ecadbb",
+      "normalized_public_git_blob": "18c937099d23e0ec5994c992924b903f9503bb15"
+    },
+    "fla_npu/opp/vendors/fla_npu_transformer/op_impl/ai_core/tbe/fla_npu_transformer_impl/ascendc/chunk_gated_delta_rule_fwd/internal/operators/chunk_fwd_o/op_kernel/arch35/gemm/block/block_mmad_pingpong_tla_gdn_fwd_o.hpp": {
+      "sha256": "c6549a5d639919d39fb522b7f393bd7d6d15ba61b46e567a93e0aabf2dc2a0f7",
+      "normalized_public_git_blob": "65dcf59afbb3afdfdff6f437d38e4c2105ab5c2d"
+    },
+    "fla_npu/opp/vendors/fla_npu_transformer/op_impl/ai_core/tbe/fla_npu_transformer_impl/ascendc/chunk_gated_delta_rule_fwd/internal/operators/chunk_fwd_o/op_kernel/arch35/gemm/block/block_mmad_pingpong_tla_pipelined.hpp": {
+      "sha256": "9137645f69cde8617a5402d2e821ede5be699d29b961abfbb4826008ef57f788",
+      "normalized_public_git_blob": "9fff8a0be04f73b39e712c484d65f1fb99da0988"
+    },
+    "fla_npu/opp/vendors/fla_npu_transformer/op_impl/ai_core/tbe/fla_npu_transformer_impl/ascendc/chunk_gated_delta_rule_fwd/internal/operators/chunk_fwd_o/op_kernel/chunk_fwd_o_struct.h": {
+      "sha256": "d52aad5d64cb6662b9cccabf688b0306af82f49853482a807f85da4e17cd023d",
+      "normalized_public_git_blob": "2b85de6f3ec236fe2c5bee84b5f3d0a59c7e70c9"
+    },
+    "fla_npu/opp/vendors/fla_npu_transformer/op_impl/ai_core/tbe/fla_npu_transformer_impl/ascendc/chunk_gated_delta_rule_fwd/internal/operators/chunk_fwd_o/op_kernel/epilogue/block/block_epilogue_gdn_fwdo_output.hpp": {
+      "sha256": "e43ae3a82630e7a82121b2b2490b3c07d8f9d4fc132e632b59cef6afc77859a3",
+      "normalized_public_git_blob": "8581a5f0d5cd64b7cbf615b56ef51841481bb96d"
+    },
+    "fla_npu/opp/vendors/fla_npu_transformer/op_impl/ai_core/tbe/fla_npu_transformer_impl/ascendc/chunk_gated_delta_rule_fwd/internal/operators/chunk_fwd_o/op_kernel/epilogue/block/block_epilogue_gdn_fwdo_qkmask.hpp": {
+      "sha256": "10ee0f714e80ae1fe5afecff4637b9711057893dd45cd4f0f8010d63dacebece",
+      "normalized_public_git_blob": "2df5416052994444a1c46d97b3bf9ff6da80baef"
+    },
+    "fla_npu/opp/vendors/fla_npu_transformer/op_impl/ai_core/tbe/fla_npu_transformer_impl/ascendc/chunk_gated_delta_rule_fwd/internal/operators/chunk_fwd_o/op_kernel/epilogue/gdn_fwd_o_epilogue_policies.hpp": {
+      "sha256": "de922aee1be9258e7f877126e67985eb8df3dab2eed7d673aa723abd1e0ea0f2",
+      "normalized_public_git_blob": "c800a3af30d148a0a715334b8deb5091aaf5a6d4"
+    },
+    "fla_npu/opp/vendors/fla_npu_transformer/op_impl/ai_core/tbe/fla_npu_transformer_impl/ascendc/chunk_gated_delta_rule_fwd/internal/operators/chunk_fwd_o/op_kernel/gemm/block/block_scheduler_gdn_fwd_o.hpp": {
+      "sha256": "e613408323b6855bb9fcbcd2bc803cf1f18985d7e8c297db90d55d70f6a66d59",
+      "normalized_public_git_blob": "0045f61ad8c2a3376ad8059ac41b43e5cf530bdf"
+    },
+    "fla_npu/opp/vendors/fla_npu_transformer/op_impl/ai_core/tbe/fla_npu_transformer_impl/ascendc/chunk_gated_delta_rule_fwd/internal/operators/chunk_fwd_o/op_kernel/gemm/kernel/gdn_fwd_o_kernel.hpp": {
+      "sha256": "96ed6fd80432635fb03618c4b9f9e6f7ac6b10a2e7f23517a39544754a68408f",
+      "normalized_public_git_blob": "a86ea5b3925af1e082dba23b06e5f6aa02919ee6"
+    },
+    "fla_npu/opp/vendors/fla_npu_transformer/op_impl/ai_core/tbe/fla_npu_transformer_impl/ascendc/chunk_gated_delta_rule_fwd/internal/operators/chunk_gated_delta_rule_fwd_h/op_host/chunk_gated_delta_rule_fwd_h_tiling.h": {
+      "sha256": "e8026aaf51bdb77c1e72ded7f7e7f1728f60ed762ce9a65111da8f7e5ae0a162",
+      "normalized_public_git_blob": "46a72937196f0d5dcb88468e57cfeeddb579fdac"
+    },
+    "fla_npu/opp/vendors/fla_npu_transformer/op_impl/ai_core/tbe/fla_npu_transformer_impl/ascendc/chunk_gated_delta_rule_fwd/internal/operators/chunk_gated_delta_rule_fwd_h/op_host/chunk_gated_delta_rule_fwd_h_tiling_processor.h": {
+      "sha256": "78ede8f0f9ce51b76e107ace3e5a49fca2a599d54bc386bafdb1ffd580e41e0b",
+      "normalized_public_git_blob": "1c56ca5c2d7c1c4bec91fca6fb1884f84c830d9c"
+    },
+    "fla_npu/opp/vendors/fla_npu_transformer/op_impl/ai_core/tbe/fla_npu_transformer_impl/ascendc/chunk_gated_delta_rule_fwd/internal/operators/chunk_gated_delta_rule_fwd_h/op_kernel/arch35/epilogue/block/block_epilogue_gdn_fwdh_regbase.hpp": {
+      "sha256": "2b86164af0aee8219f64e159f006cee19a71e07a1289dabb8fcf7457ed86593b",
+      "normalized_public_git_blob": "12c4049c18a364e97bee843c61480b03830594de"
+    },
+    "fla_npu/opp/vendors/fla_npu_transformer/op_impl/ai_core/tbe/fla_npu_transformer_impl/ascendc/chunk_gated_delta_rule_fwd/internal/operators/chunk_gated_delta_rule_fwd_h/op_kernel/arch35/epilogue/block/block_epilogue_gdn_fwdh_update.hpp": {
+      "sha256": "a4ddbc1b1cf39b7594f2eeb5072b64ffc0d427e83d0e35b3d6cc06c640c07d97",
+      "normalized_public_git_blob": "a2780be9fbab1071a686f1b8c2eb8b825e8dc037"
+    },
+    "fla_npu/opp/vendors/fla_npu_transformer/op_impl/ai_core/tbe/fla_npu_transformer_impl/ascendc/chunk_gated_delta_rule_fwd/internal/operators/chunk_gated_delta_rule_fwd_h/op_kernel/arch35/epilogue/block/block_epilogue_gdn_fwdh_vnew.hpp": {
+      "sha256": "be66777083de46e32c880218c7f1918daee820ab42f36d95147ebdd59529b417",
+      "normalized_public_git_blob": "26cb1f9f0b30458f3bd44e988b428edafa29bf6d"
+    },
+    "fla_npu/opp/vendors/fla_npu_transformer/op_impl/ai_core/tbe/fla_npu_transformer_impl/ascendc/chunk_gated_delta_rule_fwd/internal/operators/chunk_gated_delta_rule_fwd_h/op_kernel/arch35/epilogue/gdn_fwd_h_epilogue_policies.hpp": {
+      "sha256": "bdd1f910cc6ae9c148ab9a2dfd2339640cc7004b76afe9d5ff064228ee435d60",
+      "normalized_public_git_blob": "640b2fbccbd3bf8559e1918aacc74bf38e544ed9"
+    },
+    "fla_npu/opp/vendors/fla_npu_transformer/op_impl/ai_core/tbe/fla_npu_transformer_impl/ascendc/chunk_gated_delta_rule_fwd/internal/operators/chunk_gated_delta_rule_fwd_h/op_kernel/arch35/gemm/block/block_scheduler_gdn_fwd_h.hpp": {
+      "sha256": "ea0ee427229ffb106eb9fca2abaee47d9e5f4014ddecf4bb8894a7d455577705",
+      "normalized_public_git_blob": "b9f647afa655a4a3c8c005b24e430a94a7b31bc7"
+    },
+    "fla_npu/opp/vendors/fla_npu_transformer/op_impl/ai_core/tbe/fla_npu_transformer_impl/ascendc/chunk_gated_delta_rule_fwd/internal/operators/chunk_gated_delta_rule_fwd_h/op_kernel/arch35/gemm/kernel/gdn_fwd_h_kernel.hpp": {
+      "sha256": "15e576087de3c45468b0afddd31efc1246ab3446b8ddaa9ed4a9cf9fd08e8067",
+      "normalized_public_git_blob": "c92d13227806cb76dd506d27e211a56651e01524"
+    },
+    "fla_npu/opp/vendors/fla_npu_transformer/op_impl/ai_core/tbe/fla_npu_transformer_impl/ascendc/chunk_gated_delta_rule_fwd/internal/operators/chunk_gated_delta_rule_fwd_h/op_kernel/chunk_gated_delta_rule_fwd_h_struct.h": {
+      "sha256": "2dbb67e2ece8340d0bc531bcf183824e6675c886e79fcaa81d5ae2cde1e0a319",
+      "normalized_public_git_blob": "6c45f7ab6b64114c84452cc230cb276dab869c39"
+    },
+    "fla_npu/opp/vendors/fla_npu_transformer/op_impl/ai_core/tbe/fla_npu_transformer_impl/ascendc/chunk_gated_delta_rule_fwd/internal/operators/chunk_gated_delta_rule_fwd_h/op_kernel/epilogue/block/block_epilogue_gdn_fwdh_update.hpp": {
+      "sha256": "e0950411a5bc7ef80a390dfd31a47957d7564ec5d0f58db5ba0dd75f31f7163d",
+      "normalized_public_git_blob": "973b02e361ffe1da198dd1f8b3bc602f2a637a26"
+    },
+    "fla_npu/opp/vendors/fla_npu_transformer/op_impl/ai_core/tbe/fla_npu_transformer_impl/ascendc/chunk_gated_delta_rule_fwd/internal/operators/chunk_gated_delta_rule_fwd_h/op_kernel/epilogue/block/block_epilogue_gdn_fwdh_vnew.hpp": {
+      "sha256": "867c8b2941d85dc97baad33fdfd0186273a3d977fdb16c3843bd347596a35b27",
+      "normalized_public_git_blob": "ecb4e669c4942822abf15d23156ff916dc5cf8de"
+    },
+    "fla_npu/opp/vendors/fla_npu_transformer/op_impl/ai_core/tbe/fla_npu_transformer_impl/ascendc/chunk_gated_delta_rule_fwd/internal/operators/chunk_gated_delta_rule_fwd_h/op_kernel/epilogue/gdn_fwd_h_epilogue_policies.hpp": {
+      "sha256": "83585d64801e618732cd8eac9c8cbadf927284028663315cfce99679bacb0701",
+      "normalized_public_git_blob": "d5287d55defd5a066d99ae7f571f6090d191517b"
+    },
+    "fla_npu/opp/vendors/fla_npu_transformer/op_impl/ai_core/tbe/fla_npu_transformer_impl/ascendc/chunk_gated_delta_rule_fwd/internal/operators/chunk_gated_delta_rule_fwd_h/op_kernel/gemm/block/block_scheduler_gdn_fwd_h.hpp": {
+      "sha256": "e9e855af55d786af52f1c7450440ce67eddfa1f8e930c8ac01cb4e1e582198e4",
+      "normalized_public_git_blob": "44ac0462891a1d3a824d74b57eb087d3248b3931"
+    },
+    "fla_npu/opp/vendors/fla_npu_transformer/op_impl/ai_core/tbe/fla_npu_transformer_impl/ascendc/chunk_gated_delta_rule_fwd/internal/operators/chunk_gated_delta_rule_fwd_h/op_kernel/gemm/kernel/gdn_fwd_h_kernel.hpp": {
+      "sha256": "ef4487f711f642e27ac748e97e72213fba302c3c9016c7d76b0c6d5e61fa1165",
+      "normalized_public_git_blob": "5f2ecf1c5f4ab666d6f11299cf89673de3362d81"
+    },
+    "fla_npu/opp/vendors/fla_npu_transformer/op_impl/ai_core/tbe/fla_npu_transformer_impl/ascendc/chunk_gated_delta_rule_fwd/internal/operators/chunk_local_cumsum/op_kernel/chunk_local_cumsum.cpp": {
+      "sha256": "2a3d8a2a18da0ae08be2ae7c203acaa6c805ce75b89ee6681023eea642e16f7a",
+      "normalized_public_git_blob": "dbcd2f19375c8aeaaace355134ff857bbb38f48a"
+    },
+    "fla_npu/opp/vendors/fla_npu_transformer/op_impl/ai_core/tbe/fla_npu_transformer_impl/ascendc/chunk_gated_delta_rule_fwd/internal/operators/chunk_local_cumsum/op_kernel/chunk_local_cumsum_tiling_data.h": {
+      "sha256": "e69bd5301abe415389c64aa7daa6ca2b66312a890b432afeeefc1be8a7610650",
+      "normalized_public_git_blob": "3404a44dc2519e91332d5ade832eaacbb696b589"
+    },
+    "fla_npu/opp/vendors/fla_npu_transformer/op_impl/ai_core/tbe/fla_npu_transformer_impl/ascendc/chunk_gated_delta_rule_fwd/internal/operators/recompute_w_u_fwd/op_host/op_tiling/recompute_w_u_fwd_tiling_processor.h": {
+      "sha256": "dd16404dea39cb15abf1f41e583fad90a7ae3fed81dda6357cb779c1a2ebf8f0",
+      "normalized_public_git_blob": "b637ee0ca6f270451eb6d74036b28943357872f3"
+    },
+    "fla_npu/opp/vendors/fla_npu_transformer/op_impl/ai_core/tbe/fla_npu_transformer_impl/ascendc/chunk_gated_delta_rule_fwd/internal/operators/recompute_w_u_fwd/op_kernel/recompute_w_u_fwd_common.h": {
+      "sha256": "2c18f0489400cfded3be865e860deeb094b1fd1eef230d1be020becb57a67de0",
+      "normalized_public_git_blob": "8c0826cf84d495e9e909a79db5edf10cd2dda1b0"
+    },
+    "fla_npu/opp/vendors/fla_npu_transformer/op_impl/ai_core/tbe/fla_npu_transformer_impl/ascendc/chunk_gated_delta_rule_fwd/internal/operators/recompute_w_u_fwd/op_kernel/recompute_w_u_fwd_cube.h": {
+      "sha256": "0f4353b6d1bd9013c45696ab8224961af87c1dc0ddb48aee1e38aa19c1e061f2",
+      "normalized_public_git_blob": "367260afc34e212dabc122ed5a46a0a465fdfcff"
+    },
+    "fla_npu/opp/vendors/fla_npu_transformer/op_impl/ai_core/tbe/fla_npu_transformer_impl/ascendc/chunk_gated_delta_rule_fwd/internal/operators/recompute_w_u_fwd/op_kernel/recompute_w_u_fwd_struct.h": {
+      "sha256": "4d75cd560b705dbd239c8cadf97c83780ecf3ba2959780dfddc2b3d0edfc4ee0",
+      "normalized_public_git_blob": "bf05d504e849a0534eb36be5a65e8f3e776262ca"
+    },
+    "fla_npu/opp/vendors/fla_npu_transformer/op_impl/ai_core/tbe/fla_npu_transformer_impl/ascendc/chunk_gated_delta_rule_fwd/internal/operators/recompute_w_u_fwd/op_kernel/recompute_w_u_fwd_vector.h": {
+      "sha256": "d746d7ae5c67b76842c2d99e3d1d0d3bcdec19209f18ff32d93879b3c86687c5",
+      "normalized_public_git_blob": "bf44cb11c00131040661b0b7cdb22308ede4910b"
+    }
+  },
+  "python_sources": {
+    "rootfs/vllm-workspace/vllm/vllm/v1/spec_decode/llm_base_proposer.py": "5bd11c41f0a8cf1272b5880d9878043f876bee6c7e04fb781e613f92930b15ab",
+    "rootfs/vllm-workspace/vllm/vllm/config/speculative.py": "9c642a87264339c0dbc1d0b57330572149df0f9d5e16c6893b9895e50a619e19",
+    "rootfs/vllm-workspace/vllm-ascend/vllm_ascend/device/device_op.py": "f4392f346816c85f138d7e033a924c6b628ae684cd4fcd7a6d8818518351b5c9",
+    "rootfs/vllm-workspace/vllm-ascend/vllm_ascend/device/hardware_profile.py": "024ea110a1da68edd91658596b6e95e6e81230b3189f7abe6cabe460d34bd3d6",
+    "rootfs/usr/local/python3.12.16/lib/python3.12/site-packages/fla_npu/ops/ascendc/_stable.py": "909075ff2b52a715202f61654e0dec2f9a0bc026f4a77ed39a28e778a60c1f4c",
+    "rootfs/usr/local/python3.12.16/lib/python3.12/site-packages/fla_npu/ops/ascendc/_stable_hash.py": "9ff8cec159f7715ea58b40ba75c03c4991d7635eea087fd4c780084805ba465f",
+    "rootfs/usr/local/python3.12.16/lib/python3.12/site-packages/flash_linear_attention_npu_a2-26.9.1.dist-info/direct_url.json": "d4555f5be83f2df943f79073d4b8be85e25606403f7d9e3110938cf0c0b13060"
+  },
+  "call_flags": {
+    "output_final_state": true,
+    "chunk_size": 64,
+    "layout": "BNSD",
+    "use_exp2": false,
+    "use_qk_l2norm_in_kernel": false,
+    "allow_neg_eigval": false,
+    "disable_recompute": true,
+    "state_v_first": false
+  },
+  "logical_stages": [
+    "chunk_g_cumsum",
+    "scaled_KKT",
+    "solve_triangular",
+    "recompute_W_U",
+    "state_H",
+    "output_O"
+  ],
+  "conditions": [
+    "BF16 Q/K/V and beta; explicit external Q/K normalization; FP32 gate",
+    "state_v_first false; initial state and scatter preserve request ownership",
+    "real nonempty varlen sequences; empty slots filtered by source-bound keep_meta",
+    "selected source/backend and actual loaded stable/opapi paths match; original native T has no counting observer",
+    "canonical necessary arithmetic excludes dead padding and duplicated physical work; terminal and prompt partition envelopes remain intervals"
+  ],
+  "whole_python_package_matches_public_git": false,
+  "public_kernel_source_normalization": "CRLF-to-LF only; raw source SHA retained",
+  "independent_external_witness": false
+}

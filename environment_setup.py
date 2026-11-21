@@ -141,16 +141,25 @@ def command(args, env, directory, name, report, report_path):
     report["steps"].append(record)
     save(report_path, report)
     try:
+        from pip_transport import plan, audit
+        args, child_env, source_audit = plan(args, env, directory)
+        if source_audit:
+            record['pip_source_audit'] = source_audit
         log_path = directory / (name + ".log")
         print("ENVIRONMENT_LOG", log_path, flush=True)
         with log_path.open("ab", buffering=0) as log, follow_log(log_path, log.tell()):
-            result = run_repair_stage(args, env, log)
+            result = run_repair_stage(args, child_env, log)
+        if result.returncode == 0 and source_audit:
+            record['status'] = 'verifying-source'
+            record['publisher_admission'] = audit(source_audit, runtime_lock(ROOT))
         record.update(status="completed" if result.returncode == 0 else "failed", returncode=result.returncode)
         if result.returncode:
             raise ValueError(name + " failed; see " + str(directory / (name + ".log"))
                              + ". Exact vendor wheels can be supplied with environment.wheelhouse or PIP_FIND_LINKS.")
     except BaseException as error:
-        if record["status"] == "running":
+        if record["status"] == 'verifying-source':
+            record.update(status='failed', error=type(error).__name__ + ': ' + str(error))
+        elif record["status"] == "running":
             record.update(status="interrupted" if isinstance(error, KeyboardInterrupt) else "launch_failed")
         raise
     finally:
@@ -322,7 +331,7 @@ def distribution_integrity(name):
         if actual != entry.hash.value:
             mismatches.append(str(entry))
     return dict(verified=checked > 0 and not mismatches, checked_files=checked,
-                mismatches=mismatches)
+                mismatches=mismatches, record_sha256=hashlib.sha256((distribution.read_text("RECORD") or "").encode()).hexdigest())
 
 
 def vendor_integrity(python, required, env):
@@ -364,6 +373,50 @@ print(json.dumps({'status':'verified','torch':torch.__version__,'torchvision':to
         raise ValueError("Torch/TorchVision CPU ABI check failed: " + error.stderr[-3000:]) from error
 
 
+def triton_backend_smoke(python, required, env, data, options, directory, integrity):
+    """Backfill a new CPU qualification without reinstalling a healthy runtime."""
+    if 'triton-ascend' not in required:
+        return dict(status='not_required')
+    import uuid
+    source = runtime_lock(ROOT)['environment_sources']['triton-ascend']
+    helper = ROOT / 'tools/triton_backend_probe.py'
+    record_hash = integrity.get('packages', {}).get('triton-ascend', {}).get('record_sha256')
+    boot = Path('/proc/sys/kernel/random/boot_id')
+    binding = dict(schema='triton-ascend-original-wheel-abi/v1', probe_source_sha256=wheel_digest(helper),
+                   source_wheel_sha256=source['sha256'], installed_record_sha256=record_hash,
+                   boot_id=boot.read_text().strip() if boot.is_file() else None)
+    receipt = directory / 'triton-backend-probe.json'
+    if receipt.is_symlink():
+        raise ValueError('Triton qualification receipt must not be a symlink')
+    if receipt.exists():
+        previous = json.loads(receipt.read_bytes())
+        if (record_hash and all(previous.get(key) == value for key, value in binding.items())
+                and previous.get('verified') is True and previous.get('driver_initialized') is False
+                and previous.get('kernel_compiled') is False and previous.get('model_loaded') is False
+                and previous.get('implementation') == 'triton-ascend'):
+            return dict(previous, reused=True, receipt=str(receipt), receipt_sha256=wheel_digest(receipt))
+        if previous.get('schema') != binding['schema']:
+            raise ValueError('Unknown Triton qualification receipt; preserve ' + str(receipt))
+        # Preserve the earlier qualification while a new helper or source is checked.
+        receipt.rename(receipt.with_name('triton-backend-probe.previous-' + uuid.uuid4().hex + '.json'))
+    links = [str(Path(value)) for value in (options.get('wheelhouse'), str(Path(data['cache']) / 'wheels'))
+             if value and Path(value).is_dir()]
+    wheel = cached_wheel(source, links, Path(data['cache']) / 'wheels')
+    isolated = dict(env, TORCH_DEVICE_BACKEND_AUTOLOAD='0', ASCEND_RT_VISIBLE_DEVICES='',
+                    CUDA_VISIBLE_DEVICES='', OMP_NUM_THREADS='1', OPENBLAS_NUM_THREADS='1')
+    print('ENVIRONMENT triton-backend-qualification', receipt, flush=True)
+    completed = subprocess.run([str(python), '-I', '-B', str(helper), '--wheel', str(wheel),
+                                '--sha256', source['sha256'], '--out', str(receipt)],
+                               env=isolated, capture_output=True, text=True, timeout=180)
+    if completed.returncode or not receipt.is_file():
+        raise ValueError('CPU Ascend backend qualification failed; preserve ' + str(receipt))
+    value = json.loads(receipt.read_bytes())
+    if (not record_hash or any(value.get(key) != expected for key, expected in binding.items())
+            or value.get('verified') is not True or value.get('driver_initialized') is not False):
+        raise ValueError('CPU Ascend backend qualification identity differs; preserve ' + str(receipt))
+    return dict(value, reused=False, receipt=str(receipt), receipt_sha256=wheel_digest(receipt))
+
+
 def ensure_environment(data):
     """Return an exec handoff when repair/loading is needed; None in a verified child."""
     if platform.system() != "Linux" or platform.machine() != "aarch64":
@@ -378,6 +431,9 @@ def ensure_environment(data):
     if os.environ.get("DEEPLINKENGINE_MANAGED_PYTHON") == sys.executable:
         selection["python"] = sys.executable
     python, before = select_python(selection, required)
+    # Large public package indexes can pause longer than pip's 15-second default.
+    env.setdefault("PIP_DEFAULT_TIMEOUT", "120")
+    env.setdefault("PIP_RETRIES", "3")
     env.setdefault("PIP_CACHE_DIR", str(Path(data["cache"]) / "pip"))
     env.setdefault("XDG_CACHE_HOME", str(Path(data["cache"]) / "xdg"))
     recipe = {"packages": required, "sources": lock.get("environment_sources", {}),
@@ -403,6 +459,7 @@ def ensure_environment(data):
                 and current.get("after", {}).get("prefix") == sys.prefix):
             integrity = vendor_integrity(python, required, env)
             if integrity["verified"]:
+                original_report = report_path.read_bytes()
                 from package_metadata import prepare
                 current["package_metadata"] = prepare(python)
                 try:
@@ -412,6 +469,20 @@ def ensure_environment(data):
                     save(report_path, current)
                 else:
                     current["vendor_integrity"] = integrity
+                    try:
+                        previous_probe = current.get('triton_backend', {})
+                        current['triton_backend'] = triton_backend_smoke(python, required, env, data, options, directory, integrity)
+                        if (current['triton_backend'].get('verified') is True
+                                and previous_probe.get('probe_source_sha256') != current['triton_backend'].get('probe_source_sha256')):
+                            import uuid
+                            prior = directory / ('environment.before-triton-probe-' + uuid.uuid4().hex + '.json')
+                            with prior.open('xb') as stream:
+                                stream.write(original_report)
+                            current['triton_probe_backfilled_from'] = str(prior)
+                    except (OSError, ValueError, subprocess.SubprocessError) as error:
+                        current.update(status='invalid', triton_backend_error=str(error))
+                        save(report_path, current)
+                        raise
                     save(report_path, current)
                     os.environ.update(env)
                     return None
@@ -496,6 +567,7 @@ def ensure_environment(data):
             from package_metadata import prepare
             report["package_metadata"] = prepare(python)
             report["runtime_imports"] = qualified_imports or runtime_imports(python, required, env)
+            report['triton_backend'] = triton_backend_smoke(python, required, env, data, options, directory, integrity)
             report.update(status="ready", after=after, vendor_integrity=integrity)
             save(report_path, report)
             env["DEEPLINKENGINE_ENVIRONMENT_REPORT"] = str(report_path)
