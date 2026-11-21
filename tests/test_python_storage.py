@@ -32,6 +32,32 @@ class PythonStorage(unittest.TestCase):
         self.assertEqual((Path(record['archived_previous'])/'lib/package.py').read_bytes(),b'fixed byte identity\n')
         self.assertTrue(storage.admitted(self.managed/'bin/python',self.cache))
 
+    def test_owned_alias_survives_persistent_mount_type_change(self):
+        storage.ensure(self.managed)
+        with patch.object(storage, 'filesystem', return_value='xfs'):
+            self.assertEqual(storage.ensure(self.managed), self.managed)
+        self.assertEqual((self.managed/'lib/package.py').read_bytes(), b'fixed byte identity\n')
+
+    def test_local_remount_recovers_missing_ephemeral_files_and_checks_original(self):
+        storage.ensure(self.managed)
+        record=json.loads(storage.marker(self.managed).read_text())
+        shutil.rmtree(Path(record['physical']))
+        with patch.object(storage, 'filesystem', return_value='xfs'):
+            storage.ensure(self.managed)
+        self.assertEqual((self.managed/'lib/package.py').read_bytes(), b'fixed byte identity\n')
+        shutil.rmtree(Path(record['physical']))
+        (Path(record['archived_previous'])/'lib/package.py').write_text('changed original')
+        with patch.object(storage, 'filesystem', return_value='xfs'):
+            with self.assertRaisesRegex(ValueError, 'original private Python hash differs'):
+                storage.ensure(self.managed)
+
+    def test_local_unmanaged_alias_still_fails(self):
+        shutil.rmtree(self.managed)
+        self.managed.symlink_to(self.base)
+        with patch.object(storage, 'filesystem', return_value='xfs'):
+            with self.assertRaisesRegex(ValueError, 'Unmanaged private Python symlink'):
+                storage.ensure(self.managed)
+
     def test_ephemeral_loss_reconstructs_exact_files_from_the_persistent_original(self):
         storage.ensure(self.managed);record=json.loads(storage.marker(self.managed).read_text())
         shutil.rmtree(Path(record['physical']))
