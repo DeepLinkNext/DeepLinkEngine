@@ -133,6 +133,7 @@ def maybe_enter_deployment(deployment, script, arguments):
     bootstrap=admit_interpreter(python)
     env=dict(os.environ)
     env.pop('PYTHONHOME',None)
+    env['LD_LIBRARY_PATH']=str(python.resolve().parent.parent/'lib')+os.pathsep+env.get('LD_LIBRARY_PATH','')
     # SDK venv executables may depend on the admitted base libpython. Read its
     # standard venv metadata rather than importing the runtime or framework.
     cfg=python.parent.parent/'pyvenv.cfg'
@@ -142,7 +143,6 @@ def maybe_enter_deployment(deployment, script, arguments):
         home=values.get('home','')
         if not home or Path(home).resolve()!=python.resolve().parent:
             raise ValueError('Controller venv home differs from the admitted SDK interpreter')
-        env['LD_LIBRARY_PATH']=str(Path(home).parent/'lib')+os.pathsep+env.get('LD_LIBRARY_PATH','')
     record=dict(state(),schema='deeplinkengine-native-controller-python/v1',
         deployment=str(Path(deployment).resolve()),python=str(python),
         controller_source_sha256=hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
