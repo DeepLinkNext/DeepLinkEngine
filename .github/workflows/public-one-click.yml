@@ -48,6 +48,7 @@ jobs:
       - run: python -B tests/test_official_inventory.py
       - run: python -B tests/test_official_opp_environment.py
       - run: python -B tests/test_official_phase_recovery.py
+      - run: python -B tests/test_official_judge_endpoint.py
       - run: python -B tests/test_run_all.py
       - run: python -B tests/test_environment_setup.py
       - run: python -B tests/test_standalone.py
