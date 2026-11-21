@@ -188,3 +188,4 @@ jobs:
       - run: python -m pip install pip==26.2
       - run: python -B tests/test_official_pep517_scope.py
       - run: python -B tests/test_official_source_delivery.py
+      - run: python -B tests/test_official_source_prefetch.py

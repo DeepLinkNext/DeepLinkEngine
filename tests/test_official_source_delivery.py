@@ -14,7 +14,7 @@ import threading
 import unittest
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import zipfile
-from urllib.parse import quote,unquote
+from urllib.parse import quote,unquote,urlsplit
 from unittest.mock import patch
 
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
@@ -25,22 +25,28 @@ class DeliveryTests(unittest.TestCase):
     def setUp(self):
         self.temporary=tempfile.TemporaryDirectory();self.addCleanup(self.temporary.cleanup)
         self.root=Path(self.temporary.name);self.cache=self.root/'cache';(self.cache/'wheels').mkdir(parents=True)
-        self.requests=[];self.rows=[];self.index_urls={}
+        self.requests=[];self.rows=[];self.index_urls={};self.no_hash_index=False
         owner=self
         class Handler(BaseHTTPRequestHandler):
             def log_message(self,*args):pass
             def do_GET(self):
                 owner.requests.append(self.path)
-                if self.path=='/simple/delivery-probe/':
+                route=urlsplit(self.path).path
+                if route=='/simple/delivery-probe/':
                     raw=owner.index_body();kind='text/html'
-                elif self.path.startswith('/mirror/'):
-                    self.send_response(301);self.send_header('Location','/packages/'+unquote(self.path.rsplit('/',1)[-1]));self.send_header('Content-Length','0');self.end_headers();return
-                elif self.path.startswith('/packages/'):
-                    file=owner.cache/'wheels'/self.path.rsplit('/',1)[-1]
+                elif route.startswith('/mirror/'):
+                    self.send_response(301);self.send_header('Location','/packages/'+unquote(route.rsplit('/',1)[-1]));self.send_header('Content-Length','0');self.end_headers();return
+                elif route.startswith('/packages/'):
+                    file=owner.cache/'wheels'/unquote(route.rsplit('/',1)[-1])
                     if not file.is_file():self.send_error(404);return
                     raw=file.read_bytes();kind='application/octet-stream'
                 else:self.send_error(404);return
-                self.send_response(200);self.send_header('Content-Type',kind);self.send_header('Content-Length',str(len(raw)));self.end_headers();self.wfile.write(raw)
+                header=self.headers.get('Range')
+                if header:
+                    start,end=map(int,header.removeprefix('bytes=').split('-'));total=len(raw);raw=raw[start:end+1]
+                    self.send_response(206);self.send_header('Content-Range',f'bytes {start}-{end}/{total}')
+                else:self.send_response(200)
+                self.send_header('Content-Type',kind);self.send_header('Content-Length',str(len(raw)));self.end_headers();self.wfile.write(raw)
         self.server=ThreadingHTTPServer(('127.0.0.1',0),Handler)
         thread=threading.Thread(target=self.server.serve_forever,daemon=True);thread.start()
         self.addCleanup(self.server.server_close);self.addCleanup(self.server.shutdown)
@@ -49,7 +55,7 @@ class DeliveryTests(unittest.TestCase):
         self.pip_caches=[self.cache/'source-build-downloads/metadata',self.cache/'source-build-downloads/build/pip']
 
     def index_body(self):
-        return ''.join('<a href="'+self.index_urls.get(r['filename'],'/packages/'+r['filename'])+'#sha256='+r['sha256']+'">'+r['filename']+'</a>' for r in self.rows).encode()
+        return ''.join('<a href="'+self.index_urls.get(r['filename'],'/packages/'+r['filename'])+('' if self.no_hash_index else '#sha256='+r['sha256'])+'">'+r['filename']+'</a>' for r in self.rows).encode()
 
     def alias(self,row):
         url=self.origin+'/mirror/'+quote(row['filename'],safe='')
@@ -169,6 +175,61 @@ class DeliveryTests(unittest.TestCase):
                     index.write_bytes(original.replace(row['sha256'].encode(),b'0'*64));current['attestation']['index_sha256']=delivery.sha(index)
                 with self.assertRaisesRegex(ValueError,'index|whole SHA'):delivery.prime(self.request([dict(row,cache_aliases=[current])]))
                 self.assertFalse(self.pip_caches[0].exists())
+
+    def unhashed_vendor_row(self):
+        from official_range_download import fetch
+        row=self.rows[0];self.rows=[row];self.no_hash_index=True
+        registry=self.origin+'/packages/'+row['filename']+'?artifact=';url=registry+'/sha256:'+row['sha256']
+        self.index_urls[row['filename']]=url
+        # The real bound Range receiver verifies a loopback fixture body.
+        path=fetch(self.root/'range-source',registry,'','sha256:'+row['sha256'],row['bytes'],workers=2,chunk_size=128)
+        self.assertEqual(delivery.sha(path),row['sha256'])
+        receipt=self.root/'actual-range-receipt.json';receipt.write_text(json.dumps(dict(kind='verified-public-four-worker-ranges',source_url=url,sha256=row['sha256'],source_path=str(path),cpu_fixture_actual_bound_range=True)))
+        release=self.root/'publisher.json';release.write_text(json.dumps(dict(assets=[dict(name=row['filename'],size=row['bytes'],digest='sha256:'+row['sha256'])])))
+        index=self.root/'vendor-index.html';index.write_bytes(self.index_body())
+        attestation=dict(range_receipt=str(receipt),range_receipt_sha256=delivery.sha(receipt),published_sha256=row['sha256'],
+            published_metadata=dict(path=str(release),sha256=delivery.sha(release)),
+            index=dict(index=self.origin+'/simple/delivery-probe/',index_path=str(index),index_sha256=delivery.sha(index),link_has_digest=False))
+        return dict(row,url=url,no_hash_link_attestation=attestation)
+
+    def test_real_no_fragment_link_needs_no_hash_cache_key(self):
+        row=self.unhashed_vendor_row()
+        # A hash-bearing key cannot satisfy pip's original NO-HASH Link.
+        ordinary=dict(row);ordinary.pop('no_hash_link_attestation');delivery.prime(self.request([ordinary]))
+        before=len(self.requests);self.resolve('1.0',self.pip_caches[0])
+        self.assertTrue(any(p.startswith('/packages/') for p in self.requests[before:]))
+        result=delivery.prime(self.request([row]));before=len(self.requests)
+        for cache in self.pip_caches:self.resolve('1.0',cache)
+        self.assertTrue(all(p=='/simple/delivery-probe/' for p in self.requests[before:]))
+        self.assertTrue(all(not r['cache_key_has_hash'] for r in result['entries']))
+
+    def test_no_hash_link_rejects_missing_or_wrong_whole_transfer_evidence(self):
+        row=self.unhashed_vendor_row();record=Path(row['no_hash_link_attestation']['range_receipt']);body=json.loads(record.read_bytes());body['sha256']='0'*64;record.write_text(json.dumps(body));row['no_hash_link_attestation']['range_receipt_sha256']=delivery.sha(record)
+        with self.assertRaisesRegex(ValueError,'publisher-SHA-qualified'):delivery.prime(self.request([row]))
+        self.assertFalse(self.pip_caches[0].exists())
+
+    def test_existing_build_cache_requires_actual_publisher_whole_authority(self):
+        import official_source_prefetch as prefetch
+        environment=prefetch.runtime();row=self.rows[0];before={p.name:delivery.sha(p) for p in (self.cache/'wheels').glob('*.whl')}
+        with patch.object(prefetch,'published_wheels',return_value=([dict(row,sha256='0'*64)],{})):
+            result=prefetch.cached_build_inputs(self.cache,[dict(requirement='delivery-probe==1.0')],environment,self.root,[])
+        self.assertEqual(result,[])
+        with patch.object(prefetch,'published_wheels',return_value=([row],{})):
+            result=prefetch.cached_build_inputs(self.cache,[dict(requirement='delivery-probe==1.0')],environment,self.root,[])
+        self.assertEqual([r['filename'] for r in result],[row['filename']])
+        self.assertEqual(before,{p.name:delivery.sha(p) for p in (self.cache/'wheels').glob('*.whl')})
+
+    def test_published_whole_hash_does_not_hide_wrong_payload_metadata(self):
+        row=dict(self.rows[0]);path=self.cache/'wheels'/row['filename']
+        replacement=path.with_name('rewritten.whl')
+        with zipfile.ZipFile(path) as original,zipfile.ZipFile(replacement,'w') as output:
+            for info in original.infolist():
+                raw=original.read(info.filename)
+                if info.filename.endswith('.dist-info/METADATA'):raw=raw.replace(b'Name: delivery-probe',b'Name: wrong-package')
+                output.writestr(info,raw)
+        replacement.replace(path);row.update(bytes=path.stat().st_size,sha256=delivery.sha(path))
+        with self.assertRaisesRegex(ValueError,'package/version/tag'):delivery.prime(self.request([row]))
+        self.assertFalse(self.pip_caches[0].exists())
 
 
 if __name__=='__main__':unittest.main()

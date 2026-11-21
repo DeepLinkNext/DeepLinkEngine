@@ -85,7 +85,27 @@ def prime(request):
         for suffix in ('.download.json','.range-receipt.json'):
             item=path.with_name(filename+suffix)
             if item.is_file() and not item.is_symlink():provenance.append(dict(path=str(item),sha256=sha(item)))
-        keys=[(url,None)]
+        nohash=row.get('no_hash_link_attestation')
+        if nohash:
+            receipt=Path(nohash['range_receipt'])
+            if receipt.is_symlink() or not receipt.is_file() or sha(receipt)!=nohash['range_receipt_sha256']:
+                raise ValueError('Unhashed vendor Link lacks its actual verified whole-transfer receipt')
+            transfer=json.loads(receipt.read_bytes());publisher=nohash['published_metadata'];published=Path(publisher['path'])
+            if (transfer.get('kind')!='verified-public-four-worker-ranges' or transfer.get('source_url')!=url
+                    or transfer.get('sha256')!=row['sha256'] or nohash['published_sha256']!=row['sha256']
+                    or sha(published)!=publisher['sha256']):
+                raise ValueError('Unhashed vendor Link differs from its actual publisher-SHA-qualified body')
+            release=json.loads(published.read_bytes())
+            if not any(a.get('name')==filename and a.get('size')==row['bytes'] and a.get('digest')=='sha256:'+row['sha256'] for a in release.get('assets',[])):
+                raise ValueError('Unhashed vendor Link lacks the exact official release artifact digest')
+            index=nohash['index'];index_file=Path(index['index_path'])
+            if sha(index_file)!=index['index_sha256'] or index.get('link_has_digest') is not False:
+                raise ValueError('Unhashed vendor Link index bytes or no-fragment identity changed')
+            from official_build_assets import _Links
+            parser=_Links();parser.feed(index_file.read_text(encoding='utf-8'))
+            if url not in [urljoin(index['index'],href) for href in parser.links]:
+                raise ValueError('Unhashed vendor Link is absent from the original recipe index')
+        keys=[(url,None,not bool(nohash))]
         for alias in row.get('cache_aliases',[]):
             key=alias['url'];proof=alias['attestation'];part=urlsplit(key)
             loopback=part.scheme=='http' and part.hostname in ('127.0.0.1','::1','localhost')
@@ -105,10 +125,11 @@ def prime(request):
                         and parse_qs(link.fragment).get('sha256')==[row['sha256']]):
                     advertised.append(link._replace(fragment='').geturl())
             if key not in advertised:raise ValueError('Binary cache alias was not advertised with this whole SHA')
-            if key not in [k for k,_ in keys]:keys.append((key,proof))
-        for key,attestation in keys:
+            if (key,True) not in [(k,h) for k,_,h in keys]:keys.append((key,proof,True))
+        for key,attestation,hashed in keys:
             admitted.append(dict(row=row,path=path,url=url,key_url=key,alias_attestation=attestation,
-                                 link=Link(key+'#sha256='+row['sha256']),name=name,version=str(version),provenance=provenance))
+                                 link=Link(key+('#sha256='+row['sha256'] if hashed else '')),cache_key_has_hash=hashed,
+                                 name=name,version=str(version),provenance=provenance))
     result=dict(schema='deeplinkengine-verified-wheel-delivery/v1',pip_version=pip.__version__,python=sys.executable,
         pip_api_sources={str(Path(module.__file__).resolve()):sha(module.__file__) for module in (cache_module,link_module,direct_module)},
         helper_sha256=sha(__file__),model_started=False,sdk_payload_modified=False,upstream_requirements_modified=False,
@@ -147,6 +168,7 @@ def prime(request):
                         raise ValueError('Actual pip did not admit the delivered wheel')
                     result['entries'].append(dict(filename=row['filename'],version=item['version'],canonical_source_url=item['url'],
                         native_cache_key_url=item['key_url'],transport_alias_attestation=item['alias_attestation'],
+                        cache_key_has_hash=item['cache_key_has_hash'],no_hash_link_attestation=row.get('no_hash_link_attestation'),
                         source_kind='published-binary-wheel',source_path=str(item['path']),sha256=row['sha256'],bytes=row['bytes'],
                         acquisition_kind='verified-local-cache',acquisition_receipts=item['provenance'],
                         observed_http_fetch=False,local_build_claimed=False,cache_path=str(destination),reused=existed,
@@ -230,6 +252,9 @@ def prepare(cache,sdk,out):
         python,env=environment(base,out/'runtime-cache');env.update(ASCEND_RT_VISIBLE_DEVICES='',TORCH_DEVICE_BACKEND_AUTOLOAD='0')
         for row in primary:
             if row['filename'].endswith('.whl'):fetch(row,cache/'wheels')
+        from official_source_prefetch import collect
+        primary=collect(cache,out/'static-build-input-prefetch')
+        record['static_build_input_prefetch']=dict(path=str(out/'static-build-input-prefetch/results.json'),sha256=sha(out/'static-build-input-prefetch/results.json'))
         primary=primary_aliases(primary,out/'primary-alias-indices')
         record['primary_alias_attestation']=dict(path=str(out/'primary-alias-indices/results.json'),sha256=sha(out/'primary-alias-indices/results.json'))
         record['steps'].append(invoke(python,env,base,cache,primary,caches,out/'primary-delivery'));save(out/'results.json',record)
