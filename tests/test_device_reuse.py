@@ -105,3 +105,46 @@ def test_completed_run_carries_only_sealed_native_progress(tmp_path):
         assert run_all.completed_run_source(current, source)["compute_resume_source"] == str(compute)
         bindings.pop("compute-reference/native-current-timing/checksums.json")
         assert "compute_resume_source" not in run_all.completed_run_source(current, source)
+
+
+def test_context_pair_renderer_replays_cross_card_proof(tmp_path):
+    from types import ModuleType
+
+    _, files = bridge()
+    kit = Path(__file__).resolve().parents[1] / "benchmark/one-click-kit"
+    suite = ModuleType("acceptance_suite")
+    suite.__file__ = str(kit / "scripts/acceptance_suite.py")
+    exec(files["scripts/acceptance_suite.py"], suite.__dict__)
+    renderer = {"__file__": str(kit / "scripts/acceptance_report.py")}
+    exec(files["scripts/acceptance_report.py"], renderer)
+
+    arms = {role: tmp_path / role for role in ("B0", "B1")}
+    original, current = mapping((1, 6)), mapping((0, 3))
+    for role, device_mapping in (("B0", original), ("B1", current)):
+        arm = arms[role]
+        arm.mkdir()
+        (arm / "device-mapping.json").write_text(json.dumps(device_mapping))
+        (arm / "resource-admission.json").write_text(json.dumps(device_mapping))
+        (arm / "model-weights.json").write_text('{"weights": "fixture"}')
+        (arm / "checksums.json").write_text("{}")
+    (arms["B1"] / "service").mkdir()
+    (arms["B1"] / "service/plan.json").write_text(json.dumps({
+        "acceptance_suite": {"baseline_run": str(arms["B0"].resolve())},
+    }))
+
+    def inspect(arm):
+        return dict(role=arm.name, execution_complete=True, contract={}, phases=[])
+
+    with patch.dict(sys.modules, acceptance_suite=suite), patch.object(suite, "inspect", inspect):
+        summary = suite.paired(arms, device_change=compare(original, current, allowed=True))
+        source = tmp_path / "paired-summary.json"
+        source.write_text(json.dumps(summary))
+        # The destination check is reached only after the summary matches replay.
+        with pytest.raises(FileExistsError):
+            renderer["report_pair"](source, tmp_path)
+
+        summary["device_change"]["current"]["physical_cards"] = [2, 4]
+        source.write_text(json.dumps(summary))
+        with pytest.raises(ValueError, match="Paired context device provenance differs"):
+            renderer["report_pair"](source, tmp_path / "new-report")
+        assert not (tmp_path / "new-report").exists()
