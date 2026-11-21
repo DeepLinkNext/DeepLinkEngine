@@ -1,0 +1,452 @@
+"""Private glibc execution context for official SDKs on older Linux hosts.
+
+The immutable SDK remains outside this root. Only a private mount namespace
+is created: host PIDs, boot identity, NPU devices and cooperative lock inodes
+are retained. This is an ABI compatibility context, not a security sandbox.
+"""
+import ctypes
+import hashlib
+import json
+import os
+from pathlib import Path, PurePosixPath
+import re
+import signal
+import shutil
+import subprocess
+import sys
+import tarfile
+import time
+
+BASE_DIGEST = '119d19e001bafa21919289095e1dbfac64f1e16d2469dd14c2d2a520039d26d9'
+MS_RDONLY, MS_REMOUNT, MS_BIND, MS_REC, MS_PRIVATE = 1, 32, 4096, 16384, 1 << 18
+CLONE_NEWNS = 0x00020000
+GLIBC_LIBRARIES = {'libc.so.6', 'libm.so.6', 'libpthread.so.0', 'libdl.so.2',
+                   'librt.so.1', 'libutil.so.1', 'libresolv.so.2', 'libanl.so.1',
+                   'libnss_files.so.2', 'libnss_dns.so.2', 'ld-linux-aarch64.so.1'}
+
+
+def sha(path):
+    digest = hashlib.sha256()
+    with Path(path).open('rb') as stream:
+        for block in iter(lambda: stream.read(4 * 1024 ** 2), b''):
+            digest.update(block)
+    return digest.hexdigest()
+
+
+def libc_version():
+    if sys.platform != 'linux':
+        return None
+    library = ctypes.CDLL(None)
+    function = library.gnu_get_libc_version
+    function.restype = ctypes.c_char_p
+    return function().decode()
+
+
+def needed():
+    version = libc_version()
+    return version is not None and tuple(int(v) for v in version.split('.')[:2]) < (2, 35)
+
+
+def context_identity():
+    raw = os.environ.get('DEEPLINK_EXECUTION_CONTEXT')
+    if not raw:
+        return None
+    context = json.loads(raw)
+    if (context.get('schema') != 'deeplinkengine-private-glibc-context/v1'
+            or context.get('base_layer_sha256') != BASE_DIGEST
+            or context['root_dev_inode'] != [os.stat('/').st_dev, os.stat('/').st_ino]
+            or context['mount_namespace'] != os.readlink('/proc/self/ns/mnt')
+            or context['host']['boot_id'] != Path('/proc/sys/kernel/random/boot_id').read_text().strip()
+            or needed()):
+        raise ValueError('Inherited private execution context does not match this process')
+    return context
+
+
+def destination(root, relative):
+    path = PurePosixPath(relative)
+    if path.is_absolute() or '..' in path.parts or '\\' in relative:
+        raise ValueError('Unsafe execution-root archive path')
+    result = root.joinpath(*path.parts)
+    if not result.parent.resolve().is_relative_to(root.resolve()):
+        raise ValueError('Execution-root member escaped its private root')
+    return result
+
+
+def prepare_root(blob, output):
+    """Restore the exact official Ubuntu base layer, independently of SDKs."""
+    blob, output = Path(blob).resolve(), Path(output).resolve()
+    if sha(blob) != BASE_DIGEST:
+        raise ValueError('Official Ubuntu execution base digest differs')
+    if output.exists():
+        raise ValueError('Execution-root output already exists')
+    output.mkdir(parents=True)
+    root = output / 'rootfs'
+    root.mkdir()
+    links = []
+    inventory = {}
+    with tarfile.open(blob) as archive:
+        for member in archive:
+            path = destination(root, member.name)
+            if path.name.startswith('.wh.'):
+                raise ValueError('An initial base layer must not contain whiteouts')
+            path.parent.mkdir(parents=True, exist_ok=True)
+            if member.isdir():
+                path.mkdir(exist_ok=True)
+                path.chmod(member.mode & 0o777)
+            elif member.isfile():
+                with archive.extractfile(member) as source, path.open('xb') as target:
+                    shutil.copyfileobj(source, target)
+                path.chmod(member.mode & 0o777)
+                inventory[member.name] = {'sha256': sha(path)}
+            elif member.issym():
+                target = (root / member.linkname.lstrip('/')) if member.linkname.startswith('/') else path.parent / member.linkname
+                if not target.resolve().is_relative_to(root):
+                    raise ValueError('Execution-root symlink escaped')
+                path.symlink_to(os.path.relpath(target, path.parent))
+                inventory[member.name] = {'symlink': os.readlink(path)}
+            elif member.islnk():
+                links.append((path, destination(root, member.linkname), member.name))
+            elif not member.name.startswith(('dev/', 'proc/', 'sys/')):
+                raise ValueError('Unexpected special member in official execution base')
+    for path, target, name in links:
+        if not target.is_file():
+            raise ValueError('Missing execution-base hardlink target')
+        os.link(target, path)
+        inventory[name] = {'sha256': sha(path)}
+    for name in ('usr/lib/aarch64-linux-gnu/libc.so.6', 'usr/lib/aarch64-linux-gnu/ld-linux-aarch64.so.1', 'bin/sh'):
+        if not (root / name).is_file():
+            raise ValueError('Official execution base lacks required glibc/shell')
+    (output / 'static-files.json').write_text(json.dumps(inventory, sort_keys=True) + '\n')
+    receipt = dict(schema='deeplinkengine-private-glibc-base/v1', layer_sha256=BASE_DIGEST,
+                   root=str(root), files=len(inventory), static_inventory_sha256=sha(output / 'static-files.json'),
+                   sdk_modified=False, host_glibc_modified=False, model_started=False)
+    (output / 'receipt.json').write_text(json.dumps(receipt, indent=2) + '\n')
+    return root
+
+
+def verify_root(output):
+    output = Path(output).resolve()
+    receipt = json.loads((output / 'receipt.json').read_bytes())
+    if (receipt.get('schema') != 'deeplinkengine-private-glibc-base/v1'
+            or receipt.get('layer_sha256') != BASE_DIGEST
+            or receipt.get('static_inventory_sha256') != sha(output / 'static-files.json')):
+        raise ValueError('Private execution root identity changed')
+    root = output / 'rootfs'
+    inventory = json.loads((output / 'static-files.json').read_bytes())
+    for name, entry in inventory.items():
+        path = destination(root, name)
+        if 'sha256' in entry:
+            if not path.is_file() or path.is_symlink() or sha(path) != entry['sha256']:
+                raise ValueError('Private execution root file changed: ' + name)
+        elif not path.is_symlink() or os.readlink(path) != entry['symlink']:
+            raise ValueError('Private execution root link changed: ' + name)
+    return root
+
+
+def ensure_for_sdk(sdk):
+    """Use the image cache's pinned base layer, outside every admitted SDK."""
+    sdk = Path(sdk).resolve()
+    cache = sdk.parent.parent
+    output = cache / 'execution-contexts' / ('ubuntu-' + BASE_DIGEST[:16])
+    if output.is_relative_to(sdk):
+        raise ValueError('Execution roots must remain outside immutable SDKs')
+    output.parent.mkdir(parents=True, exist_ok=True)
+    import fcntl
+    with (output.parent / (output.name + '.lock')).open('a+b') as stream:
+        fcntl.flock(stream, fcntl.LOCK_EX)
+        if output.exists():
+            return verify_root(output)
+        from baseline_setup import fetch
+        lock = json.loads((Path(__file__).parent / 'engine/official-baselines/0.23.0.json').read_bytes())
+        layers = [item for item in lock['layers'] if item['digest'] == 'sha256:' + BASE_DIGEST]
+        if len(layers) != 1:
+            raise ValueError('Execution base is absent from the pinned official image')
+        blob = fetch(cache / 'official-oci', lock['registry'], 'blobs', layers[0]['digest'], layers[0]['size'])
+        return prepare_root(blob, output)
+
+
+def _call(function, *arguments):
+    result = function(*arguments)
+    if result != 0:
+        error = ctypes.get_errno()
+        raise OSError(error, os.strerror(error))
+
+
+def _mount(source, target, flags):
+    library = ctypes.CDLL(None, use_errno=True)
+    library.mount.argtypes = [ctypes.c_char_p, ctypes.c_char_p, ctypes.c_char_p, ctypes.c_ulong, ctypes.c_void_p]
+    _call(library.mount, os.fsencode(source) if source is not None else None, os.fsencode(target), None, flags, None)
+
+
+def _bind(root, source, target=None, readonly=False):
+    source = Path(source).resolve()
+    target = Path(target or source)
+    if not source.exists() or not target.is_absolute() or target == Path('/'):
+        raise ValueError('Invalid execution-context bind')
+    destination_path = destination(root, str(target).lstrip('/')).resolve()
+    if not destination_path.is_relative_to(root):
+        raise ValueError('Bind destination escaped private execution root')
+    if source.is_dir():
+        destination_path.mkdir(parents=True, exist_ok=True)
+    else:
+        destination_path.parent.mkdir(parents=True, exist_ok=True)
+        if not destination_path.exists():
+            destination_path.touch()
+    _mount(source, destination_path, MS_BIND | (MS_REC if source.is_dir() else 0))
+    if readonly:
+        _mount(None, destination_path, MS_BIND | MS_REMOUNT | MS_RDONLY)
+
+
+def _neutral_environment():
+    environment = {k: v for k, v in os.environ.items()
+                   if k not in ('PYTHONHOME', 'PYTHONPATH', 'LD_LIBRARY_PATH', 'LD_PRELOAD')}
+    environment['PYTHONDONTWRITEBYTECODE'] = '1'
+    return environment
+
+
+def host_tools():
+    """Expose required host tools read-only, retaining the private glibc."""
+    files = set()
+    directories = set()
+    binaries = set()
+    for name in ('npu-smi', 'gcc', 'g++', 'cc', 'c++', 'as', 'ld', 'ar', 'ranlib',
+                 'make', 'ninja', 'cmake', 'pkg-config', 'curl', 'wget', 'git',
+                 'bash', 'tar', 'gzip', 'unzip', 'readelf', 'nm', 'strip', 'flock'):
+        binary = shutil.which(name)
+        if not binary:
+            continue
+        files.add(binary)
+        binaries.add(binary)
+    for compiler in ('gcc', 'g++'):
+        binary = shutil.which(compiler)
+        if binary:
+            for name in ('cc1', 'cc1plus', 'collect2', 'lto1', 'lto-wrapper'):
+                value = subprocess.run([binary, '-print-prog-name=' + name], env=_neutral_environment(),
+                                       capture_output=True, text=True, timeout=10).stdout.strip()
+                if Path(value).is_absolute() and Path(value).is_file():
+                    binaries.add(value)
+    driver = Path('/usr/local/Ascend/driver')
+    if driver.is_dir():
+        for name in ('libdcmi.so', 'libascend_hal.so', 'libdrvdsmi_host.so', 'libtsdclient.so'):
+            binaries.update(str(p) for p in driver.rglob(name) if p.is_file())
+    for binary in sorted(binaries):
+        result = subprocess.run(['/usr/bin/ldd', binary], env=_neutral_environment(),
+                                capture_output=True, text=True, timeout=15)
+        for value in re.findall(r'(?:=>\s*|^\s*)(/[^\s]+)', result.stdout, re.MULTILINE):
+            path = Path(value)
+            if path.name not in GLIBC_LIBRARIES and path.is_file():
+                files.add(str(path))
+    # GCC's subordinate compilers, headers and link-time objects are needed by
+    # Triton and source builds. None of the host's glibc ELF files is exposed.
+    for name in ('/usr/lib/gcc', '/usr/libexec/gcc', '/usr/include'):
+        if Path(name).is_dir():
+            directories.add(name)
+    for folder in ('/usr/lib64', '/lib64'):
+        if Path(folder).is_dir():
+            for pattern in ('crt*.o', 'Scrt*.o', '*.a', 'libc.so', 'libm.so', 'libpthread.so',
+                            'libgcc_s.so*', 'libstdc++.so*', 'libgomp.so*', 'libatomic.so*'):
+                for path in Path(folder).glob(pattern):
+                    if path.is_file():
+                        with path.open('rb') as stream:
+                            if path.name in ('libc.so', 'libm.so', 'libpthread.so') and stream.read(4) == b'\x7fELF':
+                                continue
+                        files.add(str(path))
+    bindings = [(name, name, True) for name in sorted(directories)]
+    bindings += [(name, name, True) for name in sorted(files)
+                 if not any(Path(name).is_relative_to(Path(d)) for d in directories)]
+    library_dirs = sorted({str(Path(name).parent) for name in files if '.so' in Path(name).name})
+    library_dirs += [str(p) for p in (driver / 'lib64', driver / 'lib64/common', driver / 'lib64/driver') if p.is_dir()]
+    return bindings, library_dirs
+
+
+def _private_glibc_aliases(root):
+    directory = root / 'lib64'
+    directory.mkdir(exist_ok=True)
+    for name in GLIBC_LIBRARIES:
+        source = root / 'usr/lib/aarch64-linux-gnu' / name
+        target = directory / name
+        if source.is_file() and not target.exists() and not target.is_symlink():
+            target.symlink_to(os.path.relpath(source, target.parent))
+
+
+def execute_request(request):
+    """Called before chroot by the host interpreter, then execs the child."""
+    root = Path(request['root']).resolve()
+    if os.geteuid() != 0:
+        raise PermissionError('Private mount/chroot execution requires root on this host')
+    before = dict(pid=os.getpid(), boot_id=Path('/proc/sys/kernel/random/boot_id').read_text().strip(),
+                  host_libc=libc_version(), lock_directories={p: [os.stat(p).st_dev, os.stat(p).st_ino] for p in ('/root', '/tmp', '/run/lock')})
+    before['start_ticks'] = Path('/proc/self/stat').read_text().rsplit(')', 1)[1].split()[19]
+    before['os_release'] = Path('/etc/os-release').read_text()
+    root_identity = [root.stat().st_dev, root.stat().st_ino]
+    library = ctypes.CDLL(None, use_errno=True)
+    _call(library.unshare, CLONE_NEWNS)
+    _mount(None, '/', MS_REC | MS_PRIVATE)
+    _private_glibc_aliases(root)
+    # Mount parents before kernel virtual filesystems. The SDK itself is only
+    # visible through its original host workspace path, never used as /.
+    for source, target, readonly in request['binds']:
+        _bind(root, source, target, readonly)
+    mount_namespace = os.readlink('/proc/self/ns/mnt')
+    os.chroot(root)
+    os.chdir(request['cwd'])
+    for path, expected in before['lock_directories'].items():
+        if [os.stat(path).st_dev, os.stat(path).st_ino] != expected:
+            raise ValueError('Cooperative lock directory inode changed: ' + path)
+    if os.getpid() != before['pid'] or Path('/proc/sys/kernel/random/boot_id').read_text().strip() != before['boot_id']:
+        raise ValueError('Host PID or boot identity changed')
+    context = dict(schema='deeplinkengine-private-glibc-context/v1', base_layer_sha256=BASE_DIGEST,
+                   host=before, mount_namespace=mount_namespace, shared_lock_inodes_verified=True,
+                   pid_namespace_created=False, sdk_root_used_as_execution_root=False,
+                   root_dev_inode=root_identity,
+                   execution_os_release=Path('/etc/os-release').read_text())
+    environment = request['env']
+    environment['DEEPLINK_EXECUTION_CONTEXT'] = json.dumps(context, separators=(',', ':'))
+    os.execve(request['command'][0], request['command'], environment)
+
+
+def request_for(command, root, *, env, cwd=None, extra_paths=()):
+    root = Path(root).resolve()
+    if root == Path('/') or not (root / 'usr/lib/aarch64-linux-gnu/libc.so.6').is_file():
+        raise ValueError('A prepared private execution root is required')
+    binds = [(p, p, False) for p in ('/root', '/tmp', '/run/lock')]
+    binds += [(p, p, False) for p in ('/workspace', '/data', '/models', '/home') if Path(p).is_dir()]
+    binds += [(p, p, p != '/dev') for p in ('/proc', '/sys', '/dev')]
+    for path in ('/etc/resolv.conf', '/etc/hosts', '/usr/local/Ascend/driver', '/usr/local/Ascend/firmware', '/etc/ascend_install.info'):
+        if Path(path).exists():
+            binds.append((str(Path(path).resolve()), path, True))
+    workspace = Path(cwd or os.getcwd()).resolve()
+    extra_paths = [*extra_paths, *([] if workspace == Path('/') else [workspace])]
+    for original in extra_paths:
+        path = Path(original).resolve()
+        if not path.exists():
+            raise ValueError('Required host workspace is missing: ' + str(path))
+        if any(path == Path(target) or path.is_relative_to(Path(target)) for _, target, _ in binds):
+            continue
+        if str(path) in ('/', '/usr', '/lib', '/lib64', '/bin', '/sbin', '/etc', '/run'):
+            raise ValueError('Do not replace private execution system directories')
+        binds.append((str(path), str(path), False))
+    tools, library_dirs = host_tools()
+    binds += tools
+    environment = dict(env)
+    current = environment.get('LD_LIBRARY_PATH', '').split(':')
+    environment['LD_LIBRARY_PATH'] = ':'.join(dict.fromkeys([p for p in current if p] + library_dirs))
+    return dict(root=str(root), command=[str(v) for v in command], env=environment,
+                cwd=str(Path(cwd or os.getcwd()).resolve()), binds=binds)
+
+
+def run_in_context(command, root, *, env, cwd=None, extra_paths=(), **kwargs):
+    request = request_for(command, root, env=env, cwd=cwd, extra_paths=extra_paths)
+    # The wrapper starts with the host interpreter. Image PYTHONHOME and shared
+    # libraries apply only after chroot/exec, not to that host interpreter.
+    outer = _neutral_environment()
+    text_mode = kwargs.get('text') or kwargs.get('encoding')
+    payload = json.dumps(request)
+    return subprocess.run([sys.executable, '-B', str(Path(__file__).resolve()), '--exec-json'],
+                          env=outer, input=payload if text_mode else payload.encode(), **kwargs)
+
+
+def popen_in_context(command, root, *, env, cwd=None, extra_paths=(), **kwargs):
+    request = request_for(command, root, env=env, cwd=cwd, extra_paths=extra_paths)
+    process = subprocess.Popen([sys.executable, '-B', str(Path(__file__).resolve()), '--exec-json'],
+                               env=_neutral_environment(), stdin=subprocess.PIPE, **kwargs)
+    try:
+        process.stdin.write(json.dumps(request).encode())
+        process.stdin.close()
+    except BrokenPipeError:
+        pass
+    process.stdin = None
+    return process
+
+
+def sdk_run(command, *, sdk, env, **kwargs):
+    if not needed():
+        return subprocess.run(command, env=env, **kwargs)
+    root = ensure_for_sdk(sdk)
+    return run_in_context(command, root, env=env, extra_paths=(Path(sdk), Path(__file__).parent), **kwargs)
+
+
+def sdk_popen(command, *, sdk, env, **kwargs):
+    if not needed():
+        return subprocess.Popen(command, env=env, **kwargs)
+    root = ensure_for_sdk(sdk)
+    return popen_in_context(command, root, env=env, extra_paths=(Path(sdk), Path(__file__).parent), **kwargs)
+
+
+def enter_cli(sdk, script, arguments, *, cache=None):
+    """Replace this controller with SDK Python, retaining PID and birth time."""
+    if not needed():
+        return False
+    from official_image import environment
+    sdk = Path(sdk).resolve()
+    root = ensure_for_sdk(sdk)
+    python, env = environment(sdk, Path(cache or sdk.parent.parent / 'execution-controller'))
+    request = request_for([str(python), '-B', str(Path(script).resolve()), *arguments], root,
+                          env=env, extra_paths=(sdk, Path(script).resolve().parent))
+    execute_request(request)
+    raise AssertionError('Execution-context exec unexpectedly returned')
+
+
+def prepare_anchor(config):
+    """Prepare the first selected image via the ordinary public CPU entry."""
+    cache = Path(config['cache']).resolve()
+    versions = [v for v in config['versions'] if v in ('0.23.0', '0.30.0')]
+    version = versions[0] if versions else '0.23.0'
+    if '0.28.0rc1-source' in config['versions']:
+        version = '0.23.0'
+    if not any(key in config for key in ('protocol_run', 'protocol_deployment', 'protocol_python')):
+        version = '0.23.0'
+    lock = json.loads((Path(__file__).parent / 'engine/official-baselines' / (version + '.json')).read_bytes())
+    sdk = cache / 'official-sdks' / (version + '-' + lock['manifest_digest'].split(':')[1][:16])
+    # Even an existing complete SDK is admitted again by the public entry.
+    bootstrap = cache / 'execution-bootstrap' / str(time.time_ns())
+    bootstrap.mkdir(parents=True, exist_ok=False)
+    model = bootstrap / 'empty-model-cpu-only'
+    model.mkdir()
+    plan = dict(model=str(model), physical_devices=config.get('physical_devices', [0, 1]),
+                versions=[version], cache=str(cache), out=str(bootstrap / 'result'))
+    path = bootstrap / 'evaluation.json'
+    path.write_text(json.dumps(plan, indent=2) + '\n')
+    with (bootstrap / 'prepare.log').open('xb') as stream:
+        process = subprocess.Popen([sys.executable, '-B', str(Path(__file__).parent / 'run_all.py'),
+                                    '--official-baselines', '--config', str(path), '--prepare-environment'],
+                                   env=_neutral_environment(), stdout=stream, stderr=subprocess.STDOUT,
+                                   start_new_session=True)
+        try:
+            code = process.wait()
+        finally:
+            if process.poll() is None:
+                os.killpg(process.pid, signal.SIGINT)
+                try:
+                    process.wait(timeout=20)
+                except subprocess.TimeoutExpired:
+                    os.killpg(process.pid, signal.SIGKILL)
+                    process.wait(timeout=10)
+    if code:
+        raise RuntimeError('Private execution anchor preparation failed; preserve ' + str(bootstrap))
+    return sdk
+
+
+def maybe_enter_official(config, arguments):
+    if needed():
+        sdk = prepare_anchor(config)
+        enter_cli(sdk, Path(__file__).parent / 'run_all.py', ['--official-baselines', *arguments])
+
+
+def maybe_enter_config(path, arguments):
+    """Normal protocol/full CLI: enter before creating any output directory."""
+    if not needed():
+        return
+    config = json.loads(Path(path).read_bytes())
+    sdk = config.get('environment', {}).get('official_sdk')
+    if sdk:
+        sdk = Path(sdk)
+        if not sdk.is_absolute():
+            sdk = Path(path).resolve().parent / sdk
+        enter_cli(sdk, Path(__file__).parent / 'run_all.py', arguments)
+
+
+if __name__ == '__main__':
+    if sys.argv[1:] != ['--exec-json']:
+        raise SystemExit('Internal private execution wrapper; invoke public run_all.py')
+    execute_request(json.load(sys.stdin))
