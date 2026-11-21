@@ -65,6 +65,7 @@ jobs:
       - run: python -B tests/test_official_opp_environment.py
       - run: python -B tests/test_official_phase_recovery.py
       - run: python -B tests/test_model_restore.py
+      - run: python -B tests/test_model_receiver.py
       - run: python -B tests/test_official_range_download.py
       - run: python -B tests/test_cold_transfer.py
       - run: python -B tests/test_official_download.py

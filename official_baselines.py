@@ -22,13 +22,17 @@ def configuration(path, *, download_only=False):
     path = Path(path).resolve()
     value = json.loads(path.read_bytes())
     allowed = {'model', 'physical_devices', 'cache', 'out', 'versions', 'protocol_run',
-               'protocol_deployment', 'protocol_python', 'context_contract', 'judge_installation', 'model_manifest'}
+               'protocol_deployment', 'protocol_python', 'context_contract', 'judge_installation', 'model_manifest', 'model_transport_base_url'}
     if not isinstance(value, dict) or set(value) - allowed:
         raise ValueError('Unknown official-baseline configuration fields')
     for key in (('cache', 'out', 'versions') if download_only else ('model', 'cache', 'out', 'physical_devices', 'versions')):
         if key not in value:
             raise ValueError('Missing official-baseline field: ' + key)
-    for key in allowed - {'physical_devices', 'versions'}:
+    if 'model_transport_base_url' in value:
+        from model_restore import transport_base_url
+        value['model_transport_base_url']=transport_base_url(value['model_transport_base_url'])
+        if 'model_manifest' not in value:raise ValueError('Model transport mirror requires a pinned model_manifest')
+    for key in allowed - {'physical_devices', 'versions', 'model_transport_base_url'}:
         if key in value:
             if not isinstance(value[key], str) or not value[key].strip():
                 raise ValueError('Expected a path: ' + key)
@@ -83,7 +87,7 @@ def main(arguments=None):
             maybe_enter_official(config, list(arguments) if arguments is not None else sys.argv[1:])
         if config.get('model_manifest'):
             from model_restore import restore
-            restore(config['model_manifest'], config['model'])
+            restore(config['model_manifest'], config['model'], transport_base_url=config.get('model_transport_base_url'))
         from official_storage import prefer
         storage = []
         for key in ('cache', 'out'):
