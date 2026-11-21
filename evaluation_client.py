@@ -206,7 +206,9 @@ def historical_mmlu_location_bridge(result):
     text = once(text, '    validate_conditions(root, role, conditions, data)',
         '    location = validate_conditions(root, role, conditions, data, prior_location=prior_location)')
     text = once(text, "    current = admit(root, binding['role'], binding['conditions'])",
-        "    current = admit(root, binding['role'], binding['conditions'], prior_location=binding.get('baseline_location'))")
+        "    location = binding.get('baseline_location')\n"
+        "    options = {'prior_location': location} if location else {}\n"
+        "    current = admit(root, binding['role'], binding['conditions'], **options)")
     text = once(text, "            verify_relocation(baseline, conditions['baseline_deployment'])",
         "            return verify_relocation(baseline, conditions['baseline_deployment'], prior_binding=prior_location)")
     text = once(text,
