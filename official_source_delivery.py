@@ -7,7 +7,8 @@ import shutil
 import sys
 import tempfile
 import time
-from urllib.parse import urldefrag, urlsplit
+from urllib.parse import urldefrag, urlsplit, unquote, urljoin, parse_qs
+import re
 
 PIP_VERSION = '26.2'
 
@@ -84,8 +85,30 @@ def prime(request):
         for suffix in ('.download.json','.range-receipt.json'):
             item=path.with_name(filename+suffix)
             if item.is_file() and not item.is_symlink():provenance.append(dict(path=str(item),sha256=sha(item)))
-        admitted.append(dict(row=row,path=path,url=url,link=Link(url+'#sha256='+row['sha256']),name=name,
-                             version=str(version),provenance=provenance))
+        keys=[(url,None)]
+        for alias in row.get('cache_aliases',[]):
+            key=alias['url'];proof=alias['attestation'];part=urlsplit(key)
+            loopback=part.scheme=='http' and part.hostname in ('127.0.0.1','::1','localhost')
+            if ((part.scheme!='https' and not loopback) or not part.hostname or part.username or part.password or part.fragment
+                    or unquote(part.path.rsplit('/',1)[-1])!=filename
+                    or proof.get('advertised_whole_sha256')!=row['sha256'] or proof.get('filename')!=filename
+                    or key not in proof.get('matching_urls',[]) or not re.fullmatch(r'[0-9a-f]{64}',proof.get('index_sha256',''))):
+                raise ValueError('Binary cache alias lacks its matching index filename and whole SHA')
+            index=Path(proof['index_path'])
+            if index.is_symlink() or not index.is_file() or sha(index)!=proof['index_sha256']:
+                raise ValueError('Binary cache alias index differs from its recorded whole SHA')
+            from official_build_assets import _Links
+            parser=_Links();parser.feed(index.read_text(encoding='utf-8'));advertised=[]
+            for href in parser.links:
+                link=urlsplit(urljoin(proof['index'],href))
+                if (unquote(link.path.rsplit('/',1)[-1])==filename
+                        and parse_qs(link.fragment).get('sha256')==[row['sha256']]):
+                    advertised.append(link._replace(fragment='').geturl())
+            if key not in advertised:raise ValueError('Binary cache alias was not advertised with this whole SHA')
+            if key not in [k for k,_ in keys]:keys.append((key,proof))
+        for key,attestation in keys:
+            admitted.append(dict(row=row,path=path,url=url,key_url=key,alias_attestation=attestation,
+                                 link=Link(key+'#sha256='+row['sha256']),name=name,version=str(version),provenance=provenance))
     result=dict(schema='deeplinkengine-verified-wheel-delivery/v1',pip_version=pip.__version__,python=sys.executable,
         pip_api_sources={str(Path(module.__file__).resolve()):sha(module.__file__) for module in (cache_module,link_module,direct_module)},
         helper_sha256=sha(__file__),model_started=False,sdk_payload_modified=False,upstream_requirements_modified=False,
@@ -123,6 +146,7 @@ def prime(request):
                     if entry is None or Path(entry.link.file_path)!=destination/row['filename']:
                         raise ValueError('Actual pip did not admit the delivered wheel')
                     result['entries'].append(dict(filename=row['filename'],version=item['version'],canonical_source_url=item['url'],
+                        native_cache_key_url=item['key_url'],transport_alias_attestation=item['alias_attestation'],
                         source_kind='published-binary-wheel',source_path=str(item['path']),sha256=row['sha256'],bytes=row['bytes'],
                         acquisition_kind='verified-local-cache',acquisition_receipts=item['provenance'],
                         observed_http_fetch=False,local_build_claimed=False,cache_path=str(destination),reused=existed,
@@ -142,6 +166,32 @@ def invoke(python,env,sdk,cache,rows,caches,out):
         raise ValueError('Verified wheel delivery failed; preserve '+str(out))
     result=json.loads((out/'result.json').read_bytes())
     return dict(path=str(out/'result.json'),sha256=sha(out/'result.json'),entries=len(result['entries']),pip_version=result['pip_version'])
+
+
+def primary_aliases(rows,out):
+    """Retain original wheel origins and attest only same-byte transport keys."""
+    from official_build_assets import transports,_read
+    out=Path(out);out.mkdir(parents=True,exist_ok=False);result=[];observations=[]
+    for row in rows:
+        aliases=[]
+        if row['filename'].endswith('.whl'):
+            _,proofs=transports(row)
+            for proof in proofs:
+                if not proof.get('matching_urls'):continue
+                try:
+                    raw=_read(proof['index']);digest=hashlib.sha256(raw).hexdigest()
+                    if digest!=proof['index_sha256']:raise ValueError('Mirror index changed between transport selection and attestation')
+                    index=out/(digest+'.html')
+                    if not index.exists():index.write_bytes(raw)
+                    attestation=dict(proof,index_path=str(index),filename=row['filename'],advertised_whole_sha256=row['sha256'])
+                    aliases.extend(dict(url=url,attestation=attestation) for url in proof['matching_urls'])
+                    observations.append(dict(status='attested',**attestation))
+                except (OSError,ValueError) as error:
+                    observations.append(dict(filename=row['filename'],status='unavailable',index=proof['index'],error=type(error).__name__+': '+str(error)))
+        result.append(dict(row,cache_aliases=aliases))
+    save(out/'results.json',dict(scope='fixed-primary-binary-inputs',observations=observations,
+        actual_mirror_body_download_claimed=False,canonical_origins_retained=True))
+    return result
 
 
 def prepare(cache,sdk,out):
@@ -180,6 +230,8 @@ def prepare(cache,sdk,out):
         python,env=environment(base,out/'runtime-cache');env.update(ASCEND_RT_VISIBLE_DEVICES='',TORCH_DEVICE_BACKEND_AUTOLOAD='0')
         for row in primary:
             if row['filename'].endswith('.whl'):fetch(row,cache/'wheels')
+        primary=primary_aliases(primary,out/'primary-alias-indices')
+        record['primary_alias_attestation']=dict(path=str(out/'primary-alias-indices/results.json'),sha256=sha(out/'primary-alias-indices/results.json'))
         record['steps'].append(invoke(python,env,base,cache,primary,caches,out/'primary-delivery'));save(out/'results.json',record)
         closure=out/'original-closure'
         if prefetch_all(dict(cache=str(cache),out=str(closure),versions=[candidate.VERSION]),[])!=0:
@@ -191,7 +243,9 @@ def prepare(cache,sdk,out):
             lock=Path(stage['lock'])
             if sha(lock)!=stage['lock_sha256']:raise ValueError('Original closure lock changed')
             data=json.loads(lock.read_bytes())
-            for row in data['approved_artifacts']:wheels[(row['filename'],row['sha256'])]=row
+            for row in data['approved_artifacts']:
+                fixed=next((p for p in primary if p['filename']==row['filename'] and p['sha256']==row['sha256']),None)
+                wheels[(row['filename'],row['sha256'])]=dict(row,cache_aliases=fixed['cache_aliases']) if fixed else row
         record['steps'].append(dict(closure=str(closure/'results.json'),sha256=sha(closure/'results.json')))
         record['steps'].append(invoke(python,env,base,cache,list(wheels.values()),caches,out/'closure-delivery'))
         record['status']='completed'

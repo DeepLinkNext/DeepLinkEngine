@@ -14,6 +14,8 @@ import threading
 import unittest
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import zipfile
+from urllib.parse import quote,unquote
+from unittest.mock import patch
 
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 import official_source_delivery as delivery
@@ -23,14 +25,16 @@ class DeliveryTests(unittest.TestCase):
     def setUp(self):
         self.temporary=tempfile.TemporaryDirectory();self.addCleanup(self.temporary.cleanup)
         self.root=Path(self.temporary.name);self.cache=self.root/'cache';(self.cache/'wheels').mkdir(parents=True)
-        self.requests=[];self.rows=[]
+        self.requests=[];self.rows=[];self.index_urls={}
         owner=self
         class Handler(BaseHTTPRequestHandler):
             def log_message(self,*args):pass
             def do_GET(self):
                 owner.requests.append(self.path)
                 if self.path=='/simple/delivery-probe/':
-                    raw=''.join('<a href="/packages/'+r['filename']+'#sha256='+r['sha256']+'">'+r['filename']+'</a>' for r in owner.rows).encode();kind='text/html'
+                    raw=owner.index_body();kind='text/html'
+                elif self.path.startswith('/mirror/'):
+                    self.send_response(301);self.send_header('Location','/packages/'+unquote(self.path.rsplit('/',1)[-1]));self.send_header('Content-Length','0');self.end_headers();return
                 elif self.path.startswith('/packages/'):
                     file=owner.cache/'wheels'/self.path.rsplit('/',1)[-1]
                     if not file.is_file():self.send_error(404);return
@@ -43,6 +47,15 @@ class DeliveryTests(unittest.TestCase):
         self.origin='http://127.0.0.1:'+str(self.server.server_port)
         for version in ('1.0','2.0'):self.rows.append(self.wheel(version))
         self.pip_caches=[self.cache/'source-build-downloads/metadata',self.cache/'source-build-downloads/build/pip']
+
+    def index_body(self):
+        return ''.join('<a href="'+self.index_urls.get(r['filename'],'/packages/'+r['filename'])+'#sha256='+r['sha256']+'">'+r['filename']+'</a>' for r in self.rows).encode()
+
+    def alias(self,row):
+        url=self.origin+'/mirror/'+quote(row['filename'],safe='')
+        self.index_urls[row['filename']]=url
+        index=self.root/'actual-index.html';index.write_bytes(self.index_body())
+        return dict(url=url,attestation=dict(index=self.origin+'/simple/delivery-probe/',index_path=str(index),index_sha256=delivery.sha(index),filename=row['filename'],advertised_whole_sha256=row['sha256'],matching_urls=[url]))
 
     def wheel(self,version):
         name='delivery_probe';dist=name+'-'+version+'.dist-info';filename=name+'-'+version+'-py3-none-any.whl'
@@ -122,6 +135,40 @@ class DeliveryTests(unittest.TestCase):
     def test_canonical_wheel_cannot_supply_a_source_origin(self):
         with self.assertRaisesRegex(ValueError,'source/build origin'):delivery.prime(self.request([dict(self.rows[0],url='https://example.com/source.tar.gz')]))
         self.assertFalse(self.pip_caches[0].exists())
+
+    def test_real_pip_alias_key_preserves_canonical_origin_and_encoded_redirect_link(self):
+        row=self.wheel('3.0+cpu');self.rows=[row];alias=self.alias(row)
+        self.assertIn('%2B',alias['url'])
+        # This is the same original transport/index contract used before the
+        # recursive Graph preflight, without touching production network state.
+        import official_build_assets as assets
+        proof=dict(index=alias['attestation']['index'],index_sha256=alias['attestation']['index_sha256'],matching_urls=[alias['url']])
+        with patch.object(assets,'transports',return_value=([alias['url']],[proof])):
+            rows=delivery.primary_aliases([row],self.root/'primary-index-receipts')
+        result=delivery.prime(self.request(rows));self.assertEqual(len(result['entries']),4)
+        before=len(self.requests)
+        for cache in self.pip_caches:
+            item=self.resolve('3.0+cpu',cache)
+            self.assertEqual(item['download_info']['url'],row['url'])
+        self.assertTrue(all(p=='/simple/delivery-probe/' for p in self.requests[before:]))
+        entries=[r for r in result['entries'] if r['native_cache_key_url']==alias['url']]
+        self.assertEqual(len(entries),2)
+        for entry in entries:
+            origin=json.loads((Path(entry['cache_path'])/'origin.json').read_bytes())
+            self.assertEqual(origin['url'],row['url']);self.assertFalse(entry['observed_http_fetch'])
+
+    def test_alias_rejects_wrong_index_bytes_and_unadvertised_or_mismatched_digest(self):
+        row=self.rows[0];alias=self.alias(row)
+        original=Path(alias['attestation']['index_path']).read_bytes()
+        for case in ['wrong-index-sha','wrong-advertised-hash','wrong-html-hash']:
+            with self.subTest(case=case):
+                current=json.loads(json.dumps(alias));index=Path(current['attestation']['index_path']);index.write_bytes(original)
+                if case=='wrong-index-sha':current['attestation']['index_sha256']='a'*64
+                elif case=='wrong-advertised-hash':current['attestation']['advertised_whole_sha256']='0'*64
+                else:
+                    index.write_bytes(original.replace(row['sha256'].encode(),b'0'*64));current['attestation']['index_sha256']=delivery.sha(index)
+                with self.assertRaisesRegex(ValueError,'index|whole SHA'):delivery.prime(self.request([dict(row,cache_aliases=[current])]))
+                self.assertFalse(self.pip_caches[0].exists())
 
 
 if __name__=='__main__':unittest.main()

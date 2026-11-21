@@ -1,0 +1,148 @@
+name: Fixed 0.23 CPU rejection replay
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  reproduce-rejection:
+    name: Automated CPU rejection replay (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2022]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    steps:
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.12'
+          architecture: x64
+      - name: Verify anonymous assets and reproduce the fixed rejection
+        shell: python
+        env:
+          PYTHONDONTWRITEBYTECODE: '1'
+        run: |
+          import hashlib, json, os, platform, shutil, subprocess, sys, tarfile, time
+          from pathlib import Path, PurePosixPath
+          from urllib.request import Request, urlopen
+          from urllib.parse import urlsplit
+
+          tag = 'official-b0-0.23-ft-prefix-replay-20261122-v1'
+          base = 'https://github.com/DeepLinkNext/DeepLinkEngine/releases/download/' + tag + '/'
+          pins = {
+              'release-manifest.json': (1929, 'ed6169b4ea6b5b39e80cc0effdc6b481b46745d41b763a43a44bfea425ca8906'),
+              'prefix-negative-replay.tar.gz': (21943799, '3b0013033af7e66cae4584c8d0503c369f1f3f37c8d21f1e866859f74ecd679c'),
+              'verify_replay.py': (6034, '07772aa5e278c2efb2c5b9c5e78bb4c4533a0601c2c40492896f1e140bb88dd0'),
+          }
+          work = Path(os.environ['RUNNER_TEMP']) / 'official023-prefix-auto-replay'
+          work.mkdir(exist_ok=False)
+          evidence = work / 'evidence'
+          evidence.mkdir()
+          fresh = work / 'fresh'
+          fresh.mkdir()
+          assets = work / 'assets'
+          assets.mkdir()
+          record = dict(schema='official023-platform-cpu-replay/v1', status='started',
+                        release_tag=tag, started=time.time(), assets=[],
+                        platform=('GitHub-hosted automated CPU replay' if os.environ.get('GITHUB_ACTIONS') == 'true' else 'Local workflow CPU smoke'),
+                        runner_os=platform.platform(), github_actions=os.environ.get('GITHUB_ACTIONS') == 'true',
+                        independent_external_human_witness=False, npu_witness=False,
+                        engine_acceptance_claimed=False)
+          def sha(path):
+              with path.open('rb') as stream:
+                  return hashlib.file_digest(stream, 'sha256').hexdigest()
+          # No authentication headers or repository credentials are used.
+          for key in ('GH_TOKEN', 'GITHUB_TOKEN'):
+              os.environ.pop(key, None)
+          try:
+              for name, (size, expected) in pins.items():
+                  path = assets / name
+                  request = Request(base + name, headers={'User-Agent': 'DeepLinkEngine-public-CPU-replay'})
+                  item = dict(name=name, url=base + name, expected_bytes=size,
+                              expected_sha256=expected, authentication_header_used=False)
+                  record['assets'].append(item)
+                  try:
+                      with urlopen(request, timeout=60) as response, path.open('xb') as output:
+                          final = urlsplit(response.geturl())
+                          if response.status != 200 or final.scheme != 'https':
+                              raise ValueError('Unexpected anonymous asset response')
+                          item['final_origin'] = final.scheme + '://' + final.netloc + final.path
+                          while block := response.read(1024 * 1024):
+                              output.write(block)
+                              if output.tell() > size:
+                                  raise ValueError('Asset exceeds its fixed byte count')
+                      item.update(bytes=path.stat().st_size, sha256=sha(path))
+                      if item['bytes'] != size or item['sha256'] != expected:
+                          raise ValueError('Published asset SHA/size differs: ' + name)
+                      item['verified'] = True
+                      if name == 'release-manifest.json':
+                          shutil.copyfile(path, evidence / name)
+                  finally:
+                      if path.exists():
+                          item.update(actual_bytes=path.stat().st_size, actual_sha256=sha(path))
+                      (evidence / 'asset-sha256.json').write_text(json.dumps(record, indent=2) + '\n', encoding='utf-8')
+              shutil.copyfile(assets / 'release-manifest.json', evidence / 'release-manifest.json')
+              manifest = json.loads((assets / 'release-manifest.json').read_bytes())
+              if manifest['release_tag'] != tag or manifest['qualification_status'] != 'ineligible' or manifest['F_interval'] is not None:
+                  raise ValueError('Unexpected published negative-replay identity')
+              for name in ('prefix-negative-replay.tar.gz', 'verify_replay.py'):
+                  size, expected = pins[name]
+                  if manifest['files'][name] != dict(bytes=size, sha256=expected):
+                      raise ValueError('Manifest and fixed workflow asset pins disagree')
+              with tarfile.open(assets / 'prefix-negative-replay.tar.gz') as archive:
+                  members = archive.getmembers()
+                  names = set()
+                  for member in members:
+                      name = PurePosixPath(member.name)
+                      if (not member.isfile() or name.is_absolute() or '..' in name.parts
+                              or not name.parts or name.parts[0] != 'packet023-prefix-v1'
+                              or '\\' in member.name or ':' in member.name or member.name in names):
+                          raise ValueError('Unsafe or duplicate replay archive member')
+                      names.add(member.name)
+                  archive.extractall(fresh, members=members, filter='data')
+              shutil.copyfile(assets / 'verify_replay.py', fresh / 'verify_replay.py')
+              command = [sys.executable, 'verify_replay.py', '--packet', 'packet023-prefix-v1', '--proof', 'replay-proof.json']
+              with (evidence / 'wrapper.stdout.log').open('xb') as stdout, (evidence / 'wrapper.stderr.log').open('xb') as stderr:
+                  completed = subprocess.run(command, cwd=fresh, stdout=stdout, stderr=stderr, timeout=240)
+              record['wrapper_returncode'] = completed.returncode
+              for path in fresh.glob('replay-proof*'):
+                  if path.is_file():
+                      shutil.copyfile(path, evidence / path.name)
+              rejection = fresh / 'packet023-prefix-v1/cpu-replay-result/necessary-work/audit/producer-prefix-rejection.json'
+              if rejection.is_file():
+                  shutil.copyfile(rejection, evidence / rejection.name)
+              if completed.returncode:
+                  raise ValueError('Replay wrapper failed; raw logs are retained')
+              proof = json.loads((evidence / 'replay-proof.json').read_bytes())
+              if (proof['status'] != 'expected-rejection-reproduced' or proof['actual_returncode'] != 2
+                      or proof['qualification_status'] != 'ineligible' or proof['F_interval'] is not None
+                      or proof['efficiency_percent'] is not None or proof['all_waves_semantically_certified'] is not False
+                      or proof['full_sdk_and_model_admission_performed'] is not False
+                      or proof['independent_external_human_witness'] is not False
+                      or proof['original_inputs_verified_before_and_after'] is not True):
+                  raise ValueError('Expected CPU rejection scope was not reproduced')
+              record.update(status='expected-rejection-reproduced', public_entry_returncode=2,
+                            wrapper_returncode=0, F_interval=None, efficiency_percent=None)
+              Path(os.environ['GITHUB_STEP_SUMMARY']).write_text(
+                  ('Third-party platform automatic CPU replay reproduced the expected rejection.\n\n' if record['github_actions'] else 'Local workflow smoke reproduced the expected CPU rejection.\n\n') +
+                  'F remains null. This is not engine acceptance, an NPU measurement, or a human witness.\n', encoding='utf-8')
+          except BaseException as error:
+              record.update(status='failed', error=type(error).__name__ + ': ' + str(error))
+              raise
+          finally:
+              for path in fresh.glob('replay-proof*'):
+                  if path.is_file():
+                      shutil.copyfile(path, evidence / path.name)
+              record['ended'] = time.time()
+              (evidence / 'platform-replay.json').write_text(json.dumps(record, indent=2) + '\n', encoding='utf-8')
+      - name: Preserve CPU replay originals and asset hashes
+        if: ${{ always() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: official023-prefix-cpu-rejection-${{ matrix.os }}-${{ github.run_id }}
+          path: ${{ runner.temp }}/official023-prefix-auto-replay/evidence/
+          if-no-files-found: error
+          retention-days: 30
