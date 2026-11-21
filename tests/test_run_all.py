@@ -60,7 +60,13 @@ class WorkflowTests(unittest.TestCase):
                        ["4096-formal", "16384-formal", "32768-formal", "multi-tenant-formal"]]))
             self.write("context-tenant/paired-report/report.html", "fixture report")
         if len(args)>2 and "report_python" in args[2]:
-            self.write("full-report/summary.json",dict(schema="deeplinkengine-full-acceptance-report/v1",execution_complete=True,targets={k:dict(milestone=dict(met=True,status="达成目标",evidence_status="verified"),final=dict(met=False,status="未达成目标",evidence_status="verified")) for k in ("4.1","4.2","4.3","4.4")}))
+            targets = {k: dict(milestone=dict(met=True, status="达成目标"),
+                               final=dict(met=False, status="未达成目标"))
+                       for k in ("4.1", "4.2", "4.3", "4.4")}
+            for goal in targets["4.4"].values():
+                goal["evidence_status"] = "published_rental"
+            self.write("full-report/summary.json", dict(schema="deeplinkengine-full-acceptance-report/v1",
+                                                        execution_complete=True, targets=targets))
             for name in ("report.html","fixed-five.svg","fixed-five.png"):
                 self.write("full-report/"+name,"fixture only")
         return types.SimpleNamespace(returncode=0)

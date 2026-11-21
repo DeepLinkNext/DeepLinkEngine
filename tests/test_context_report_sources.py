@@ -129,8 +129,7 @@ def collect_fixture(tmp_path, changed=None, actual_cost=None):
             patch.object(report, 'targets', return_value={}) as targets, patch.object(report, 'workload_pairs', return_value={}), \
             patch.object(report, 'workload_sources', return_value={}), patch.object(report, 'apply_v2_context_tails'):
         result = report.collect(run, cost_path)
-        expected = (cost_path or default) if actual_cost else None
-        assert targets.call_args.args[-1] == expected
+        assert targets.call_args.args[-1] == cost_path
     return result, audits, arms, folder, stored
 
 
@@ -150,8 +149,8 @@ def test_other_candidate_or_model_cannot_supply_context_results(tmp_path,changed
         collect_fixture(tmp_path,changed)
 
 
-@pytest.mark.parametrize('mode', ['default', 'override'])
-def test_sealed_report_picks_up_fee_file_and_respects_an_explicit_override(tmp_path, mode):
+@pytest.mark.parametrize('mode', ['unselected', 'override'])
+def test_sealed_report_only_selects_an_explicit_fee_file(tmp_path, mode):
     collect_fixture(tmp_path, actual_cost=mode)
 
 

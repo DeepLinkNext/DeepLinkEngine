@@ -543,7 +543,8 @@ def run(data, *, resume_bootstrap=False, resume_before_model=False, resume_befor
             with template.open("rb") as stream:
                 hashes[relative] = hashlib.file_digest(stream, "sha256").hexdigest()
         cost = overview["targets"]["4.4"]
-        cost_complete = all(cost[level].get("evidence_status") == "verified" for level in ("milestone", "final"))
+        cost_complete = all(cost[level].get("evidence_status") in {"published_rental", "verified"}
+                            for level in ("milestone", "final"))
         receipt.update(status="completed", automated_acceptance_complete=cost_complete,
                        targets=overview["targets"], reports=reports, evidence_sha256=hashes,
                        fixed_five_execution=campaign["selected_execution_complete"],

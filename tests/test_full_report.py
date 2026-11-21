@@ -206,17 +206,57 @@ class CostTests(unittest.TestCase):
             path = self.manifest
         return report.targets(self.fixed, self.context, self.audit, path)['4.4']
 
-    def test_estimates_cannot_decide_formal_cost_without_bills(self):
+    def test_published_rental_decides_both_gates_without_bills(self):
         result = self.judge()
+        self.assertEqual(result['cost_basis'], 'published_rental')
+        self.assertIsNone(result['actual_cost_manifest_sha256'])
+        quote = result['published_rental']
+        self.assertEqual(quote['published_date'], '2026-11-17')
+        self.assertEqual(quote['server_monthly_price'], 15000)
+        self.assertEqual(quote['cards_per_server'], 8)
+        self.assertEqual(quote['monthly_cost_per_card_cny'], '1875')
+        self.assertEqual(quote['days_per_month'], 30)
+        self.assertEqual(quote['evidence_sha256'], hashlib.sha256(
+            (report.ROOT / report.PUBLISHED_RENTAL_EVIDENCE).read_bytes()).hexdigest())
         for level in ('milestone', 'final'):
-            self.assertFalse(result[level]['met'])
-            self.assertEqual(result[level]['evidence_status'], 'missing')
+            self.assertTrue(result[level]['met'])
+            self.assertEqual(result[level]['evidence_status'], 'published_rental')
+            self.assertIn('公开月租', result[level]['reason'])
         for name in ('mmlu', 'four_tenant'):
-            self.assertIsNone(result['formal_cost'][name]['reduction_percent'])
-            self.assertAlmostEqual(float(result['same_rate_estimate'][name]['reduction_percent']), 50)
+            row = result['formal_cost'][name]
+            self.assertEqual(row['reduction_percent'], '50')
+            self.assertEqual(row['arms']['B0']['monthly_cost_per_card_cny'], '1875')
+            self.assertEqual(row['arms']['B1']['measurement_seal_sha256'], self.seals[name]['B1'])
+            self.assertNotIn('expense_sha256', row['arms']['B0'])
+        self.assertAlmostEqual(float(result['formal_cost']['mmlu']['arms']['B0']['cost_per_million_output_tokens_cny']),
+                               14.467592592592593)
+
+    def test_published_rental_html_cites_quote_without_requesting_expense_documents(self):
+        cost = self.judge()
+        data = dict(targets={'4.4': cost}, context_audit={}, scoring='', reference_method='')
+        out = self.path / 'report'
+        with patch.object(report, 'collect', return_value=data), patch.object(report, 'charts'):
+            report.render(self.path, out)
+        document = (out / 'report.html').read_text(encoding='utf-8')
+        self.assertIn('按公开租赁报价折算', document)
+        self.assertIn('1,875 元/卡月', document)
+        self.assertIn(cost['published_rental']['source_url'], document)
+        self.assertNotIn('待实际费用凭据', document)
+        self.assertFalse((out / report.ACTUAL_COST_TEMPLATE).exists())
+
+    def test_published_rental_requires_sealed_measurements(self):
+        self.context['arm_seals'].pop('B1')
+        result = self.judge()
+        self.assertTrue(result['milestone']['met'])
+        self.assertFalse(result['final']['met'])
+        self.assertEqual(result['final']['evidence_status'], 'missing_measurement')
+        self.assertIsNone(result['four_tenant_cost_reduction_percent'])
+        self.assertIsNone(report.cost_template(result))
 
     def test_actual_unequal_rates_and_estimates_are_independent(self):
         result = self.judge(self.expense())
+        self.assertEqual(result['cost_basis'], 'actual_expense')
+        self.assertIsNone(result['published_rental'])
         self.assertTrue(result['milestone']['met'])
         self.assertTrue(result['final']['met'])
         self.assertAlmostEqual(float(result['unit_cost_reduction_percent']), 25)
@@ -268,12 +308,12 @@ class CostTests(unittest.TestCase):
     def test_quality_and_complete_metering_are_required_for_mmlu(self):
         mmlu = self.fixed['current_mmlu_pair']
         mmlu['arms']['B1']['quality']['correct'] = 139
-        self.assertFalse(self.judge(self.expense())['milestone']['met'])
+        self.assertFalse(self.judge()['milestone']['met'])
         mmlu['arms']['B1']['quality']['correct'] = 150
         mmlu['utilization']['B1'] = self.sample(100, 42)
-        self.assertFalse(self.judge(self.expense())['milestone']['met'])
+        self.assertFalse(self.judge()['milestone']['met'])
         mmlu['utilization']['B1'] = self.sample(99, 45)
-        self.assertFalse(self.judge(self.expense())['milestone']['met'])
+        self.assertFalse(self.judge()['milestone']['met'])
 
     def test_each_four_tenant_arm_must_complete_and_final_can_lack_bills_independently(self):
         expense = self.expense()
@@ -283,7 +323,7 @@ class CostTests(unittest.TestCase):
         self.assertEqual(result['final']['evidence_status'], 'missing')
         multi = self.context['comparison'][-1]
         multi['B0']['per_tenant']['tenant-0']['failed'] = 1
-        self.assertFalse(self.judge(self.expense())['final']['met'])
+        self.assertFalse(self.judge()['final']['met'])
 
     def test_wrong_seal_invalid_rate_and_altered_expense_are_rejected(self):
         expense = self.expense()
