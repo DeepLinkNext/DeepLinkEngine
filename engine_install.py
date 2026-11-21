@@ -130,7 +130,12 @@ def resolve_runtime_dependencies(cache, *, wheelhouse=None):
     # before starting a model service; this work is outside benchmark timing.
     smoke = folder / "runtime-import-smoke.json"
     probe = ROOT / "tools/runtime_import_smoke.py"
-    completed = run_stage([sys.executable, "-I", "-B", str(probe), "--out", str(smoke)],
+    smoke_command = [sys.executable, "-I", "-B", str(probe), "--out", str(smoke)]
+    if 'triton-ascend' in lock['required_python_packages']:
+        source = lock['environment_sources']['triton-ascend']
+        wheel = cached_wheel(source, links, Path(cache) / 'wheels')
+        smoke_command += ['--triton-wheel', str(wheel), '--triton-sha256', source['sha256']]
+    completed = run_stage(smoke_command,
                           env=dict(os.environ, TORCH_DEVICE_BACKEND_AUTOLOAD="0", ASCEND_RT_VISIBLE_DEVICES="",
                                    NUMBA_CACHE_DIR=str(folder / "numba")))
     if completed.returncode:

@@ -49,6 +49,7 @@ class EnvironmentTests(unittest.TestCase):
              patch.object(setup, "select_python", return_value=(sys.executable, before or info())), \
              patch.object(setup, "probe", side_effect=observed), \
              patch.object(setup, "command", side_effect=command) as execute, \
+             patch.object(setup, "triton_backend_smoke", return_value={"verified": True, "cpu_fixture": True}), \
              patch.dict(os.environ, {}, clear=True), contextlib.redirect_stdout(io.StringIO()):
             result = setup.ensure_environment(self.data)
         return result, execute
@@ -359,6 +360,10 @@ class EnvironmentTests(unittest.TestCase):
         self.data["environment"] = {"python": "/original/python"}
         prepared, _ = self.prepare()
         managed = prepared["python"]
+        # Older healthy receipts did not contain the compiler ABI probe.
+        old = json.loads(Path(prepared['report']).read_bytes())
+        old.pop('triton_backend', None)
+        Path(prepared['report']).write_text(json.dumps(old))
         observed = dict(info(python=managed), prefix=str(Path(managed).parent.parent))
         with patch.object(setup, "ROOT", self.root), \
              patch.object(setup.sys, "executable", managed), \
@@ -367,10 +372,14 @@ class EnvironmentTests(unittest.TestCase):
              patch.object(setup.platform, "machine", return_value="aarch64"), \
              patch.object(setup, "cann_environment", return_value=({"PATH": "fixture"}, {"version": "9.1.0"})), \
              patch.object(setup, "select_python", return_value=(managed, observed)) as select, \
+             patch.object(setup, "triton_backend_smoke", return_value={"verified": True, "cpu_fixture": True}) as backend, \
+             patch.object(setup, "command", side_effect=AssertionError("Healthy runtime must not be reinstalled")), \
              patch.dict(os.environ, {"DEEPLINKENGINE_ENVIRONMENT_REPORT": prepared["report"],
                                     "DEEPLINKENGINE_MANAGED_PYTHON": managed}, clear=True):
             self.assertIsNone(setup.ensure_environment(self.data))
         self.assertEqual(select.call_args.args[0]["python"], managed)
+        backend.assert_called_once()
+        self.assertTrue(json.loads(Path(prepared["report"]).read_bytes())["triton_backend"]["verified"])
 
     def test_environment_options_are_removed_before_the_real_v3_config_parser(self):
         spec = importlib.util.spec_from_file_location("workflow_fixtures", ROOT / "tests/test_run_all.py")
