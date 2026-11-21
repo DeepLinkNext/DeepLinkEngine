@@ -28,6 +28,12 @@ def gdn_backend():
             result['operator_identity'] = observe(fla, DeviceOperator.fla_gdn_prefill)
         except Exception as error:
             result['operator_identity'] = dict(admitted=False, error=type(error).__name__ + ': ' + str(error))
+    elif selected == 'torch-npu-fused-chunk' and metadata.version('vllm-ascend').split('+')[0] == '0.28.0rc1':
+        from official_ft_cann import observe
+        try:
+            result['operator_identity'] = observe(cls._chunk_gated_delta_rule_fused)
+        except Exception as error:
+            result['operator_identity'] = dict(error=type(error).__name__ + ': ' + str(error))
     return result
 
 
@@ -48,7 +54,7 @@ def configuration(worker):
             state_shapes=[list(shape) for shape in getattr(s, 'shapes', ())]) for s in specs]
         groups.append(dict(layers=list(group.layer_names), specs=descriptions,
                            is_eagle_group=group.is_eagle_group))
-    return dict(schema='deeplinkengine-official-loaded-runtime/v1',
+    result = dict(schema='deeplinkengine-official-loaded-runtime/v1',
         rank=int(worker.rank), tensor_parallel_size=parallel.tensor_parallel_size,
         pipeline_parallel_size=parallel.pipeline_parallel_size,
         data_parallel_size=parallel.data_parallel_size,
@@ -68,3 +74,14 @@ def configuration(worker):
         gdn_backend=gdn_backend(),
         num_blocks=runner.kv_cache_config.num_blocks, groups=groups,
         tensor_values_observed=False, per_step_observer_installed=False)
+    from importlib import metadata
+    if metadata.version('vllm-ascend').split('+')[0] == '0.28.0rc1':
+        from official_ft_factory import capture
+        result['moe_factory_dispatch'] = capture(runner)
+        from vllm_ascend.ascend_config import get_ascend_config
+        from vllm_ascend.spec_decode.llm_base_proposer import lmhead_tp_enable
+        result['enable_reduce_sample'] = get_ascend_config().enable_reduce_sample
+        result['lmhead_tp_enabled'] = lmhead_tp_enable()
+        result['target_xdrope_dimensions'] = runner.drafter.uses_xdrope_dim
+        result['draft_xdrope_dimensions'] = runner.drafter.draft_uses_xdrope_dim
+    return result

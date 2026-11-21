@@ -37,7 +37,7 @@ def configuration(path):
     if not isinstance(cards, list) or len(cards) != 2 or any(type(x) is not int or x < 0 for x in cards) or cards[0] == cards[1]:
         raise ValueError('Two distinct physical NPU indices are required')
     versions = value['versions']
-    if not isinstance(versions, list) or not versions or any(v not in ('0.23.0', '0.28.0', '0.30.0') for v in versions) or len(set(versions)) != len(versions):
+    if not isinstance(versions, list) or not versions or any(v not in ('0.23.0', '0.28.0', '0.28.0rc1-source', '0.30.0') for v in versions) or len(set(versions)) != len(versions):
         raise ValueError('Select unique explicitly supported upstream versions')
     if not Path(value['model']).is_dir():
         raise ValueError('Model directory does not exist')
