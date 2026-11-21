@@ -531,6 +531,9 @@ def select_run_engine(data, *, recovery=False, reuse_completed_run=None):
 def main():
     sys.dont_write_bytecode = True
     os.environ["PYTHONDONTWRITEBYTECODE"] = "1"
+    if '--official-baselines' in sys.argv[1:]:
+        from official_baselines import main as official_main
+        return official_main([value for value in sys.argv[1:] if value != '--official-baselines'])
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--config", required=True, type=Path)
     parser.add_argument("--prepare-environment", action="store_true", help="Repair and verify the environment without starting model tests")

@@ -1,0 +1,132 @@
+{
+  "schema": "deeplinkengine-official-baseline-image/v1",
+  "id": "official-vllm-0.23.0",
+  "upstream_version": "0.23.0",
+  "ascend_version": "0.23.0",
+  "registry": "https://quay.io/v2/ascend/vllm-ascend/",
+  "repository": "vllm-project/vllm-ascend",
+  "release": "https://github.com/vllm-project/vllm-ascend/releases/tag/v0.23.0",
+  "tag": "v0.23.0",
+  "platform": {
+    "os": "linux",
+    "architecture": "arm64"
+  },
+  "index_sha256": "471744200c5d0c768c1f6c6a6816dcae0fd551de2487d4d129b6fb750024ce6a",
+  "manifest_digest": "sha256:4ee78def8f33d59d48f116d1dfa793332c23c99ecab4f0d7dd5cd62d0fb4e6c1",
+  "manifest_bytes": 3171,
+  "config": {
+    "mediaType": "application/vnd.oci.image.config.v1+json",
+    "digest": "sha256:660ce23a83574fdcd28ba126b07615829c06770c06fbdf6533f03cc4d90acdb1",
+    "size": 23628
+  },
+  "layers": [
+    {
+      "mediaType": "application/vnd.oci.image.layer.v1.tar+gzip",
+      "digest": "sha256:119d19e001bafa21919289095e1dbfac64f1e16d2469dd14c2d2a520039d26d9",
+      "size": 27613184
+    },
+    {
+      "mediaType": "application/vnd.oci.image.layer.v1.tar+gzip",
+      "digest": "sha256:832ab0a8427e40b2911fff42fc9825b9d800475c7581518d2df1dd833c15d957",
+      "size": 150902572
+    },
+    {
+      "mediaType": "application/vnd.oci.image.layer.v1.tar+gzip",
+      "digest": "sha256:ba284733d5f289b2722a450dbb872c03b9e4de91d45cac48654d796faee0e2a3",
+      "size": 181526803
+    },
+    {
+      "mediaType": "application/vnd.oci.image.layer.v1.tar+gzip",
+      "digest": "sha256:5ce2f058f092e9bd6b371773ce68cafdb1acb577038dcbdf4798d8097661a687",
+      "size": 4280972307
+    },
+    {
+      "mediaType": "application/vnd.oci.image.layer.v1.tar+gzip",
+      "digest": "sha256:cbad9efdb96d7cc102a3afa380c2bd912e1719fb36173021a21632901fa8e3d3",
+      "size": 216
+    },
+    {
+      "mediaType": "application/vnd.oci.image.layer.v1.tar+gzip",
+      "digest": "sha256:f4cfc171c67ad97e95d06c9e39ff6892b48a64be355e1b0c45ad0142e80efb53",
+      "size": 1899
+    },
+    {
+      "mediaType": "application/vnd.oci.image.layer.v1.tar+gzip",
+      "digest": "sha256:d959547757216f39d0e2ae7a05ced3d4b5c1f6958ffd26b5524608b2b97d3a5c",
+      "size": 99
+    },
+    {
+      "mediaType": "application/vnd.oci.image.layer.v1.tar+gzip",
+      "digest": "sha256:77fa0cf8b3ec23fe5121d899e3449f3273005d1da5f701ef1d7d4ff400c21927",
+      "size": 234182531
+    },
+    {
+      "mediaType": "application/vnd.oci.image.layer.v1.tar+gzip",
+      "digest": "sha256:c84364636d4007a24c654e0c6fd0345e1e8807ecace60d66ca11163ce087e9e3",
+      "size": 98694192
+    },
+    {
+      "mediaType": "application/vnd.oci.image.layer.v1.tar+gzip",
+      "digest": "sha256:08b333958c93e8178059e4cc29ced8dd1b4a86e812dd290c0d8c6837adfa3927",
+      "size": 75062836
+    },
+    {
+      "mediaType": "application/vnd.oci.image.layer.v1.tar+gzip",
+      "digest": "sha256:581528479e733eb8ef5e18db5b74ed60de549839f613a8519ce8c020fb0b1217",
+      "size": 443388747
+    },
+    {
+      "mediaType": "application/vnd.oci.image.layer.v1.tar+gzip",
+      "digest": "sha256:21b8ed351db00f388af18bb5c8b699b26f35ace8036fe9eb9e07410158742ef0",
+      "size": 127491822
+    },
+    {
+      "mediaType": "application/vnd.oci.image.layer.v1.tar+gzip",
+      "digest": "sha256:313fa4efa26bcad36ec41474e9d64526219744e9f6447d13259f756eb07a1b1c",
+      "size": 1103845989
+    },
+    {
+      "mediaType": "application/vnd.oci.image.layer.v1.tar+gzip",
+      "digest": "sha256:8091009659e04527d391e58e80d5884a10b0d668cbf92da130e7f66d0982ace6",
+      "size": 1677
+    },
+    {
+      "mediaType": "application/vnd.oci.image.layer.v1.tar+gzip",
+      "digest": "sha256:8888f3960e1382761fb71ac830c0edf13072f3d37ca3c99346d3c19d2ba04074",
+      "size": 1857
+    }
+  ],
+  "source_labels": {
+    "org.opencontainers.image.version": "22.04"
+  },
+  "image_env": [
+    "PATH=/usr/local/Ascend/nnal/atb/latest/atb/cxx_abi_1/bin:/usr/local/Ascend/ascend-toolkit/latest/bin:/usr/local/Ascend/ascend-toolkit/latest/compiler/ccec_compiler/bin:/usr/local/Ascend/ascend-toolkit/latest/tools/ccec_compiler/bin:/usr/local/Ascend/cann-9.1.0/tools/show_kernel_debug_data:/usr/local/Ascend/cann-9.1.0/tools/msobjdump:/usr/local/Ascend/cann-9.1.0/bin:/usr/local/Ascend/cann-9.1.0/tools/ccec_compiler/bin:/usr/local/Ascend/cann-9.1.0/tools/profiler/bin:/usr/local/Ascend/cann-9.1.0/tools/ascend_system_advisor/asys:/usr/local/python3.12.13/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+    "LD_LIBRARY_PATH=/usr/local/Ascend/cann-9.1.0/lib64:/usr/local/Ascend/cann-9.1.0/lib64/plugin/opskernel:/usr/local/Ascend/cann-9.1.0/lib64/plugin/nnengine:/usr/local/Ascend/cann-9.1.0/opp/built-in/op_impl/ai_core/tbe/op_tiling:/usr/local/Ascend/driver/lib64:/usr/local/Ascend/driver/lib64/common:/usr/local/Ascend/driver/lib64/driver:/usr/local/Ascend/nnal/atb/latest/atb/cxx_abi_1/lib:/usr/local/Ascend/nnal/atb/latest/atb/cxx_abi_1/examples:/usr/local/Ascend/nnal/atb/latest/atb/cxx_abi_1/tests/atbopstest:/usr/local/Ascend/ascend-toolkit/latest/tools/aml/lib64:/usr/local/Ascend/ascend-toolkit/latest/tools/aml/lib64/plugin:/usr/local/Ascend/ascend-toolkit/latest/lib64:/usr/local/Ascend/ascend-toolkit/latest/lib64/plugin/opskernel:/usr/local/Ascend/ascend-toolkit/latest/lib64/plugin/nnengine:/usr/local/Ascend/ascend-toolkit/latest/opp/built-in/op_impl/ai_core/tbe/op_tiling:/usr/local/python3.12.13/lib:",
+    "ASCEND_TOOLKIT_HOME=/usr/local/Ascend/cann-9.1.0",
+    "ASCEND_TOOLKIT_LATEST_HOME=/usr/local/Ascend/ascend-toolkit/latest",
+    "PYTHONPATH=/usr/local/Ascend/ascend-toolkit/latest/python/site-packages:/usr/local/Ascend/ascend-toolkit/latest/opp/built-in/op_impl/ai_core/tbe:/usr/local/Ascend/cann-9.1.0/python/site-packages:/usr/local/Ascend/cann-9.1.0/opp/built-in/op_impl/ai_core/tbe:",
+    "ASCEND_AICPU_PATH=/usr/local/Ascend/cann-9.1.0",
+    "ASCEND_OPP_PATH=/usr/local/Ascend/cann-9.1.0/opp",
+    "TOOLCHAIN_HOME=/usr/local/Ascend/cann-9.1.0/toolkit",
+    "ASCEND_HOME_PATH=/usr/local/Ascend/cann-9.1.0",
+    "CMAKE_PREFIX_PATH=/usr/local/Ascend/cann-9.1.0/toolkit/tools/tikicpulib/lib/cmake:/usr/local/Ascend/cann-9.1.0/lib64/cmake",
+    "ATB_HOME_PATH=/usr/local/Ascend/nnal/atb/latest/atb/cxx_abi_1",
+    "ATB_STREAM_SYNC_EVERY_KERNEL_ENABLE=0",
+    "ATB_STREAM_SYNC_EVERY_RUNNER_ENABLE=0",
+    "ATB_STREAM_SYNC_EVERY_OPERATION_ENABLE=0",
+    "ATB_OPSRUNNER_KERNEL_CACHE_LOCAL_COUNT=1",
+    "ATB_OPSRUNNER_KERNEL_CACHE_GLOABL_COUNT=5",
+    "ATB_WORKSPACE_MEM_ALLOC_ALG_TYPE=1",
+    "ATB_COMPARE_TILING_EVERY_KERNEL=0",
+    "ATB_SHARE_MEMORY_NAME_SUFFIX=",
+    "ATB_MATMUL_SHUFFLE_K_ENABLE=1",
+    "LCCL_DETERMINISTIC=0",
+    "LCCL_PARALLEL=0",
+    "ATB_CXX_ABI=1",
+    "DEBIAN_FRONTEND=noninteractive",
+    "SOC_VERSION=ascend910b1",
+    "TASK_QUEUE_ENABLE=1",
+    "OMP_NUM_THREADS=1"
+  ],
+  "prerelease": false
+}
