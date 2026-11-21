@@ -89,6 +89,29 @@ class PublicProjectionTests(unittest.TestCase):
     def test_active_campaign_and_report_refused(self):
         self.campaign['status']=self.report['status']='running';self.build();self.run_cli(False)
 
+    def set_collected_state(self):
+        self.campaign.update(status='measurements_collected',ended=123.5,qualification={'complete':False,'independent_third_party':False})
+        self.report['status']='measurements_collected'
+
+    def test_ended_measurements_collected_keeps_qualification_incomplete(self):
+        self.set_collected_state();self.build();self.run_cli()
+        output=self.root/'derived';report=json.loads((output/'report.json').read_bytes());derivation=json.loads((output/'derivation.json').read_bytes());preview=json.loads((output/'publication-preview.json').read_bytes())
+        self.assertEqual(report['status'],'measurements_collected')
+        self.assertEqual(derivation['source_execution_status'],'measurements_collected')
+        self.assertEqual(derivation['source_qualification_status'],'incomplete')
+        self.assertEqual(preview['source_qualification_status'],'incomplete')
+        self.assertFalse(report['new_F_T_qualification']);self.assertIsNone(derivation['F']);self.assertIsNone(derivation['efficiency_percent'])
+        self.assertFalse(preview['publication_ready'])
+
+    def test_collected_without_end_or_with_qualified_source_refused(self):
+        self.set_collected_state();del self.campaign['ended'];self.build();self.run_cli(False)
+        self.set_collected_state();self.campaign['qualification']['complete']=True;self.build();self.run_cli(False)
+
+    def test_collected_unquiet_original_receipt_refused(self):
+        self.set_collected_state();receipt={'status':'completed','completed':True,'quiescent':False};content=raw(receipt)
+        self.extra['mmlu/receipt.json']=content;self.report['phases']['mmlu']['receipt.json'].update(sha256=pin(content),value=receipt)
+        self.build();self.run_cli(False)
+
     def test_selected_original_tamper_refused(self):
         (self.source/'mmlu/service/joint.json').write_bytes(b'{}');self.run_cli(False)
 
