@@ -160,6 +160,41 @@ class CandidateTests(unittest.TestCase):
                 self.assertEqual(json.loads(raw)['status'],'prepared')
                 reused=candidate.reuse(output)
                 self.assertEqual(reused['build_receipt_sha256'],installed['build_receipt_sha256'])
+                self.assertTrue(Path(env['PIP_CACHE_DIR']).is_relative_to(cache.resolve()/'source-build-downloads'))
+                self.assertFalse(Path(env['PIP_CACHE_DIR']).is_relative_to(output.resolve()))
+
+    def partial(self,sdk,status='building'):
+        sdk.mkdir();(sdk/'source-build').mkdir()
+        marker=dict(schema='deeplinkengine-source-sdk-preparation/v1',candidate=candidate.identity(),
+                    destination=str(sdk.resolve()),owner={'cpu_fixture':True},model_started=False)
+        (sdk/'source-preparation.json').write_text(json.dumps(marker))
+        (sdk/'source-build/receipt.json').write_text(json.dumps(dict(status=status,
+                    candidate=candidate.identity(),model_started=False)))
+        (sdk/'original-error.log').write_bytes(b'original failure')
+
+    def test_stopped_partial_source_sdk_is_preserved_for_a_fresh_prepare(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);sdk=root/'sdk';self.partial(sdk,'failed')
+            cached=root/'source-build-downloads/pip/file';cached.parent.mkdir(parents=True);cached.write_bytes(b'CPU cache fixture')
+            with patch('official_sdk_state.refuse_active_owner',return_value={'reason':'process_absent'}):
+                record=candidate.quarantine_partial(sdk)
+            self.assertFalse(sdk.exists())
+            self.assertEqual((Path(record['preserved'])/'original-error.log').read_bytes(),b'original failure')
+            self.assertEqual(cached.read_bytes(),b'CPU cache fixture')
+
+    def test_live_or_completed_source_build_is_not_quarantined(self):
+        for status in ['building','prepared']:
+            with self.subTest(status=status),tempfile.TemporaryDirectory() as directory:
+                sdk=Path(directory)/'sdk';self.partial(sdk,status)
+                with patch('official_sdk_state.refuse_active_owner',side_effect=ValueError('active owner')):
+                    with self.assertRaises(ValueError):candidate.quarantine_partial(sdk)
+                self.assertTrue(sdk.exists())
+
+    def test_unknown_incomplete_source_sdk_is_not_moved(self):
+        with tempfile.TemporaryDirectory() as directory:
+            sdk=Path(directory)/'sdk';sdk.mkdir();(sdk/'unknown').write_bytes(b'preserve')
+            with self.assertRaisesRegex(ValueError,'Unknown source SDK'):candidate.quarantine_partial(sdk)
+            self.assertEqual((sdk/'unknown').read_bytes(),b'preserve')
 
     def test_outside_package_destination_rejected(self):
         with tempfile.TemporaryDirectory() as temp:

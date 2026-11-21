@@ -134,6 +134,11 @@ def main(arguments=None):
                     base_lock = ROOT / 'engine/official-baselines/0.23.0.json'
                     from official_sdk_state import sdk_preparation
                     with sdk_preparation(sdk):
+                        from official_source_candidate import quarantine_partial
+                        recovered = quarantine_partial(sdk)
+                        if recovered:
+                            row['interrupted_source_build'] = recovered
+                            save(out / 'results.json', record)
                         installed = reuse_candidate(sdk) if sdk.exists() else prepare_candidate(base_lock, cache, sdk)
                     row.update(installation=str(sdk), installation_receipt=installed,
                                status='prepared' if args.prepare_environment else 'running',

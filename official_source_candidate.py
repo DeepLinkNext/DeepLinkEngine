@@ -12,6 +12,7 @@ import shutil
 import signal
 import subprocess
 import tarfile
+import tempfile
 import time
 
 from official_baselines import save
@@ -171,10 +172,12 @@ def toolchain_evidence(sdk, env, sources, build):
         if directory.is_dir():
             for path in directory.rglob('*'):
                 if path.is_file() and not path.is_symlink():
-                    evidence['retained_downloads'][str(path.relative_to(sdk))] = dict(bytes=path.stat().st_size, sha256=digest(path))
+                    location = str(path.relative_to(sdk)) if path.is_relative_to(sdk) else str(path.resolve())
+                    evidence['retained_downloads'][location] = dict(bytes=path.stat().st_size, sha256=digest(path))
     for path in Path(env['RUSTUP_HOME']).rglob('multirust-channel-manifest.toml'):
         if path.is_file() and not path.is_symlink():
-            evidence['rust_channel_manifests'][str(path.relative_to(sdk))] = dict(sha256=digest(path),
+            location = str(path.relative_to(sdk)) if path.is_relative_to(sdk) else str(path.resolve())
+            evidence['rust_channel_manifests'][location] = dict(sha256=digest(path),
                 expected_archive_sha256=sorted(set(re.findall(r'(?:xz_|zst_)?hash\s*=\s*"([0-9a-f]{64})"',path.read_text()))))
     save(build/'toolchain.json', evidence)
     return dict(path=str(build/'toolchain.json'), sha256=digest(build/'toolchain.json'))
@@ -221,6 +224,43 @@ def reuse(output):
     return installed
 
 
+def quarantine_partial(output):
+    """Preserve stopped owned CPU builds; never move a complete or unknown SDK."""
+    from official_sdk_state import refuse_active_owner
+    output = Path(output).absolute()
+    if not os.path.lexists(output):
+        return None
+    if output.is_symlink() or not output.is_dir():
+        raise ValueError('Source candidate SDK must be a private ordinary directory')
+    installed = output/'installation.json'
+    if os.path.lexists(installed):
+        if installed.is_symlink() or not installed.is_file():
+            raise ValueError('Invalid source candidate admission file; preserve original directory')
+        return None
+    marker = output/'source-preparation.json'
+    if marker.is_symlink() or not marker.is_file():
+        raise ValueError('Unknown source SDK preparation owner; preserve original directory')
+    value = json.loads(marker.read_bytes())
+    if (value.get('schema') != 'deeplinkengine-source-sdk-preparation/v1'
+            or value.get('candidate') != identity() or value.get('destination') != str(output.resolve())
+            or value.get('model_started') is not False):
+        raise ValueError('Source SDK preparation identity differs; preserve original directory')
+    receipt = output/'source-build/receipt.json'
+    if os.path.lexists(receipt):
+        if receipt.is_symlink() or not receipt.is_file() or not receipt.resolve().is_relative_to(output.resolve()):
+            raise ValueError('Unknown source build receipt; preserve original directory')
+        state = json.loads(receipt.read_bytes())
+        if (state.get('status') not in ('building','failed') or state.get('model_started') is not False
+                or state.get('candidate') != identity()):
+            raise ValueError('Completed or unknown source build lacks admission; preserve original directory')
+    stopped = refuse_active_owner(value)
+    preserved = output.with_name(output.name+'.interrupted-'+str(time.time_ns()))
+    output.rename(preserved)
+    record = dict(original=str(output),preserved=str(preserved),candidate=identity(),model_started=False,**stopped)
+    save(preserved/'interrupted-source-recovery.json',record)
+    return record
+
+
 def prepare(base_lock_path, cache, output):
     from official_image import prepare as prepare_image, read_lock, digest, file_map, probe, environment
     cache, output = Path(cache).resolve(), Path(output).resolve()
@@ -251,9 +291,16 @@ def prepare(base_lock_path, cache, output):
     if context is None or context.get('source_build_system_root') is not True:
         raise ValueError('Use the public run_all source-candidate entry to prepare its private build tools')
     output.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copytree(base, output, symlinks=True)
-    for name in ('installation.json', 'image-lock.json', 'installed-files.json', 'image-manifest.json'):
-        (output / name).rename(output / ('base-' + name))
+    from official_sdk_state import owner_info
+    staging = Path(tempfile.mkdtemp(prefix=output.name+'.owned-',dir=output.parent))
+    save(staging/'source-preparation.json',dict(schema='deeplinkengine-source-sdk-preparation/v1',
+        candidate=identity(),destination=str(output),owner=owner_info(),model_started=False))
+    staging.rename(output)
+    admission = ('installation.json','image-lock.json','installed-files.json','image-manifest.json')
+    shutil.copytree(base, output, symlinks=True, dirs_exist_ok=True,
+        ignore=lambda source,names: [*admission,'preparation.json'] if Path(source).resolve()==base else [])
+    for name in admission:
+        (output / ('base-' + name)).write_bytes((base / name).read_bytes())
     selection = identity()
     selection.update(manifest_digest='sha256:' + key(), manifest_kind='source-build-derivation')
     save(output / 'image-lock.json', selection)
@@ -284,8 +331,9 @@ def prepare(base_lock_path, cache, output):
                    ASCEND_RT_VISIBLE_DEVICES='', VLLM_BATCH_INVARIANT='1',
                    PIP_INDEX_URL='https://pypi.tuna.tsinghua.edu.cn/simple',
                    PIP_DISABLE_PIP_VERSION_CHECK='1',
-                   PIP_CACHE_DIR=str(build / 'cache/pip'),
-                   CARGO_HOME=str(build / 'cache/cargo'), RUSTUP_HOME=str(build / 'cache/rustup'),
+                   PIP_CACHE_DIR=str(cache / 'source-build-downloads' / key() / 'pip'),
+                   CARGO_HOME=str(cache / 'source-build-downloads' / key() / 'cargo'),
+                   RUSTUP_HOME=str(cache / 'source-build-downloads' / key() / 'rustup'),
                    CMAKE_BUILD_PARALLEL_LEVEL='16', MAX_JOBS='16', PROTOC_INCLUDE='/usr/include')
         env['PATH'] = str(python.parent) + ':' + env['CARGO_HOME'] + '/bin:' + env['PATH']
         core = output / 'rootfs/vllm-workspace/vllm'
