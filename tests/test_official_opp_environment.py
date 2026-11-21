@@ -33,6 +33,40 @@ class OppEnvironmentTests(unittest.TestCase):
             target.parent.mkdir(parents=True)
         return site, target
 
+    def test_shared_unusable_configuration_is_not_used_for_runtime_writes(self):
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            root = base / 'sdk'
+            self.sdk(root)
+            shared = base / 'unusable-shared-config'
+            shared.write_bytes(b'original host configuration')
+            (root / 'image-config.json').write_text(json.dumps(dict(config=dict(Env=[
+                'VLLM_CONFIG_ROOT=' + str(shared / 'image-default')]))))
+            before = {str(p.relative_to(root)): p.read_bytes() for p in root.rglob('*') if p.is_file()}
+            with patch.dict(os.environ, dict(XDG_CONFIG_HOME=str(shared), VLLM_CONFIG_ROOT=str(shared / 'inherited'))):
+                _, env = environment(root, base / 'private-cache')
+            for key in ('XDG_CONFIG_HOME', 'VLLM_CONFIG_ROOT'):
+                self.assertTrue(Path(env[key]).is_relative_to(base / 'private-cache'))
+                self.assertTrue(Path(env[key]).is_dir())
+            (Path(env['VLLM_CONFIG_ROOT']) / 'usage_stats.json').write_bytes(b'CPU fixture usage record')
+            self.assertEqual(shared.read_bytes(), b'original host configuration')
+            self.assertEqual(before, {str(p.relative_to(root)): p.read_bytes() for p in root.rglob('*') if p.is_file()})
+
+    def test_independent_services_keep_separate_configuration_files(self):
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            root = base / 'sdk'
+            self.sdk(root)
+            _, first = environment(root, base / 'first-cache')
+            _, second = environment(root, base / 'second-cache')
+            first_file = Path(first['VLLM_CONFIG_ROOT']) / 'usage_stats.json'
+            second_file = Path(second['VLLM_CONFIG_ROOT']) / 'usage_stats.json'
+            first_file.write_bytes(b'first run')
+            second_file.write_bytes(b'second run')
+            self.assertNotEqual(first_file, second_file)
+            self.assertEqual(first_file.read_bytes(), b'first run')
+            self.assertEqual(second_file.read_bytes(), b'second run')
+
     def test_actual_environment_binds_embedded_opp_before_python_launch(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory) / 'sdk'
