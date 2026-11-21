@@ -13,6 +13,48 @@ from pathlib import Path
 
 from m01_proc_plugin import restore_fields, snapshot_fields
 
+# This pinned 0.30 implementation removed proposer.pcp_size and reads the
+# explicit parallel config plus runner.dcp_manager. No numeric default is used.
+ASCEND_030_FIRST_PASS = 'b4925648562de8cffd7bf678bf695d512c184d70484b949c42a40897793b8b07'
+
+
+def context_parallel_contract(proposer, runner, methods):
+    try:
+        parallel = proposer.vllm_config.parallel_config
+        pcp = parallel.prefill_context_parallel_size
+        dcp = parallel.decode_context_parallel_size
+        runtime_dcp = runner.dcp_size
+        draft_dcp = proposer.dcp_size
+    except AttributeError as error:
+        raise ValueError('Draft explicit context-parallel configuration is absent') from error
+    if proposer.runner is not runner:
+        raise ValueError('Draft observer and first-pass runner differ')
+    if any(type(value) is not int or value != 1 for value in (pcp, dcp, runtime_dcp, draft_dcp)):
+        raise ValueError('Draft first-pass context-parallel values must all equal one')
+    present = hasattr(proposer, 'pcp_size')
+    if present:
+        if type(proposer.pcp_size) is not int or proposer.pcp_size != pcp:
+            raise ValueError('Draft proposer PCP size differs from its explicit configuration')
+    elif (methods['set_inputs_first_pass']['sha256'] != ASCEND_030_FIRST_PASS
+          or methods['_propose']['sha256'] != ASCEND_030_FIRST_PASS):
+        raise ValueError('Missing proposer PCP field requires the reviewed 0.30 first-pass source')
+    if hasattr(runner, 'pcp_size') and (type(runner.pcp_size) is not int or runner.pcp_size != pcp):
+        raise ValueError('Draft runner PCP size differs from its explicit configuration')
+    managers = {}
+    # Both reviewed sources use getattr(runner, manager, None) and only
+    # reindex when the resolved manager is non-None. Preserve that distinction.
+    for name in ('pcp_manager', 'dcp_manager'):
+        exists = hasattr(runner, name)
+        manager = getattr(runner, name) if exists else None
+        if manager is not None:
+            raise ValueError('Draft context-parallel first-pass reindexing is active: ' + name)
+        managers[name] = dict(attribute_present=exists, resolved_none=True)
+    return dict(prefill_context_parallel_size=pcp, decode_context_parallel_size=dcp,
+        runner_dcp_size=runtime_dcp, proposer_dcp_size=draft_dcp,
+        proposer_pcp_field_present=present,
+        pcp_value_source='vllm_config.parallel_config.prefill_context_parallel_size',
+        numeric_default_used=False, managers=managers, context_parallel_reindexing=False)
+
 
 def integers(tensor, *, label, limit):
     if tensor.ndim != 1 or tensor.numel() > limit:
@@ -53,8 +95,12 @@ def position_planes(tensor, capacity):
 
 def length_snapshot(metadatas, requests):
     """Preserve mutable kernel arguments on device; copy only host lists now."""
+    if not isinstance(metadatas, (list, tuple)) or not metadatas:
+        raise ValueError('Draft per-step attention metadata is absent')
     result = []
     for step, layers in enumerate(metadatas):
+        if not isinstance(layers, dict) or not layers:
+            raise ValueError('Draft per-layer attention metadata is absent')
         groups = {}
         for name, meta in layers.items():
             if id(meta) in groups:
@@ -109,21 +155,35 @@ class DraftObservation:
         self.original_propose = self.proposer._propose
         if (getattr(self.proposer, "needs_extra_input_slots", None) is not False
                 or getattr(self.proposer, "pass_hidden_states_to_model", None) is not True
-                or self.proposer.pcp_size != 1 or self.proposer.dcp_size != 1
                 or self.proposer.parallel_drafting is not False):
             raise ValueError("Draft target-hidden origins require the unreindexed first-pass source contract")
         source_methods = {}
         for name in ("_propose", "set_inputs_first_pass", "_run_merged_draft", "prepare_inputs_padded", "_get_positions", "_set_positions"):
             method = getattr(self.proposer, name, None)
-            if method is not None:
-                path = Path(inspect.getfile(method)).resolve()
-                source_methods[name] = dict(file=str(path), sha256=hashlib.sha256(path.read_bytes()).hexdigest(),
-                    qualified_name=method.__qualname__)
+            if not callable(method):
+                raise ValueError('Required draft producer method is absent: ' + name)
+            path = Path(inspect.getfile(inspect.unwrap(method))).resolve()
+            source_methods[name] = dict(file=str(path), sha256=hashlib.sha256(path.read_bytes()).hexdigest(),
+                qualified_name=method.__qualname__)
+        parallel_contract = context_parallel_contract(self.proposer, runner, source_methods)
+        self.merged_signature = inspect.signature(self.proposer._run_merged_draft)
+        arguments = dict(num_input_tokens=1, batch_size=1, token_indices_to_sample=None,
+            target_positions=None, inputs_embeds=None, multi_steps_attn_metadata=None,
+            num_tokens=1, is_prefill=False)
+        if 'sampling_metadata' in self.merged_signature.parameters:
+            arguments['sampling_metadata'] = None
+        try:
+            self.merged_signature.bind(**arguments)
+        except TypeError as error:
+            raise ValueError('Unsupported merged draft keyword ABI') from error
         runnable = self.original
         seen = set()
         while hasattr(runnable, "runnable") and id(runnable) not in seen:
             seen.add(id(runnable))
             runnable = runnable.runnable
+        merged = self.proposer._run_merged_draft
+        if getattr(runnable, '__func__', runnable) is not getattr(merged, '__func__', merged):
+            raise ValueError('Actual draft runnable does not wrap the reviewed merged producer')
         if inspect.isfunction(runnable) or inspect.ismethod(runnable):
             path = Path(inspect.getfile(runnable)).resolve()
             source_methods["actual_merged_runnable"] = dict(file=str(path),
@@ -132,7 +192,9 @@ class DraftObservation:
         write(directory / f"rank-{rank}-proposer-source.json", dict(window=window, rank=rank,
             target_hidden_input_contract="unreindexed_same_position_first_pass", methods=source_methods,
             needs_extra_input_slots=False, pass_hidden_states_to_model=True,
-            context_parallel_reindexing=False, source_runtime_applicability_certified=False))
+            context_parallel_reindexing=False, explicit_parallel_contract=parallel_contract,
+            merged_keyword_signature=str(self.merged_signature),
+            source_runtime_applicability_certified=False))
         self.events = (directory / f"rank-{rank}-drafts.jsonl").open("x", encoding="utf-8", buffering=1024 * 1024)
         self.window, self.current_wave, self.key = window, current_wave, key
         self.directory, self.rank = directory, rank
@@ -165,6 +227,14 @@ class DraftObservation:
     def __call__(self, **kwargs):
         if not self.proposing:
             raise ValueError("Draft runnable escaped the safe outer propose boundary")
+        required = {'batch_size', 'num_input_tokens', 'num_tokens',
+                    'token_indices_to_sample', 'multi_steps_attn_metadata'}
+        if not required.issubset(kwargs):
+            raise ValueError('Draft observation keyword inputs are absent')
+        try:
+            self.merged_signature.bind(**kwargs)
+        except TypeError as error:
+            raise ValueError('Draft call differs from the actual merged keyword ABI') from error
         batch, capacity = kwargs["batch_size"], kwargs["num_input_tokens"]
         if type(batch) is not int or not 1 <= batch <= 36 or type(capacity) is not int or not 1 <= capacity <= 4096:
             raise ValueError("MTP raw observation is outside the frozen request/token envelope")
@@ -182,7 +252,9 @@ class DraftObservation:
         strategy = dict(actual_draft_width=self.proposer.num_speculative_tokens,
             method=self.proposer.method, parallel_drafting=self.proposer.parallel_drafting,
             constant_draft_positions=getattr(self.proposer, 'constant_draft_positions', None),
-            dynamic_spec_active=getattr(self.proposer, 'dynamic_spec', None) is not None,
+            dynamic_spec_active=(getattr(self.proposer, 'dynamic_spec', None) is not None
+                or getattr(self.proposer.vllm_config.speculative_config,
+                           'num_speculative_tokens_per_batch_size', None) is not None),
             sampling_all_greedy=getattr(sampling_metadata, 'all_greedy', None))
         if self.routes_enabled:
             from m01_route_capture import begin as begin_routes

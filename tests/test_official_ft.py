@@ -209,10 +209,12 @@ class SafeDraftProposer:
     num_speculative_tokens = 2
     needs_extra_input_slots = False
     pass_hidden_states_to_model = True
-    pcp_size = dcp_size = 1
     parallel_drafting = False
 
     def __init__(self, state):
+        from types import SimpleNamespace
+        self.vllm_config = SimpleNamespace(parallel_config=SimpleNamespace(prefill_context_parallel_size=1, decode_context_parallel_size=1), speculative_config=SimpleNamespace(num_speculative_tokens=2, num_speculative_tokens_per_batch_size=None))
+        self.pcp_size = self.dcp_size = 1
         self.state = state
         self.input_ids = DeferredTensor([11, 12], state)
         self.positions = DeferredTensor([0, 1], state)
@@ -222,6 +224,15 @@ class SafeDraftProposer:
     def _get_positions(self, capacity):
         return self.positions[:capacity]
 
+    def _set_positions(self, capacity, positions):
+        raise AssertionError('observer must not mutate positions')
+
+    def set_inputs_first_pass(self, **kwargs):
+        raise AssertionError('observer must not prepare inputs')
+
+    def prepare_inputs_padded(self, **kwargs):
+        raise AssertionError('observer must not prepare padded inputs')
+
     def _runnable(self, **kwargs):
         # Real merged draft mutates first-pass buffers in place.
         self.input_ids.values[:] = [91, 92]
@@ -229,6 +240,8 @@ class SafeDraftProposer:
         if self.fail:
             raise RuntimeError('original draft failed')
         return self.output
+
+    _run_merged_draft = _runnable
 
     def _propose(self, sentinel, **kwargs):
         self.state['sentinel'] = sentinel
@@ -243,8 +256,9 @@ class SafeDraftBoundaryTests(unittest.TestCase):
         from types import SimpleNamespace
         state = dict(updated=False, reads=0, clones=[])
         proposer = SafeDraftProposer(state)
-        runner = SimpleNamespace(drafter=proposer, input_batch=SimpleNamespace(
+        runner = SimpleNamespace(drafter=proposer, dcp_size=1, pcp_size=1, input_batch=SimpleNamespace(
             req_ids=['request-1'], sampling_metadata=SimpleNamespace(all_greedy=True)))
+        proposer.runner = runner
         metadata = SimpleNamespace(seq_lens=DeferredTensor([3], state),
             seq_lens_list=[3], actual_seq_lengths_q=[2])
         kwargs = dict(batch_size=1, num_input_tokens=2, num_tokens=2,
@@ -669,6 +683,222 @@ class CompletionTests(unittest.TestCase):
                 with self.assertRaises(OSError):
                     official_ft.finish(root, 'receipt.json', dict(status='completed', completed=True))
             self.assertFalse(json.loads((root / 'receipt.json').read_bytes())['completed'])
+
+
+
+
+class DraftContextParallelABITests(unittest.TestCase):
+    def fixture(self):
+        from types import SimpleNamespace as S
+        from official_ft_draft import ASCEND_030_FIRST_PASS
+        runner = S(dcp_size=1)
+        proposer = S(dcp_size=1, runner=runner, vllm_config=S(parallel_config=S(
+            prefill_context_parallel_size=1, decode_context_parallel_size=1)))
+        methods = {name: dict(sha256=ASCEND_030_FIRST_PASS)
+                   for name in ('set_inputs_first_pass', '_propose')}
+        return proposer, runner, methods
+
+    def test_missing_030_pcp_uses_actual_config_and_reviewed_source(self):
+        from official_ft_draft import context_parallel_contract
+        proposer, runner, methods = self.fixture()
+        value = context_parallel_contract(proposer, runner, methods)
+        self.assertFalse(value['proposer_pcp_field_present'])
+        self.assertFalse(value['numeric_default_used'])
+        self.assertEqual(value['prefill_context_parallel_size'], 1)
+        self.assertFalse(value['managers']['dcp_manager']['attribute_present'])
+
+    def test_no_default_for_missing_or_foreign_parallel_configuration(self):
+        from official_ft_draft import context_parallel_contract
+        for fault in ('missing-config', 'pcp2', 'dcp2', 'bool', 'runtime2', 'missing-runtime',
+                      'proposer2', 'proposer-pcp2', 'foreign-runner', 'pcp-manager', 'dcp-manager', 'source'):
+            with self.subTest(fault=fault):
+                proposer, runner, methods = self.fixture()
+                cfg = proposer.vllm_config.parallel_config
+                if fault == 'missing-config': del cfg.prefill_context_parallel_size
+                elif fault == 'pcp2': cfg.prefill_context_parallel_size = 2
+                elif fault == 'dcp2': cfg.decode_context_parallel_size = 2
+                elif fault == 'bool': cfg.prefill_context_parallel_size = True
+                elif fault == 'runtime2': runner.dcp_size = 2
+                elif fault == 'missing-runtime': del runner.dcp_size
+                elif fault == 'proposer2': proposer.dcp_size = 2
+                elif fault == 'proposer-pcp2': proposer.pcp_size = 2
+                elif fault == 'foreign-runner': proposer.runner = object()
+                elif fault == 'pcp-manager': runner.pcp_manager = object()
+                elif fault == 'dcp-manager': runner.dcp_manager = object()
+                else: methods['set_inputs_first_pass']['sha256'] = '0' * 64
+                with self.assertRaises(ValueError): context_parallel_contract(proposer, runner, methods)
+
+
+class DraftProducerABIFailures(unittest.TestCase):
+    def test_opaque_actual_runnable_is_rejected_before_hooks_or_events(self):
+        from types import SimpleNamespace as S
+        from official_ft_draft import DraftObservation
+        state = dict(updated=False, reads=0, clones=[])
+        proposer = SafeDraftProposer(state)
+        runner = S(drafter=proposer, dcp_size=1, input_batch=S(req_ids=['r'], sampling_metadata=S(all_greedy=True)))
+        proposer.runner = runner
+        original = lambda **kwargs: None
+        proposer._runnable = original
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder)
+            with self.assertRaisesRegex(ValueError, 'does not wrap'):
+                DraftObservation(runner, path, 0, 'd'*32, lambda:0)
+            self.assertEqual(list(path.iterdir()), [])
+            self.assertIs(proposer._runnable, original)
+            self.assertNotIn('_propose', vars(proposer))
+        self.assertEqual(state['clones'], [])
+
+    def test_missing_step_or_layer_metadata_is_not_an_empty_observation(self):
+        from official_ft_draft import length_snapshot
+        for value in (None, [], {}, [{}]):
+            with self.subTest(value=value), self.assertRaisesRegex(ValueError, 'metadata is absent'):
+                length_snapshot(value, 1)
+
+
+class Draft030Proposer(SafeDraftProposer):
+    def __init__(self, state):
+        super().__init__(state)
+        del self.pcp_size  # Actual 0.30 ABI, not an assumed numeric default.
+
+    def _run_merged_draft(self, num_input_tokens, batch_size, token_indices_to_sample,
+                          target_positions, inputs_embeds, multi_steps_attn_metadata,
+                          num_tokens, is_prefill=None, sampling_metadata=None):
+        self.state['sampling'] = sampling_metadata
+        return SafeDraftProposer._runnable(self)
+
+    _runnable = _run_merged_draft
+
+    def _propose(self, num_speculative_tokens, sentinel, **kwargs):
+        self.state['width_argument'] = num_speculative_tokens
+        self.state['sentinel'] = sentinel
+        result = self._runnable(**kwargs)
+        self.state['updated'] = True
+        return result
+
+
+class Draft030BoundaryTests(unittest.TestCase):
+    def fixture(self, directory):
+        from types import SimpleNamespace as S
+        import official_ft_draft as draft
+        state = dict(updated=False, reads=0, clones=[])
+        proposer = Draft030Proposer(state)
+        runner = S(drafter=proposer, dcp_size=1, input_batch=S(
+            req_ids=['request-1'], sampling_metadata=S(all_greedy=True)))
+        proposer.runner = runner
+        meta = S(seq_lens=DeferredTensor([3], state), seq_lens_list=[3], actual_seq_lengths_q=[2])
+        kwargs = dict(num_input_tokens=2, batch_size=1, token_indices_to_sample=DeferredTensor([1], state),
+            target_positions=proposer.positions, inputs_embeds=None, multi_steps_attn_metadata=[{'layer':meta}],
+            num_tokens=2, is_prefill=False, sampling_metadata=runner.input_batch.sampling_metadata)
+        # The fake executable producer has this test file's SHA; production
+        # only accepts the exact independently inspected official 0.30 source.
+        with patch.object(draft, 'ASCEND_030_FIRST_PASS', hashlib.sha256(Path(__file__).read_bytes()).hexdigest()):
+            observer = draft.DraftObservation(runner, directory, 0, 'c' * 32, lambda: 4)
+        return proposer, observer, state, kwargs
+
+    def test_real_030_keyword_shape_and_explicit_leading_width_are_preserved(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder)
+            proposer, observer, state, kwargs = self.fixture(path)
+            sentinel = object()
+            self.assertIs(proposer._propose(2, sentinel, **kwargs), proposer.output)
+            self.assertIs(state['sentinel'], sentinel)
+            self.assertIs(state['sampling'], kwargs['sampling_metadata'])
+            self.assertEqual(state['width_argument'], 2)
+            self.assertFalse(any(state['clones']))
+            self.assertGreater(state['reads'], 0)
+            self.assertEqual(observer.stop(), 1)
+            record = json.loads((path/'rank-0-drafts.jsonl').read_bytes())
+            self.assertEqual(record['host_read_boundary'], 'after_original_propose_post_replay_update')
+            self.assertEqual(record['first_pass_input_ids'], [11,12])
+            contract = json.loads((path/'rank-0-proposer-source.json').read_bytes())['explicit_parallel_contract']
+            self.assertFalse(contract['proposer_pcp_field_present'])
+            self.assertFalse(contract['numeric_default_used'])
+
+    def test_missing_or_foreign_actual_keywords_fail_before_device_copy_or_original(self):
+        for fault in ('required', 'signature-required', 'unknown'):
+            with self.subTest(fault=fault), tempfile.TemporaryDirectory() as folder:
+                proposer, observer, state, kwargs = self.fixture(Path(folder))
+                if fault == 'required': del kwargs['multi_steps_attn_metadata']
+                elif fault == 'signature-required': del kwargs['target_positions']
+                else: kwargs['unknown_draft_abi'] = object()
+                with self.assertRaisesRegex(ValueError, 'keyword'):
+                    proposer._propose(2, object(), **kwargs)
+                self.assertEqual(state['reads'], 0)
+                self.assertEqual(state['clones'], [])
+                self.assertEqual(proposer.input_ids.values, [11,12])
+                self.assertEqual(observer.stop(), 0)
+
+    def test_missing_attention_fields_refuse_without_executing_draft(self):
+        for field in ('seq_lens','seq_lens_list','actual_seq_lengths_q'):
+            with self.subTest(field=field), tempfile.TemporaryDirectory() as folder:
+                proposer, observer, state, kwargs = self.fixture(Path(folder))
+                delattr(kwargs['multi_steps_attn_metadata'][0]['layer'],field)
+                with self.assertRaisesRegex(ValueError, 'length arguments'):
+                    proposer._propose(2, object(), **kwargs)
+                self.assertEqual(state['reads'], 0)
+                self.assertEqual(proposer.input_ids.values, [11,12])
+                observer.stop()
+
+
+class CompanionFailureCleanupTests(unittest.TestCase):
+    def execute(self, output, *, core_fails=False, shutdown_fails=False):
+        import types
+        import official_ft_entry
+        calls = []
+        class Core:
+            def call_utility(self, name, *args):
+                calls.append(name)
+                if name == 'hust_m01_core_end' and core_fails: raise RuntimeError('core cleanup failed')
+                return dict(completed=True)
+            def shutdown(self):
+                calls.append('shutdown')
+                if shutdown_fails: raise RuntimeError('shutdown cleanup failed')
+        class Engine:
+            engine_core = Core()
+            def collective_rpc(self, name, **kwargs):
+                calls.append(name)
+                if name == 'hust_ft_begin': raise AttributeError("AscendEagleProposer has no attribute pcp_size")
+                if name == 'hust_ft_end': raise ValueError('Cannot close an absent or foreign official companion')
+                return []
+        engine = Engine()
+        def save(path, value):
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(json.dumps(value)+'\n')
+        modules = {
+            'dataset_contract':types.SimpleNamespace(save=save),
+            'baseline_native_entry':types.SimpleNamespace(reset_prefix_cache=lambda *a:None),
+            'native_public_client':types.SimpleNamespace(ranks=lambda value:value,
+                save_result=lambda *a:None,timed_public_requests=lambda *a:(_ for _ in ()).throw(AssertionError('No requests'))),
+            'native_output_geometry':types.SimpleNamespace(geometry=lambda *a:None),
+            'native_state_cache':types.SimpleNamespace(wait_checkpoint_admission=lambda *a:None),
+            'vllm':types.SimpleNamespace(SamplingParams=lambda **kwargs:object()),
+            'vllm.sampling_params':types.SimpleNamespace(RequestOutputKind=types.SimpleNamespace(DELTA='delta')),
+            'vllm.v1.engine.llm_engine':types.SimpleNamespace(LLMEngine=types.SimpleNamespace(from_engine_args=lambda args:engine)),
+        }
+        workload = output/'workload.json'
+        workload.write_text(json.dumps(dict(request_token_ids=[[1]*(1412 if i<65 else 1411) for i in range(200)])))
+        config=dict(output=str(output),workload=str(workload),sampling={},admission_root=str(output),max_tokens=256)
+        with patch.dict(sys.modules, modules), self.assertRaisesRegex(AttributeError,'pcp_size'):
+            official_ft_entry.run(config,object())
+        return calls,json.loads((output/'companion-receipt.json').read_bytes())
+
+    def test_worker_cleanup_failure_does_not_mask_begin_or_skip_core_and_shutdown(self):
+        with tempfile.TemporaryDirectory() as folder:
+            calls,receipt=self.execute(Path(folder))
+            self.assertLess(calls.index('hust_ft_end'),calls.index('hust_m01_core_end'))
+            self.assertEqual(calls[-1],'shutdown')
+            self.assertIn('pcp_size',receipt['error'])
+            self.assertFalse(receipt['completed'])
+            self.assertEqual(receipt['cleanup_errors'][0]['action'],'workers')
+
+    def test_all_cleanup_failures_are_retained_and_primary_error_survives(self):
+        with tempfile.TemporaryDirectory() as folder:
+            calls,receipt=self.execute(Path(folder),core_fails=True,shutdown_fails=True)
+            self.assertEqual(calls[-1],'shutdown')
+            self.assertEqual([row['action'] for row in receipt['cleanup_errors']],['workers','core'])
+            self.assertIn('shutdown cleanup failed',receipt['shutdown_error'])
+            self.assertIn('pcp_size',receipt['error'])
+            self.assertFalse(receipt['completed'])
 
 
 if __name__ == '__main__':
