@@ -83,7 +83,10 @@ def main(arguments=None):
         if not args.prepare_environment:
             from official_protocol_preparation import selection
             selection(config)
-            from official_execution import maybe_enter_official
+            from official_execution import maybe_enter_official, needed
+            if needed():
+                from transport_trust import configure
+                configure(config['cache'])
             maybe_enter_official(config, list(arguments) if arguments is not None else sys.argv[1:])
         if config.get('model_manifest'):
             from model_restore import restore

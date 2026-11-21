@@ -539,7 +539,10 @@ def main():
         data = configuration(args.config, allow_existing=args.resume_bootstrap or args.resume_before_model or args.resume_before_inference or args.report_only)
         if args.prepare_official_protocol_only and not data.get('environment',{}).get('official_sdk'):
             raise ValueError('Official input preparation requires the publicly prepared environment.official_sdk anchor')
-        from official_execution import maybe_enter_config
+        from official_execution import maybe_enter_config, needed
+        if data.get('environment', {}).get('official_sdk') and needed():
+            from transport_trust import configure
+            configure(data['cache'], data['environment']['official_sdk'])
         maybe_enter_config(args.config, sys.argv[1:])
         if args.rerun_b0 is not None:
             data["rerun_b0"] = args.rerun_b0
