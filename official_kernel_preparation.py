@@ -38,7 +38,7 @@ def compile_family(kernel, torch, *, tokens, sequences, heads, key_heads, cores)
             bh_step=heads, task_num=chunks * heads, num_core=cores,
             num_warps=8, num_stages=3, multibuffer=True, grid=(cores,))
         variants.append(dict(chunks=chunks, task_num=chunks * heads,
-                             binary_hash=binary.hash))
+                             triton_compilation_key=binary.hash))
     return variants
 
 
