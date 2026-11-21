@@ -310,12 +310,29 @@ def native_baseline_bridge(result):
         '    proof = resolve(folder)\n'
         '    return dict(B0=Path(proof["source"]) if proof else Path(folder) / "native-baseline-timing",\n'
         '                B1=Path(folder) / "native-current-timing")')
-    text = once(text, '        keywords = dict(baseline_deployment=plan["baseline_deployment"]) if role == "B0" else {}',
-        '        baseline = plan["baseline_deployment"]\n'
-        '        if role == "B0" and (origin / "baseline-native-reuse.json").exists():\n'
-        '            from reference_baseline_reuse import resolve\n'
-        '            baseline = resolve(origin)["original_baseline_deployment"]\n'
-        '        keywords = dict(baseline_deployment=baseline) if role == "B0" else {}')
+    result[key] = text.encode()
+
+
+    # Check the observed paths against the original layout and re-hash the
+    # reviewed implementation from its fully admitted, byte-identical copy.
+    key = 'third-party-test-kit/qualify_baseline_capacity.py'
+    text = result[key].decode()
+    text = once(text, '    arguments = read("service/client/effective-engine-args.json")',
+        '    observed_root = Path(plan["baseline_deployment"]).resolve()\n'
+        '    arguments = read("service/client/effective-engine-args.json")')
+    text = once(text, '            or Path(plan["baseline_deployment"]).resolve() != root\n',
+        '')
+    text = once(text, '            or Path(admitted["deployment"]).resolve() != root',
+        '            or Path(admitted["deployment"]).resolve() != observed_root')
+    text = once(text, '    for package, relative in (("vllm",',
+        '    if observed_root != root:\n'
+        '        from baseline_relocation import verify as verify_relocation\n'
+        '        verify_relocation(admitted, root)\n'
+        '    for package, relative in (("vllm",')
+    text = once(text, 'Path(admitted["origins"][package]).resolve() != root / relative',
+        'Path(admitted["origins"][package]).resolve() != observed_root / relative')
+    text = once(text, 'Path(composition["identity"][observed]).resolve() != root / relative',
+        'Path(composition["identity"][observed]).resolve() != observed_root / relative')
     result[key] = text.encode()
 
 

@@ -82,7 +82,7 @@ def inspect(source, expected_seal, plan, *, location=True):
     previous_end = None
     for row in timings['repetitions']:
         number = row['repetition']
-        qualify_baseline(original_baseline, source, repetition=number)
+        qualify_baseline(plan['baseline_deployment'], source, repetition=number)
         if (type(row['start_ns']) is not int or type(row['end_ns']) is not int
                 or row['end_ns'] <= row['start_ns']
                 or abs(row['T_seconds'] - (row['end_ns'] - row['start_ns']) / 1e9) > 1e-9
