@@ -186,7 +186,8 @@ def run(configuration):
     out = Path(os.path.abspath(config_path.parent / config['out']))
     if not source.is_dir() or source.is_symlink() or os.path.lexists(out) or out.resolve().is_relative_to(source.resolve()):
         raise ValueError('Select a closed source directory and a new output outside it; no symlinks or overwrites')
-    default_cache = Path(os.environ.get('XDG_CACHE_HOME', Path.home() / '.cache')) / 'deeplinkengine' / ('report-mpl3108-' + sys.implementation.cache_tag + '-' + sys.platform)
+    # The output parent is already required to be writable; HOME/XDG may be full.
+    default_cache = out.parent / ('.deeplinkengine-report-mpl3108-' + sys.implementation.cache_tag + '-' + sys.platform)
     cache = Path(os.path.abspath(config_path.parent / config['plot_cache'])) if config.get('plot_cache') else default_cache.absolute()
     if config.get('plots', True) and (cache.is_symlink() or any(cache.resolve().is_relative_to(root.resolve()) or root.resolve().is_relative_to(cache.resolve()) for root in (source, out))):
         raise ValueError('The CPU plotting cache must be separate from original evidence and report output')
@@ -264,7 +265,8 @@ def run(configuration):
     write(out / 'report.json', projected)
     write(out / 'publication-preview.json', preview)
     if config.get('plots', True):
-        environment_record = dict(status='detecting', repair_status='not-started', current_python=sys.executable)
+        environment_record = dict(status='detecting', repair_status='not-started', current_python=sys.executable,
+                                  cache_selection='explicit' if config.get('plot_cache') else 'output-parent-default')
         provenance['plot_environment'] = environment_record
         environment_ready = False
         try:
@@ -288,8 +290,36 @@ def run(configuration):
             write(out / 'projection-execution.json', dict(status='failed', phase='CPU plotting', model_requests_executed=0,
                                                          source_execution_status=document['status']))
             raise ValueError('Pinned CPU plotting failed; preserve new output and plotting.log')
-    provenance['status'] = 'completed'
-    write(out / 'report.json', projected)
+    try:
+        finish_output(out, document, provenance)
+    except (OSError, ValueError) as error:
+        provenance['status'] = 'failed'
+        # Only the new output is touched. A failed finalization has no valid seal/marker.
+        for name in ('checksums.json', 'projection-execution.json', '.report.json.pending', '.derivation.json.pending',
+                     '.checksums.json.pending', '.projection-execution.json.pending'):
+            try:
+                (out / name).unlink(missing_ok=True)
+            except OSError:
+                pass
+        for name, value in (('report.json', {**document, 'report_projection': provenance}), ('derivation.json', provenance),
+                            ('projection-execution.json', dict(status='failed', phase='final-output', model_requests_executed=0))):
+            try:
+                write(out / name, value)
+            except OSError:
+                pass
+        message = 'CPU report finalization failed: ' + str(error)
+        try:
+            (out / 'projection-failure.log').write_text(message + '\n', encoding='utf-8')
+        except OSError:
+            pass
+        print('OFFICIAL_SEALED_REPORT_PROJECTION_FAILED', message, file=sys.stderr, flush=True)
+        raise ValueError(message + '; preserve the new output') from error
+    print('OFFICIAL_SEALED_REPORT_PROJECTION_COMPLETED', str(out), 'model_requests=0', flush=True)
+    return 0
+
+
+def finish_output(out, document, provenance):
+    """Stage final records and seal; publish the completion marker last."""
     rows = ''.join('<tr><td>' + html.escape(name) + '</td><td>' + html.escape(phase['status']) + '</td></tr>'
                    for name, phase in document['phases'].items())
     figures = ''.join('<figure><img style="max-width:100%" src="' + path.name + '" alt="Original report measurements"></figure>'
@@ -299,8 +329,19 @@ def run(configuration):
         + html.escape(document['status']) + '. No model requests or raw SSE recomputation.</p><table>' + rows + '</table>' + figures
         + '<p><a href="originals/report.json">Original report</a> · <a href="report.json">Projected report</a> · '
         '<a href="derivation.json">Sources and selected custody</a></p>', encoding='utf-8')
-    write(out / 'derivation.json', provenance)
-    write(out / 'checksums.json', {path.relative_to(out).as_posix(): digest(path) for path in sorted(out.rglob('*')) if path.is_file()})
-    print('OFFICIAL_SEALED_REPORT_PROJECTION_COMPLETED', str(out), 'model_requests=0', flush=True)
-    return 0
+    completed = {**provenance, 'status': 'completed'}
+    staged = {name: out / ('.' + name + '.pending') for name in
+              ('report.json', 'derivation.json', 'checksums.json', 'projection-execution.json')}
+    write(staged['report.json'], {**document, 'report_projection': completed})
+    write(staged['derivation.json'], completed)
+    excluded = {path.name for path in staged.values()} | {'checksums.json', 'projection-execution.json'}
+    pins = {path.relative_to(out).as_posix(): digest(path) for path in sorted(out.rglob('*'))
+            if path.is_file() and path.relative_to(out).as_posix() not in excluded}
+    pins.update({name: digest(staged[name]) for name in ('report.json', 'derivation.json')})
+    write(staged['checksums.json'], pins)
+    write(staged['projection-execution.json'], dict(schema='deeplinkengine-official-projection-execution/v1',
+        status='completed', model_requests_executed=0, checksums_sha256=digest(staged['checksums.json']),
+        input_report_sha256=provenance['input_report_sha256'], original_version_seal_sha256=provenance['original_version_seal_sha256']))
+    for name in ('report.json', 'derivation.json', 'checksums.json', 'projection-execution.json'):
+        os.replace(staged[name], out / name)
 

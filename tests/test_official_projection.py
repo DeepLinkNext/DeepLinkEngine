@@ -75,6 +75,10 @@ class PublicProjectionTests(unittest.TestCase):
         self.assertEqual((output/'originals'/'report.json').read_bytes(),before['report.json'])
         self.assertEqual(before,{p.relative_to(self.source).as_posix():p.read_bytes() for p in self.source.rglob('*') if p.is_file()})
         self.assertIn('official_projection.py',derivation['projection_sources'])
+        marker=json.loads((output/'projection-execution.json').read_bytes())
+        self.assertEqual(marker['status'],'completed');self.assertEqual(marker['checksums_sha256'],pin((output/'checksums.json').read_bytes()))
+        for name,expected in json.loads((output/'checksums.json').read_bytes()).items():
+            self.assertEqual(pin((output/name).read_bytes()),expected)
 
     def test_bad_external_report_pin_refused(self):
         self.config['report_sha256']='0'*64;self.run_cli(False);self.assertFalse((self.root/'derived').exists())
@@ -179,7 +183,7 @@ class PublicProjectionTests(unittest.TestCase):
         python=ordinary/('Scripts/python.exe' if os.name=='nt' else 'bin/python')
         env=dict(os.environ,PIP_NO_INDEX='1',PIP_FIND_LINKS=os.environ['DEEPLINK_PLOT_TEST_WHEELS'])
         env.pop('VLLM_HUST_REPORT_PYTHON',None);env['XDG_CACHE_HOME']=str(self.root/'ordinary-cache-home')
-        self.config['plots']=True;self.run_cli(env=env,python=python,timeout=60)
+        self.config['plots']=True;self.config.pop('plot_cache');self.run_cli(env=env,python=python,timeout=60)
         output=self.root/'derived';record=json.loads((output/'plot-environment.json').read_bytes())
         self.assertEqual(record['status'],'repaired');self.assertFalse(record['current_renderer_ready'])
         self.assertEqual(record['matplotlib'],'3.10.8');self.assertTrue((output/'fixed-five-throughput.png').is_file())
@@ -188,6 +192,45 @@ class PublicProjectionTests(unittest.TestCase):
         self.config['out']='cached';self.run_cli(env=env,python=python,timeout=60)
         reused=json.loads((self.root/'cached/plot-environment.json').read_bytes())
         self.assertEqual(reused['status'],'cached');self.assertEqual(reused['repair_status'],'not-needed')
+        blocked=self.root/'blocked-home-cache';blocked.write_bytes(b'not a directory');env['XDG_CACHE_HOME']=str(blocked)
+        self.config['out']='healthy-with-bad-home-cache';self.run_cli(env=env,python=record['python'],timeout=60)
+        healthy=json.loads((self.root/self.config['out']/'plot-environment.json').read_bytes())
+        self.assertEqual(healthy['status'],'current');self.assertEqual(healthy['cache_selection'],'output-parent-default')
+        self.assertTrue(Path(healthy['cache']).is_relative_to(self.root))
+
+    def check_final_output_failure(self,stage):
+        # Deterministic filesystem fault at the real public CLI, without product fault flags.
+        hook=self.root/'fault-hook';hook.mkdir();target=str(self.root/'derived')
+        code="""import os,errno
+from pathlib import Path
+target=Path(TARGET)
+write_text=Path.write_text
+replace=os.replace
+def failed_write(path,*args,**kwargs):
+    if STAGE=='html' and path==target/'report.html':raise OSError(errno.ENOSPC,'fixture HTML write failure')
+    return write_text(path,*args,**kwargs)
+def failed_replace(source,destination,*args,**kwargs):
+    if STAGE=='seal' and Path(destination)==target/'checksums.json':raise OSError(errno.EIO,'fixture final seal publication failure')
+    return replace(source,destination,*args,**kwargs)
+Path.write_text=failed_write
+os.replace=failed_replace
+""".replace('TARGET',repr(target)).replace('STAGE',repr(stage))
+        (hook/'sitecustomize.py').write_text(code,encoding='utf-8')
+        env=dict(os.environ,PYTHONPATH=str(hook));result=self.run_cli(False,env=env)
+        self.assertNotIn('OFFICIAL_SEALED_REPORT_PROJECTION_COMPLETED',result.stdout)
+        self.assertIn('OFFICIAL_SEALED_REPORT_PROJECTION_FAILED',result.stderr)
+        output=self.root/'derived';execution=json.loads((output/'projection-execution.json').read_bytes())
+        self.assertEqual(execution['status'],'failed');self.assertFalse((output/'checksums.json').exists())
+        self.assertEqual(json.loads((output/'derivation.json').read_bytes())['status'],'failed')
+        self.assertEqual(json.loads((output/'report.json').read_bytes())['report_projection']['status'],'failed')
+        self.assertTrue((output/'projection-failure.log').read_text(encoding='utf-8'))
+        self.assertFalse(list(output.glob('.*.pending')))
+
+    def test_html_write_failure_cannot_publish_completion(self):
+        self.check_final_output_failure('html')
+
+    def test_final_seal_failure_cannot_publish_completion(self):
+        self.check_final_output_failure('seal')
 
 
 if __name__=='__main__':unittest.main()
