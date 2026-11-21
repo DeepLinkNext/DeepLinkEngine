@@ -69,7 +69,7 @@ def selection(python, env, folder):
     explicit = [key for key in SOURCE_OPTIONS if env.get(key)]
     if not explicit:
         code = "import json;from pip._internal.configuration import Configuration;c=Configuration(isolated=False);c.load();print(json.dumps(list(dict(c.items()))))"
-        checked = subprocess.run([str(python), '-I', '-c', code], env=env, capture_output=True, text=True, timeout=20)
+        checked = subprocess.run([str(python), '-I', '-B', '-c', code], env=env, capture_output=True, text=True, timeout=20)
         if checked.returncode:
             explicit = ['unreadable-pip-configuration']
         else:

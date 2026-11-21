@@ -95,7 +95,7 @@ class Trust(unittest.TestCase):
         def enter(*args):
             events.append(('enter', args))
             raise Handoff()
-        with patch.object(sys, 'argv', ['run_all.py', '--config', str(config), '--prepare-official-protocol-only']), patch('official_execution.needed', return_value=True), patch('transport_trust.configure', side_effect=configure), patch('official_execution.maybe_enter_config', side_effect=enter), self.assertRaises(Handoff):
+        with patch('official_sdk_bytecode.verify_or_repair', return_value=None), patch.object(sys, 'argv', ['run_all.py', '--config', str(config), '--prepare-official-protocol-only']), patch('official_execution.needed', return_value=True), patch('transport_trust.configure', side_effect=configure), patch('official_execution.maybe_enter_config', side_effect=enter), self.assertRaises(Handoff):
             run_all.main()
         self.assertEqual([e[0] for e in events], ['trust', 'enter'])
         self.assertFalse((self.root / 'out').exists())

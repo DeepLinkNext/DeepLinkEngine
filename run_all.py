@@ -330,6 +330,8 @@ def run(data, *, prepare_protocol_only=False, prepare_official_protocol_only=Fal
                     (out / name).rename(original / name)
             receipt["previous_attempts"][-1]["campaign_directory"] = str(original.relative_to(out))
 
+    if os.environ.get('DEEPLINKENGINE_SDK_RECOVERY'):
+        receipt['sdk_bytecode_recovery'] = json.loads(os.environ['DEEPLINKENGINE_SDK_RECOVERY'])
     environment_report = os.environ.get("DEEPLINKENGINE_ENVIRONMENT_REPORT")
     if environment_report:
         import shutil
@@ -540,6 +542,11 @@ def main():
         if args.prepare_official_protocol_only and not data.get('environment',{}).get('official_sdk'):
             raise ValueError('Official input preparation requires the publicly prepared environment.official_sdk anchor')
         from official_execution import maybe_enter_config, needed
+        if data.get('environment', {}).get('official_sdk') and not args.report_only:
+            from official_sdk_bytecode import verify_or_repair
+            recovery = verify_or_repair(data['environment']['official_sdk'], data['cache'])
+            if recovery:
+                os.environ['DEEPLINKENGINE_SDK_RECOVERY'] = json.dumps(recovery)
         if data.get('environment', {}).get('official_sdk') and needed():
             from transport_trust import configure
             configure(data['cache'], data['environment']['official_sdk'])

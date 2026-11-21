@@ -83,6 +83,7 @@ jobs:
       - run: python -B tests/test_triton_backend_probe.py
       - run: python -B tests/test_official_judge_endpoint.py
       - run: python -B tests/test_official_sdk_state.py
+      - run: python -B tests/test_official_sdk_bytecode.py
       - run: python -B tests/test_run_all.py
       - run: python -B tests/test_environment_setup.py
       - run: python -B tests/test_dependency_resume.py

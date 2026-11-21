@@ -37,7 +37,7 @@ class Inputs(unittest.TestCase):
         import run_all
         config=self.root/'config.json';model=self.root/'model';model.mkdir();config.write_text(json.dumps(dict(model=str(model),cache=str(self.root/'cache'),out=str(self.root/'new'),physical_devices=[0,1],engine_version='2026.11.17.8.post2',environment=dict(official_sdk=str(self.root/'anchor')))))
         args=['run_all.py','--config',str(config),'--prepare-official-protocol-only']
-        with patch.object(sys,'argv',args),patch('official_execution.maybe_enter_config'),patch.object(run_all,'select_run_engine'),patch('environment_setup.ensure_environment',return_value=None),patch.object(run_all,'preflight'),patch('b0_run_policy.full_entry_policy',side_effect=AssertionError('No inference policy')),patch.object(run_all,'run',return_value=0) as execute:
+        with patch('official_sdk_bytecode.verify_or_repair',return_value=None),patch.object(sys,'argv',args),patch('official_execution.maybe_enter_config'),patch.object(run_all,'select_run_engine'),patch('environment_setup.ensure_environment',return_value=None),patch.object(run_all,'preflight'),patch('b0_run_policy.full_entry_policy',side_effect=AssertionError('No inference policy')),patch.object(run_all,'run',return_value=0) as execute:
             self.assertEqual(run_all.main(),0)
         self.assertIs(execute.call_args.kwargs['prepare_official_protocol_only'],True)
 

@@ -101,12 +101,12 @@ class EnvironmentTests(unittest.TestCase):
         result, execute = self.prepare(before=info("1"))
         commands = [call.args[0] for call in execute.call_args_list]
         self.assertEqual(len(commands), 3)
-        self.assertEqual(commands[0][1:4], ["-I", "-m", "venv"])
+        self.assertEqual(commands[0][1:5], ["-I", "-B", "-m", "venv"])
         self.assertNotIn("--system-site-packages", commands[0])
         for args in commands[1:]:
             self.assertTrue(args[0].startswith(self.data["cache"]))
             self.assertNotEqual(args[0], sys.executable)
-            self.assertEqual(args[1:5], ["-I", "-m", "pip", "install"])
+            self.assertEqual(args[1:6], ["-I", "-B", "-m", "pip", "install"])
         self.assertIn("--ignore-installed", commands[1])
         self.assertNotIn("--ignore-installed", commands[2])
         report = json.loads(Path(result["report"]).read_text())

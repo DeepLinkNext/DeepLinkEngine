@@ -207,7 +207,7 @@ def prepare_stage(python,core,cache,build,env,*,sdk,stage):
     folder=build/(stage+'-dependency-plan');folder.mkdir();report=folder/'pip-report.json'
     child.update(PIP_CONFIG_FILE=os.devnull,PIP_CACHE_DIR=str(cache/'source-build-downloads/verified-metadata-pip'),PIP_BUILD_CONSTRAINT=str(primary_constraint))
     child.setdefault('PIP_DEFAULT_TIMEOUT','120');child.setdefault('PIP_RETRIES','3')
-    argv=[str(python),'-S','-m','pip','install','--dry-run','--ignore-installed','--report',str(report),'--constraint',str(primary_constraint),'--index-url',PYPI_MIRRORS[0],'--extra-index-url',CPU_MIRROR]
+    argv=[str(python),'-S','-B','-m','pip','install','--dry-run','--ignore-installed','--report',str(report),'--constraint',str(primary_constraint),'--index-url',PYPI_MIRRORS[0],'--extra-index-url',CPU_MIRROR]
     if stage=='03-ascend':argv+=['--extra-index-url',ASCEND_ORIGIN]
     argv+=original
     _run(argv,sdk=sdk,env=child,cwd=core,folder=folder)

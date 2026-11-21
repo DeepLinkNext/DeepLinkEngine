@@ -128,7 +128,7 @@ class Transport(unittest.TestCase):
         chosen = dict(mode='verified-public-mirror', automatic_index=transport.INDEX)
         metadata = json.dumps(dict(urls=[dict(filename=wheel.name, size=wheel.stat().st_size, url='https://files.pythonhosted.org/' + wheel.name, digests=dict(sha256=digest))])).encode()
         report = dict(steps=[])
-        args = [sys.executable, '-I', '-m', 'pip', 'install', '--only-binary=:all:', '--no-deps', '--no-index', '--target', str(self.root / 'installed'), str(wheel)]
+        args = [sys.executable, '-I', '-B', '-m', 'pip', 'install', '--only-binary=:all:', '--no-deps', '--no-index', '--target', str(self.root / 'installed'), str(wheel)]
         with patch.object(transport, 'selection', return_value=(chosen, self.root / 'selection.json')), patch.object(authority, '_read', return_value=metadata), contextlib.redirect_stdout(io.StringIO()):
             setup.command(args, env, self.root, 'actual-binary-pip', report, self.root / 'environment.json')
         self.assertEqual(report['steps'][0]['status'], 'completed')

@@ -137,12 +137,15 @@ def main():
     if config.get('baseline_deployment'):raise ValueError('Official data preparation does not admit a legacy baseline deployment')
     if args.tokenizer_child:return prepare(config,args.anchor_sdk)
     import official_execution as E
-    # Reuse the existing loader and exec-json API without changing E or any SDK
-    # build key. The sole alias lives in this new child's private mount namespace.
-    root=E.ensure_for_sdk(args.anchor_sdk)
     env={k:v for k,v in os.environ.items() if not k.endswith(('_TOKEN','_API_KEY','_PASSWORD','_SECRET'))}
-    request=E.request_for([sys.executable,'-B',str(Path(__file__).resolve()),'--config',str(args.config.resolve()),'--anchor-sdk',str(args.anchor_sdk.resolve()),'--tokenizer-child'],root,env=env,cwd=ROOT,extra_paths=(Path(config['out']).parent,Path(config['model']),Path(config['deployment']),args.anchor_sdk))
-    request['binds'].append((str(Path(config['model']).resolve()),'/models/Qwen3.5-35B-A3B',True))
+    command=[sys.executable,'-B',str(Path(__file__).resolve()),'--config',str(args.config.resolve()),'--anchor-sdk',str(args.anchor_sdk.resolve()),'--tokenizer-child']
+    inherited=E.tokenizer_alias(command,model=config['model'],sdk=args.anchor_sdk,cache=config['cache'],env=env,cwd=ROOT)
+    if inherited is not None:return inherited
+    root=E.ensure_for_sdk(args.anchor_sdk)
+    # A host entry first enters the pinned loader/root. Its next invocation
+    # creates only the alias namespace, without rebinding a chroot into itself.
+    request=E.request_for(command[:-1],root,env=env,cwd=ROOT,extra_paths=(Path(config['out']).parent,Path(config['cache']),Path(config['model']),Path(config['deployment']),args.anchor_sdk))
+    E.readonly_sdk_anchor(request,args.anchor_sdk)
     return subprocess.run([sys.executable,'-B',str(Path(E.__file__).resolve()),'--exec-json'],input=json.dumps(request),env=os.environ.copy(),text=True).returncode
 
 if __name__=='__main__':
