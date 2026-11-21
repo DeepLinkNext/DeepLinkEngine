@@ -96,7 +96,7 @@ def plot_python(cache, record):
 def prepare(document, report_sha256):
     if document.get('schema') != 'deeplinkengine-official-baseline-report/v1':
         raise ValueError('Unsupported original report')
-    if document.get('status') not in ('completed', 'failed', 'interrupted'):
+    if document.get('status') not in ('completed', 'failed', 'interrupted', 'measurements_collected'):
         raise ValueError('A terminal original report is required; active runs are not inputs')
     if document.get('planned_denominators') != COUNTS:
         raise ValueError('The fixed-five denominator changed')
@@ -162,6 +162,7 @@ def prepare(document, report_sha256):
                          'source_metric': {'path': source['path'], 'sha256': source['sha256']}})
     return {'schema': 'deeplinkengine-official-publication-preview/v1', 'publication_ready': False,
             'original_report_sha256': report_sha256, 'baseline': document['baseline'], 'source_execution_status': document['status'],
+            **({'source_qualification_status': 'incomplete'} if document['status'] == 'measurements_collected' else {}),
             'profiles': profiles, 'missing_metric_phases': missing, 'original_quality': document.get('quality', {}),
             'pairs': None, 'F': None, 'efficiency_percent': None, 'independent_third_party': False,
             'requirements_before_publication': ['Terminal campaign and original external seal; no live-run reads',
@@ -214,13 +215,17 @@ def run(configuration):
     document = read('report.json', config['report_sha256'])
     campaign = read('campaign.json')
     if (campaign.get('schema') != 'deeplinkengine-official-full-suite/v1'
-            or campaign.get('status') not in ('completed', 'failed')
+            or campaign.get('status') not in ('completed', 'failed', 'measurements_collected')
             or campaign['status'] != document.get('status')
             or campaign.get('baseline_image', {}).get('id') != document.get('baseline')):
         raise ValueError('Original campaign/report must agree and both be terminal')
     phases = {phase['name']: phase for phase in campaign['stages']}
     if len(phases) != len(campaign['stages']) or set(phases) != set(document['phases']):
         raise ValueError('Original campaign/report phase population changed')
+    collected = campaign['status'] == 'measurements_collected'
+    if collected and (type(campaign.get('ended')) not in (int, float) or not math.isfinite(campaign['ended'])
+                      or campaign['ended'] <= 0 or campaign.get('qualification', {}).get('complete') is not False):
+        raise ValueError('Measurements-collected needs an ended campaign with incomplete source qualification')
     reuse = {}
     for name, phase in document['phases'].items():
         original = phases[name]
@@ -231,6 +236,11 @@ def run(configuration):
                 continue
             if read(descriptor['path'], descriptor['sha256']) != descriptor['value']:
                 raise ValueError('Embedded report value differs from its sealed original')
+        if collected:
+            receipt = phase.get('receipt.json', {}).get('value', {})
+            if (phase['status'] not in ('completed', 'reused') or receipt.get('status') != 'completed'
+                    or receipt.get('completed') is not True or receipt.get('quiescent') is not True):
+                raise ValueError('Measurements-collected requires completed, quiescent original phase receipts')
         if phase['status'] == 'reused':
             evidence = original.get('reuse', {})
             if any(not re.fullmatch('[a-f0-9]{64}', evidence.get(key, '')) for key in ('original_checksums_sha256', 'original_receipt_sha256')):
@@ -255,6 +265,8 @@ def run(configuration):
              'benchmark/one-click-kit/scripts/requirements-report.txt')},
         publication_ready=False, plots_requested=config.get('plots', True), F=None, efficiency_percent=None,
         independent_third_party=False)
+    if collected:
+        provenance['source_qualification_status'] = 'incomplete'
     out.mkdir(parents=True, exist_ok=False)
     for name, raw in selected.items():
         target = out / 'originals' / name
