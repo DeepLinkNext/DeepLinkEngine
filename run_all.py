@@ -311,6 +311,7 @@ def completed_run_source(data, source):
 
 def run(data, *, resume_bootstrap=False, resume_before_model=False, resume_before_inference=False,
         reuse_completed_run=None, reuse_completed_campaigns=(), reuse_mmlu_baseline_arm=None, reuse_context_baseline_arm=None, reuse_compute_baseline_arm=None,
+        reuse_compute_observation=None,
         actual_cost=None):
     out = Path(data["out"])
     reused_run = completed_run_source(data, reuse_completed_run) if reuse_completed_run else None
@@ -325,6 +326,8 @@ def run(data, *, resume_bootstrap=False, resume_before_model=False, resume_befor
                            mmlu_baseline_arm=str(Path(reuse_mmlu_baseline_arm).resolve()) if reuse_mmlu_baseline_arm else None,
                            context_baseline_arm=str(Path(reuse_context_baseline_arm).resolve()) if reuse_context_baseline_arm else None,
                            compute_baseline_arm=str(Path(reuse_compute_baseline_arm).resolve()) if reuse_compute_baseline_arm else None)
+    if reuse_compute_observation:
+        reuse_selection["compute_observation"] = str(Path(reuse_compute_observation).resolve())
     if prior and prior.get('reuse_selection'):
         previous_selection = dict(prior['reuse_selection'])
         previous_selection.setdefault('context_baseline_arm', None)
@@ -462,6 +465,8 @@ def run(data, *, resume_bootstrap=False, resume_before_model=False, resume_befor
                 run_command += ['--reuse-completed-campaign', campaign]
             if reuse_selection['mmlu_baseline_arm']:
                 run_command += ['--reuse-mmlu-baseline-arm', reuse_selection['mmlu_baseline_arm']]
+        if reuse_selection.get("compute_observation"):
+            run_command += ["--reference-observation-source", reuse_selection["compute_observation"]]
         if reused_run and reused_run.get("compute_resume_source"):
             run_command += ["--reference-resume-source", reused_run["compute_resume_source"]]
         if reuse_selection.get("compute_baseline_arm"):
@@ -565,6 +570,8 @@ def main():
     parser.add_argument('--reuse-mmlu-baseline-arm', type=Path, help='Explicit sealed fixed-B0 original200 arm; retain its original answers, dates and identity')
     parser.add_argument('--reuse-context-baseline-arm', type=Path, help='Explicit sealed fixed-B0 context/four-tenant arm; verify identical inputs, budgets, warmup, model, image, devices and reviewed controller sources')
     parser.add_argument("--reuse-compute-baseline-arm", type=Path, help="Reuse sealed fixed-B0 native timing repetitions; retain original clocks and sources instead of starting B0")
+    parser.add_argument("--reuse-compute-observation", type=Path,
+        help="Reuse a complete sealed HTTP work observation with the same engine and devices")
     parser.add_argument("--rerun-b0", action=argparse.BooleanOptionalAction, default=None, help="是否重跑固定 B0；默认否，复用已封存结果；首次测量显式开启")
     args = parser.parse_args()
     try:
@@ -576,7 +583,7 @@ def main():
         os.environ["XDG_CACHE_HOME"] = os.environ.get("XDG_CACHE_HOME") or str(Path(data["cache"]) / "xdg")
         os.environ["MPLCONFIGDIR"] = os.environ.get("MPLCONFIGDIR") or str(Path(os.environ["XDG_CACHE_HOME"]) / "matplotlib")
         if args.report_only:
-            if args.resume_bootstrap or args.resume_before_model or args.resume_before_inference or args.prepare_environment or args.reuse_completed_run or args.reuse_completed_campaign or args.reuse_mmlu_baseline_arm or args.reuse_context_baseline_arm or args.reuse_compute_baseline_arm:
+            if args.resume_bootstrap or args.resume_before_model or args.resume_before_inference or args.prepare_environment or args.reuse_completed_run or args.reuse_completed_campaign or args.reuse_mmlu_baseline_arm or args.reuse_context_baseline_arm or args.reuse_compute_baseline_arm or args.reuse_compute_observation:
                 raise ValueError("Report-only cannot be combined with execution or recovery modes")
             out = Path(data["out"])
             from release_selection import bind
@@ -585,7 +592,7 @@ def main():
             destination = out / ("full-report-" + uuid.uuid4().hex)
             return subprocess.run(full_report_command(out, destination, actual_cost=args.actual_cost)).returncode
         recovery = args.resume_bootstrap or args.resume_before_model or args.resume_before_inference
-        if (args.reuse_completed_campaign or args.reuse_mmlu_baseline_arm or args.reuse_context_baseline_arm or args.reuse_compute_baseline_arm) and not (args.reuse_completed_run or recovery):
+        if (args.reuse_completed_campaign or args.reuse_mmlu_baseline_arm or args.reuse_context_baseline_arm or args.reuse_compute_baseline_arm or args.reuse_compute_observation) and not (args.reuse_completed_run or recovery):
             raise ValueError('Additional sealed sources require explicit completed-run recovery')
         if not args.prepare_environment:
             from b0_run_policy import full_entry_policy
@@ -619,7 +626,8 @@ def main():
         return 0
     return run(data, resume_bootstrap=args.resume_bootstrap, resume_before_model=args.resume_before_model, resume_before_inference=args.resume_before_inference,
                reuse_completed_run=args.reuse_completed_run, reuse_completed_campaigns=args.reuse_completed_campaign,
-               reuse_mmlu_baseline_arm=args.reuse_mmlu_baseline_arm, reuse_context_baseline_arm=args.reuse_context_baseline_arm, reuse_compute_baseline_arm=args.reuse_compute_baseline_arm, actual_cost=args.actual_cost)
+               reuse_mmlu_baseline_arm=args.reuse_mmlu_baseline_arm, reuse_context_baseline_arm=args.reuse_context_baseline_arm, reuse_compute_baseline_arm=args.reuse_compute_baseline_arm, actual_cost=args.actual_cost,
+               reuse_compute_observation=args.reuse_compute_observation)
 
 
 if __name__ == "__main__":

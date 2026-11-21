@@ -222,3 +222,25 @@ def test_http_state_drain_refreshes_after_the_exact_scheduler_conflict(tmp_path,
                 await control.call("begin")
             assert not client.active and client.drop_attempts == 1
     asyncio.run(check())
+
+
+def test_r9_native_publication_domain_preserves_exact_fixed_controls(original):
+    from test_context_baseline_reuse import combined
+
+    source, _, _ = original
+    plan = reuse.read(source / "service/native-plan.json")
+    plan.update(role="B1", schema="current-native-m01-timing/v1",
+                engine_release="full-answer-b1-20261119-r9")
+    arguments = dict(tensor_parallel_size=2, pipeline_parallel_size=1, data_parallel_size=1,
+        stream_interval=1, async_scheduling=True, disable_log_stats=True,
+        per_request_spec_decode_metrics="none",
+        scheduler_cls="betterscale.models.qwen35.seat_scheduler.LiveStateScheduler",
+        speculative_config=dict(method="mtp", num_speculative_tokens=2))
+    namespace = {}
+    exec(combined()["third-party-test-kit/public_output_binding.py"], namespace)
+    validate = namespace["validate_effective_contract"]
+    validate(arguments, plan)
+    with pytest.raises(ValueError, match="publication configuration"):
+        validate(dict(arguments, stream_interval=2), plan)
+    with pytest.raises(ValueError, match="input/output contract"):
+        validate(arguments, dict(plan, engine_release="full-answer-b1-20261120-r10"))
