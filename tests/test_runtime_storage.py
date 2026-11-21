@@ -35,6 +35,37 @@ class RuntimeStorageTests(unittest.TestCase):
              patch.object(storage,'audit',side_effect=audit or (lambda target,frozen:json.loads((target/'installation.json').read_text()))):
             return storage.ensure(self.logical,reuse=reuse)
 
+    def recorded_target(self, *, reused=False):
+        import hashlib
+        origin=str(self.logical.parent/'earlier-installation') if reused else str(self.logical)
+        key=hashlib.sha256(json.dumps(dict(logical=origin, python=sys.executable,
+            version=self.frozen['version'], archives=self.frozen['archives']), sort_keys=True).encode()).hexdigest()[:20]
+        target=self.root/('deeplinkengine-runtime-'+str(storage.os.getuid()))/key/'installation'
+        record=dict(schema='deeplinkengine-runtime-storage/v1',logical=str(self.logical),
+            physical=str(target),verified=True,python=sys.executable,package_version=self.frozen['version'],
+            release=self.frozen['release'],archives=self.frozen['archives'],reused_from=origin if reused else None)
+        storage.marker(self.logical).write_text(json.dumps(record))
+        self.logical.symlink_to(target)
+        return target, record
+
+    def test_remount_keeps_exact_missing_owned_target(self):
+        for reused in (False, True):
+            with self.subTest(reused=reused):
+                if self.logical.is_symlink():self.logical.unlink()
+                target, record=self.recorded_target(reused=reused)
+                with patch.object(storage, 'filesystem', return_value='xfs'):
+                    self.assertEqual(storage.storage_target(self.logical,self.frozen),target)
+
+    def test_remount_cannot_change_recorded_owner_or_frozen_release(self):
+        target, record=self.recorded_target()
+        for field,value in [('python','/different/python'),('package_version','other'),('logical','/other'),('physical',str(self.root/'outside/installation'))]:
+            with self.subTest(field=field):
+                storage.marker(self.logical).write_text(json.dumps(dict(record,**{field:value})))
+                with patch.object(storage, 'filesystem', return_value='xfs'):
+                    with self.assertRaisesRegex(ValueError,'Managed runtime storage'):
+                        storage.storage_target(self.logical,self.frozen)
+        self.assertFalse((self.root/'outside').exists())
+
     def test_successful_local_install_publishes_a_durable_alias_and_source_identity(self):
         self.invoke()
         self.assertTrue(self.logical.is_symlink())
