@@ -59,6 +59,7 @@ def main(arguments=None):
     if (args.download_only and (args.prepare_environment or args.reuse_completed_continuous)) or ((args.artifact_digest or args.download_transport != 'auto') and not args.download_only):
         parser.error('Artifact selection requires download-only, separate from environment preparation')
     try:
+        protocol_preparation = None
         config = configuration(args.config, download_only=args.download_only)
         if args.download_only:
             from official_download import run
@@ -70,6 +71,8 @@ def main(arguments=None):
         if platform.system() != 'Linux' or platform.machine() != 'aarch64':
             raise ValueError('Official Ascend baselines require Linux aarch64')
         if not args.prepare_environment:
+            from official_protocol_preparation import selection
+            selection(config)
             from official_execution import maybe_enter_official
             maybe_enter_official(config, list(arguments) if arguments is not None else sys.argv[1:])
         if config.get('model_manifest'):
@@ -83,6 +86,8 @@ def main(arguments=None):
             if identity:
                 storage.append(dict(field=key, **identity))
         if not args.prepare_environment:
+            from official_protocol_preparation import ensure
+            config, protocol_preparation = ensure(config)
             from official_suite import validate_configuration
             validate_configuration(config)
     except (OSError, ValueError, ImportError) as error:
@@ -99,6 +104,8 @@ def main(arguments=None):
                                           for p in [ROOT / 'run_all.py', ROOT / 'official_baselines.py', ROOT / 'official_image.py', ROOT / 'official_storage.py']})
     from official_protocol_bootstrap import host_identity
     record['host_identity'] = host_identity()
+    if protocol_preparation is not None:
+        record['protocol_preparation'] = protocol_preparation
     save(out / 'results.json', record)
     failed = False
     try:
