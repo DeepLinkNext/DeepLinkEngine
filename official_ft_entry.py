@@ -25,6 +25,7 @@ def run(config, args):
     save(output / 'companion-receipt.json', receipt)
     engine = LLMEngine.from_engine_args(args)
     workers_active = core_active = False
+    primary_error = None
     window = uuid4().hex
     raw = output / 'raw-work'
     raw.mkdir()
@@ -67,23 +68,48 @@ def run(config, args):
         receipt.update(completed=True, window=window, requests=200,
                        actual_producer_observation=True, observers_detached=True)
     except BaseException as error:
-        receipt.update(error=type(error).__name__ + ': ' + str(error))
+        primary_error = error
+        receipt.update(completed=False, error=type(error).__name__ + ': ' + str(error))
         raise
     finally:
+        cleanup_errors = []
+        actions = (
+            ('workers', workers_active,
+             lambda: ranks(engine.collective_rpc('hust_ft_end', timeout=120, args=(window,)))),
+            ('core', core_active,
+             lambda: engine.engine_core.call_utility('hust_m01_core_end', window)),
+        )
+        for name, active, close in actions:
+            if not active:
+                continue
+            try:
+                result = close()
+            except BaseException as error:
+                result = dict(completed=False, action=name,
+                              error=type(error).__name__ + ': ' + str(error))
+                cleanup_errors.append(result)
+            try:
+                save(raw / (name + '-failure-cleanup.json'), result)
+            except BaseException as error:
+                cleanup_errors.append(dict(action=name + '-receipt',
+                    error=type(error).__name__ + ': ' + str(error)))
+        if cleanup_errors:
+            receipt.update(completed=False, cleanup_errors=cleanup_errors)
         try:
-            if workers_active:
-                save(raw / 'workers-failure-cleanup.json',
-                     ranks(engine.collective_rpc('hust_ft_end', timeout=120, args=(window,))))
-            if core_active:
-                save(raw / 'core-failure-cleanup.json', engine.engine_core.call_utility('hust_m01_core_end', window))
+            engine.engine_core.shutdown()
+        except BaseException as error:
+            receipt.update(completed=False, shutdown_error=type(error).__name__ + ': ' + str(error))
+            if primary_error is None:
+                raise
         finally:
             try:
-                engine.engine_core.shutdown()
-            except BaseException as error:
-                receipt.update(completed=False, shutdown_error=type(error).__name__ + ': ' + str(error))
-                raise
-            finally:
                 save(output / 'companion-receipt.json', receipt)
+            except BaseException as error:
+                if primary_error is None:
+                    raise
+                print('COMPANION_RECEIPT_WRITE_FAILED ' + type(error).__name__ + ': ' + str(error), file=sys.stderr)
+        if cleanup_errors and primary_error is None:
+            raise ValueError('Independent companion observer cleanup failed')
     return receipt
 
 
