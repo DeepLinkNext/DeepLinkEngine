@@ -50,10 +50,17 @@ def main(arguments=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--config', type=Path, required=True)
     parser.add_argument('--prepare-environment', action='store_true')
+    parser.add_argument('--report-only', action='store_true',
+                        help='CPU-only replay and portable archive of closed official C8 originals')
     parser.add_argument('--reuse-completed-continuous', type=Path,
                         help='In a new output, retain sealed C8 after a later pre-model failure; preserve original clocks')
     args = parser.parse_args(arguments)
     try:
+        if args.report_only:
+            if args.prepare_environment or args.reuse_completed_continuous:
+                raise ValueError('Report-only cannot prepare or resume a model campaign')
+            from official_rebuild import run
+            return run(args.config)
         config = configuration(args.config)
         if args.reuse_completed_continuous:
             if args.prepare_environment or len(config['versions']) != 1:
