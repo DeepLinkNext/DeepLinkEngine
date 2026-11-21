@@ -240,6 +240,8 @@ raise SystemExit(subprocess.run([str(python),'-B',str(root/'full_report.py'),'--
 
 def completed_run_source(data, source):
     """Audit a sealed prior run before preparing a fresh, independent output."""
+    sys.dont_write_bytecode = True
+    os.environ["PYTHONDONTWRITEBYTECODE"] = "1"
     source = Path(source).resolve()
     out = Path(data["out"]).resolve()
     if source == out or source.is_relative_to(out) or out.is_relative_to(source):
@@ -253,9 +255,9 @@ def completed_run_source(data, source):
         if "physical_devices" in changed:
             detail += f" (original {before.get('physical_devices')}, current {after.get('physical_devices')}; restore the original pair for formal reuse)"
         raise ValueError("Reuse model/device/cache configuration differs: " + detail)
+    sys.path.insert(0, str(kit_path() / "scripts"))
     from recovery_source import stopped
     interruption = stopped(source, prior)
-    sys.path.insert(0, str(kit_path() / "scripts"))
     from reuse_campaign import source as audit_source, audit_stage
     print("RECOVERY_AUDIT campaign", source / "fixed-five", flush=True)
     _, previous_plan, campaign, _ = audit_source(source / "fixed-five")
@@ -518,6 +520,8 @@ def select_run_engine(data, *, recovery=False, reuse_completed_run=None):
 
 
 def main():
+    sys.dont_write_bytecode = True
+    os.environ["PYTHONDONTWRITEBYTECODE"] = "1"
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--config", required=True, type=Path)
     parser.add_argument("--prepare-environment", action="store_true", help="Repair and verify the environment without starting model tests")
