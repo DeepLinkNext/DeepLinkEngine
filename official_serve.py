@@ -19,6 +19,10 @@ def main():
             raise ValueError('Observed-warmup source differs')
     if any(key.startswith(('BETTERSCALE', 'HUST', 'MTP', 'KVMAT')) for key in os.environ):
         raise ValueError('Optimized-engine settings leaked into official serving')
+    import service_logging
+    output = Path(plan['output'])
+    logging_plan = service_logging.prepare(root, output, os.environ)
+    service_logging.install(logging_plan)
     import torch
     import torch_npu
     import vllm
@@ -30,18 +34,19 @@ def main():
         if not origin.is_relative_to(root):
             raise ValueError('Official runtime module loaded outside image')
         origins[name] = dict(path=str(origin), sha256=hashlib.sha256(origin.read_bytes()).hexdigest())
-    output = Path(plan['output'])
     (output / 'actual-package-imports.json').write_text(json.dumps(dict(
         python=sys.executable, prefix=sys.prefix, no_site=bool(sys.flags.no_site),
         versions=actual, modules=origins, official_baseline=plan['baseline_id'],
-        source_patched=False, optimized_mods_enabled=False), indent=2) + '\n')
+        source_patched=False, optimized_mods_enabled=False,
+        logging_adapter_plan=str(output / 'service-logging-plan.json'),
+        logging_adapter_receipt=logging_plan['receipt']), indent=2) + '\n')
     from engine_entry import check_pinned_host_memory
     check_pinned_host_memory(output, dict(os.environ))
     # Use only the vendor-supported log option when present in this release.
     ascend_config = Path(vllm_ascend.__file__).resolve().parent / 'ascend_config.py'
     if ascend_config.is_file() and 'ascend_log_path' in ascend_config.read_text():
         logs = output / 'vllm-ascend-logs'
-        logs.mkdir()
+        logs.mkdir(exist_ok=True)
         plan['serve_arguments'] += ['--additional-config', json.dumps(dict(ascend_log_path=str(logs)))]
     (output / 'effective-serving-arguments.json').write_text(json.dumps(plan['serve_arguments'], indent=2) + '\n')
     sys.argv = ['vllm', 'serve', plan['model'], *plan['serve_arguments']]

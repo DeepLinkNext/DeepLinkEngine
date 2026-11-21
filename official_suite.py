@@ -188,6 +188,7 @@ def phase(config, image, phase_name, output, tools, sdk, sources, leases, contin
                 original_baseline_018_relabelled=False, necessary_work_certified=False)
     plan['worker_sources'][str(ROOT / 'official_worker.py')] = sources[str(ROOT / 'official_worker.py')]
     plan['worker_sources'][str(ROOT / 'official_kernel_preparation.py')] = sources[str(ROOT / 'official_kernel_preparation.py')]
+    plan['worker_sources'][str(ROOT / 'service_logging.py')] = sources[str(ROOT / 'service_logging.py')]
     inventory = tools / 'third-party-test-kit/proc_capture/m01_model_inventory.py'
     plan['worker_sources'][str(inventory)] = sources[str(inventory)]
     if kind == 'dataset':
@@ -309,7 +310,8 @@ def run(config, image, output):
     sources.update({str(ROOT / name): digest(ROOT / name) for name in
                     ('official_suite.py', 'official_http.py', 'official_serve.py', 'official_worker.py',
                      'official_judge.py', 'official_native.py', 'official_native_entry.py', 'official_report.py', 'official_plots.py',
-                     'official_kernel_preparation.py', 'official_endpoint.py', 'official_reuse.py')})
+                     'official_kernel_preparation.py', 'official_endpoint.py', 'official_reuse.py',
+                     'service_logging.py', 'logging_entry.py', 'engine/service.py')})
     frozen = dict(schema='deeplinkengine-official-full-suite/v1', baseline_image=json.loads((image / 'image-lock.json').read_bytes()),
                   status='preparing', prepared_before_model_start=True, started=time.time(),
                   sources=sources, physical_mapping=mapping,

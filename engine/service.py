@@ -75,7 +75,7 @@ def build(root, profile, model, out, cache, logical, host, port, name):
         at = command.index("--additional-config") + 1
         additional = json.loads(command[at])
         additional["ascend_log_path"] = str(out / "vllm-ascend-logs")
-        Path(additional["ascend_log_path"]).mkdir()
+        Path(additional["ascend_log_path"]).mkdir(exist_ok=True)
         command[at] = json.dumps(additional)
     for flag, value in [("--host", host), ("--port", port), ("--served-model-name", name)]:
         set_option(command, flag, value)
@@ -90,6 +90,13 @@ def build(root, profile, model, out, cache, logical, host, port, name):
     plan_path = out / "plan.json"
     plan_path.write_text(json.dumps(plan, indent=2) + "\n")
     command = [profile["python"], str(root / "runtime/entrypoints/serve_b1_child.py"), str(plan_path), *command[2:]]
+    import service_logging
+    logging_plan = service_logging.prepare(root, out, env)
+    logging_plan.update(child=command[1], child_sha256=service_logging.digest(command[1]),
+                        entry_sha256=service_logging.digest(ROOT / 'logging_entry.py'))
+    logging_path = out / 'service-logging-plan.json'
+    service_logging.save(logging_path, logging_plan)
+    command = [command[0], str(ROOT / 'logging_entry.py'), str(logging_path), '--', *command[1:]]
     return command, env
 
 

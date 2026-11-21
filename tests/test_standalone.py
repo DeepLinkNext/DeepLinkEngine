@@ -119,6 +119,10 @@ class Standalone(unittest.TestCase):
     def test_launch_rewrites_only_service_address(self):
         with tempfile.TemporaryDirectory() as folder, patch.dict(os.environ, {"PYTHONPATH":"original"}):
             root=Path(folder)/"sdk"; root.mkdir()
+            ascend=root/'runtime/ascend/vllm_ascend';ascend.mkdir(parents=True)
+            (ascend/'__init__.py').touch()
+            child=root/'runtime/entrypoints/serve_b1_child.py';child.parent.mkdir(parents=True);child.touch()
+            os.environ['PYTHONPATH']=str(ascend.parent)
             out=Path(folder)/"out";out.mkdir()
             profile={"python":sys.executable,"host_contract_qualification":{"installed_metadata":{"vllm-ascend":"pinned"}}}
             command=[sys.executable,"-m","vllm.entrypoints.cli.main","serve","/model","--host","127.0.0.1","--port","18390","--served-model-name","old","--worker-extension-cls","synchronized_boundary.WorkerBoundary"]
@@ -133,7 +137,10 @@ class Standalone(unittest.TestCase):
             plan=json.loads((out/'plan.json').read_text())
             self.assertEqual(plan['purpose'],'inference-service')
             self.assertFalse({'datasets','reference','baseline','workloads'} & plan.keys())
-            self.assertIn('serve_b1_child.py',built[1])
+            self.assertIn('logging_entry.py',built[1])
+            self.assertEqual(built[3],'--')
+            self.assertEqual(Path(built[4]),child)
+            self.assertEqual(env['XDG_CONFIG_HOME'],str(out.resolve()/'runtime-config'))
 
     def test_ambiguous_runtime_flag_rejected(self):
         for command in [[],['--port','1','--port','2']]:
