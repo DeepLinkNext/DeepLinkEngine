@@ -28,14 +28,15 @@ def digest(path):
 
 def verify_kit(*, legacy=False):
     global KIT
-    from release_selection import active
+    from release_selection import active, selected_client
     selected = None if legacy else active()
-    if selected and selected.get('client'):
+    client = None if legacy else selected_client()
+    if selected and client:
         from evaluation_client import verify
-        data = verify(selected['client'])
+        data = verify(client)
         KIT = kit_path()
         lock = json.loads(LOCK.read_bytes())
-        lock['selected_client'] = selected['client']
+        lock['selected_client'] = client
         lock['tools']['files'] = len(data['files'])
         return lock
     source_kit = ROOT / 'benchmark/one-click-kit' if legacy else KIT
@@ -223,6 +224,12 @@ def main(arguments=None):
     arguments = list(sys.argv[1:] if arguments is None else arguments)
     read_only = not arguments or any(x in ('--help','-h') for x in arguments) or arguments[0] in ('verify','fetch-reference','status','dashboard')
     if not read_only:
+        config_name=option(arguments,'--config')
+        initial=json.loads(Path(config_name).read_bytes()) if config_name else {}
+        deployment=option(arguments,'--deployment') or initial.get('deployment')
+        if deployment:
+            from native_sdk_controller import maybe_enter_deployment
+            maybe_enter_deployment(deployment,ROOT/'one_click.py',arguments)
         from release_selection import active, select, bind
         if not active():
             config_name = option(arguments, '--config')
@@ -233,6 +240,10 @@ def main(arguments=None):
                 bind(saved)
             else:
                 select(option(arguments, '--cache') or config.get('cache') or Path.home()/'.cache/deeplinkengine')
+        from release_selection import ensure_metadata_client
+        config_name = option(arguments, '--config')
+        config = json.loads(Path(config_name).read_bytes()) if config_name else {}
+        ensure_metadata_client(option(arguments, '--cache') or config.get('cache') or Path(os.environ.get('XDG_CACHE_HOME', str(Path.home()/'.cache'))) / 'deeplinkengine')
     lock = verify_kit()
     if arguments == ["verify"]:
         print("PASS: public one-click source inventory and SHA-256 (" + str(lock["tools"]["files"]) + " files)")

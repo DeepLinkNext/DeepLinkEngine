@@ -46,7 +46,7 @@ class EngineInstallTests(unittest.TestCase):
         self.assertEqual(result["status"], "installed")
         self.resolver.assert_called_once_with((self.root / "cache").resolve(), wheelhouse=self.wheels)
         args = run.call_args.args[0]
-        self.assertEqual(args[1:5], ["-I", "-m", "pip", "install"])
+        self.assertEqual(args[1:6], ["-I", "-B", "-m", "pip", "install"])
         self.assertIn("--no-deps", args)
         self.assertIn("--require-hashes", args)
         self.assertEqual(args[args.index("--find-links") + 1], str(self.wheels.resolve()))
@@ -145,13 +145,14 @@ class RuntimeDependencyTests(unittest.TestCase):
                  patch("environment_setup.vendor_integrity", return_value={"verified": True}), \
                  patch("environment_setup.distribution_integrity", return_value={"verified": True}), \
                  patch("urllib.request.urlopen", side_effect=AssertionError("network forbidden")), \
-                 patch("child_runner.run_stage", side_effect=execute):
+                 patch("child_runner.run_stage", side_effect=execute), \
+                 patch("pip_transport.plan", side_effect=lambda args,env,folder:(args,env,None)):
                 result = engine_install.resolve_runtime_dependencies(root / "cache", wheelhouse=wheels)
             self.assertTrue(result["after"]["verified"])
             self.assertIn(str(wheel), commands[0])
-            self.assertEqual(commands[0][1:5], ["-I", "-m", "pip", "install"])
+            self.assertEqual(commands[0][1:6], ["-I", "-B", "-m", "pip", "install"])
             resolver_command = next(command for command in commands if "-c" in command)
-            self.assertEqual(resolver_command[1:5], ["-I", "-m", "pip", "install"])
+            self.assertEqual(resolver_command[1:6], ["-I", "-B", "-m", "pip", "install"])
             self.assertEqual(resolver_command[resolver_command.index("--find-links") + 1], str(wheels))
 
     def test_source_only_manager_dependencies_are_required_even_without_wheel_metadata(self):
@@ -183,7 +184,7 @@ class RuntimeDependencyTests(unittest.TestCase):
                 return types.SimpleNamespace(version=versions[name], requires=requires)
 
             def execute(args, **kwargs):
-                if args[1:5] == ["-I", "-m", "pip", "install"]:
+                if args[1:6] == ["-I", "-B", "-m", "pip", "install"]:
                     requirements = Path(args[args.index("-r") + 1]).read_text().splitlines()
                     for package, version in pins.items():
                         self.assertIn(f"{package}=={version}", requirements)
@@ -199,7 +200,8 @@ class RuntimeDependencyTests(unittest.TestCase):
                  patch.object(engine_install, "RUNTIME_ROOTS", ()), \
                  patch.object(metadata, "version", side_effect=lambda name: distribution(name).version), \
                  patch.object(metadata, "distribution", side_effect=distribution), \
-                 patch("one_click.verify_kit"), patch("child_runner.run_stage", side_effect=execute):
+                 patch("one_click.verify_kit"), patch("child_runner.run_stage", side_effect=execute), \
+                 patch("pip_transport.plan", side_effect=lambda args,env,folder:(args,env,None)):
                 first = engine_install.resolve_runtime_dependencies(cache)
                 second = engine_install.resolve_runtime_dependencies(cache)
 

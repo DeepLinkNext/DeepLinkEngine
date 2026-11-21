@@ -30,6 +30,15 @@ def validate_configuration(config):
             raise ValueError('Full official suite requires ' + name)
     campaign = Path(config['protocol_run'])
     frozen = json.loads((campaign / 'frozen-execution-plan.json').read_bytes())
+    if frozen.get('schema')=='deeplinkengine-official-data-protocol/v1':
+        from official_protocol_data import contracts
+        expected=contracts()
+        if (frozen.get('legacy018_sdk_admitted') is not False or frozen.get('legacy018_sdk_required') is not False
+                or frozen.get('engine_release')!=expected['protocol_engine_release']
+                or frozen.get('continuous_input_sha256')!=expected['continuous_input_sha256']
+                or frozen.get('mmlu_inputs',{}).get('prompt_tokens_sha256')!=expected['prompt_tokens_sha256']
+                or frozen.get('mmlu_inputs',{}).get('input_tokens')!=expected['input_tokens']):
+            raise ValueError('Official-only original input or R8 judge identity differs')
     if frozen['datasets'] != ['mmlu', 'hle', 'frontier', 'swe', 'terminal'] or frozen.get('smoke_evaluators'):
         raise ValueError('Full fixed-five source protocol required')
     if Path(frozen['model']).resolve() != Path(config['model']).resolve():
@@ -45,6 +54,18 @@ def validate_configuration(config):
         expected = 200 if dataset == 'hle' else 160 if dataset == 'frontier' else 64 if dataset == 'swe' else 48
         if spec['diagnostic'] or len(spec['case_ids']) != expected:
             raise ValueError('Original full fixed-profile denominator differs: ' + dataset)
+
+
+def protocol_data_cache(config):
+    campaign = Path(config['protocol_run']).resolve()
+    saved = campaign.parent / 'evaluation.json'
+    if not saved.is_file():
+        return campaign.parents[1] / 'cache'
+    prepared = json.loads(saved.read_bytes())
+    if (Path(prepared['model']).resolve() != Path(config['model']).resolve()
+            or Path(prepared['out']).resolve() != campaign):
+        raise ValueError('Prepared protocol cache configuration differs from its campaign')
+    return Path(prepared['cache']).resolve()
 
 
 def load(path, name):
@@ -353,7 +374,7 @@ def run(config, image, output):
         preparation.mkdir()
         plan = dict(client_tools=str(tools), client_sources=sources, model=config['model'],
                     protocol_deployment=str(sdk), output=str(preparation),
-                    data_cache=str(Path(config['protocol_run']).parents[1] / 'cache'),
+                    data_cache=str(protocol_data_cache(config)),
                     context_output=str(output / 'context-inputs'))
         save(preparation / 'plan.json', plan)
         with (preparation / 'prepare-context.log').open('xb') as stream:

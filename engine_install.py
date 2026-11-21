@@ -85,7 +85,7 @@ def resolve_runtime_dependencies(cache, *, wheelhouse=None):
             observed = None
         if observed != source["version"] or not distribution_integrity(name)["verified"]:
             wheel = cached_wheel(source, links, Path(cache) / "wheels")
-            completed = run_stage([sys.executable, "-I", "-m", "pip", "install", "--disable-pip-version-check",
+            completed = run_stage([sys.executable, "-I", "-B", "-m", "pip", "install", "--disable-pip-version-check",
                                    "--no-deps", "--ignore-installed", "--no-compile", str(wheel)])
             if completed.returncode:
                 raise RuntimeError("Runtime compatibility package installation failed: " + name)
@@ -104,18 +104,20 @@ def resolve_runtime_dependencies(cache, *, wheelhouse=None):
     before = dependency_audit()
     if not before["verified"]:
         print("RUNTIME_DEPENDENCIES repairing", len(before["issues"]), "requirements", flush=True)
-        command = [sys.executable, "-I", "-m", "pip", "install", "--disable-pip-version-check",
+        command = [sys.executable, "-I", "-B", "-m", "pip", "install", "--disable-pip-version-check",
                    "--only-binary=:all:", "--no-compile"]
         for wheel_directory in links:
             command += ["--find-links", wheel_directory]
-        completed = run_stage([*command, "-c", str(constraints), "-r", str(required)])
+        from pip_transport import run_stage as audited_pip
+        completed = audited_pip([*command, "-c", str(constraints), "-r", str(required)], cache=cache,
+                                phase='runtime-dependencies')
         if completed.returncode:
             raise RuntimeError("Engine Python dependency resolution failed: " + str(completed.returncode))
     integrity = vendor_integrity(sys.executable, lock["required_python_packages"], dict(os.environ))
     if not integrity["verified"]:
         source = lock["environment_sources"]["triton-ascend"]
         wheel = cached_wheel(source, links, Path(cache) / "wheels")
-        result = run_stage([sys.executable, "-I", "-m", "pip", "install", "--no-deps", "--ignore-installed", "--no-compile", str(wheel)])
+        result = run_stage([sys.executable, "-I", "-B", "-m", "pip", "install", "--no-deps", "--ignore-installed", "--no-compile", str(wheel)])
         if result.returncode:
             raise RuntimeError("Could not restore Ascend Triton after engine dependency resolution")
         integrity = vendor_integrity(sys.executable, lock["required_python_packages"], dict(os.environ))
@@ -128,7 +130,12 @@ def resolve_runtime_dependencies(cache, *, wheelhouse=None):
     # before starting a model service; this work is outside benchmark timing.
     smoke = folder / "runtime-import-smoke.json"
     probe = ROOT / "tools/runtime_import_smoke.py"
-    completed = run_stage([sys.executable, "-I", "-B", str(probe), "--out", str(smoke)],
+    smoke_command = [sys.executable, "-I", "-B", str(probe), "--out", str(smoke)]
+    if 'triton-ascend' in lock['required_python_packages']:
+        source = lock['environment_sources']['triton-ascend']
+        wheel = cached_wheel(source, links, Path(cache) / 'wheels')
+        smoke_command += ['--triton-wheel', str(wheel), '--triton-sha256', source['sha256']]
+    completed = run_stage(smoke_command,
                           env=dict(os.environ, TORCH_DEVICE_BACKEND_AUTOLOAD="0", ASCEND_RT_VISIBLE_DEVICES="",
                                    NUMBA_CACHE_DIR=str(folder / "numba")))
     if completed.returncode:
@@ -193,7 +200,7 @@ def install(cache, *, wheelhouse=None, download_only=False):
     if not download_only:
         sys.path.insert(0, str(kit_path() / "scripts"))
         from child_runner import run_stage
-        command = [sys.executable, "-I", "-m", "pip", "install", "--disable-pip-version-check",
+        command = [sys.executable, "-I", "-B", "-m", "pip", "install", "--disable-pip-version-check",
                    "--no-deps", "--no-compile", "--force-reinstall"]
         # pip also needs this local source when resolving isolated sdist build requirements.
         for wheel_directory in links:

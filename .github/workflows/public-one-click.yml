@@ -10,6 +10,29 @@ permissions:
   contents: read
 
 jobs:
+  windows-download:
+    runs-on: windows-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -B tests/test_official_download.py
+      - run: python -B tests/test_official_protocol_preparation.py
+      - run: python -B tests/test_transport_trust.py
+      - run: python -B tests/test_pip_transport.py
+      - run: python -B tests/test_triton_backend_probe.py
+      - run: python -B tests/test_official_protocol_data.py
+      - run: python -B tests/test_sdk_dependency_probe.py
+      - run: python -B tests/test_native_sdk_controller.py
+      - run: python -B tests/test_official_input_adapter.py
+      - run: python -B tests/test_official_protocol_download.py
+      - run: python -B tests/test_dependency_resume.py
+      - run: python -B tests/test_official_image_recovery.py
+      - run: python -B tests/test_official_range_download.py
   public-contract:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
@@ -34,7 +57,6 @@ jobs:
       - run: python -B benchmark/one-click-kit/tests/test_child_runner.py
       - name: Verify source preparation, device waits and real local socket fallback
         run: python -B -m pytest -q benchmark/one-click-kit/tests/test_baseline_entry.py benchmark/one-click-kit/tests/test_pre_service_device_admission.py benchmark/one-click-kit/tests/test_deployment.py
-      - run: python -B -m pytest -q tests/test_managed_shutdown.py
       - name: Verify native memory monitoring against the actual controller statements
         env:
           PYTEST_DISABLE_PLUGIN_AUTOLOAD: '1'
@@ -47,6 +69,7 @@ jobs:
       - run: python -B tests/test_official_baselines.py
       - run: python -B tests/test_official_kernel_preparation.py
       - run: python -B tests/test_official_inventory.py
+      - run: python -B -m pytest -q tests/test_managed_shutdown.py
       - run: python -B tests/test_official_ft.py
       - run: python -B tests/test_official_ft_candidate.py
       - run: python -B tests/test_official_opp_environment.py
@@ -59,9 +82,28 @@ jobs:
       - run: python -B tests/test_official_projection.py
         env:
           DEEPLINK_PLOT_TEST_WHEELS: ${{ runner.temp }}/deeplink-plot-wheels
+      - run: python -B tests/test_model_restore.py
+      - run: python -B tests/test_model_receiver.py
+      - run: python -B tests/test_official_range_download.py
+      - run: python -B tests/test_cold_transfer.py
+      - run: python -B tests/test_official_download.py
+      - run: python -B tests/test_official_image_recovery.py
+      - run: python -B tests/test_official_protocol_bootstrap.py
+      - run: python -B tests/test_official_execution.py
+      - run: python -B tests/test_sdk_dependency_probe.py
+      - run: python -B tests/test_native_sdk_controller.py
+      - run: python -B tests/test_official_input_adapter.py
+      - run: python -B tests/test_official_protocol_download.py
+      - run: python -B tests/test_official_protocol_preparation.py
+      - run: python -B tests/test_transport_trust.py
+      - run: python -B tests/test_pip_transport.py
+      - run: python -B tests/test_triton_backend_probe.py
+      - run: python -B tests/test_official_sdk_state.py
+      - run: python -B tests/test_official_sdk_bytecode.py
       - run: python -B tests/test_run_all.py
       - run: python -B -m pytest -q tests/test_interrupted_root_recovery.py tests/test_device_reuse.py
       - run: python -B tests/test_environment_setup.py
+      - run: python -B tests/test_dependency_resume.py
       - run: python -B tests/test_standalone.py
       - name: Verify early API logging against the pinned real upstream logger
         run: python -B tests/test_service_logging.py

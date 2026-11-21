@@ -8,8 +8,10 @@ import re
 import shutil
 import subprocess
 import tarfile
+import time
+import uuid
 
-from baseline_setup import fetch
+from baseline_setup import fetch as sequential_fetch
 
 PREFIXES = ('usr/local/', 'etc/Ascend/', 'vllm-workspace/')
 SYSTEM_LIBS = ('libbz2.so', 'libnuma.so', 'libgomp.so', 'libffi.so', 'liblzma.so',
@@ -18,9 +20,32 @@ SYSTEM_LIBS = ('libbz2.so', 'libnuma.so', 'libgomp.so', 'libffi.so', 'liblzma.so
                'libstdc++.so', 'libgcc_s.so', 'libexpat.so', 'libcrypt.so', 'libatomic.so')
 
 
+def download_workers():
+    try:
+        workers=int(os.environ.get('DEEPLINKENGINE_DOWNLOAD_RANGE_WORKERS','1'))
+    except ValueError as error:
+        raise ValueError('Range workers must be an integer between 1 and 4') from error
+    if not 1<=workers<=4:
+        raise ValueError('Range workers must be between 1 and 4')
+    if workers>1 and not shutil.which('curl'):
+        raise ValueError('Parallel official ranges require native curl')
+    return workers
+
+
+def fetch(cache,registry,kind,identity,size):
+    workers=download_workers()
+    if workers>1 and size>=2*1024**2:
+        from official_range_download import fetch as ranges
+        return ranges(cache,registry,kind,identity,size,workers=workers)
+    return sequential_fetch(cache,registry,kind,identity,size)
+
+
 def digest(path):
     with Path(path).open('rb') as stream:
-        result = hashlib.file_digest(stream, 'sha256').hexdigest()
+        hasher = hashlib.sha256()
+        for block in iter(lambda: stream.read(4 * 1024**2), b''):
+            hasher.update(block)
+        result = hasher.hexdigest()
         if hasattr(os, 'posix_fadvise'):
             os.posix_fadvise(stream.fileno(), 0, 0, os.POSIX_FADV_DONTNEED)
         return result
@@ -191,11 +216,12 @@ def environment(root, cache, *, devices=None):
 
 def probe(root, cache, lock):
     python, env = environment(root, cache)
-    code = """import importlib.metadata as m,importlib.util as u,json,sys
+    code = """import importlib.metadata as m,importlib.util as u,json,sys,os
 names=('vllm','vllm-ascend','torch','torch-npu','transformers','triton-ascend')
 plugins=[dict(group=g,name=p.name,value=p.value) for g in ('vllm.general_plugins','vllm.platform_plugins') for p in m.entry_points(group=g)]
-print(json.dumps(dict(python=sys.executable,prefix=sys.prefix,no_site=sys.flags.no_site,versions={n:m.version(n) for n in names},origins={n:u.find_spec(n).origin for n in ('torch','torch_npu','vllm','vllm_ascend')},plugins=plugins)))"""
-    result = subprocess.run([str(python), '-S', '-c', code], env=env, capture_output=True, text=True, timeout=120)
+print(json.dumps(dict(python=sys.executable,prefix=sys.prefix,no_site=sys.flags.no_site,versions={n:m.version(n) for n in names},origins={n:u.find_spec(n).origin for n in ('torch','torch_npu','vllm','vllm_ascend')},plugins=plugins,execution_context=json.loads(os.environ.get('DEEPLINK_EXECUTION_CONTEXT','null')))))"""
+    from official_execution import sdk_run
+    result = sdk_run([str(python), '-S', '-B', '-c', code], sdk=root, env=env, capture_output=True, text=True, timeout=120)
     if result.returncode:
         raise ValueError('Official image metadata probe failed: ' + result.stderr[-2000:])
     observed = json.loads(result.stdout)
@@ -252,13 +278,69 @@ def finish_restoration(lock_path, out):
     return result
 
 
+def quarantine_partial_sdk(lock_path, out):
+    """Preserve an identifiable interrupted restoration; never move unknown data."""
+    out = Path(out).absolute()
+    if not os.path.lexists(out):
+        return None
+    if out.is_symlink() or not out.is_dir():
+        raise ValueError('Official SDK must be a private ordinary directory')
+    installed = out / 'installed-files.json'
+    if os.path.lexists(installed):
+        if installed.is_symlink() or not installed.is_file():
+            raise ValueError('Invalid official installed-file manifest')
+        return None  # Complete extraction: retain metadata-only recovery.
+    requested = Path(lock_path).read_bytes()
+    lock = out / 'image-lock.json'
+    if lock.is_symlink() or not lock.is_file() or lock.read_bytes() != requested:
+        raise ValueError('Interrupted SDK lock does not match; retain unknown directory')
+    names = {p.name for p in out.iterdir()}
+    marker = out / 'preparation.json'
+    if names == {'image-lock.json'}:
+        raise ValueError('Legacy SDK preparation owner is unknown; preserve its directory')
+    if names != {'image-lock.json'}:
+        if marker.is_symlink() or not marker.is_file():
+            raise ValueError('Unknown incomplete SDK has no owned preparation marker')
+        proof = json.loads(marker.read_bytes())
+        if (proof.get('schema') != 'deeplinkengine-official-image-preparation/v1'
+                or proof.get('destination') != str(out)
+                or proof.get('lock_sha256') != hashlib.sha256(requested).hexdigest()
+                or names - {'image-lock.json', 'preparation.json', 'rootfs', 'image-manifest.json', 'image-config.json'}):
+            raise ValueError('Unrecognized incomplete official SDK; originals retained')
+        for name in names - {'image-lock.json', 'preparation.json'}:
+            if (out / name).is_symlink():
+                raise ValueError('Incomplete SDK top-level link refused')
+    from official_sdk_state import refuse_active_owner
+    owner_state = refuse_active_owner(proof)
+    parent = out.parent.resolve()
+    if out.resolve().parent != parent:
+        raise ValueError('Incomplete SDK escapes its admitted parent')
+    suffix = uuid.uuid4().hex
+    saved = parent / (out.name + '.interrupted-' + suffix)
+    assert not os.path.lexists(saved)
+    info = out.stat()
+    out.rename(saved)
+    result = dict(schema='deeplinkengine-official-interrupted-restoration/v1', at=time.time(),
+                  previous_sdk=str(saved), new_sdk=str(out), inode=info.st_ino,
+                  lock_sha256=hashlib.sha256(requested).hexdigest(), files_deleted=False,
+                  reason='Identifiable interrupted extraction has no installed-file manifest', owner_state=owner_state)
+    receipt = parent / (out.name + '.recovery-' + suffix + '.json')
+    receipt.write_text(json.dumps(result, indent=2) + '\n')
+    return dict(receipt=str(receipt), **result)
+
+
 def prepare(lock_path, cache, out):
     lock = read_lock(lock_path)
+    workers=download_workers()
     out, cache = Path(out).resolve(), Path(cache).resolve()
     out.mkdir(parents=True, exist_ok=False)
     if shutil.disk_usage(out).free < 40 * 1024**3:
         raise ValueError('Official image restoration requires 40 GiB free disk')
     (out / 'image-lock.json').write_bytes(Path(lock_path).read_bytes())
+    from official_sdk_state import owner_info
+    (out / 'preparation.json').write_text(json.dumps(dict(
+        schema='deeplinkengine-official-image-preparation/v1', destination=str(out),
+        lock_sha256=digest(lock_path), started=time.time(), owner=owner_info()), indent=2) + '\n')
     registry = lock['registry']
     manifest_path = fetch(cache, registry, 'manifests', lock['manifest_digest'], lock['manifest_bytes'])
     manifest = json.loads(manifest_path.read_bytes())
@@ -268,7 +350,7 @@ def prepare(lock_path, cache, out):
     config = json.loads(config_path.read_bytes())
     if (config.get('architecture'), config.get('os')) != ('arm64', 'linux'):
         raise ValueError('Image configuration platform mismatch')
-    with ThreadPoolExecutor(max_workers=3) as pool:
+    with ThreadPoolExecutor(max_workers=1 if workers>1 else 3) as pool:
         blobs = list(pool.map(lambda row: fetch(cache, registry, 'blobs', row['digest'], row['size']), lock['layers']))
     rootfs = out / 'rootfs'
     rootfs.mkdir()

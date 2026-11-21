@@ -37,7 +37,7 @@ class EnvironmentTests(unittest.TestCase):
         self.source = dict(filename="fixture.whl", url="https://fixture.invalid/wheel",
                            sha256=hashlib.sha256(self.payload).hexdigest(), bytes=len(self.payload))
 
-    def prepare(self, before=None, probes=None, command=None):
+    def prepare(self, before=None, probes=None, command=None, inherited=None):
         observations = iter(probes or [info("1"), info()])
         def observed(python, *args):
             value = dict(next(observations), python=str(python), prefix=str(Path(python).parent.parent))
@@ -45,13 +45,29 @@ class EnvironmentTests(unittest.TestCase):
         with patch.object(setup, "ROOT", self.root), \
              patch.object(setup.platform, "system", return_value="Linux"), \
              patch.object(setup.platform, "machine", return_value="aarch64"), \
-             patch.object(setup, "cann_environment", return_value=({"PATH": os.environ.get("PATH", "")}, {"version": "9.1.0"})), \
+             patch.object(setup, "cann_environment", return_value=(dict({"PATH": os.environ.get("PATH", "")}, **(inherited or {})), {"version": "9.1.0"})), \
              patch.object(setup, "select_python", return_value=(sys.executable, before or info())), \
              patch.object(setup, "probe", side_effect=observed), \
              patch.object(setup, "command", side_effect=command) as execute, \
+             patch.object(setup, "triton_backend_smoke", return_value={"verified": True, "cpu_fixture": True}), \
              patch.dict(os.environ, {}, clear=True), contextlib.redirect_stdout(io.StringIO()):
             result = setup.ensure_environment(self.data)
         return result, execute
+
+    def test_private_pip_children_have_bounded_network_defaults(self):
+        _, execute = self.prepare()
+        environments = [call.args[1] for call in execute.call_args_list
+                        if call.args[3] in ('repair-vendor-packages', 'resolve-python-dependencies')]
+        self.assertEqual(len(environments), 2)
+        for env in environments:
+            self.assertEqual(env['PIP_DEFAULT_TIMEOUT'], '120')
+            self.assertEqual(env['PIP_RETRIES'], '3')
+
+    def test_private_pip_children_preserve_explicit_network_settings(self):
+        _, execute = self.prepare(inherited=dict(PIP_DEFAULT_TIMEOUT='41', PIP_RETRIES='1'))
+        for call in execute.call_args_list:
+            self.assertEqual(call.args[1]['PIP_DEFAULT_TIMEOUT'], '41')
+            self.assertEqual(call.args[1]['PIP_RETRIES'], '1')
 
     def test_cpu_abi_probe_disables_backend_loading_and_preserves_parent_environment(self):
         inherited = {"TORCH_DEVICE_BACKEND_AUTOLOAD": "1", "ASCEND_RT_VISIBLE_DEVICES": "0,1"}
@@ -85,12 +101,12 @@ class EnvironmentTests(unittest.TestCase):
         result, execute = self.prepare(before=info("1"))
         commands = [call.args[0] for call in execute.call_args_list]
         self.assertEqual(len(commands), 3)
-        self.assertEqual(commands[0][1:4], ["-I", "-m", "venv"])
+        self.assertEqual(commands[0][1:5], ["-I", "-B", "-m", "venv"])
         self.assertNotIn("--system-site-packages", commands[0])
         for args in commands[1:]:
             self.assertTrue(args[0].startswith(self.data["cache"]))
             self.assertNotEqual(args[0], sys.executable)
-            self.assertEqual(args[1:5], ["-I", "-m", "pip", "install"])
+            self.assertEqual(args[1:6], ["-I", "-B", "-m", "pip", "install"])
         self.assertIn("--ignore-installed", commands[1])
         self.assertNotIn("--ignore-installed", commands[2])
         report = json.loads(Path(result["report"]).read_text())
@@ -207,18 +223,24 @@ class EnvironmentTests(unittest.TestCase):
         self.assertFalse((self.root / "wheels/fixture.whl").exists())
 
     def test_early_eof_is_retried_and_only_complete_verified_bytes_are_installed(self):
+        resumed=io.BytesIO(self.payload[5:]);resumed.status=206
+        resumed.headers={'Content-Range':f'bytes 5-{len(self.payload)-1}/{len(self.payload)}'}
         with patch.object(setup.urllib.request, "urlopen", side_effect=[
-                io.BytesIO(self.payload[:5]), io.BytesIO(self.payload)]) as network:
+                io.BytesIO(self.payload[:5]), resumed]) as network:
             result = setup.cached_wheel(self.source, [], self.root / "wheels")
         self.assertEqual(network.call_count, 2)
+        self.assertEqual(network.call_args.args[0].get_header('Range'),'bytes=5-')
         self.assertEqual(result.read_bytes(), self.payload)
         self.assertFalse(list((self.root / "wheels").glob("wheel-*")))
 
     def test_persistent_truncation_retains_failure_and_never_creates_valid_cache_entry(self):
         with patch.object(setup.urllib.request, "urlopen", side_effect=lambda *a, **k: io.BytesIO(b"short")):
-            with self.assertRaisesRegex(OSError, "received 5, expected"):
+            with self.assertRaisesRegex(OSError, "Dependency download failed"):
                 setup.cached_wheel(self.source, [], self.root / "wheels")
         self.assertFalse((self.root / "wheels/fixture.whl").exists())
+        journal=json.loads((self.root/'wheels/fixture.whl.download.json').read_bytes())
+        self.assertIn('received 5, expected',journal['attempts'][0]['error'])
+        self.assertEqual((self.root/'wheels/fixture.whl.download.partial').read_bytes(),b'short')
 
     def test_corrupted_cache_is_quarantined_and_replaced(self):
         cache = self.root / "wheels"
@@ -338,6 +360,10 @@ class EnvironmentTests(unittest.TestCase):
         self.data["environment"] = {"python": "/original/python"}
         prepared, _ = self.prepare()
         managed = prepared["python"]
+        # Older healthy receipts did not contain the compiler ABI probe.
+        old = json.loads(Path(prepared['report']).read_bytes())
+        old.pop('triton_backend', None)
+        Path(prepared['report']).write_text(json.dumps(old))
         observed = dict(info(python=managed), prefix=str(Path(managed).parent.parent))
         with patch.object(setup, "ROOT", self.root), \
              patch.object(setup.sys, "executable", managed), \
@@ -346,10 +372,14 @@ class EnvironmentTests(unittest.TestCase):
              patch.object(setup.platform, "machine", return_value="aarch64"), \
              patch.object(setup, "cann_environment", return_value=({"PATH": "fixture"}, {"version": "9.1.0"})), \
              patch.object(setup, "select_python", return_value=(managed, observed)) as select, \
+             patch.object(setup, "triton_backend_smoke", return_value={"verified": True, "cpu_fixture": True}) as backend, \
+             patch.object(setup, "command", side_effect=AssertionError("Healthy runtime must not be reinstalled")), \
              patch.dict(os.environ, {"DEEPLINKENGINE_ENVIRONMENT_REPORT": prepared["report"],
                                     "DEEPLINKENGINE_MANAGED_PYTHON": managed}, clear=True):
             self.assertIsNone(setup.ensure_environment(self.data))
         self.assertEqual(select.call_args.args[0]["python"], managed)
+        backend.assert_called_once()
+        self.assertTrue(json.loads(Path(prepared["report"]).read_bytes())["triton_backend"]["verified"])
 
     def test_environment_options_are_removed_before_the_real_v3_config_parser(self):
         spec = importlib.util.spec_from_file_location("workflow_fixtures", ROOT / "tests/test_run_all.py")
