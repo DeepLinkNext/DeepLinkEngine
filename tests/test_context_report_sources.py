@@ -85,8 +85,15 @@ def test_changed_original_seal_is_rejected(tmp_path):
         report.context_sources(folder, stored)
 
 
-def collect_fixture(tmp_path, changed=None):
+def collect_fixture(tmp_path, changed=None, actual_cost=None):
     run, folder, arms, state, stored = fixture(tmp_path)
+    cost_path = None
+    if actual_cost:
+        default = run / 'actual-cost.json'
+        default.write_text('{}')
+        cost_path = tmp_path / 'override.json' if actual_cost == 'override' else None
+        if cost_path:
+            cost_path.write_text('{}')
     fixed = run / 'fixed-five'; fixed.mkdir()
     for name in ['campaign-checksums.json', 'frozen-execution-plan.json']:
         (fixed / name).write_text('{}')
@@ -119,8 +126,10 @@ def collect_fixture(tmp_path, changed=None):
             patch('third_party_report.inspect', return_value=observed), \
             patch('acceptance_suite.paired', side_effect=paired), \
             patch.object(report, 'audit_context', side_effect=audit), \
-            patch.object(report, 'targets', return_value={}), patch.object(report, 'workload_pairs', return_value={}):
-        result = report.collect(run)
+            patch.object(report, 'targets', return_value={}) as targets, patch.object(report, 'workload_pairs', return_value={}):
+        result = report.collect(run, cost_path)
+        expected = (cost_path or default) if actual_cost else None
+        assert targets.call_args.args[-1] == expected
     return result, audits, arms, folder, stored
 
 
@@ -138,3 +147,8 @@ def test_collect_replays_audits_and_hashes_the_original_external_arm(tmp_path):
 def test_other_candidate_or_model_cannot_supply_context_results(tmp_path,changed):
     with pytest.raises(ValueError,match='differ[s]? from the fixed-five candidate'):
         collect_fixture(tmp_path,changed)
+
+
+@pytest.mark.parametrize('mode', ['default', 'override'])
+def test_sealed_report_picks_up_fee_file_and_respects_an_explicit_override(tmp_path, mode):
+    collect_fixture(tmp_path, actual_cost=mode)

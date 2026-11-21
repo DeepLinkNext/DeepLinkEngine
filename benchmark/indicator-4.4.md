@@ -12,7 +12,7 @@
 
 ### 随封存回执提交实际费用
 
-在原运行目录封存后，准备实际费用清单和支持文件。清单可分别提供 `mmlu` 与 `four_tenant`，每个提供 B0、B1 两侧。报告的 `targets.4.4.formal_cost` 给出各测量侧的 `measurement_seal_sha256`，对应已校验的原臂 `checksums.json`。填写经核对的费率与支持文件 SHA-256。示例中的占位符须替换为实值。
+完整入口在报告内为未提交费用的工况生成 `actual-cost.template.json`，已填入 B0、B1 各自的测量封存 SHA-256。填写经核对的每卡综合月费和凭据文件及其 SHA-256。已有部分费用时，把模板中的待补工况加入原清单。支持 `mmlu` 与 `four_tenant`，每项均需两侧凭据。下面展示单个工况的结构。
 
 ```json
 {
@@ -36,13 +36,13 @@
 
 文件路径可相对于清单目录。费率核对、费用分摊和凭据真实性由提交方及见证方确认，脚本校验凭据文件、测量封存和数值并复算。报告保留费用清单及凭据摘要，费用原件按交付权限单独归档。
 
+将费用清单保存为原运行输出目录下的 `actual-cost.json`，或在原配置中设置 `"actual_cost": "private/v2-cost.json"`。配置路径相对于配置文件。两种接入方式均由完整入口自动读取；已封存轮次用原配置复算。
+
 ```sh
-python run_all.py --config evaluation.json --report-only --actual-cost private/v2-cost.json
+python run_all.py --config evaluation.json --report-only
 ```
 
-缺少某工况的费用凭据时，报告将该项标为待实际费用凭据，保留采集结果，并把同费率估算单列。正式报告复算使用原封存，写入新的报告目录。
-
-
+临时指定的 `--actual-cost` 优先于配置和默认路径。独立 CPU 复算配置只需 `out` 与 `cache`，以及需要时的 `actual_cost`。复算写入新报告目录，保留原测量与原报告。缺凭据的工况显示待实际费用凭据，同费率估算单列。
 
 ## 历史预检配对结果
 

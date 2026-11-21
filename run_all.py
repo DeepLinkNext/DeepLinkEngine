@@ -13,7 +13,7 @@ import subprocess
 import uuid
 
 ROOT = Path(__file__).resolve().parent
-PATH_FIELDS = {"model", "cache", "out", "baseline_deployment", "dataset_assets", "env_file"}
+PATH_FIELDS = {"model", "cache", "out", "baseline_deployment", "dataset_assets", "env_file", "actual_cost"}
 FIELDS = PATH_FIELDS | {"physical_devices", "devices", "environment", "engine_version", "rerun_b0", "allow_device_change"}
 
 
@@ -22,7 +22,8 @@ def configuration(path, *, allow_existing=False, report_only=False):
     data = json.loads(path.read_text())
     if not isinstance(data, dict) or set(data) - FIELDS:
         raise ValueError("Use the fields in benchmark/run-all.example.json")
-    for name in ("model", "physical_devices", "cache", "out"):
+    required = ("cache", "out") if report_only else ("model", "physical_devices", "cache", "out")
+    for name in required:
         if name not in data:
             raise ValueError("Missing configuration field: " + name)
     for name in PATH_FIELDS & data.keys():
@@ -61,7 +62,7 @@ def configuration(path, *, allow_existing=False, report_only=False):
 
 
 def evaluation_configuration(data, installation):
-    return dict({k: v for k, v in data.items() if k not in ("environment", "engine_version", "rerun_b0", "allow_device_change")}, engine_profile=selected_profile(), test_mode="full",
+    return dict({k: v for k, v in data.items() if k not in ("environment", "engine_version", "rerun_b0", "allow_device_change", "actual_cost")}, engine_profile=selected_profile(), test_mode="full",
                 reference_profile="submission-v2", deployment=str(installation / "sdk"),
                 out=str(Path(data["out"]) / "fixed-five"))
 
@@ -515,6 +516,12 @@ def run(data, *, resume_bootstrap=False, resume_before_model=False, resume_befor
         for name in ("full-report/summary.json", "full-report/report.html", "full-report/fixed-five.svg", "full-report/fixed-five.png"):
             with (out/name).open("rb") as stream:
                 hashes[name] = hashlib.file_digest(stream,"sha256").hexdigest()
+        template = out / "full-report/actual-cost.template.json"
+        if template.is_file():
+            relative = "full-report/actual-cost.template.json"
+            reports["actual_cost_template"] = relative
+            with template.open("rb") as stream:
+                hashes[relative] = hashlib.file_digest(stream, "sha256").hexdigest()
         cost = overview["targets"]["4.4"]
         cost_complete = all(cost[level].get("evidence_status") == "verified" for level in ("milestone", "final"))
         receipt.update(status="completed", automated_acceptance_complete=cost_complete,
@@ -578,6 +585,15 @@ def main():
         data = configuration(args.config,
                              allow_existing=args.resume_bootstrap or args.resume_before_model or args.resume_before_inference or args.report_only,
                              report_only=args.report_only)
+        configured_cost = data.pop("actual_cost", None)
+        cost_path = args.actual_cost or configured_cost
+        actual_cost = Path(cost_path).expanduser().resolve() if cost_path is not None else None
+        if actual_cost is not None:
+            if not actual_cost.is_file():
+                raise ValueError("Actual cost manifest is not a file: " + str(actual_cost))
+            if not args.report_only and not args.prepare_environment:
+                from full_report import actual_cost_inputs
+                actual_cost_inputs(actual_cost)
         if args.rerun_b0 is not None:
             data["rerun_b0"] = args.rerun_b0
         os.environ["XDG_CACHE_HOME"] = os.environ.get("XDG_CACHE_HOME") or str(Path(data["cache"]) / "xdg")
@@ -590,7 +606,7 @@ def main():
             if (out / 'engine-selection.json').is_file():
                 bind(out / 'engine-selection.json')
             destination = out / ("full-report-" + uuid.uuid4().hex)
-            return subprocess.run(full_report_command(out, destination, actual_cost=args.actual_cost)).returncode
+            return subprocess.run(full_report_command(out, destination, actual_cost=actual_cost)).returncode
         recovery = args.resume_bootstrap or args.resume_before_model or args.resume_before_inference
         if (args.reuse_completed_campaign or args.reuse_mmlu_baseline_arm or args.reuse_context_baseline_arm or args.reuse_compute_baseline_arm or args.reuse_compute_observation) and not (args.reuse_completed_run or recovery):
             raise ValueError('Additional sealed sources require explicit completed-run recovery')
@@ -626,7 +642,7 @@ def main():
         return 0
     return run(data, resume_bootstrap=args.resume_bootstrap, resume_before_model=args.resume_before_model, resume_before_inference=args.resume_before_inference,
                reuse_completed_run=args.reuse_completed_run, reuse_completed_campaigns=args.reuse_completed_campaign,
-               reuse_mmlu_baseline_arm=args.reuse_mmlu_baseline_arm, reuse_context_baseline_arm=args.reuse_context_baseline_arm, reuse_compute_baseline_arm=args.reuse_compute_baseline_arm, actual_cost=args.actual_cost,
+               reuse_mmlu_baseline_arm=args.reuse_mmlu_baseline_arm, reuse_context_baseline_arm=args.reuse_context_baseline_arm, reuse_compute_baseline_arm=args.reuse_compute_baseline_arm, actual_cost=actual_cost,
                reuse_compute_observation=args.reuse_compute_observation)
 
 
