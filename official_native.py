@@ -48,7 +48,9 @@ def run(config, image, output, tools, sdk, sources, leases, continuous):
     initial = admit_startup_memory(guard, Path(config['model']), weights, output)
     python, env = environment(image, service_cache(config, output), devices='0,1')
     env.update(TRITON_CACHE_DIR=str(kernel_cache(config, image)), VLLMHUST_OFFICIAL_SDK=str(image))
-    env.update(PYTHONPATH=str(ROOT) + ':' + str(tools / 'scripts') + ':' + str(tools / 'third-party-test-kit/proc_capture') + ':' + env['PYTHONPATH'],
+    inventory = tools / 'third-party-test-kit/proc_capture/m01_model_inventory.py'
+    env['VLLMHUST_OFFICIAL_INVENTORY'] = json.dumps(dict(path=str(inventory), sha256=sources[str(inventory)]))
+    env.update(PYTHONPATH=str(ROOT) + ':' + str(tools / 'scripts') + ':' + env['PYTHONPATH'],
                VLLM_HUST_TEST_OUTPUT=str(output), VLLM_ENABLE_V1_MULTIPROCESSING='1',
                VLLM_DISABLE_REQUEST_ID_RANDOMIZATION='1')
     from engine_entry import ipc_directory, temporary_directory

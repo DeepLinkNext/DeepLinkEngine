@@ -180,6 +180,8 @@ def phase(config, image, phase_name, output, tools, sdk, sources, leases, contin
                 original_baseline_018_relabelled=False, necessary_work_certified=False)
     plan['worker_sources'][str(ROOT / 'official_worker.py')] = sources[str(ROOT / 'official_worker.py')]
     plan['worker_sources'][str(ROOT / 'official_kernel_preparation.py')] = sources[str(ROOT / 'official_kernel_preparation.py')]
+    inventory = tools / 'third-party-test-kit/proc_capture/m01_model_inventory.py'
+    plan['worker_sources'][str(inventory)] = sources[str(inventory)]
     if kind == 'dataset':
         suffix = 'trace' if phase_name in ('swe', 'terminal') else 'solver'
         plan['dataset_spec'] = str(Path(config['protocol_run']) / 'plans' / (phase_name + '-' + suffix + '-B0.json'))
@@ -196,13 +198,13 @@ def phase(config, image, phase_name, output, tools, sdk, sources, leases, contin
     save(service / 'plan.json', plan)
     python, env = environment(image, cache, devices='0,1')
     env.update(TRITON_CACHE_DIR=str(kernel_cache(config, image)), VLLMHUST_OFFICIAL_SDK=str(image))
+    env['VLLMHUST_OFFICIAL_INVENTORY'] = json.dumps(dict(path=str(inventory), sha256=sources[str(inventory)]))
     env.update(PYTHONPATH=str(ROOT) + ':' + str(tools / 'scripts') + ':' + env['PYTHONPATH'],
                VLLM_HUST_TEST_OUTPUT=str(service), VLLM_HUST_PHYSICAL_DEVICES=','.join(map(str, config['physical_devices'])),
                VLLMHUST_ENGINE_LOCKS=json.dumps(leases), VLLM_SERVER_DEV_MODE='1')
     from engine_entry import ipc_directory, temporary_directory
     env['VLLM_RPC_BASE_PATH'] = str(ipc_directory(service))
     env['TMPDIR'] = str(temporary_directory(service))
-    env['PYTHONPATH'] = str(tools / 'third-party-test-kit/proc_capture') + ':' + env['PYTHONPATH']
     logs = output / 'cann-logs'
     logs.mkdir()
     env['ASCEND_PROCESS_LOG_PATH'] = str(logs)

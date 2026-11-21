@@ -2,6 +2,21 @@
 from compile_boundary import WorkerExtension
 
 
+def inventory_collector(record):
+    import hashlib
+    import importlib.util
+    from pathlib import Path
+    if set(record) != {'path', 'sha256'}:
+        raise ValueError('A pinned inventory source is required')
+    path = Path(record['path'])
+    if hashlib.sha256(path.read_bytes()).hexdigest() != record['sha256']:
+        raise ValueError('Pinned model inventory helper changed')
+    spec = importlib.util.spec_from_file_location('deeplink_official_model_inventory', path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module.collect
+
+
 class OfficialWorker(WorkerExtension):
     def hust_official_kernel_prepare(self):
         from official_kernel_preparation import prepare
@@ -30,7 +45,7 @@ class OfficialWorker(WorkerExtension):
                 if previous_ids != object_ids:
                     raise ValueError('Official target/draft objects changed after inventory')
             else:
-                from m01_model_inventory import collect
+                collect = inventory_collector(json.loads(os.environ['VLLMHUST_OFFICIAL_INVENTORY']))
                 captured = dict(schema='deeplinkengine-official-loaded-inventory/v1', rank=int(self.rank),
                                 target=collect(target), draft=collect(draft),
                                 tensor_values_observed=False, per_step_observer_installed=False,
