@@ -25,9 +25,12 @@ def save(path,value):
 
 
 def runtime():
+    import pip
     from pip._vendor.packaging.markers import default_environment
     from pip._internal.utils.compatibility_tags import get_supported
-    return dict(markers=default_environment(),tags=[str(tag) for tag in get_supported()],python=sys.executable)
+    if not Path(pip.__file__).resolve().is_relative_to(Path(sys.prefix).resolve()):raise ValueError('Build-input metadata must use the selected SDK pip')
+    return dict(markers=default_environment(),tags=[str(tag) for tag in get_supported()],python=sys.executable,
+        prefix=sys.prefix,pip_version=pip.__version__,pip_origin=str(Path(pip.__file__).resolve()))
 
 
 def requirements(projects,environment):

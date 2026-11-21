@@ -208,6 +208,13 @@ class DeliveryTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,'publisher-SHA-qualified'):delivery.prime(self.request([row]))
         self.assertFalse(self.pip_caches[0].exists())
 
+    def test_closed_graph_rows_retain_original_unhashed_transfer_qualification(self):
+        fixed=self.unhashed_vendor_row();closed=dict(fixed);closed.pop('no_hash_link_attestation')
+        merged=delivery.retain_delivery_qualification(closed,dict(fixed,cache_aliases=[]))
+        self.assertEqual(merged['no_hash_link_attestation'],fixed['no_hash_link_attestation'])
+        result=delivery.prime(self.request([merged]))
+        self.assertTrue(all(not r['cache_key_has_hash'] for r in result['entries']))
+
     def test_existing_build_cache_requires_actual_publisher_whole_authority(self):
         import official_source_prefetch as prefetch
         environment=prefetch.runtime();row=self.rows[0];before={p.name:delivery.sha(p) for p in (self.cache/'wheels').glob('*.whl')}
@@ -230,6 +237,53 @@ class DeliveryTests(unittest.TestCase):
         replacement.replace(path);row.update(bytes=path.stat().st_size,sha256=delivery.sha(path))
         with self.assertRaisesRegex(ValueError,'package/version/tag'):delivery.prime(self.request([row]))
         self.assertFalse(self.pip_caches[0].exists())
+
+    def collector_script(self,mode='actual'):
+        import official_source_prefetch as prefetch
+        script=self.root/('collector-'+mode+'.py')
+        script.write_text('''from pathlib import Path
+import sys,json,time,subprocess,tomllib
+sys.path.insert(0,''' + repr(str(Path(prefetch.__file__).resolve().parent)) + ''')
+request=json.loads(Path(sys.argv[2]).read_bytes());out=Path(request['out'])
+if '''+repr(mode)+'''=='sleep':
+ child=subprocess.Popen([sys.executable,'-B','-c','import time;time.sleep(60)'])
+ Path(str(out)+'.child-pid').write_text(str(child.pid));time.sleep(60)
+from unittest.mock import patch
+import official_source_prefetch as p
+import official_source_candidate as candidate
+with patch.object(p,'original_projects',return_value=[]),patch.object(p,'cached_build_inputs',return_value=[]),patch.object(candidate,'build_dependency_artifacts',return_value={}):
+ p.collect(request['cache'],request['out'])
+result=json.loads((out/'results.json').read_bytes())
+if '''+repr(mode)+'''=='wrong':result['runtime']['python']=sys.executable+'.wrong-parent-runtime'
+Path(sys.argv[3]).write_text(json.dumps(result))
+''')
+        return script
+
+    def test_collection_executes_sdk_child_and_never_uses_parent_runtime(self):
+        import official_source_prefetch as prefetch
+        script=self.collector_script();out=self.root/'collection'
+        with patch.object(delivery,'__file__',str(script)),patch.object(prefetch,'runtime',side_effect=AssertionError('Host runtime must never be used')):
+            rows=delivery.invoke_collection(sys.executable,os.environ.copy(),self.root/'fixture-sdk',self.cache,out,timeout=30)
+        self.assertEqual(rows,[])
+        actual=json.loads((out/'results.json').read_bytes())['runtime']
+        self.assertEqual(Path(actual['python']).resolve(),Path(sys.executable).resolve())
+        self.assertIn('pip_origin',actual);self.assertIn('python_full_version',actual['markers'])
+
+    def test_collection_refuses_runtime_source_other_than_selected_sdk(self):
+        script=self.collector_script('wrong')
+        with patch.object(delivery,'__file__',str(script)):
+            with self.assertRaisesRegex(ValueError,'differs from the selected SDK'):
+                delivery.invoke_collection(sys.executable,os.environ.copy(),self.root/'fixture-sdk',self.cache,self.root/'wrong-collection',timeout=30)
+
+    @unittest.skipUnless(sys.platform=='linux','Actual owned Linux collector process group')
+    def test_collection_budget_cleans_its_actual_child_group(self):
+        import time
+        script=self.collector_script('sleep');out=self.root/'sleep-collection'
+        with patch.object(delivery,'__file__',str(script)):
+            with self.assertRaises(subprocess.TimeoutExpired):
+                delivery.invoke_collection(sys.executable,os.environ.copy(),self.root/'fixture-sdk',self.cache,out,timeout=2)
+        pid=int(Path(str(out)+'.child-pid').read_text());proc=Path('/proc',str(pid),'stat')
+        self.assertTrue(not proc.exists() or proc.read_text().rsplit(')',1)[1].split()[0]=='Z')
 
 
 if __name__=='__main__':unittest.main()
