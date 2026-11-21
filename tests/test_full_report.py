@@ -128,6 +128,35 @@ class Decisions(unittest.TestCase):
             self.assertFalse(report.audit_context(p)['clean'])
 
 
+    def test_only_owned_shutdown_trace_after_measurement_is_separate(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            folder = root / 'service/acceptance'
+            folder.mkdir(parents=True)
+            end = report.datetime(2026, 11, 21, 15, 8, 28, tzinfo=report.timezone.utc).timestamp()
+            (folder/'execution.json').write_text(json.dumps(dict(status='completed', phases=[dict(end=dict(wall=end))])))
+            (root/'receipt.json').write_text(json.dumps(dict(completed=True, quiescent=True, ended=end+20)))
+            (root/'cleanup.json').write_text(json.dumps(dict(quiescent=True, actions=[dict(pid=37, signal=15)])))
+            (root/'memory-initial.json').write_text('{"events":{"oom":0}}')
+            (root/'memory-samples.jsonl').write_text('{"events":{"oom":0}}\n')
+            lines = [
+                '(APIServer pid=37) INFO 11-21 15:08:30 [launcher.py:129] [shutdown] API server: shutdown triggered',
+                '(APIServer pid=37) ERROR 11-21 15:08:45 [async_llm.py:829] AsyncLLM output_handler failed.',
+                '(APIServer pid=37) ERROR 11-21 15:08:45 [async_llm.py:829] Traceback (most recent call last):',
+                '(APIServer pid=37) ERROR 11-21 15:08:45 [async_llm.py:829] vllm.v1.engine.exceptions.EngineDeadError: E',
+                '(APIServer pid=37) INFO 11-21 15:08:45 [launcher.py:154] [shutdown] API server: engine client stopped',
+            ]
+            log = root / 'service.log'
+            log.write_text('\n'.join(lines))
+            original = report.audit_context(root)
+            self.assertTrue(original['clean'])
+            self.assertEqual(len(original['post_measurement_teardown']), 1)
+            log.write_text('\n'.join(line.replace('15:08:45','15:08:27') for line in lines))
+            self.assertFalse(report.audit_context(root)['clean'])
+            log.write_text('\n'.join(lines+['No space left on device']))
+            self.assertFalse(report.audit_context(root)['clean'])
+
+
 class CostTests(unittest.TestCase):
     def setUp(self):
         self.fixed = fixed()

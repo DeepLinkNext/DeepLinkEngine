@@ -82,6 +82,27 @@ class WorkflowTests(unittest.TestCase):
         names = [row["name"] for row in receipt["stages"]]
         self.assertLess(names.index("verify-installed-tools"), names.index("run-context-tenant"))
 
+    def test_plot_only_failure_continues_to_cpu_report_without_inference_retry(self):
+        from full_report import PLOT_FAILURE
+        def execute(args, **kwargs):
+            result = self.execute(args, **kwargs)
+            if '--context-tenant-only' in args:
+                self.write('context-tenant/execution.json', dict(status='failed', failure=PLOT_FAILURE))
+                (self.root/'result/context-tenant/paired-report/report.html').unlink()
+                return types.SimpleNamespace(returncode=2)
+            return result
+
+        with patch('full_report.context_sources') as admit:
+            code, receipt = self.invoke(execute)
+        admit.assert_called_once()
+        self.assertEqual(code, 0)
+        self.assertEqual(receipt['status'], 'completed')
+        rows = [row for row in receipt['stages'] if row['name'] == 'run-context-tenant']
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]['returncode'], 2)
+        self.assertEqual(rows[0]['status'], 'sealed_with_plot_failure')
+        self.assertEqual(receipt['reports']['context_tenant'], 'full-report/report.html#context-results')
+
     def test_completed_measurements_keep_report_when_actual_cost_is_missing(self):
         def execute(args, **kwargs):
             result = self.execute(args, **kwargs)

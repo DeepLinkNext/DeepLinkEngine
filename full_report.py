@@ -1,6 +1,7 @@
 from release_selection import kit_path, runtime_lock, profile as selected_profile
 """Build binary milestone/final decisions from independently audited run summaries."""
 import argparse
+from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation
 from fractions import Fraction
 import hashlib
@@ -71,6 +72,54 @@ def coverage(util):
 HAZARD=re.compile(r'No space left on device|Disk quota exceeded|out of memory|OutOfMemory|segmentation fault|deadlock detected|Traceback \(most recent call last\)|Fatal Python error|log write failed',re.I)
 
 
+API_LOG = re.compile(r'^\(APIServer pid=(\d+)\) (?:INFO|ERROR) (\d\d-\d\d \d\d:\d\d:\d\d) ')
+PLOT_FAILURE = 'RuntimeError: Paired plotting failed; completed arm evidence retained for CPU-only recomputation'
+
+
+def recorded_shutdown_traces(root, cleanup, lines):
+    """Recognize the owned API drain traceback after the last measured window."""
+    execution = root / 'service/acceptance/execution.json'
+    receipt_path = root / 'receipt.json'
+    if not (execution.is_file() and receipt_path.is_file() and cleanup.get('quiescent') is True):
+        return set()
+    measurement = json.loads(execution.read_bytes())
+    receipt = json.loads(receipt_path.read_bytes())
+    phases = measurement.get('phases', [])
+    if (measurement.get('status') != 'completed' or not phases
+            or receipt.get('completed') is not True or receipt.get('quiescent') is not True):
+        return set()
+    end = phases[-1]['end']['wall']
+    year = datetime.fromtimestamp(end, timezone.utc).year
+    terminated = {str(action['pid']) for action in cleanup.get('actions', []) if action.get('signal') == 15}
+    triggers, notices = set(), set()
+
+    for index, line in enumerate(lines):
+        event = API_LOG.match(line)
+        if not event or event[1] not in terminated:
+            continue
+        if 'shutdown triggered' not in line and 'Traceback (most recent call last)' not in line:
+            continue
+        timestamp = datetime.strptime(f'{year}-{event[2]}', '%Y-%m-%d %H:%M:%S').replace(tzinfo=timezone.utc)
+        if not end <= timestamp.timestamp() <= receipt['ended']:
+            continue
+        pid = event[1]
+        if '[shutdown] API server: shutdown triggered' in line:
+            triggers.add(pid)
+        elif index and pid in triggers and 'AsyncLLM output_handler failed.' in lines[index-1]:
+            prefix = f'(APIServer pid={pid}) '
+            following = [item for item in lines[index+1:index+16] if item.startswith(prefix)]
+            if (lines[index-1].startswith(prefix)
+                    and any('vllm.v1.engine.exceptions.EngineDeadError:' in item for item in following)
+                    and any('[shutdown] API server: engine client stopped' in item for item in following)):
+                notices.add(index)
+    return notices
+
+
+def context_plot_failure(execution):
+    return execution.get('status') == 'failed' and execution.get('failure') == PLOT_FAILURE
+
+
+
 def audit_context(root):
     initial=json.loads((root/'memory-initial.json').read_text())
     samples=[json.loads(line) for line in (root/'memory-samples.jsonl').read_text().splitlines() if line]
@@ -81,14 +130,18 @@ def audit_context(root):
             errors.append('cgroup新增OOM事件');break
     cleanup=json.loads((root/'cleanup.json').read_text())
     if cleanup.get('quiescent') is not True:errors.append('服务未完成清理')
-    logs=[]
+    logs, teardown = [], []
     for path in root.rglob('*.log'):
-        logs.append(str(path.relative_to(root)))
-        with path.open(errors='replace') as stream:
-            for index,line in enumerate(stream,1):
-                if HAZARD.search(line):errors.append(str(path.relative_to(root))+':'+str(index)+': '+line.strip()[:240])
+        name = path.relative_to(root).as_posix()
+        logs.append(name)
+        lines = path.read_text(errors='replace').splitlines()
+        known = recorded_shutdown_traces(root, cleanup, lines) if name == 'service.log' else set()
+        for index, line in enumerate(lines):
+            if HAZARD.search(line):
+                item = f'{name}:{index+1}: {line.strip()[:240]}'
+                (teardown if index in known else errors).append(item)
     if 'service.log' not in logs:errors.append('缺少服务日志')
-    return dict(clean=not errors,errors=errors,logs=logs)
+    return dict(clean=not errors,errors=errors,logs=logs,post_measurement_teardown=teardown)
 
 
 def workload_pairs(fixed):
@@ -372,6 +425,8 @@ def context_sources(folder, stored):
     folder = Path(folder).resolve()
     execution = json.loads((folder / 'execution.json').read_text())
     rows = execution.get('stages', [])
+    if execution.get('status') != 'completed' and not context_plot_failure(execution):
+        raise ValueError('Context execution failed before the plotting boundary')
     if (execution.get('schema') != 'vllm-hust-acceptance-supplement-execution/v1'
             or stored.get('schema') != 'vllm-hust-paired-context-tenant-supplement/v1'
             or len(rows) != 2 or [row.get('role') for row in rows] != ['B0', 'B1']
@@ -546,6 +601,7 @@ def collect(root, actual_cost=None):
     if fixed['plan']['datasets']!=list(DATASETS):
         raise ValueError('Full report requires all five frozen datasets')
     stored=json.loads((root/'context-tenant/paired-summary.json').read_text())
+    context_receipt = json.loads((root/'context-tenant/execution.json').read_bytes())
     arms=context_sources(root/'context-tenant',stored)
     identity=json.loads((arms['B1']/'source-admission.json').read_text())
     if identity.get('release')!=fixed['plan']['engine_release']:
@@ -607,7 +663,9 @@ def collect(root, actual_cost=None):
                     'context': context.get('device_change'),
                     'native': (fixed.get('current_compute_reference') or {}).get('native_device_change'),
                 }} if fixed.get('execution_devices') else {}),
-                context_audit=audits,context_arm_sources={r:str(arms[r]) for r in ('B0','B1')},evidence_sha256=hashes,
+                context_audit=audits, context_results=context['comparison'],
+                context_receipt=dict(status=context_receipt['status'], failure=context_receipt.get('failure')),
+                context_arm_sources={r:str(arms[r]) for r in ('B0','B1')},evidence_sha256=hashes,
                 source_sha256=hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
                 scoring='MMLU规则评分；HLE/Frontier使用同一模型辅助评分，未决计入固定分母；SWE/Terminal为公开轨迹性能。',
                 reference_method='本轮必要F及原生同步T，除以经核验复用的原同工况参考算力上界；不复用旧效率。')
@@ -671,13 +729,18 @@ def render(root, out, actual_cost=None):
         + esc(json.dumps({k: v for k, v in value.items() if k != 'same_rate_estimate'}, ensure_ascii=False, indent=2))
         + '</pre></details>' for key, value in data['targets'].items())
     input_sources = workload_source_table(data['workload_sources']) if 'workload_sources' in data else ''
+    context_details = ''
+    if 'context_results' in data:
+        context_details = '<details id="context-results"><summary>长上下文与四租户复算明细</summary><pre>' + esc(
+            json.dumps(dict(receipt=data['context_receipt'], results=data['context_results']),
+                       ensure_ascii=False, indent=2)) + '</pre></details>'
     estimates = data['targets']['4.4']['same_rate_estimate']
     estimate_section = '<details><summary>4.4 同费率估算（参考）</summary><pre>' + esc(
         json.dumps(estimates, ensure_ascii=False, indent=2)) + '</pre></details>'
     device_note = ''
     if data.get('execution_devices'):
         device_note = '<p>跨卡比较保留各自的物理设备。差值包含设备更换的影响。</p><details><summary>原始与当前设备映射</summary><pre>' + esc(json.dumps(data['execution_devices'], ensure_ascii=False, indent=2)) + '</pre></details>'
-    document='''<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>DeepLinkEngine B0/B1完整测试</title><style>body{font:16px system-ui;max-width:1100px;margin:40px auto;padding:0 20px;color:#17212b;background:#f8fafc}table{border-collapse:collapse;width:100%;background:white}th,td{padding:16px;border-bottom:1px solid #cbd5e1;text-align:left}.yes{color:#087443}.no{color:#b42318}details{background:white;padding:16px;margin:14px 0;border:1px solid #cbd5e1;border-radius:8px}summary{cursor:pointer}pre{white-space:pre-wrap;overflow-wrap:anywhere}img{width:100%;height:auto}a{color:#175cd3}</style><h1>DeepLinkEngine B0/B1 完整测试</h1><p>MMLU 200 · HLE 分层200 · Frontier 160 · SWE 64请求 · Terminal 48请求</p>'''+device_note+'''<table><tr><th>指标</th><th>里程碑</th><th>项目最终目标</th></tr>'''+rows+'''</table>'''+input_sources+'''<details><summary>冻结引擎与 MOD 组合</summary><pre>'''+esc(json.dumps(dict(release=data.get('engine_release'),mods=data.get('frozen_mods',[])),ensure_ascii=False,indent=2))+'''</pre></details><h2>固定五项配对结果</h2><img src="fixed-five.svg" alt="五数据集B0/B1吞吐和时延"><p>'''+esc(data['scoring'])+'''</p>'''+details+template_link+estimate_section+'''<details><summary>有效算力参考计算公式</summary><p>C本轮下界=ΣF本轮下界/(2×ΣT本轮×10¹²)；C参考上界=ΣF原参考上界/(2×ΣT原参考下界×10¹²)；η下界=100×C本轮下界/C参考上界。</p><p>'''+esc(data['reference_method'])+'''</p></details><details><summary>原始报告、采样与复算记录</summary><p><a href="../fixed-five-report/report.html">五数据集与参考报告</a> · <a href="../context-tenant/paired-report/report.html">上下文与四租户报告</a> · <a href="summary.json">本页判定与原件哈希</a></p><pre>'''+esc(json.dumps(data['context_audit'],ensure_ascii=False,indent=2))+'''</pre></details></html>'''
+    document='''<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>DeepLinkEngine B0/B1完整测试</title><style>body{font:16px system-ui;max-width:1100px;margin:40px auto;padding:0 20px;color:#17212b;background:#f8fafc}table{border-collapse:collapse;width:100%;background:white}th,td{padding:16px;border-bottom:1px solid #cbd5e1;text-align:left}.yes{color:#087443}.no{color:#b42318}details{background:white;padding:16px;margin:14px 0;border:1px solid #cbd5e1;border-radius:8px}summary{cursor:pointer}pre{white-space:pre-wrap;overflow-wrap:anywhere}img{width:100%;height:auto}a{color:#175cd3}</style><h1>DeepLinkEngine B0/B1 完整测试</h1><p>MMLU 200 · HLE 分层200 · Frontier 160 · SWE 64请求 · Terminal 48请求</p>'''+device_note+'''<table><tr><th>指标</th><th>里程碑</th><th>项目最终目标</th></tr>'''+rows+'''</table>'''+input_sources+'''<details><summary>冻结引擎与 MOD 组合</summary><pre>'''+esc(json.dumps(dict(release=data.get('engine_release'),mods=data.get('frozen_mods',[])),ensure_ascii=False,indent=2))+'''</pre></details><h2>固定五项配对结果</h2><img src="fixed-five.svg" alt="五数据集B0/B1吞吐和时延"><p>'''+esc(data['scoring'])+'''</p>'''+details+context_details+template_link+estimate_section+'''<details><summary>有效算力参考计算公式</summary><p>C本轮下界=ΣF本轮下界/(2×ΣT本轮×10¹²)；C参考上界=ΣF原参考上界/(2×ΣT原参考下界×10¹²)；η下界=100×C本轮下界/C参考上界。</p><p>'''+esc(data['reference_method'])+'''</p></details><details><summary>原始报告、采样与复算记录</summary><p><a href="../fixed-five-report/report.html">五数据集与参考报告</a> · <a href="#context-results">长上下文与四租户复算明细</a> · <a href="summary.json">本页判定与原件哈希</a></p><pre>'''+esc(json.dumps(data['context_audit'],ensure_ascii=False,indent=2))+'''</pre></details></html>'''
     (out/'report.html').write_text(document, encoding='utf-8')
     return data
 
