@@ -1,0 +1,14 @@
+{
+  "schema": "deeplinkengine-reviewed-solver-reuse/v1",
+  "scope": "fixed-judge-prelaunch-bind-only",
+  "reviewed_controller_changes": {
+    "official_suite.py": {
+      "original_sha256": "63b8e6157a5bcbc803973b8099128cb1df28fd7d4cb8d6d9f5b4a335ad26fdcc",
+      "current_sha256": "1a670e0f71cfbb036393ad6af4ef963d5b75957a93b7652ea824e609c46cfac2"
+    },
+    "official_judge.py": {
+      "original_sha256": "5b296e1ee7769131f9d8fe64cf74fa3def908d7f3967bf05c5df029df69a77eb",
+      "current_sha256": "baf08380e6077cd9c7d79c895ab2dd581a6c189db864d56990d182fa2255c6ac"
+    }
+  }
+}

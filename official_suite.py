@@ -309,7 +309,8 @@ def run(config, image, output):
     sources.update({str(ROOT / name): digest(ROOT / name) for name in
                     ('official_suite.py', 'official_http.py', 'official_serve.py', 'official_worker.py',
                      'official_judge.py', 'official_native.py', 'official_native_entry.py', 'official_report.py', 'official_plots.py',
-                     'official_kernel_preparation.py', 'official_endpoint.py', 'official_reuse.py')})
+                     'official_kernel_preparation.py', 'official_endpoint.py', 'official_reuse.py',
+                     'official_solver_reuse.py', 'engine/official-baselines/solver-reuse-policy-v1.json')})
     frozen = dict(schema='deeplinkengine-official-full-suite/v1', baseline_image=json.loads((image / 'image-lock.json').read_bytes()),
                   status='preparing', prepared_before_model_start=True, started=time.time(),
                   sources=sources, physical_mapping=mapping,
@@ -333,6 +334,16 @@ def run(config, image, output):
         if len(weights) != 14 or sum(v['bytes'] for v in weights.values()) != 71903878016:
             raise ValueError('Fixed BF16 14-shard Qwen3.5-35B-A3B checkpoint required')
         save(output / 'model-weights.json', weights)
+        if config.get('reuse_completed_solvers'):
+            from official_solver_reuse import admit as admit_solvers
+            retained = admit_solvers(config['reuse_completed_solvers'], output,
+                                     config=config, image_lock=frozen['baseline_image'], sources=sources,
+                                     weights=weights, mapping=mapping, inputs=continuous,
+                                     current_root=ROOT, arguments=public_arguments)
+            save(output / 'completed-solvers-reuse.json', retained)
+            for original in retained['phases']:
+                next(row for row in frozen['stages'] if row['name'] == original['name']).update(status='reused', reuse=original)
+            save(output / 'campaign.json', frozen)
         if config.get('reuse_completed_continuous'):
             from official_reuse import admit
             retained = admit(config['reuse_completed_continuous'], output / 'continuous',

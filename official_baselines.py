@@ -52,9 +52,15 @@ def main(arguments=None):
     parser.add_argument('--prepare-environment', action='store_true')
     parser.add_argument('--reuse-completed-continuous', type=Path,
                         help='In a new output, retain sealed C8 after a later pre-model failure; preserve original clocks')
+    parser.add_argument('--reuse-completed-solvers', type=Path,
+                        help='In a new campaign, retain all sealed solvers after the first fixed-judge pre-launch bind failure; do not repeat solver inference')
     args = parser.parse_args(arguments)
     try:
         config = configuration(args.config)
+        if args.reuse_completed_solvers:
+            if args.prepare_environment or args.reuse_completed_continuous or len(config['versions']) != 1:
+                raise ValueError('Completed solver retention requires one full-suite version, separate from C8/environment modes')
+            config['reuse_completed_solvers'] = str(args.reuse_completed_solvers.resolve())
         if args.reuse_completed_continuous:
             if args.prepare_environment or len(config['versions']) != 1:
                 raise ValueError('Completed C8 recovery requires one explicit full-suite version')
