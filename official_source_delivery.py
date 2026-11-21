@@ -4,6 +4,8 @@ import json
 import os
 from pathlib import Path
 import shutil
+import signal
+import subprocess
 import sys
 import tempfile
 import time
@@ -85,7 +87,27 @@ def prime(request):
         for suffix in ('.download.json','.range-receipt.json'):
             item=path.with_name(filename+suffix)
             if item.is_file() and not item.is_symlink():provenance.append(dict(path=str(item),sha256=sha(item)))
-        keys=[(url,None)]
+        nohash=row.get('no_hash_link_attestation')
+        if nohash:
+            receipt=Path(nohash['range_receipt'])
+            if receipt.is_symlink() or not receipt.is_file() or sha(receipt)!=nohash['range_receipt_sha256']:
+                raise ValueError('Unhashed vendor Link lacks its actual verified whole-transfer receipt')
+            transfer=json.loads(receipt.read_bytes());publisher=nohash['published_metadata'];published=Path(publisher['path'])
+            if (transfer.get('kind')!='verified-public-four-worker-ranges' or transfer.get('source_url')!=url
+                    or transfer.get('sha256')!=row['sha256'] or nohash['published_sha256']!=row['sha256']
+                    or sha(published)!=publisher['sha256']):
+                raise ValueError('Unhashed vendor Link differs from its actual publisher-SHA-qualified body')
+            release=json.loads(published.read_bytes())
+            if not any(a.get('name')==filename and a.get('size')==row['bytes'] and a.get('digest')=='sha256:'+row['sha256'] for a in release.get('assets',[])):
+                raise ValueError('Unhashed vendor Link lacks the exact official release artifact digest')
+            index=nohash['index'];index_file=Path(index['index_path'])
+            if sha(index_file)!=index['index_sha256'] or index.get('link_has_digest') is not False:
+                raise ValueError('Unhashed vendor Link index bytes or no-fragment identity changed')
+            from official_build_assets import _Links
+            parser=_Links();parser.feed(index_file.read_text(encoding='utf-8'))
+            if url not in [urljoin(index['index'],href) for href in parser.links]:
+                raise ValueError('Unhashed vendor Link is absent from the original recipe index')
+        keys=[(url,None,not bool(nohash))]
         for alias in row.get('cache_aliases',[]):
             key=alias['url'];proof=alias['attestation'];part=urlsplit(key)
             loopback=part.scheme=='http' and part.hostname in ('127.0.0.1','::1','localhost')
@@ -105,10 +127,11 @@ def prime(request):
                         and parse_qs(link.fragment).get('sha256')==[row['sha256']]):
                     advertised.append(link._replace(fragment='').geturl())
             if key not in advertised:raise ValueError('Binary cache alias was not advertised with this whole SHA')
-            if key not in [k for k,_ in keys]:keys.append((key,proof))
-        for key,attestation in keys:
+            if (key,True) not in [(k,h) for k,_,h in keys]:keys.append((key,proof,True))
+        for key,attestation,hashed in keys:
             admitted.append(dict(row=row,path=path,url=url,key_url=key,alias_attestation=attestation,
-                                 link=Link(key+'#sha256='+row['sha256']),name=name,version=str(version),provenance=provenance))
+                                 link=Link(key+('#sha256='+row['sha256'] if hashed else '')),cache_key_has_hash=hashed,
+                                 name=name,version=str(version),provenance=provenance))
     result=dict(schema='deeplinkengine-verified-wheel-delivery/v1',pip_version=pip.__version__,python=sys.executable,
         pip_api_sources={str(Path(module.__file__).resolve()):sha(module.__file__) for module in (cache_module,link_module,direct_module)},
         helper_sha256=sha(__file__),model_started=False,sdk_payload_modified=False,upstream_requirements_modified=False,
@@ -147,6 +170,7 @@ def prime(request):
                         raise ValueError('Actual pip did not admit the delivered wheel')
                     result['entries'].append(dict(filename=row['filename'],version=item['version'],canonical_source_url=item['url'],
                         native_cache_key_url=item['key_url'],transport_alias_attestation=item['alias_attestation'],
+                        cache_key_has_hash=item['cache_key_has_hash'],no_hash_link_attestation=row.get('no_hash_link_attestation'),
                         source_kind='published-binary-wheel',source_path=str(item['path']),sha256=row['sha256'],bytes=row['bytes'],
                         acquisition_kind='verified-local-cache',acquisition_receipts=item['provenance'],
                         observed_http_fetch=False,local_build_claimed=False,cache_path=str(destination),reused=existed,
@@ -166,6 +190,50 @@ def invoke(python,env,sdk,cache,rows,caches,out):
         raise ValueError('Verified wheel delivery failed; preserve '+str(out))
     result=json.loads((out/'result.json').read_bytes())
     return dict(path=str(out/'result.json'),sha256=sha(out/'result.json'),entries=len(result['entries']),pip_version=result['pip_version'])
+
+
+def invoke_collection(python,env,sdk,cache,out,*,timeout=3600):
+    """The actual admitted SDK owns markers, tags, packaging and tomllib."""
+    from official_execution import sdk_popen
+    out=Path(out);control=out.with_name(out.name+'-control');control.mkdir(parents=True,exist_ok=False)
+    request=control/'request.json';result=control/'result.json'
+    save(request,dict(cache=str(cache),out=str(out)))
+    command=[str(python),'-B','-S',str(Path(__file__).resolve()),'--collect',str(request),str(result)]
+    record=dict(status='running',command=command,selected_sdk=str(sdk),python_sha256=sha(python),
+        timeout_seconds=timeout,original_graph_metadata_timeout_changed=False,model_started=False,started=time.time())
+    process=None
+    try:
+        with (control/'collect.log').open('xb') as log:
+            process=sdk_popen(command,sdk=sdk,env=env,stdout=log,stderr=subprocess.STDOUT,start_new_session=True)
+        record['pid']=process.pid
+        stat=Path('/proc',str(process.pid),'stat')
+        record['start_ticks']=stat.read_text().rsplit(')',1)[1].split()[19] if stat.exists() else None
+        save(control/'receipt.json',record)
+        code=process.wait(timeout=timeout);record['returncode']=code
+        if code or not result.is_file():raise ValueError('SDK-only build input collection failed; preserve '+str(control))
+        value=json.loads(result.read_bytes());actual=value['runtime']
+        if (value.get('status')!='completed' or Path(actual['python']).resolve()!=Path(python).resolve()
+                or (env.get('PYTHONHOME') and Path(actual['prefix']).resolve()!=Path(env['PYTHONHOME']).resolve())):
+            raise ValueError('Build-input metadata runtime differs from the selected SDK')
+        record.update(status='completed',runtime=actual,result_sha256=sha(result))
+        return value['artifacts']
+    except BaseException as error:
+        record.update(status='interrupted' if isinstance(error,KeyboardInterrupt) else 'failed',error=type(error).__name__+': '+str(error));raise
+    finally:
+        if process is not None and process.poll() is None:
+            try:
+                if os.name=='posix':os.killpg(process.pid,signal.SIGTERM)
+                else:process.terminate()
+            except ProcessLookupError:pass
+            try:process.wait(timeout=20)
+            except subprocess.TimeoutExpired:
+                try:
+                    if os.name=='posix':os.killpg(process.pid,signal.SIGKILL)
+                    else:process.kill()
+                except ProcessLookupError:pass
+                process.wait(timeout=10)
+        record.update(ended=time.time(),quiescent=process is None or process.poll() is not None)
+        save(control/'receipt.json',record)
 
 
 def primary_aliases(rows,out):
@@ -191,6 +259,13 @@ def primary_aliases(rows,out):
         result.append(dict(row,cache_aliases=aliases))
     save(out/'results.json',dict(scope='fixed-primary-binary-inputs',observations=observations,
         actual_mirror_body_download_claimed=False,canonical_origins_retained=True))
+    return result
+
+
+def retain_delivery_qualification(row,fixed):
+    if fixed is None:return row
+    result=dict(row,cache_aliases=fixed.get('cache_aliases',[]))
+    if fixed.get('no_hash_link_attestation'):result['no_hash_link_attestation']=fixed['no_hash_link_attestation']
     return result
 
 
@@ -230,6 +305,8 @@ def prepare(cache,sdk,out):
         python,env=environment(base,out/'runtime-cache');env.update(ASCEND_RT_VISIBLE_DEVICES='',TORCH_DEVICE_BACKEND_AUTOLOAD='0')
         for row in primary:
             if row['filename'].endswith('.whl'):fetch(row,cache/'wheels')
+        primary=invoke_collection(python,env,base,cache,out/'static-build-input-prefetch')
+        record['static_build_input_prefetch']=dict(path=str(out/'static-build-input-prefetch/results.json'),sha256=sha(out/'static-build-input-prefetch/results.json'))
         primary=primary_aliases(primary,out/'primary-alias-indices')
         record['primary_alias_attestation']=dict(path=str(out/'primary-alias-indices/results.json'),sha256=sha(out/'primary-alias-indices/results.json'))
         record['steps'].append(invoke(python,env,base,cache,primary,caches,out/'primary-delivery'));save(out/'results.json',record)
@@ -245,7 +322,8 @@ def prepare(cache,sdk,out):
             data=json.loads(lock.read_bytes())
             for row in data['approved_artifacts']:
                 fixed=next((p for p in primary if p['filename']==row['filename'] and p['sha256']==row['sha256']),None)
-                wheels[(row['filename'],row['sha256'])]=dict(row,cache_aliases=fixed['cache_aliases']) if fixed else row
+                row=retain_delivery_qualification(row,fixed)
+                wheels[(row['filename'],row['sha256'])]=row
         record['steps'].append(dict(closure=str(closure/'results.json'),sha256=sha(closure/'results.json')))
         record['steps'].append(invoke(python,env,base,cache,list(wheels.values()),caches,out/'closure-delivery'))
         record['status']='completed'
@@ -257,9 +335,13 @@ def prepare(cache,sdk,out):
 
 
 if __name__=='__main__':
-    if len(sys.argv)!=4 or sys.argv[1]!='--prime':raise SystemExit('Internal verified-wheel delivery; use public run_all.py')
+    if len(sys.argv)!=4 or sys.argv[1] not in ('--prime','--collect'):raise SystemExit('Internal verified-wheel delivery; use public run_all.py')
     request=json.loads(Path(sys.argv[2]).read_bytes())
-    try:result=prime(request)
+    try:
+        if sys.argv[1]=='--collect':
+            from official_source_prefetch import collect
+            artifacts=collect(request['cache'],request['out']);result=json.loads((Path(request['out'])/'results.json').read_bytes())
+        else:result=prime(request)
     except BaseException as error:
         save(sys.argv[3],dict(status='failed',error=type(error).__name__+': '+str(error),helper_sha256=sha(__file__)))
         raise
