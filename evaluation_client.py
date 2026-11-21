@@ -294,6 +294,19 @@ def warmup_memory_bridge(result):
            '            raise RuntimeError(\'Less than24GiB raw memory before warmup after idle cache recovery; no formal request submitted\')')
     text = once(text, old, new)
     result[key] = text.encode()
+    # Raw pressure can exhaust the driver's pinned allocator while the original
+    # cache-adjusted working-set gate still passes. Return only our optional
+    # startup pages early; retain every original memory and OOM check.
+    result['scripts/startup_memory_recovery.py'] = (ROOT / 'startup_memory_recovery.py').read_bytes()
+    key = 'scripts/run_b1_r4.py'
+    text = result[key].decode()
+    anchor = '    # A later warmup still requires the original raw-headroom admission, even\n'
+    text = once(text, anchor,
+        '    if startup_reserve is not None and not startup_reserve.record["released"]:\n'
+        '        from startup_memory_recovery import release_startup_headroom\n'
+        '        release_startup_headroom(startup_reserve, lambda: check_memory(guard, initial, root))\n'
+        + anchor)
+    result[key] = text.encode()
 
 
 def campaign_pair_weights_bridge(result):
