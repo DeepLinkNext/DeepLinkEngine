@@ -207,18 +207,24 @@ class EnvironmentTests(unittest.TestCase):
         self.assertFalse((self.root / "wheels/fixture.whl").exists())
 
     def test_early_eof_is_retried_and_only_complete_verified_bytes_are_installed(self):
+        resumed=io.BytesIO(self.payload[5:]);resumed.status=206
+        resumed.headers={'Content-Range':f'bytes 5-{len(self.payload)-1}/{len(self.payload)}'}
         with patch.object(setup.urllib.request, "urlopen", side_effect=[
-                io.BytesIO(self.payload[:5]), io.BytesIO(self.payload)]) as network:
+                io.BytesIO(self.payload[:5]), resumed]) as network:
             result = setup.cached_wheel(self.source, [], self.root / "wheels")
         self.assertEqual(network.call_count, 2)
+        self.assertEqual(network.call_args.args[0].get_header('Range'),'bytes=5-')
         self.assertEqual(result.read_bytes(), self.payload)
         self.assertFalse(list((self.root / "wheels").glob("wheel-*")))
 
     def test_persistent_truncation_retains_failure_and_never_creates_valid_cache_entry(self):
         with patch.object(setup.urllib.request, "urlopen", side_effect=lambda *a, **k: io.BytesIO(b"short")):
-            with self.assertRaisesRegex(OSError, "received 5, expected"):
+            with self.assertRaisesRegex(OSError, "Dependency download failed"):
                 setup.cached_wheel(self.source, [], self.root / "wheels")
         self.assertFalse((self.root / "wheels/fixture.whl").exists())
+        journal=json.loads((self.root/'wheels/fixture.whl.download.json').read_bytes())
+        self.assertIn('received 5, expected',journal['attempts'][0]['error'])
+        self.assertEqual((self.root/'wheels/fixture.whl.download.partial').read_bytes(),b'short')
 
     def test_corrupted_cache_is_quarantined_and_replaced(self):
         cache = self.root / "wheels"
