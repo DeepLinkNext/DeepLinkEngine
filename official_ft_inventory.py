@@ -5,7 +5,7 @@ flags are not supplied with invented defaults. Source admission is separate.
 """
 
 
-def validate(inventory, text):
+def validate(inventory, text, *, source_version=None):
     if inventory.get('tensor_values_observed') is not False:
         raise ValueError('Loaded inventory must not read parameter values')
     if (text['hidden_size'] != 2048 or text['num_experts'] != 256
@@ -83,10 +83,19 @@ def validate(inventory, text):
                 require(mlp + '.' + leaf, weights=dict(weight=shape), quant=linear)
             routed = mlp + '.experts.routed_experts'
             if routed in modules:
-                observed_layouts.add('routed-experts')
-                require(mlp, scalars=dict(is_fused_shared_expert_enabled=False, replicate_shared_expert=False))
+                if source_version == '0.28.0rc1-source':
+                    observed_layouts.add('028-factory-routed-experts')
+                    #028 has no such outer flags. Its real factory executor
+                    #and shared-MLP alias are checked by official_ft_factory;
+                    #the actual routed owner records the fused count instead.
+                    require(routed, scalars=dict(n_shared_experts=0))
+                else:
+                    observed_layouts.add('routed-experts')
+                    require(mlp, scalars=dict(is_fused_shared_expert_enabled=False, replicate_shared_expert=False))
                 dispatch = 'vllm_ascend.ops.fused_moe.routed_experts.AscendUnquantizedFusedMoEMethod'
             else:
+                if source_version == '0.28.0rc1-source':
+                    raise ValueError('028 loaded factory routed owner is absent')
                 observed_layouts.add('legacy-fused-moe')
                 routed = mlp + '.experts'
                 dispatch = 'vllm_ascend.ops.fused_moe.fused_moe.AscendUnquantizedFusedMoEMethod'

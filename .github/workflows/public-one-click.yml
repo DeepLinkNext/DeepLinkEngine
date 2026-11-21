@@ -47,6 +47,7 @@ jobs:
       - run: python -B tests/test_official_kernel_preparation.py
       - run: python -B tests/test_official_inventory.py
       - run: python -B tests/test_official_ft.py
+      - run: python -B tests/test_official_ft_candidate.py
       - run: python -B tests/test_official_opp_environment.py
       - run: python -B tests/test_official_phase_recovery.py
       - run: python -B tests/test_official_judge_endpoint.py

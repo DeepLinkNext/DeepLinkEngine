@@ -126,7 +126,8 @@ def complete_native(config, image, native, output, tools, sdk, sources, leases, 
                 raise ValueError('Only a sealed, closed independent companion may be retained')
         record.update(companion_source=str(companion_source), companion_repeated=False,
                       companion_source_seal_sha256=sha(Path(companion_source) / 'checksums.json'))
-        version = json.loads((image / 'image-lock.json').read_bytes())['upstream_version']
+        from official_ft_selection import version as source_version
+        version = source_version(json.loads((image / 'image-lock.json').read_bytes()))
         rows = audit(native, companion_source, image, Path(config['model']) / 'config.json',
                      output / 'audit', version=version, source_seal=record['source_native_seal_sha256'])
         # Resolve the existing PUBLIC immutable mirror. The older nested
@@ -194,14 +195,19 @@ def continue_closed(config, original, expected_seal, *, companion_source=None, c
     native_receipt = source.read('native-timing/receipt.json')
     if native_receipt['completed'] is not True or native_receipt['quiescent'] is not True:
         raise ValueError('Closed native measurements are required; do not repeat them here')
-    version = campaign['baseline_image']['upstream_version']
+    from official_ft_selection import version as source_version, VERSION as SOURCE_CANDIDATE
+    version = source_version(campaign['baseline_image'])
     if config['versions'] != [version]:
         raise ValueError('Select exactly the original source version')
     lock_path = ROOT / 'engine/official-baselines' / (version + '.json')
     # Matching the public declared identity is sufficient to report a sealed
     # counterexample. Full SDK admission and lock validation still follow any
     # preflight which does not reject the input.
-    identity = json.loads(lock_path.read_bytes())
+    if version == SOURCE_CANDIDATE:
+        from official_ft_selection import selection, declaration_for_rejection
+        identity = declaration_for_rejection(campaign['baseline_image'], ROOT)
+    else:
+        identity = json.loads(lock_path.read_bytes())
     if identity != campaign['baseline_image']:
         raise ValueError('Companion runtime source identity differs from the native original')
     preflight = None
@@ -241,11 +247,17 @@ def continue_closed(config, original, expected_seal, *, companion_source=None, c
     if platform.system() != 'Linux' or platform.machine() != 'aarch64':
         raise ValueError('Full official Ascend F/T qualification requires Linux aarch64')
     from official_image import prepare, read_lock, finish_restoration
-    identity = read_lock(lock_path)
+    if version != SOURCE_CANDIDATE:
+        identity = read_lock(lock_path)
     from official_suite import source_bindings
     from resource_guard import acquire, release, verify_mapping
-    image = Path(config['cache']) / 'official-sdks' / (version + '-' + identity['manifest_digest'].split(':')[1][:16])
-    if not (image / 'installation.json').is_file():
+    if version == SOURCE_CANDIDATE:
+        _, identity, image = selection(campaign['baseline_image'], config['cache'], ROOT)
+        if not (image / 'installation.json').is_file():
+            raise ValueError('Restore the completed public source candidate SDK before F/T continuation')
+    else:
+        image = Path(config['cache']) / 'official-sdks' / (version + '-' + identity['manifest_digest'].split(':')[1][:16])
+    if version != SOURCE_CANDIDATE and not (image / 'installation.json').is_file():
         if image.exists():
             finish_restoration(lock_path, image)
         else:
@@ -254,7 +266,11 @@ def continue_closed(config, original, expected_seal, *, companion_source=None, c
     out.mkdir(parents=True, exist_ok=False)
     if preflight is not None:
         save(out / 'sealed-json-preflight.json', preflight)
-    admission = admit_image(image, identity, out)
+    if version == SOURCE_CANDIDATE:
+        from official_ft_selection import admit_candidate
+        admission = admit_candidate(image, identity, out)
+    else:
+        admission = admit_image(image, identity, out)
     weights = source.read('model-weights.json')
     sdk = Path(config['protocol_deployment'])
     sources = source_bindings(TOOLS, sdk)

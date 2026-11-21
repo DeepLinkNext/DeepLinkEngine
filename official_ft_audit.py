@@ -57,8 +57,15 @@ def runtime(value, version):
     # 0.23 source advances positions unconditionally. 0.30 introduces the
     # explicit constant-position branch, which must be observed as disabled.
     constant = value.get('constant_draft_positions')
-    if constant is not None and constant is not False or version == '0.30.0' and constant is not False:
+    if constant is not None and constant is not False or version in ('0.28.0rc1-source', '0.30.0') and constant is not False:
         raise ValueError('Unmapped constant-position MTP source branch')
+    if version == '0.28.0rc1-source':
+        from official_ft_factory import validate
+        validate(value['moe_factory_dispatch'])
+        if (any(type(value.get(key)) is not bool for key in ('enable_reduce_sample', 'lmhead_tp_enabled'))
+                or any(type(value.get(key)) is not int or value[key] not in (0, 3)
+                       for key in ('target_xdrope_dimensions', 'draft_xdrope_dimensions'))):
+            raise ValueError('028 actual sampling/position source configuration is missing')
     return value
 
 
@@ -95,6 +102,75 @@ def source_domain(sdk, native_plan, companion_plan, native_inventories, companio
                 loaded_source_sha256=loaded, upstream_model_sources_modified=False)
 
 
+def factory_sources(resolved, plan, domain, sdk):
+    from official_ft_factory import validate
+    binding = resolved['moe_factory_dispatch']
+    validate(binding)
+    for filename, pin in binding['source_sha256'].items():
+        relative = PurePosixPath(filename).relative_to(PurePosixPath(plan['sdk'])).as_posix()
+        if (not relative.startswith('rootfs/') or domain['source_sha256'].get(relative[7:]) != pin
+                or sha(Path(sdk) / relative) != pin):
+            raise ValueError('028 loaded factory executor source is unreviewed or changed')
+    return binding['source_sha256']
+
+
+def candidate_backend_admission(native, observed, domain, out):
+    """Retain an explicit source gap when the natural backend is unmapped."""
+    plan, other = native.read('native-plan.json'), observed.read('native-plan.json')
+    receipt, child = observed.read('receipt.json'), observed.read('client/companion-receipt.json')
+    if (any(plan[key] != other[key] for key in ('baseline_id', 'expected_versions'))
+            or other.get('purpose') != 'arithmetic-companion'
+            or receipt.get('completed') is not True or receipt.get('quiescent') is not True
+            or child.get('completed') is not True or child.get('observers_detached') is not True
+            or child.get('native_counts_or_times_replaced') is not False):
+        raise ValueError('Candidate source admission requires its matching closed companion')
+    from full_reference_reuse import domain as reference_domain
+    tokens = native.read('token-workload.json')['request_token_ids']
+    full = reference_domain()
+    if (tokens != observed.read('token-workload.json')['request_token_ids']
+            or len(tokens) != full['requests'] or sum(map(len, tokens)) != full['input_tokens']
+            or hashlib.sha256((json.dumps(tokens, separators=(',', ':'))+'\n').encode()).hexdigest()
+            != full['prompt_tokens_sha256']):
+        raise ValueError('Candidate backend evidence belongs to a different token population')
+    rows = []
+    for index in range(1, 4):
+        workers = native.read(f'client/formal-{index}-pre-audit.json')
+        if len(workers) != 2 or {row['rank'] for row in workers} != {0, 1}:
+            raise ValueError('Both candidate native backend observations required')
+        for worker in workers:
+            backend = worker['resolved_configuration']['gdn_backend']
+            rows.append(dict(scope='original-native', repetition=index, rank=worker['rank'],
+                             backend=backend))
+    workers = observed.read('client/loaded-inventory-bindings-after.json')
+    if len(workers) != 2 or {row['rank'] for row in workers} != {0, 1}:
+        raise ValueError('Both candidate companion backend observations required')
+    for worker in workers:
+        rows.append(dict(scope='independent-companion', rank=worker['rank'],
+                         backend=worker['resolved_configuration']['gdn_backend']))
+    unsupported = [row for row in rows if row['backend'].get('selected') not in domain['supported_prefill_families']]
+    if unsupported:
+        from official_baselines import save
+        from official_report import seal
+        selected = unsupported[0]['backend'].get('selected')
+        reason = domain['unmapped_backend_reasons'].get(str(selected),
+            dict(code='natural-backend-not-resolved', missing=['natural warmup backend selection']))
+        result = dict(schema='deeplinkengine-official-source-admission-rejection/v1',
+            status='ineligible', source_family=domain['id'], baseline_id=domain['baseline_id'],
+            candidate=True, official_release_image=False, reason=reason,
+            actual_backend_observations=rows, first_unsupported_observation=unsupported[0],
+            source_native_seal_sha256=sha(native.seal_path),
+            companion_seal_sha256=sha(observed.seal_path),
+            selected_native_evidence_sha256=dict(native.selected),
+            selected_companion_evidence_sha256=dict(observed.selected),
+            necessary_work_certified=False, source_runtime_applicability_certified=False,
+            F_interval=None, native_timing_repeated=False, dataset_solvers_repeated=False,
+            original_reference_denominator_modified=False, independent_third_party=False)
+        save(Path(out) / 'source-admission-rejection.json', result)
+        seal(out)
+        raise ValueError('Candidate natural backend is ineligible: ' + reason['code'])
+    return rows
+
+
 def native_implementation(native, plan, workers, core, version, domain, sdk):
     for name in ('native_timing_session.py', 'native_public_client.py', 'native_output_geometry.py',
                  'reference_capture_profile.py', 'baseline_native_entry.py'):
@@ -117,6 +193,8 @@ def native_implementation(native, plan, workers, core, version, domain, sdk):
         resolved = worker.get('resolved_configuration')
         if resolved is not None:
             runtime(resolved, version)
+            if version == '0.28.0rc1-source':
+                factory_sources(resolved, plan, domain, sdk)
             if resolved['num_blocks'] != core['num_blocks']:
                 raise ValueError('Native and companion fixed KV pool geometry differ')
             if resolved['gdn_backend']['selected'] not in domain['supported_prefill_families']:
@@ -164,7 +242,7 @@ def companion(source, text, version):
             or any(w['completed'] is not True or w['window'] != window for w in workers)):
         raise ValueError('Companion scheduler/TP observers did not close')
     inventories = [source.read(f'rank-{rank}-loaded-inventory.json') for rank in (0, 1)]
-    audits = [validate(value, text) for value in inventories]
+    audits = [validate(value, text, source_version=version) for value in inventories]
     identities = source.read('client/loaded-inventory-bindings-after.json')
     if (len(identities) != 2 or {r['rank'] for r in identities} != {0, 1}):
         raise ValueError('Actual loaded companion identities are incomplete')
@@ -308,7 +386,7 @@ def audit(native_root, companion_root, sdk, model_config, out, *, version, sourc
         if sha(KIT / 'third-party-test-kit' / name) != pin:
             raise ValueError('Necessary-work algorithm differs: ' + name)
     plan = native.read('native-plan.json')
-    if (plan['role'] != 'B0' or plan['baseline_id'] != 'official-vllm-' + version
+    if (plan['role'] != 'B0' or plan['baseline_id'] != domain.get('baseline_id', 'official-vllm-' + version)
             or plan['formal_repetitions'] != 3):
         raise ValueError('Official native role/version/profile differs')
     from reference_capture_profile import validate_native_plan
@@ -321,13 +399,15 @@ def audit(native_root, companion_root, sdk, model_config, out, *, version, sourc
     receipt = native.read('receipt.json')
     if receipt['completed'] is not True or receipt['quiescent'] is not True:
         raise ValueError('Native source is not closed')
+    if version == '0.28.0rc1-source':
+        candidate_backend_admission(native, observed, domain, out)
     full = reference_domain()
     if sha(model_config) != full['model_config_sha256']:
         raise ValueError('Original complete-reference model differs')
     text = json.loads(Path(model_config).read_bytes())['text_config']
     inventories = [native.read(f'rank-{rank}-loaded-inventory.json') for rank in (0, 1)]
     for inventory in inventories:
-        validate(inventory, text)
+        validate(inventory, text, source_version=version)
     from official_ft_inputs import OfficialDraftPrefixMismatch
     try:
         proof, companion_inventories, core = companion(observed, text, version)
@@ -346,6 +426,9 @@ def audit(native_root, companion_root, sdk, model_config, out, *, version, sourc
     companion_plan = observed.read('native-plan.json')
     if companion_plan['baseline_id'] != plan['baseline_id'] or companion_plan['expected_versions'] != plan['expected_versions']:
         raise ValueError('Companion and native runtime identities differ')
+    if version == '0.28.0rc1-source':
+        for binding in observed.read('client/loaded-inventory-bindings-after.json'):
+            sources.update(factory_sources(binding['resolved_configuration'], companion_plan, domain, sdk))
     admitted = source_domain(sdk, plan, companion_plan, inventories, companion_inventories, sources, domain)
     workload = native.read('token-workload.json')
     tokens = workload['request_token_ids']
@@ -411,4 +494,4 @@ def audit(native_root, companion_root, sdk, model_config, out, *, version, sourc
 
 
 # Updated only with the independently reviewed versioned domain file.
-SOURCE_DOMAINS_SHA256 = '6bdc1d3a805705d7e5dcfc44238aba0e0586e196cd8dde44149d2c44eba83626'
+SOURCE_DOMAINS_SHA256 = '56a7bca2cc6573f9f6c16d04c4503e3436933f88abf4f7ff4faadb27475d440e'
