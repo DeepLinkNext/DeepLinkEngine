@@ -34,7 +34,7 @@ def main():
     result = json.loads(path.read_bytes())
     metrics = result['metrics']
     labels = [('mmlu', 'MMLU 200'), ('hle', 'HLE 200'), ('frontier', 'Frontier 160'),
-              ('swe', 'SWE 64'), ('terminal', 'Terminal 48')]
+              ('swe', 'SWE trace64'), ('terminal', 'Terminal trace48')]
     names, values = [], []
     for key, label in labels:
         value = measured_profile(result, key)

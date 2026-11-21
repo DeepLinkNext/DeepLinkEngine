@@ -394,6 +394,9 @@ def package(evidence, support, destination):
 
 def run(configuration):
     config_path = Path(configuration).absolute(); config = json.loads(config_path.read_bytes())
+    if isinstance(config, dict) and config.get('kind') == 'sealed-report-projection':
+        from official_projection import run as project_report
+        return project_report(config_path)
     if not isinstance(config, dict) or set(config) - {'source', 'out', 'source_sha256', 'original_version_seal_sha256'} or not all(isinstance(config.get(key), str) and config[key] for key in ('source', 'out')):
         raise ValueError('Report-only config requires source and a new out; archive input also requires source_sha256')
     source = Path(os.path.abspath(config_path.parent / config['source'])); out = Path(os.path.abspath(config_path.parent / config['out']))

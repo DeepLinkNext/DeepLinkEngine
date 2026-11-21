@@ -51,7 +51,7 @@ def main(arguments=None):
     parser.add_argument('--config', type=Path, required=True)
     parser.add_argument('--prepare-environment', action='store_true')
     parser.add_argument('--report-only', action='store_true',
-                        help='CPU-only replay and portable archive of closed official C8 originals')
+                        help='CPU-only replay of closed C8 originals or explicit sealed-report projection')
     parser.add_argument('--reuse-completed-continuous', type=Path,
                         help='In a new output, retain sealed C8 after a later pre-model failure; preserve original clocks')
     args = parser.parse_args(arguments)
