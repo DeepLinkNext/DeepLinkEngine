@@ -172,6 +172,20 @@
       "necessary_work": "Own ordered public geometry; terminal uncertainty and all 1..64 prompt compositions retained. Independent companion proves producer/source correspondence only; its counts/times do not replace any native repetition.",
       "runtime_operator_profiles": {
         "fla-npu": "b7a8d2460df7892c60d41c2957f4f1cf2091652993836321c602860a99ae65b6"
+      },
+      "backend_ledger_adjustments": {
+        "fla-npu": {
+          "family": "fla-a2-26.9.1-wy64-factored-beta-exp/v1",
+          "adapter": "official_ft_arithmetic.py",
+          "adapter_sha256": "053f33ff9a16546e92be9e50a682fbbb7d46555c0a7be77275d9cc3cc1746c19",
+          "source_profile_sha256": "b7a8d2460df7892c60d41c2957f4f1cf2091652993836321c602860a99ae65b6",
+          "lower": "canonical_lower - sum(prompt_rows)*(key_dim-1)*target_GDN_layers*global_value_heads",
+          "upper": "canonical_upper",
+          "recurrent_prompt_deduction": 0,
+          "tight": false,
+          "corrected_endpoint_witness_claimed": false,
+          "source": "internal/arch22/operators/recompute_w_u_fwd/op_kernel/recompute_w_u_fwd_vector.h:395-415"
+        }
       }
     }
   },

@@ -297,6 +297,12 @@ def audit(native_root, companion_root, sdk, model_config, out, *, version, sourc
         if rebuilt != original or any(r['output_tokens'] != 256 or r['finish_reason'] != 'length' for r in rebuilt['requests']):
             raise ValueError('Native own public geometry does not independently reproduce')
         work = ledger(SimpleNamespace(**text), rebuilt, allow_recurrent_prompt=True)
+        if version == '0.30.0':
+            from official_ft_arithmetic import adjust_fla
+            adjustment = domain['backend_ledger_adjustments']['fla-npu']
+            if sha(ROOT / 'official_ft_arithmetic.py') != adjustment['adapter_sha256']:
+                raise ValueError('Reviewed source-specific FLA arithmetic adapter changed')
+            work = adjust_fla(work, SimpleNamespace(**text), rebuilt, workers)
         work.update(necessary_work_certified=True, source_runtime_applicability_certified=True,
             native_checksums_sha256=sha(native.seal_path), source_domain=admitted,
             capacity=capacity, companion=companion_binding, qualification_source='official-versioned-source-adapter/v1')
@@ -319,4 +325,4 @@ def audit(native_root, companion_root, sdk, model_config, out, *, version, sourc
 
 
 # Updated only with the independently reviewed versioned domain file.
-SOURCE_DOMAINS_SHA256 = '897b013b9e449910353551f3a041bfc3dedd2a29e2df72611f8a11f0325647ba'
+SOURCE_DOMAINS_SHA256 = '6bdc1d3a805705d7e5dcfc44238aba0e0586e196cd8dde44149d2c44eba83626'

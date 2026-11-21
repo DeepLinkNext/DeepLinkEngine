@@ -347,6 +347,88 @@ class FlaDomainTests(unittest.TestCase):
             self.assertEqual(module.sha(module.KIT / 'third-party-test-kit' / name), pin)
 
 
+class FlaArithmeticTests(unittest.TestCase):
+    def fixture(self, lengths=(1, 8, 64, 65)):
+        from types import SimpleNamespace
+        from gdn_partition_bounds import bounds
+        import official_ft_fla
+        model = SimpleNamespace(linear_key_head_dim=128, linear_value_head_dim=128,
+            linear_num_value_heads=32, layer_types=['linear_attention'] * 30 + ['full_attention'] * 10)
+        partition = bounds(list(lengths), allow_recurrent_prompt=True)
+        multiplier = model.linear_num_value_heads * model.layer_types.count('linear_attention')
+        endpoints = {side: dict(total_basic=partition[extremum+'_basic'] * multiplier + 19,
+            components=dict(target_gdn_prefill=partition[extremum+'_basic'] * multiplier, other=19))
+            for side, extremum in [('lower', 'minimum'), ('upper', 'maximum')]}
+        geometry = dict(geometry_sha256='own-native-geometry', requests=[dict(
+            request_ordinal=i, input_tokens=n) for i, n in enumerate(lengths)])
+        base = dict(schema='current-public-necessary-arithmetic-interval/v1',
+            requests=len(lengths), geometry_sha256=geometry['geometry_sha256'],
+            F_interval=[endpoints[side]['total_basic'] for side in ('lower', 'upper')],
+            endpoints=endpoints, prefill_partition_envelope=partition)
+        workers = [dict(rank=i, resolved_configuration=dict(gdn_backend=dict(selected='fla-npu',
+            operator_identity=dict(admitted=True, profile_sha256=official_ft_fla.PROFILE_SHA256)))) for i in (0, 1)]
+        return base, model, geometry, workers
+
+    def test_source_adjustment_keeps_full_canonical_and_reference_independent(self):
+        from official_ft_arithmetic import adjust_fla
+        base, model, geometry, workers = self.fixture()
+        original = copy.deepcopy(base)
+        result = adjust_fla(base, model, geometry, workers)
+        deduction = sum(row['input_tokens'] for row in geometry['requests']) * 127 * 30 * 32
+        self.assertEqual(result['F_interval'], [original['F_interval'][0] - deduction, original['F_interval'][1]])
+        self.assertEqual(base, original)
+        self.assertEqual(result['base_canonical_ledger'], original)
+        self.assertNotIn('prefill_partition_envelope', result)
+        self.assertFalse(result['source_bound_correction']['corrected_endpoint_witness_claimed'])
+        self.assertFalse(result['source_bound_correction']['original_reference_denominator_modified'])
+        for side in ('lower', 'upper'):
+            self.assertEqual(sum(result['endpoints'][side]['components'].values()), result['endpoints'][side]['total_basic'])
+
+    def test_bound_contains_every_source_adjusted_small_partition_including_recurrence(self):
+        from official_ft_arithmetic import adjust_fla
+        from gdn_prefill_reference import chunk_arithmetic
+        from gdn_reference import operation_counts
+        # Enumerate all ordered compositions and both admitted one-token paths;
+        # this checks the conservative envelope rather than copying its formula.
+        def actual_costs(n, initial):
+            if n == 0:
+                return [0]
+            result = []
+            for size in range(1, n + 1):
+                costs = [chunk_arithmetic(size, initial)['total_basic'] - size * 127]
+                if size == 1:
+                    costs.append(operation_counts(128, 128)['total_basic'] if initial else 3*128*128+128)
+                result.extend(head + tail for head in costs for tail in actual_costs(n-size, True))
+            return result
+        for length in range(1, 8):
+            base, model, geometry, workers = self.fixture((length,))
+            result = adjust_fla(base, model, geometry, workers)
+            actual = actual_costs(length, False)
+            self.assertLessEqual(result['F_interval'][0], min(actual)*30*32+19)
+            self.assertGreaterEqual(result['F_interval'][1], max(actual)*30*32+19)
+
+    def test_original_triton_and_mixed_backend_are_conservative_without_tp_repeat(self):
+        from official_ft_arithmetic import adjust_fla
+        base, model, geometry, workers = self.fixture((282265,))
+        workers[0]['resolved_configuration']['gdn_backend'] = dict(selected='triton-chunk64')
+        result = adjust_fla(base, model, geometry, workers)
+        self.assertEqual(result['source_bound_correction']['maximum_possible_basic_deduction'], 34413748800)
+        self.assertEqual(result['source_bound_correction']['extra_tensor_parallel_multiplier'], 1)
+        workers[1]['resolved_configuration']['gdn_backend'] = dict(selected='triton-chunk64')
+        self.assertIs(adjust_fla(base, model, geometry, workers), base)
+
+    def test_changed_geometry_or_unadmitted_profile_cannot_correct_f(self):
+        from official_ft_arithmetic import adjust_fla
+        base, model, geometry, workers = self.fixture()
+        geometry['geometry_sha256'] = 'another-native-repetition'
+        with self.assertRaisesRegex(ValueError, 'geometry/model binding'):
+            adjust_fla(base, model, geometry, workers)
+        geometry['geometry_sha256'] = base['geometry_sha256']
+        workers[1]['resolved_configuration']['gdn_backend']['operator_identity']['admitted'] = False
+        with self.assertRaisesRegex(ValueError, 'profile admission'):
+            adjust_fla(base, model, geometry, workers)
+
+
 class CompletionTests(unittest.TestCase):
     def image_fixture(self, root):
         import official_ft
