@@ -103,3 +103,8 @@ python run_all.py --config evaluation-next.json --reuse-completed-run /path/to/p
 上下文复用的报告沿 `context-tenant/execution.json` 和配对清单核验实际原件路径、封存摘要、角色及清理状态。复用 B0 保留原目录，完整报告同时记录它的真实来源，不要求在本轮目录复制一份 B0。
 
 服务启动阶段，控制器会按原始 cgroup 已用量提前释放自己的可选预留内存，给驱动锁页分配留出空间；缓存折算后的工作集保护和 OOM 检查继续生效。预热前再次检查实际内存余量，临时预留不进入正式计时。
+
+换卡续跑可在完整入口配置中显式设置 `"allow_device_change": true`，
+同时指定当前的 `physical_devices` 和已封存的 `--reuse-completed-run`。
+该选项仅用于固定 B0 复用，原卡与当前卡都需为 Ascend 910B2，逻辑卡映射须一致。
+已完成阶段保留原设备与计时，新增阶段使用当前设备。报告标记跨卡比较及其实际设备。

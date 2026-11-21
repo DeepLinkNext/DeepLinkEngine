@@ -14,7 +14,7 @@ import uuid
 
 ROOT = Path(__file__).resolve().parent
 PATH_FIELDS = {"model", "cache", "out", "baseline_deployment", "dataset_assets", "env_file"}
-FIELDS = PATH_FIELDS | {"physical_devices", "devices", "environment", "engine_version", "rerun_b0"}
+FIELDS = PATH_FIELDS | {"physical_devices", "devices", "environment", "engine_version", "rerun_b0", "allow_device_change"}
 
 
 def configuration(path, *, allow_existing=False):
@@ -51,6 +51,8 @@ def configuration(path, *, allow_existing=False):
     if "rerun_b0" in data:
         from b0_run_policy import boolean
         boolean(data["rerun_b0"])
+    if "allow_device_change" in data and type(data["allow_device_change"]) is not bool:
+        raise ValueError("allow_device_change requires a boolean")
     if not Path(data["model"]).is_dir():
         raise ValueError("Model directory does not exist: " + data["model"])
     if os.path.lexists(data["out"]) and not allow_existing:
@@ -59,7 +61,7 @@ def configuration(path, *, allow_existing=False):
 
 
 def evaluation_configuration(data, installation):
-    return dict({k: v for k, v in data.items() if k not in ("environment", "engine_version", "rerun_b0")}, engine_profile=selected_profile(), test_mode="full",
+    return dict({k: v for k, v in data.items() if k not in ("environment", "engine_version", "rerun_b0", "allow_device_change")}, engine_profile=selected_profile(), test_mode="full",
                 reference_profile="submission-v2", deployment=str(installation / "sdk"),
                 out=str(Path(data["out"]) / "fixed-five"))
 
@@ -247,13 +249,14 @@ def completed_run_source(data, source):
     if source == out or source.is_relative_to(out) or out.is_relative_to(source):
         raise ValueError("Reuse source and new output must be independent")
     prior = json.loads((source / "results.json").read_text())
-    comparable = lambda value: {k: v for k, v in value.items() if k not in ("out", "engine_version", "rerun_b0")}
+    comparable = lambda value: {k: v for k, v in value.items() if k not in ("out", "engine_version", "rerun_b0", "allow_device_change")}
     before, after = comparable(prior.get("configuration", {})), comparable(data)
-    if before != after:
-        changed = sorted(k for k in before.keys() | after.keys() if before.get(k) != after.get(k))
-        detail = ", ".join(changed)
+    changed = {key for key in before.keys() | after.keys() if before.get(key) != after.get(key)}
+    device_change = changed == {"physical_devices"} and data.get("allow_device_change") is True
+    if before != after and not device_change:
+        detail = ", ".join(sorted(changed))
         if "physical_devices" in changed:
-            detail += f" (original {before.get('physical_devices')}, current {after.get('physical_devices')}; restore the original pair for formal reuse)"
+            detail += f" (original {before.get('physical_devices')}, current {after.get('physical_devices')}; explicit device-change admission is required)"
         raise ValueError("Reuse model/device/cache configuration differs: " + detail)
     sys.path.insert(0, str(kit_path() / "scripts"))
     from recovery_source import stopped
@@ -287,6 +290,8 @@ def completed_run_source(data, source):
             raise ValueError("Changing engine version requires baseline-only completed stages")
     result = dict(root=str(source), completed_stages=names,
                   results_sha256=hashlib.sha256((source / "results.json").read_bytes()).hexdigest())
+    if device_change:
+        result["physical_device_change"] = dict(original=before["physical_devices"], current=after["physical_devices"])
     if interruption:
         result["interruption_recovery"] = interruption
     return result
@@ -448,6 +453,8 @@ def run(data, *, resume_bootstrap=False, resume_before_model=False, resume_befor
             run_command += ["--reference-baseline-source", reuse_selection["compute_baseline_arm"]]
         if data.get("rerun_b0", False):
             run_command += ["--rerun-b0"]
+        if data.get("allow_device_change"):
+            run_command += ["--allow-device-change"]
         stage("run-fixed-five", run_command)
         current = json.loads((out / "fixed-five/campaign.json").read_text())
         reference_target = qualified_reference(current)
@@ -469,6 +476,8 @@ def run(data, *, resume_bootstrap=False, resume_before_model=False, resume_befor
             supplement += ["--reuse-b0", reuse_selection["context_baseline_arm"]]
         if data.get("rerun_b0", False):
             supplement += ["--rerun-b0"]
+        if data.get("allow_device_change"):
+            supplement += ["--allow-device-change"]
         stage("run-context-tenant", supplement)
         campaign, reports, hashes = completed_evidence(out)
         reference_target = qualified_reference(campaign)
@@ -564,6 +573,8 @@ def main():
             raise ValueError("Choose only one recovery mode")
         if args.reuse_completed_run and (args.resume_bootstrap or args.resume_before_model or args.resume_before_inference):
             raise ValueError("Completed-run reuse requires a new output, separate from in-place startup recovery")
+        if data.get("allow_device_change") and (data.get("rerun_b0") or not (args.reuse_completed_run or recovery)):
+            raise ValueError("Device-change admission requires a sealed continuation with fixed B0 reuse")
         if args.reuse_completed_run:
             completed_run_source(data, args.reuse_completed_run)
         if args.resume_before_model or args.resume_before_inference:

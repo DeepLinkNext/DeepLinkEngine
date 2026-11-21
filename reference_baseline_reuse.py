@@ -42,9 +42,16 @@ def inspect(source, expected_seal, plan, *, location=True):
             or Path(native['model']).resolve() != Path(plan['binding']['model']).resolve()):
         raise ValueError('Fixed B0 native model, profile or output budget differs')
     mapping = sealed('device-mapping.json')
-    if (mapping['physical_cards'] != plan['physical_cards']
-            or mapping['logical_cards'] != list(map(int, plan['logical_devices'].split(',')))):
+    if mapping['logical_cards'] != list(map(int, plan['logical_devices'].split(','))):
         raise ValueError('Fixed B0 native physical/logical device pair differs')
+    device_change = None
+    if mapping['physical_cards'] != plan['physical_cards']:
+        from device_reuse import compare
+        actual = plan.get('device_reuse_mapping')
+        device_change = compare(mapping, actual or {'physical_cards': plan['physical_cards']},
+                                allowed=actual is not None)
+        if actual['physical_cards'] != plan['physical_cards']:
+            raise ValueError('Current native device mapping differs from the plan')
     # These are original source bytes, including its real companion release.
     # They are retained rather than relabelled as the new B1's implementation.
     for name, pin in native['files'].items():
@@ -94,7 +101,7 @@ def inspect(source, expected_seal, plan, *, location=True):
     if location:
         from baseline_relocation import verify
         verify(baseline, plan['baseline_deployment'])
-    return dict(schema='deeplinkengine-fixed-b0-native-reuse/v1', source=str(source),
+    result = dict(schema='deeplinkengine-fixed-b0-native-reuse/v1', source=str(source),
         checksums_sha256=expected_seal, receipt_sha256=sha(source / 'receipt.json'),
         original_baseline_deployment=str(original_baseline),
         original_paired_engine_release=native['paired_engine_release'],
@@ -102,6 +109,9 @@ def inspect(source, expected_seal, plan, *, location=True):
         original_started=receipt['started'], original_ended=receipt['ended'],
         capture_profile=plan['capture_profile'], applicability=applicability,
         repetitions=rows, model_inference_rerun=False)
+    if device_change:
+        result['device_change'] = device_change
+    return result
 
 
 def resolve(folder):

@@ -362,6 +362,183 @@ def b0_run_policy_bridge(result):
     result[key] = text.encode()
 
 
+def device_change_bridge(result):
+    """Bind changed physical pairs while retaining each original measurement."""
+    result['scripts/device_reuse.py'] = (ROOT / 'device_reuse.py').read_bytes()
+
+    def edit(name, replacements):
+        key = 'scripts/' + name + '.py'
+        text = result[key].decode()
+        for old, new in replacements:
+            text = once(text, old, new)
+        ast.parse(text)
+        result[key] = text.encode()
+
+    option = '    parser.add_argument("--allow-device-change", action="store_true")\n'
+    physical = '    parser.add_argument("--physical-devices",'
+    edit('third_party', [
+        (physical, option + physical),
+        ('    from compute_reference import prepare as prepare_reference',
+         '    if getattr(args, "allow_device_change", False):\n'
+         '        frozen["device_reuse_mapping"] = json.loads((out / "device-mapping.json").read_bytes())\n'
+         '    from compute_reference import prepare as prepare_reference'),
+        ('            wire_dependencies(out, stages, reused)',
+         '            wire_dependencies(out, stages, reused, allow_device_change=getattr(args, "allow_device_change", False))'),
+        ('                new_inference_stages=len(stages) - len(reused),',
+         '                new_inference_stages=len(stages) - len(reused),\n'
+         '                **({"device_reuse": "explicit_ascend_910b2_continuation"} if getattr(args, "allow_device_change", False) else {}),'),
+    ])
+    edit('reuse_campaign', [
+        ('def identity(plan):', 'def identity(plan, *, compare_devices=True):'),
+        ('    result["engine_release"] =',
+         '    if not compare_devices:\n        result.pop("physical_cards")\n    result["engine_release"] ='),
+        ('    if identity(previous) != identity(current):',
+         '    from device_reuse import for_campaign\n\n'
+         '    device_change = for_campaign(root, previous, current)\n'
+         '    if identity(previous, compare_devices=not device_change) != identity(current, compare_devices=not device_change):'),
+        ('        keys = ("model", "physical_cards", "logical_devices",',
+         '        keys = ("model", "logical_devices",'),
+        ('        for row in receipt["stages"]:',
+         '        compare_devices = plan.get("device_reuse_mapping") is None\n'
+         '        different_runtime = identity(previous, compare_devices=compare_devices) != identity(plan, compare_devices=compare_devices)\n'
+         '        for row in receipt["stages"]:'),
+        ('            if identity(previous) != identity(plan) and name == "mmlu-pair":',
+         '            if different_runtime and name == "mmlu-pair":'),
+        ('            if identity(previous) != identity(plan) and not name.endswith("-B0"):',
+         '            if different_runtime and not name.endswith("-B0"):'),
+        ('            if identity(previous) != identity(plan) and "-judge-" in name:',
+         '            if different_runtime and "-judge-" in name:'),
+        ('            origin["stages"].append(name)',
+         '            origin["stages"].append(name)\n'
+         '        if origin["stages"] or origin.get("paired_arms"):\n'
+         '            from device_reuse import for_campaign\n'
+         '            device_change = for_campaign(root, previous, plan)\n'
+         '            if device_change:\n                origin["device_change"] = device_change'),
+        ('"scope": "Same-host composition of earlier sealed native stages; not one new uninterrupted inference run.",',
+         '"scope": "Composition of earlier sealed native stages with each source retaining its original device mapping.",'),
+        ('        for role in origin.get("paired_arms", []):',
+         '        if origin["stages"] or origin.get("paired_arms"):\n'
+         '            from device_reuse import for_campaign\n'
+         '            if origin.get("device_change") != for_campaign(source_root, previous, plan):\n'
+         '                raise ValueError("Reused stage device provenance differs")\n'
+         '        for role in origin.get("paired_arms", []):'),
+        ('def wire_dependencies(out, stages, reused):',
+         'def wire_dependencies(out, stages, reused, *, allow_device_change=False):'),
+        ('            args[index] = str(Path(entry["source_root"]) / "continuous-B1")',
+         '            args[index] = str(Path(entry["source_root"]) / "continuous-B1")\n'
+         '            if allow_device_change and stage["name"] not in reused and stage["script"] == "run_b1_r4.py":\n'
+         '                args.append("--allow-device-change")'),
+    ])
+    for name, indent, error in (
+        ('run_b1_r4', '        ', 'Continuous qualification belongs to another physical NPU pair'),
+        ('run_native_reference', '        ', 'Current native qualification is bound to another physical pair'),
+    ):
+        failure = ('            raise ValueError(\n'
+                   '                "' + error + '"\n'
+                   '            )') if name == 'run_b1_r4' else '            raise ValueError("' + error + '")'
+        edit(name, [
+            ('    parser.add_argument("--qualified-continuous",', option + '    parser.add_argument("--qualified-continuous",'),
+            ('        if qualification["physical_cards"] != cards():\n' + failure,
+             indent + 'from device_reuse import for_continuous\n'
+             + indent + 'device_change = for_continuous(args.qualified_continuous, qualification, args.devices,\n'
+             + indent + '                               allowed=getattr(args, "allow_device_change", False))\n'
+             + indent + 'if device_change:\n'
+             + indent + '    save(root / "continuous-device-reuse.json", device_change)'),
+        ])
+    edit('automatic_reference', [
+        ('        baseline_source = getattr(args, "reference_baseline_source", None)',
+         '        if frozen.get("device_reuse_mapping") is not None:\n'
+         '            plan["device_reuse_mapping"] = frozen["device_reuse_mapping"]\n'
+         '        baseline_source = getattr(args, "reference_baseline_source", None)'),
+        ('                if baseline_native:\n                    command +=',
+         '                if not baseline_native and plan.get("device_reuse_mapping"):\n'
+         '                    command.append("--allow-device-change")\n'
+         '                if baseline_native:\n                    command +='),
+    ])
+    edit('full_reference_reuse', [
+        ('    save(folder / "matched-reference-pair.json", result)',
+         '    if plan.get("device_reuse_mapping"):\n'
+         '        from device_reuse import compare, read_mapping\n'
+         '        b0 = read_mapping(native_sources["B0"])\n'
+         '        b1 = read_mapping(native_sources["B1"])\n'
+         '        if any(b1[key] != plan["device_reuse_mapping"][key] for key in ("physical_cards", "logical_cards")):\n'
+         '            raise ValueError("Current native timing used a different frozen device pair")\n'
+         '        device_change = compare(b0, b1, allowed=True)\n'
+         '        if device_change:\n'
+         '            result["native_device_change"] = device_change\n'
+         '            result["reference_reuse_scope"] = "Original complete reference denominator; original B0 and new B1 work and timing independently audited on the recorded Ascend 910B2 pairs."\n'
+         '    save(folder / "matched-reference-pair.json", result)'),
+    ])
+    edit('acceptance_suite', [
+        ('    p.add_argument("--reuse-b0", type=Path)', '    p.add_argument("--allow-device-change", action="store_true")\n    p.add_argument("--reuse-b0", type=Path)'),
+        ('    if list(map(int, args.physical_devices.split(","))) != cards:\n'
+         '        raise ValueError("Reuse uses another physical card pair")',
+         '    if list(map(int, args.physical_devices.split(","))) != cards:\n'
+         '        if role != "B0" or not getattr(args, "allow_device_change", False):\n'
+         '            raise ValueError("Reuse uses another physical card pair")\n'
+         '        from device_reuse import compare, read_mapping\n'
+         '        from resource_guard import verify_mapping\n\n'
+         '        original = read_mapping(prior)\n'
+         '        if original["physical_cards"] != cards:\n'
+         '            raise ValueError("Original context mapping differs from its resource admission")\n'
+         '        source_binding["device_change"] = compare(original, verify_mapping(args.devices), allowed=True)'),
+        ('def paired(arms):', 'def paired(arms, *, device_change=None):\n    proof = None'),
+        ('        if name == "resource-admission.json":\n'
+         '            left, right = left["physical_cards"], right["physical_cards"]\n'
+         '        if left != right:\n'
+         '            raise ValueError("Paired cards or model weights differ")',
+         '        if name == "resource-admission.json":\n'
+         '            left, right = left["physical_cards"], right["physical_cards"]\n'
+         '            if left != right and device_change:\n'
+         '                from device_reuse import compare, read_mapping\n\n'
+         '                original, current = (read_mapping(arms[role]) for role in ("B0", "B1"))\n'
+         '                proof = compare(original, current, allowed=True)\n'
+         '                if (not proof or original["physical_cards"] != left or current["physical_cards"] != right\n'
+         '                        or any(proof[side][key] != device_change[side][key]\n'
+         '                               for side in ("original", "current") for key in ("physical_cards", "logical_cards"))):\n'
+         '                    raise ValueError("Paired context device provenance differs")\n'
+         '                continue\n'
+         '        if left != right:\n'
+         '            raise ValueError("Paired cards or model weights differ")'),
+        ('        acceptance="Measurements collected;', '        **({"device_change": proof} if proof else {}),\n'
+         '        acceptance="Measurements collected;'),
+        ('    from b0_run_policy import require_context_reuse\n    require_context_reuse(args)',
+         '    from b0_run_policy import require_context_reuse\n    require_context_reuse(args)\n'
+         '    if getattr(args, "allow_device_change", False):\n'
+         '        os.environ["VLLM_HUST_PHYSICAL_DEVICES"] = args.physical_devices'),
+        ('        save(output / "paired-summary.json", paired(arms))',
+         '        binding = output / "reused-B0-context-provenance.json"\n'
+         '        device_change = json.loads(binding.read_bytes()).get("device_change") if binding.is_file() else None\n'
+         '        if device_change:\n'
+         '            state["device_change"] = device_change\n'
+         '        save(output / "paired-summary.json", paired(arms, device_change=device_change) if device_change else paired(arms))'),
+    ])
+    edit('third_party_report', [
+        ('        "current_mmlu_pair": pair,',
+         '        **({"execution_devices": {\n'
+         '            "current": plan["physical_cards"],\n'
+         '            "stages": {row["name"]: (\n'
+         '                row.get("source", {}).get("physical_cards", plan["physical_cards"])) for row in observed},\n'
+         '        }} if plan and plan.get("device_reuse_mapping") else {}),\n'
+         '        "current_mmlu_pair": pair,'),
+        ('    scope_complete = (set(',
+         '    device_note = ""\n'
+         '    if data.get("execution_devices"):\n'
+         '        device_note = "<h2>物理设备</h2><p>跨卡阶段保留各自原始设备。跨卡差值包含设备更换的影响。</p><pre>" + esc(json.dumps(data["execution_devices"], ensure_ascii=False, indent=2)) + "</pre>"\n'
+         '    scope_complete = (set('),
+        ('<h2>本次执行清单</h2>', '{device_note}<h2>本次执行清单</h2>'),
+    ])
+    edit('reuse_campaign', [
+        ('                "source_stage_receipt": row,\n                "verified_at": time.time(),',
+         '                "source_stage_receipt": row,\n'
+         '                **({"physical_cards": previous["physical_cards"]} if not compare_devices else {}),\n'
+         '                "verified_at": time.time(),'),
+        ('                or rows[name]["status"] != "completed"',
+         '                or rows[name]["status"] != "completed"\n'
+         '                or entry.get("physical_cards", previous["physical_cards"]) != previous["physical_cards"]'),
+    ])
+
+
 def context_baseline_bridge(result):
     """Preserve completed fixed-B0 context phases across a B1-only change."""
     def scripts(files):
@@ -409,6 +586,7 @@ def context_baseline_bridge(result):
         '            complete_original_phases_verified=True)\n'
         '        save(args.out / "reused-B0-context-provenance.json", source_binding)')
     result[key] = text.encode()
+    device_change_bridge(result)
     current = digest(scripts(result))
     result['scripts/context_baseline_reuse.py'] = CONTEXT_BASELINE_HELPER.replace('__CURRENT_SOURCES__', current).encode()
 
