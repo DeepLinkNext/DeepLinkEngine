@@ -53,16 +53,28 @@ def test_model_client_bridge_keeps_reference_and_startup_fixes():
     manifest=json.loads((ROOT/'benchmark/one-click-kit/DEPLOYMENT-TOOLS.json').read_bytes())
     original={name:(ROOT/'benchmark/one-click-kit'/name).read_bytes() for name in manifest['files']}
     combined=client.bridge(original,provider)
-    for name in ('child_runner.py','run_native_reference.py',
+    for name in ('child_runner.py',
                  'compute_reference.py','reference_observation.py','reference_http_client.py'):
         assert combined['scripts/'+name]==original['scripts/'+name]
+    def remove_device_admission(controller, old):
+        controller = controller.replace('    parser.add_argument("--allow-device-change", action="store_true")\n', '')
+        end_marker = '        save(root / "continuous-qualification.json", qualification)'
+        start = controller.index('        from device_reuse import for_continuous\n')
+        end = controller.index(end_marker, start)
+        old_start = old.index('        if qualification["physical_cards"] != cards():\n')
+        old_end = old.index(end_marker, old_start)
+        return controller[:start] + old[old_start:old_end] + controller[end:]
+
+    native = 'scripts/run_native_reference.py'
+    assert remove_device_admission(combined[native].decode(), original[native].decode()) == original[native].decode()
     # Restore only the declared insertion, then compare the whole controller.
     added = ('    if startup_reserve is not None and not startup_reserve.record["released"]:\n'
              '        from startup_memory_recovery import release_startup_headroom\n'
              '        release_startup_headroom(startup_reserve, lambda: check_memory(guard, initial, root))\n')
     controller = combined['scripts/run_b1_r4.py'].decode()
     assert controller.count(added) == 1
-    assert controller.replace(added, '').encode() == original['scripts/run_b1_r4.py']
+    old_controller = original['scripts/run_b1_r4.py'].decode()
+    assert remove_device_admission(controller.replace(added, ''), old_controller) == old_controller
     # The only startup-cache change is the declared idle-before-warmup
     # boundary. Every allocator, pre-service gate and other method stays exact.
     old=ast.parse(original['scripts/checkpoint_cache.py'])
