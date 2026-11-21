@@ -150,7 +150,7 @@ class CandidateTests(unittest.TestCase):
                  patch.object(official_execution,'context_identity',return_value={'source_build_system_root':True}), \
                  patch.object(official_execution,'sdk_run',return_value=subprocess.CompletedProcess([],0,stdout='',stderr='')), \
                  patch.object(candidate,'source_archive',return_value=root/'unused-archive'), \
-                 patch.object(candidate,'safe_extract',side_effect=extract),patch.object(candidate,'command'), \
+                 patch.object(candidate,'safe_extract',side_effect=extract),patch.object(candidate,'command') as commands, \
                  patch.object(candidate,'toolchain_evidence',return_value={'cpu_fixture':True}), \
                  patch.object(candidate.shutil,'which',return_value='/cpu-rustup'), \
                  patch.object(candidate.shutil,'disk_usage',return_value=SimpleNamespace(free=200*1024**3)):
@@ -162,6 +162,14 @@ class CandidateTests(unittest.TestCase):
                 self.assertEqual(reused['build_receipt_sha256'],installed['build_receipt_sha256'])
                 self.assertTrue(Path(env['PIP_CACHE_DIR']).is_relative_to(cache.resolve()/'source-build-downloads'))
                 self.assertFalse(Path(env['PIP_CACHE_DIR']).is_relative_to(output.resolve()))
+                steps={call.args[4]:call.args[1] for call in commands.call_args_list}
+                self.assertEqual(steps['01-core']['VLLM_TARGET_DEVICE'],'empty')
+                self.assertNotIn('VLLM_BATCH_INVARIANT',steps['01-core'])
+                self.assertEqual(steps['03-ascend']['VLLM_BATCH_INVARIANT'],'1')
+                self.assertNotIn('VLLM_TARGET_DEVICE',steps['03-ascend'])
+                for name in ['02-remove-base-triton','06-rust-build-tools','09-upstream-rust']:
+                    self.assertNotIn('VLLM_TARGET_DEVICE',steps[name])
+                    self.assertNotIn('VLLM_BATCH_INVARIANT',steps[name])
 
     def partial(self,sdk,status='building'):
         sdk.mkdir();(sdk/'source-build').mkdir()

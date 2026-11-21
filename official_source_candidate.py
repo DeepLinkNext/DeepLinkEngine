@@ -327,8 +327,9 @@ def prepare(base_lock_path, cache, output):
         python, env = environment(output, build / 'cache')
         site = Path(env['PYTHONHOME']) / 'lib/python3.12/site-packages'
         receipt['removed_copied_editable_registrations'] = remove_old_editables(output, site)
-        env.update(SOC_VERSION='ascend910b1', VLLM_TARGET_DEVICE='empty',
-                   ASCEND_RT_VISIBLE_DEVICES='', VLLM_BATCH_INVARIANT='1',
+        env.pop('VLLM_TARGET_DEVICE', None)
+        env.pop('VLLM_BATCH_INVARIANT', None)
+        env.update(SOC_VERSION='ascend910b1', ASCEND_RT_VISIBLE_DEVICES='',
                    PIP_INDEX_URL='https://pypi.tuna.tsinghua.edu.cn/simple',
                    PIP_DISABLE_PIP_VERSION_CHECK='1',
                    PIP_CACHE_DIR=str(cache / 'source-build-downloads' / key() / 'pip'),
@@ -338,23 +339,30 @@ def prepare(base_lock_path, cache, output):
         env['PATH'] = str(python.parent) + ':' + env['CARGO_HOME'] + '/bin:' + env['PATH']
         core = output / 'rootfs/vllm-workspace/vllm'
         ascend = output / 'rootfs/vllm-workspace/vllm-ascend'
-        receipt['official_build_only_environment'] = dict(VLLM_BATCH_INVARIANT='1',
-            recipe='vllm-project/vllm-ascend@96df623103f921df1a4488170d106f36689acb59/Dockerfile:125-131',
+        core_env = dict(env, VLLM_TARGET_DEVICE='empty')
+        ascend_env = dict(env, VLLM_BATCH_INVARIANT='1')
+        receipt['official_build_only_environment'] = dict(
+            values=dict(VLLM_TARGET_DEVICE='empty',VLLM_BATCH_INVARIANT='1'),
+            command_scope=dict(VLLM_TARGET_DEVICE=['01-core'],VLLM_BATCH_INVARIANT=[
+                '03-ascend','04-remove-triton-overlap','05-ascend-triton','06-concurrent-log-handler']),
+            recipe='vllm-project/vllm-ascend@96df623103f921df1a4488170d106f36689acb59/Dockerfile',
             serving_environment_inherits_build_overrides=False)
         receipt['toolchain'] = toolchain_evidence(output, env, (core,ascend), build)
         save(build/'receipt.json', receipt)
         command([str(python), '-S', '-m', 'pip', 'install', '-e', str(core) + '[audio]',
-                 '--extra-index-url', 'https://download.pytorch.org/whl/cpu/'], env, core, build, '01-core')
+                 '--extra-index-url', 'https://download.pytorch.org/whl/cpu/'], core_env, core, build, '01-core')
         command([str(python), '-S', '-m', 'pip', 'uninstall', '-y', 'triton'], env, core, build, '02-remove-base-triton')
         command([str(python), '-S', '-m', 'pip', 'install', '-e', str(ascend),
                  '--extra-index-url', 'https://download.pytorch.org/whl/cpu/',
                  '--extra-index-url', 'https://mirrors.huaweicloud.com/ascend/repos/pypi'],
-                env, ascend, build, '03-ascend')
-        command([str(python), '-S', '-m', 'pip', 'uninstall', '-y', 'triton', 'triton-ascend'], env, core, build, '04-remove-triton-overlap')
+                ascend_env, ascend, build, '03-ascend')
+        command([str(python), '-S', '-m', 'pip', 'uninstall', '-y', 'triton', 'triton-ascend'], ascend_env, core, build, '04-remove-triton-overlap')
         command([str(python), '-S', '-m', 'pip', 'install', 'triton-ascend==3.2.2',
-                 '--extra-index-url', 'https://mirrors.huaweicloud.com/ascend/repos/pypi'], env, core, build, '05-ascend-triton')
-        command([str(python), '-S', '-m', 'pip', 'install', 'concurrent-log-handler', 'setuptools-rust'],
-                env, core, build, '06-build-tools')
+                 '--extra-index-url', 'https://mirrors.huaweicloud.com/ascend/repos/pypi'], ascend_env, core, build, '05-ascend-triton')
+        command([str(python), '-S', '-m', 'pip', 'install', 'concurrent-log-handler'],
+                ascend_env, core, build, '06-concurrent-log-handler')
+        command([str(python), '-S', '-m', 'pip', 'install', 'setuptools-rust'],
+                env, core, build, '06-rust-build-tools')
         # The upstream script bootstraps rustup. Keep its HOME unchanged; set
         # private Rust directories and preinstall before its HOME/.cargo/env
         # fallback, so subsequent upstream build sees rustup on PATH.
