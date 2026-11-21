@@ -21,3 +21,11 @@ python run_all.py --official-baselines --config evaluation.json
 每个版本保存独立 `campaign.json`、原始输出、日志、`report.json` 和 `report.html`。本入口及其 CPU 检查不构成完整实机验收或独立第三方认证。
 
 连续负载已完成、随后 MMLU 在模型启动前失败时，可选择新输出目录和单个版本，增加 `--reuse-completed-continuous /原输出/版本/continuous`。入口核验完整封存、官方镜像、模型、输入、物理卡映射及源码适用性；原连续结果保留原时间，不重测或改写。已启动模型的后续失败不适用此恢复入口。
+
+完整 solver 续跑：仅当 C8 与全部五项 solver 已封存、首个固定裁判在启动前因旧端口预检失败时，使用新 `out` 配置执行：
+
+```sh
+python run_all.py --official-baselines --config evaluation.json --reuse-completed-solvers /path/to/previous/0.23.0
+```
+
+入口核验原封存、分母、权重、输入、设备及逐项审查的控制器变化，保留原响应、时间与失败，不重复 solver 推理。原失败状态保留；不自动签发 F/T 或第三方资格。
