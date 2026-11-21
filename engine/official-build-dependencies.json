@@ -1,0 +1,21 @@
+{
+  "schema": "deeplinkengine-source-build-dependency-catalog/v1",
+  "artifacts": [
+    {
+      "kind": "source-build",
+      "name": "triton_ascend-3.2.2-cp312-cp312-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl",
+      "version": "3.2.2",
+      "bytes": 269942385,
+      "sha256": "259ef27091a11648b4813d5d590bb3118ba395418254b78a93f522bdf0468346",
+      "url": "https://github.com/triton-lang/triton-ascend/releases/download/v3.2.2/triton_ascend-3.2.2-cp312-cp312-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl",
+      "api_url": "https://api.github.com/repos/triton-lang/triton-ascend/releases/assets/496575268",
+      "upstream_url": "https://mirrors.huaweicloud.com/ascend/repos/pypi/triton-ascend/triton_ascend-3.2.2-cp312-cp312-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl",
+      "provenance_url": "https://github.com/DeepLinkNext/DeepLinkEngine/releases/download/r8-runtime-dependencies-20261119-v1/triton-ascend-3.2.2-public-download-evidence-20261122-v1.json",
+      "provenance_sha256": "6cbe734ce0c6c84b4ae128300893532d5cde5745d101bdc0528d55893b99edb7",
+      "applies_to": [
+        "0.28.0rc1-source"
+      ],
+      "authority": "Official GitHub release digest, matched by the public recipe-vendor whole transfer"
+    }
+  ]
+}
