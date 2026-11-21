@@ -98,19 +98,50 @@ class WorkflowTests(unittest.TestCase):
         self.assertFalse(receipt['automated_acceptance_complete'])
         self.assertEqual(receipt['targets']['4.4']['milestone']['evidence_status'], 'missing')
 
-    def test_report_only_passes_cost_manifest_without_model_directory(self):
-        self.data['model'] = str(self.root / 'no-model')
+    def test_report_only_loads_fee_config_without_model_or_device_fields(self):
         config = self.root / 'evaluation.json'
-        config.write_text(json.dumps(self.data))
-        expense = self.root / 'cost with spaces.json'
-        command = ['run_all.py', '--config', str(config), '--report-only', '--actual-cost', str(expense)]
-        with patch.object(sys, 'argv', command), patch.dict(workflow.os.environ, {}), \
-             patch.object(workflow.subprocess, 'run', return_value=types.SimpleNamespace(returncode=0)) as runner:
+        config.write_text(json.dumps(dict(out='result', cache='cache', actual_cost='fees/configured.json')))
+        fees = self.root / 'fees'
+        fees.mkdir()
+        configured, override = fees / 'configured.json', fees / 'override with spaces.json'
+        for path in (configured, override):
+            path.write_text('{}')
+        command = ['run_all.py', '--config', str(config), '--report-only']
+        for selected, suffix in ((configured, []), (override, ['--actual-cost', str(override)])):
+            with self.subTest(selected=selected), patch.object(sys, 'argv', command + suffix), \
+                 patch.dict(workflow.os.environ, {}), \
+                 patch.object(workflow.subprocess, 'run', return_value=types.SimpleNamespace(returncode=0)) as runner:
+                self.assertEqual(workflow.main(), 0)
+            runner.assert_called_once()
+            args = runner.call_args.args[0]
+            self.assertEqual(args[-2:], ['--actual-cost', str(selected)])
+            self.assertIn('full-report-', args[-3])
+
+    def test_full_entry_routes_the_fee_config_to_report_not_measurement(self):
+        config = self.root / 'evaluation.json'
+        config.write_text(json.dumps(dict(self.data, actual_cost='fees.json')))
+        expense = self.root / 'fees.json'
+        command = ['run_all.py', '--config', str(config)]
+        expense.write_text('{}')
+        with patch.object(sys, 'argv', command), patch.object(workflow, 'select_run_engine') as select, \
+             contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit) as exit_code:
+            workflow.main()
+        self.assertEqual(exit_code.exception.code, 2)
+        select.assert_not_called()
+
+        bill = self.root / 'fixture-receipt.txt'
+        bill.write_bytes(b'synthetic actual cost for preflight')
+        scenario = {role: dict(measurement_seal_sha256='a'*64, monthly_cost_per_card_cny='1200',
+                               evidence=[dict(file=bill.name, sha256=hashlib.sha256(bill.read_bytes()).hexdigest())])
+                    for role in ('B0', 'B1')}
+        expense.write_text(json.dumps(dict(schema='deeplinkengine-v2-actual-card-cost/v1',
+                                          scenarios={'mmlu': scenario})))
+        with patch.object(sys, 'argv', command), patch.object(workflow, 'select_run_engine'), \
+             patch('environment_setup.ensure_environment', return_value=None), patch.object(workflow, 'preflight'), \
+             patch.dict(workflow.os.environ, {}), patch.object(workflow, 'run', return_value=0) as run:
             self.assertEqual(workflow.main(), 0)
-        runner.assert_called_once()
-        args = runner.call_args.args[0]
-        self.assertEqual(args[-2:], ['--actual-cost', str(expense)])
-        self.assertIn('full-report-', args[-3])
+        self.assertEqual(run.call_args.kwargs['actual_cost'], expense)
+        self.assertNotIn('actual_cost', run.call_args.args[0])
 
     def test_sealed_stage_reuse_is_forwarded_and_failure_originals_are_untouched(self):
         self.data["rerun_b0"] = False

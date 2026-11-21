@@ -208,6 +208,24 @@ class CostTests(unittest.TestCase):
         self.assertFalse(result['milestone']['met'])
         self.assertFalse(result['final']['met'])
 
+    def test_report_writes_only_missing_fee_template_with_sealed_arm_ids(self):
+        expense = self.expense()
+        expense['scenarios'].pop('four_tenant')
+        cost = self.judge(expense)
+        data = dict(targets={'4.4': cost}, context_audit={}, scoring='', reference_method='')
+        out = self.path / 'report'
+        with patch.object(report, 'collect', return_value=data), patch.object(report, 'charts'):
+            report.render(self.path, out)
+        template = json.loads((out / report.ACTUAL_COST_TEMPLATE).read_bytes())
+        self.assertEqual(template['schema'], report.ACTUAL_COST_SCHEMA)
+        self.assertEqual(set(template['scenarios']), {'four_tenant'})
+        for role, arm in template['scenarios']['four_tenant'].items():
+            self.assertEqual(arm['measurement_seal_sha256'], self.seals['four_tenant'][role])
+            self.assertIsNone(arm['monthly_cost_per_card_cny'])
+            self.assertEqual(arm['evidence'], [dict(file=None, sha256=None)])
+        self.assertIn(report.ACTUAL_COST_TEMPLATE, (out / 'report.html').read_text(encoding='utf-8'))
+        self.assertIsNone(report.cost_template(self.judge(self.expense())))
+
     def test_only_mmlu_can_qualify_for_milestone(self):
         self.fixed['current_cost_utilization'] = {'swe': dict(unit_cost_reduction_percent=65, utilization_gain_pp=30)}
         self.fixed['current_trace_performance'] = {'swe': dict(

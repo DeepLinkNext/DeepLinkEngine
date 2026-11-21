@@ -77,7 +77,7 @@ python one_click.py run --config /path/to/evaluation.json --rerun-b0
 python run_all.py --config evaluation.json --report-only
 ```
 
-输出为新的 `full-report-<标识>` 目录，保留原报告与封存数据。 4.4 正式成本使用按原臂封存绑定的实际费用凭据，里程碑固定为 MMLU200 完整回答。使用 `--actual-cost` 为报告提供[实际费用清单](indicator-4.4.md#随封存回执提交实际费用)，同费率估算在报告中单列。MMLU、HLE 总体和 Frontier 两赛道使用固定计划分母，正确率绝对下降上限为 5 个百分点；未决计非成功。上下文判定同时核查服务日志、OOM 事件和采样覆盖，写盘失败不能由吞吐曲线掩盖。
+输出为新的 `full-report-<标识>` 目录，保留原报告与封存数据。 4.4 正式成本使用按原臂封存绑定的实际费用凭据，里程碑固定为 MMLU200 完整回答。完整入口会生成带封存摘要的凭据模板。填写[实际费用清单](indicator-4.4.md#随封存回执提交实际费用)后，指定配置项 `actual_cost` 或存为运行目录内的 `actual-cost.json`，同一入口会自动读取。报告单列同费率估算。MMLU、HLE 总体和 Frontier 两赛道使用固定计划分母，正确率绝对下降上限为 5 个百分点；未决计非成功。上下文判定同时核查服务日志、OOM 事件和采样覆盖，写盘失败不能由吞吐曲线掩盖。
 
 模型启动或预热失败、正式客户端尚未启动时，可用 `python run_all.py --config evaluation.json --resume-before-inference` 接续。入口核验封存原件、清理状态及零正式客户端记录，保留失败原件；已有正式客户端或请求记录时拒绝此模式。
 
