@@ -396,7 +396,7 @@ def sdk_popen(command, *, sdk, env, **kwargs):
     return popen_in_context(command, root, env=env, extra_paths=(Path(sdk), Path(__file__).parent), **kwargs)
 
 
-def enter_cli(sdk, script, arguments, *, cache=None):
+def enter_cli(sdk, script, arguments, *, cache=None, extra_paths=()):
     """Replace this controller with SDK Python, retaining PID and birth time."""
     if not needed():
         return False
@@ -405,7 +405,7 @@ def enter_cli(sdk, script, arguments, *, cache=None):
     root = ensure_for_sdk(sdk)
     python, env = environment(sdk, Path(cache or sdk.parent.parent / 'execution-controller'))
     request = request_for([str(python), '-B', str(Path(script).resolve()), *arguments], root,
-                          env=env, extra_paths=(sdk, Path(script).resolve().parent))
+                          env=env, extra_paths=(sdk, Path(script).resolve().parent, *extra_paths))
     execute_request(request)
     raise AssertionError('Execution-context exec unexpectedly returned')
 
@@ -450,10 +450,38 @@ def prepare_anchor(config):
     return sdk
 
 
+def config_workspaces(config, path):
+    """Bind declared workspace parents, including paths outside /root or /data."""
+    path = Path(path).resolve()
+    paths = [path.parent]
+    keys = ('model','cache','out','protocol_run','protocol_deployment','protocol_python',
+            'context_contract','judge_installation','model_manifest','baseline_deployment','dataset_assets','env_file')
+    values = [config[key] for key in keys if key in config]
+    options = config.get('environment', {})
+    values += [options[key] for key in ('official_sdk','wheelhouse','cann_home') if key in options]
+    for value in values:
+        parent = (path.parent / Path(value).expanduser()).absolute().parent
+        parent.mkdir(parents=True, exist_ok=True)
+        if parent == Path('/') or str(parent) in ('/usr','/bin','/sbin','/lib','/lib64','/etc','/run'):
+            raise ValueError('Use workspace paths outside private system directories')
+        paths.append(parent)
+    return tuple(dict.fromkeys(paths))
+
+
+def argument_config(arguments):
+    for index, value in enumerate(arguments):
+        if value == '--config' and index + 1 < len(arguments):
+            return Path(arguments[index + 1])
+        if value.startswith('--config='):
+            return Path(value.split('=',1)[1])
+    raise ValueError('Public execution context requires its configuration path')
+
+
 def maybe_enter_official(config, arguments):
     if needed():
         sdk = prepare_anchor(config)
-        enter_cli(sdk, Path(__file__).parent / 'run_all.py', ['--official-baselines', *arguments])
+        paths = config_workspaces(config, argument_config(arguments))
+        enter_cli(sdk, Path(__file__).parent / 'run_all.py', ['--official-baselines', *arguments], extra_paths=paths)
 
 
 def maybe_enter_config(path, arguments):
@@ -466,7 +494,8 @@ def maybe_enter_config(path, arguments):
         sdk = Path(sdk)
         if not sdk.is_absolute():
             sdk = Path(path).resolve().parent / sdk
-        enter_cli(sdk, Path(__file__).parent / 'run_all.py', arguments)
+        enter_cli(sdk, Path(__file__).parent / 'run_all.py', arguments,
+                  extra_paths=config_workspaces(config, path))
 
 
 if __name__ == '__main__':

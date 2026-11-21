@@ -10,7 +10,9 @@ python run_all.py --official-baselines --config download.json --download-only --
 
 逐个文件传入目标主机的独立缓存，按同一 SHA256 核验，再由目标主机的公开入口自动安装。下载结果不是实机测试结果。
 
-纯下载可选环境变量 `DEEPLINKENGINE_DOWNLOAD_RANGE_WORKERS=4`（默认 1，最多 4），按严格 HTTP Range 断点下载；最终仍核验完整 SHA256。已有单流下载前缀会继续原传输，不创建第二份大文件。
+共同协议的原始基线材料和固定依赖也可按 `data/b0-oci.json`、`engine/r8-lock.json` 的单个摘要预取：在上述纯下载命令中加 `--download-protocol-dependencies`，省略 `--download-transport curl`。结果记录目标缓存子目录；预取不安装这些包或运行原始基线模型。
+
+镜像准备及纯下载均可选环境变量 `DEEPLINKENGINE_DOWNLOAD_RANGE_WORKERS=4`（默认 1，最多 4），按严格 HTTP Range 断点下载；最终仍核验完整 SHA256。启用时逐层处理，最多四个下载线程。已有单流下载前缀会继续原传输，不创建第二份大文件。
 
 可识别的同锁未完成安装会自动另存原件后重建；已完整解包的安装只恢复元数据。未知目录或来源锁不符时保留原目录并退出。
 

@@ -95,5 +95,21 @@ class Ranges(unittest.TestCase):
                 official_download.run(dict(versions=['0.23.0'],cache=str(self.root/'cache'),out=str(self.root/'out')))
         self.assertFalse((self.root/'out').exists())
 
+    def test_full_image_preparation_fetch_uses_the_same_bounded_range_admission(self):
+        import official_image
+        self.payload=b'x'*(2*1024**2+7);self.pin='sha256:'+hashlib.sha256(self.payload).hexdigest()
+        with patch.dict('os.environ',DEEPLINKENGINE_DOWNLOAD_RANGE_WORKERS='4'), \
+             patch('official_range_download.subprocess.run',side_effect=self.curl):
+            path=official_image.fetch(self.root,'https://quay.io/v2/ascend/vllm-ascend/','blobs',self.pin,len(self.payload))
+        self.assertEqual(path.read_bytes(),self.payload);self.assertEqual(len(self.calls),3)
+
+    def test_full_image_rejects_invalid_range_geometry_before_creating_sdk(self):
+        import official_image
+        lock=Path(__file__).resolve().parents[1]/'engine/official-baselines/0.23.0.json'
+        with patch.dict('os.environ',DEEPLINKENGINE_DOWNLOAD_RANGE_WORKERS='5'):
+            with self.assertRaisesRegex(ValueError,'between 1 and 4'):
+                official_image.prepare(lock,self.root/'cache',self.root/'sdk')
+        self.assertFalse((self.root/'sdk').exists())
+
 
 if __name__=='__main__':unittest.main()

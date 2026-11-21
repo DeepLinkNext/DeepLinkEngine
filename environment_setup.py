@@ -166,7 +166,7 @@ def wheel_digest(path):
 
 def cached_wheel(source, links, cache):
     """Use only a hash-matching local wheel or fetch the fixed public artifact."""
-    import fcntl
+    from baseline_setup import download_lock
     cache.mkdir(parents=True, exist_ok=True)
     filename = source["filename"]
     if Path(filename).name != filename:
@@ -180,8 +180,7 @@ def cached_wheel(source, links, cache):
         if valid(local):
             return local.resolve()
     target = cache / filename
-    with (cache / (filename + ".lock")).open("a+b") as lease:
-        fcntl.flock(lease, fcntl.LOCK_EX)
+    with (cache / (filename + ".lock")).open("a+b") as lease, download_lock(lease):
         if valid(target):
             return target.resolve()
         if os.path.lexists(target):

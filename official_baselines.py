@@ -51,17 +51,23 @@ def main(arguments=None):
     parser.add_argument('--config', type=Path, required=True)
     parser.add_argument('--prepare-environment', action='store_true')
     parser.add_argument('--download-only', action='store_true', help='Only download pinned official OCI artifacts; no extraction, Python repair or model execution')
+    parser.add_argument('--download-protocol-dependencies', action='store_true', help='With download-only, fetch one digest-pinned common protocol asset, without installing or running it')
     parser.add_argument('--artifact-digest', help='Download one digest already present in the selected official locks')
     parser.add_argument('--download-transport', choices=('auto', 'curl'), default='auto', help='Transport for download-only; preserve the same official URL and digest')
     parser.add_argument('--reuse-completed-continuous', type=Path,
                         help='In a new output, retain sealed C8 after a later pre-model failure; preserve original clocks')
     args = parser.parse_args(arguments)
+    if args.download_protocol_dependencies and (not args.download_only or not args.artifact_digest or args.download_transport!='auto'):
+        parser.error('Protocol dependency prefetch requires download-only, one artifact digest and the default Python transport')
     if (args.download_only and (args.prepare_environment or args.reuse_completed_continuous)) or ((args.artifact_digest or args.download_transport != 'auto') and not args.download_only):
         parser.error('Artifact selection requires download-only, separate from environment preparation')
     try:
         protocol_preparation = None
         config = configuration(args.config, download_only=args.download_only)
         if args.download_only:
+            if args.download_protocol_dependencies:
+                from official_protocol_download import run
+                return run(config,artifact=args.artifact_digest)
             from official_download import run
             return run(config, artifact=args.artifact_digest, transport=args.download_transport)
         if args.reuse_completed_continuous:

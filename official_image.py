@@ -11,13 +11,33 @@ import tarfile
 import time
 import uuid
 
-from baseline_setup import fetch
+from baseline_setup import fetch as sequential_fetch
 
 PREFIXES = ('usr/local/', 'etc/Ascend/', 'vllm-workspace/')
 SYSTEM_LIBS = ('libbz2.so', 'libnuma.so', 'libgomp.so', 'libffi.so', 'liblzma.so',
                'libsqlite3.so', 'libssl.so', 'libcrypto.so', 'libreadline.so',
                'libtinfo.so', 'libncursesw.so', 'libuuid.so', 'libz.so',
                'libstdc++.so', 'libgcc_s.so', 'libexpat.so', 'libcrypt.so', 'libatomic.so')
+
+
+def download_workers():
+    try:
+        workers=int(os.environ.get('DEEPLINKENGINE_DOWNLOAD_RANGE_WORKERS','1'))
+    except ValueError as error:
+        raise ValueError('Range workers must be an integer between 1 and 4') from error
+    if not 1<=workers<=4:
+        raise ValueError('Range workers must be between 1 and 4')
+    if workers>1 and not shutil.which('curl'):
+        raise ValueError('Parallel official ranges require native curl')
+    return workers
+
+
+def fetch(cache,registry,kind,identity,size):
+    workers=download_workers()
+    if workers>1 and size>=2*1024**2:
+        from official_range_download import fetch as ranges
+        return ranges(cache,registry,kind,identity,size,workers=workers)
+    return sequential_fetch(cache,registry,kind,identity,size)
 
 
 def digest(path):
@@ -310,6 +330,7 @@ def quarantine_partial_sdk(lock_path, out):
 
 def prepare(lock_path, cache, out):
     lock = read_lock(lock_path)
+    workers=download_workers()
     out, cache = Path(out).resolve(), Path(cache).resolve()
     out.mkdir(parents=True, exist_ok=False)
     if shutil.disk_usage(out).free < 40 * 1024**3:
@@ -328,7 +349,7 @@ def prepare(lock_path, cache, out):
     config = json.loads(config_path.read_bytes())
     if (config.get('architecture'), config.get('os')) != ('arm64', 'linux'):
         raise ValueError('Image configuration platform mismatch')
-    with ThreadPoolExecutor(max_workers=3) as pool:
+    with ThreadPoolExecutor(max_workers=1 if workers>1 else 3) as pool:
         blobs = list(pool.map(lambda row: fetch(cache, registry, 'blobs', row['digest'], row['size']), lock['layers']))
     rootfs = out / 'rootfs'
     rootfs.mkdir()
