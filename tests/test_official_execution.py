@@ -195,5 +195,33 @@ class ExecutionContextTests(unittest.TestCase):
             self.assertIsNone(execution.tokenizer_alias([],model='model',sdk='sdk',cache='cache',env={},cwd='.'))
 
 
+    @unittest.skipUnless(hasattr(os,'statvfs'), 'Linux private SDK mounts')
+    def test_inherited_compatible_context_protects_a_different_raw_sdk_before_exec(self):
+        class Handoff(Exception):pass
+        with tempfile.TemporaryDirectory() as temp:
+            sdk=Path(temp)/'sdk';sdk.mkdir();(sdk/'installation.json').write_text(json.dumps({'schema':'deeplinkengine-official-sdk/v1'}))
+            with patch.object(execution,'needed',return_value=False),patch.object(execution,'context_identity',return_value={'fixture':True}),patch.object(os,'statvfs',return_value=type('Mount',(),dict(f_flag=0))()),patch('official_image.environment',return_value=(sdk/'python',{})),patch.object(execution,'execute_inherited_anchor',side_effect=Handoff) as enter,patch.object(execution,'ensure_for_sdk',side_effect=AssertionError('no repeated chroot')),self.assertRaises(Handoff):
+                execution.enter_cli(sdk,Path(temp)/'controller.py',['--cpu'])
+            self.assertEqual(enter.call_args.args[0]['sdk'],str(sdk.resolve()))
+            self.assertIn('--cpu',enter.call_args.args[0]['command'])
+
+    @unittest.skipUnless(hasattr(os,'statvfs'), 'Linux private SDK mounts')
+    def test_already_readonly_anchor_or_derived_output_does_not_reenter(self):
+        with tempfile.TemporaryDirectory() as temp:
+            sdk=Path(temp)/'sdk';sdk.mkdir();receipt=sdk/'installation.json'
+            for schema,flag in [('deeplinkengine-official-sdk/v1',os.ST_RDONLY),('derived-output/v1',0)]:
+                receipt.write_text(json.dumps({'schema':schema}))
+                with patch.object(execution,'needed',return_value=False),patch.object(execution,'context_identity',return_value={'fixture':True}),patch.object(os,'statvfs',return_value=type('Mount',(),dict(f_flag=flag))()),patch.object(execution,'execute_inherited_anchor',side_effect=AssertionError('no exec')):
+                    self.assertFalse(execution.enter_cli(sdk,'script',[]))
+
+    def test_config_handoff_does_not_skip_a_verified_inherited_context(self):
+        with tempfile.TemporaryDirectory() as temp:
+            config=Path(temp)/'evaluation.json';sdk=Path(temp)/'sdk'
+            config.write_text(json.dumps({'environment':{'official_sdk':str(sdk)}}))
+            with patch.object(execution,'needed',return_value=False),patch.object(execution,'context_identity',return_value={'fixture':True}),patch.object(execution,'config_workspaces',return_value=()),patch.object(execution,'enter_cli') as enter:
+                execution.maybe_enter_config(config,['--config',str(config)])
+            self.assertEqual(enter.call_args.args[0],sdk)
+
+
 if __name__ == '__main__':
     unittest.main()
