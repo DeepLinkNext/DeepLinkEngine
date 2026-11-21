@@ -109,10 +109,14 @@ def main(arguments=None):
                 failed = True
                 save(out / 'results.json', record)
                 continue
-            from official_image import prepare, read_lock, digest, file_map, probe, finish_restoration
+            from official_image import prepare, read_lock, digest, file_map, probe, finish_restoration, quarantine_partial_sdk
             identity = read_lock(lock)
             sdk = cache / 'official-sdks' / (version + '-' + identity['manifest_digest'].split(':')[1][:16])
             try:
+                recovered = quarantine_partial_sdk(lock, sdk)
+                if recovered:
+                    row['interrupted_restoration'] = recovered
+                    save(out / 'results.json', record)
                 if sdk.exists():
                     was_complete = (sdk / 'installation.json').is_file()
                     if not was_complete:

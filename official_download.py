@@ -2,6 +2,8 @@
 import json
 from pathlib import Path
 import time
+import platform
+import shutil
 
 
 def artifacts(versions):
@@ -39,7 +41,10 @@ def run(config, *, artifact=None):
     try:
         save(out / 'results.json', record)
         for identity, row in selected.items():
-            path = fetch(Path(config['cache']) / 'official-oci', row['registry'], row['kind'], identity, row['bytes'])
+            # Native Windows curl uses the system TLS transport. Python TLS
+            # can trickle through the same configured proxy without timing out.
+            attempts = 0 if platform.system() == 'Windows' and shutil.which('curl') else 3
+            path = fetch(Path(config['cache']) / 'official-oci', row['registry'], row['kind'], identity, row['bytes'], attempts=attempts)
             record['files'].append(dict(row, path=str(path), sha256=digest(path)))
             save(out / 'results.json', record)
         record['status'] = 'completed'

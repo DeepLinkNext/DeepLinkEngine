@@ -8,6 +8,8 @@ python run_all.py --official-baselines --config download.json --download-only --
 
 逐个文件传入目标主机的独立缓存，按同一 SHA256 核验，再由目标主机的公开入口自动安装。下载结果不是实机测试结果。
 
+可识别的同锁未完成安装会自动另存原件后重建；已完整解包的安装只恢复元数据。未知目录或来源锁不符时保留原目录并退出。
+
 不修改宿主驱动或共享 Python。宿主 Python 3.9 可先恢复私有官方镜像；`model_manifest` 可选，按固定修订和 SHA256 自动恢复模型：
 
 ```sh
