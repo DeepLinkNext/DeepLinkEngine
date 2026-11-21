@@ -22,6 +22,7 @@ jobs:
           python-version: '3.12'
       - run: python -B tests/test_official_download.py
       - run: python -B tests/test_official_protocol_preparation.py
+      - run: python -B tests/test_official_protocol_data.py
       - run: python -B tests/test_official_protocol_download.py
       - run: python -B tests/test_dependency_resume.py
       - run: python -B tests/test_official_image_recovery.py

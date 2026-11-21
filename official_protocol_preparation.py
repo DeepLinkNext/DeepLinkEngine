@@ -30,6 +30,7 @@ def _prepared(config, output):
             or data.get('automated_acceptance_complete') is not False
             or data.get('model_service_started') is not False or data.get('formal_client_started') is not False
             or data.get('engine_selection',{}).get('version')!=VERSION
+            or data.get('protocol_preparation_mode')!='official-inputs-only'
             or [r.get('name') for r in data.get('stages',[])]!=PHASES
             or any(r.get('status')!='completed' for r in data.get('stages',[]))):
         raise ValueError('Public protocol preparation did not complete its five no-model stages')
@@ -43,12 +44,15 @@ def _prepared(config, output):
         if Path(result[name])!=value.resolve():raise ValueError('Prepared protocol output escaped its own run')
     from official_suite import validate_configuration
     validate_configuration(result)
+    from official_protocol_data import verify_prepared_inputs
+    verify_prepared_inputs(output/'fixed-five')
     files=[path,output.parent/'evaluation.json',output/'evaluation.json',output/'fixed-five/frozen-execution-plan.json',output/'installation/sdk/provenance/installed-files.json']
     from official_suite import protocol_data_cache
     if protocol_data_cache(result)!=Path(config['cache']).resolve():
         raise ValueError('Prepared protocol data cache differs from its public configuration')
     files+=sorted((output/'fixed-five/plans').glob('*.json'))
     files+=sorted((output/'fixed-five/continuous-B0/inputs').glob('*.json'))
+    files+=[output/'fixed-five/official-protocol-preparation.json',output/'fixed-five/native-token-workload.json']
     return result,{str(p):_sha(p) for p in files}
 
 
@@ -56,6 +60,7 @@ def _recipe(config):
     model=Path(config['model']).resolve()
     metadata={name:_sha(model/name) for name in ('config.json','tokenizer.json','tokenizer_config.json','chat_template.jinja') if (model/name).is_file()}
     return dict(model=str(model),physical_devices=config['physical_devices'],protocol_engine_version=VERSION,
+                preparation_schema='deeplinkengine-official-data-protocol/v1',
                 tools_manifest_sha256=_sha(ROOT/'benchmark/one-click-kit/DEPLOYMENT-TOOLS.json'),model_metadata_sha256=metadata)
 
 
@@ -98,7 +103,7 @@ def _prepare(config,recipe):
         plan=dict(model=config['model'],physical_devices=config['physical_devices'],cache=config['cache'],
                   out=str(output),engine_version=VERSION,rerun_b0=False,environment=dict(official_sdk=str(anchor)))
         path=journal/'evaluation.json';save(path,plan)
-        command=[sys.executable,'-B',str(ROOT/'run_all.py'),'--config',str(path),'--prepare-protocol-only']
+        command=[sys.executable,'-B',str(ROOT/'run_all.py'),'--config',str(path),'--prepare-official-protocol-only']
         record['stages'].append(dict(name='prepare-common-protocol',status='running',command=command));save(receipt,record)
         sys.path.insert(0,str(ROOT/'benchmark/one-click-kit/scripts'))
         from child_runner import run_stage

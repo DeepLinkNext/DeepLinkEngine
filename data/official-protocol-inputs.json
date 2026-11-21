@@ -1,0 +1,31 @@
+{
+  "schema": "deeplinkengine-official-protocol-inputs/v1",
+  "protocol_engine_release": "full-answer-b1-20261117-r8",
+  "protocol_engine_version": "2026.11.17.8.post2",
+  "model_manifest_sha256": "af952ba10964739b49119fe5fbf6d17ed8c3f54967de31b64ffbd9a6da922624",
+  "continuous_recipe_sha256": "f96e3487efa0d62cca31a79a1573d8b2aab029f47d93d0e1b320af79297c706d",
+  "continuous_input_sha256": "17faf7a6e4ba31f55fb64dca577d41d85ebc8ca4381ccf68d8184cc1e5937802",
+  "continuous_cohorts": {
+    "4096": 8,
+    "16384": 8
+  },
+  "quality_plan_sha256": "f4ed4ce5956c9ed08f360400b5a996ef92a217ce295d50648d4dc06443db768e",
+  "prompt_tokens_sha256": "c36b966384a220b9060c452e632ac636da59a92dce5a6ded9fe931794c187851",
+  "prompt_serialization": "UTF-8 compact JSON of token lists plus one LF",
+  "requests": 200,
+  "input_tokens": 282265,
+  "denominators": {
+    "mmlu": 200,
+    "hle": 200,
+    "frontier": 160,
+    "swe": 64,
+    "terminal": 48
+  },
+  "tokenizer_files": {
+    "tokenizer.json": "5f9e4d4901a92b997e463c1f46055088b6cca5ca61a6522d1b9f64c4bb81cb42",
+    "tokenizer_config.json": "316230d6a809701f4db5ea8f8fc862bc3a6f3229c937c174e674ff3ca0a64ac8",
+    "chat_template.jinja": "a4aee8afcf2e0711942cf848899be66016f8d14a889ff9ede07bca099c28f715",
+    "config.json": "5e4d7f74fec2f360eb9cfbfcd6ec0c4c76e684d3a11caaed259d9fd9bfbc7944"
+  },
+  "scope": "Pure data freezing for official solver campaigns; no legacy018 admission or model execution"
+}
