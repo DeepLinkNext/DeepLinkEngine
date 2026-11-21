@@ -25,7 +25,10 @@ class CandidateTests(unittest.TestCase):
             selected=rows['sha256:'+row['sha256']]
             self.assertEqual(selected['stage'],'03-ascend')
             self.assertEqual(selected['package'],name)
-        self.assertEqual(len(rows),3)
+        nested=rows['sha256:'+candidate.NESTED_BUILD_ARTIFACTS['arctic-build-torch']['sha256']]
+        self.assertEqual((nested['stage'],nested['requirement']),('03-ascend/arctic-inference-build','torch==2.7.0'))
+        self.assertNotEqual(nested['sha256'],candidate.ASCEND_BUILD_WHEELS['torch']['sha256'])
+        self.assertEqual(len(rows),5)
 
     def test_ascend_build_requires_both_original_torch_and_npu_pins(self):
         import environment_setup

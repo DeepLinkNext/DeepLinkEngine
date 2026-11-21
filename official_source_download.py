@@ -47,7 +47,10 @@ def run(config, *, artifact=None, transport='auto',arguments=None):
                         raise ValueError('Full-size source-build partial has wrong whole SHA; preserve it')
                     if not target.exists():partial.replace(target)
                 path=source_archive(row,cache)
-        else:path=cached_wheel(row,[],cache)
+        else:
+            from official_build_assets import fetch
+            path,download_proof=fetch(row,cache)
+            record['verified_transport']=download_proof
         if path.is_symlink() or path.stat().st_size!=row['bytes'] or wheel_digest(path)!=row['sha256']:
             raise ValueError('Source-build wheel failed whole SHA admission')
         provenance=cache/(row['filename']+'.download.json')

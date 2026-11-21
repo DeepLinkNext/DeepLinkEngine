@@ -42,6 +42,21 @@ ASCEND_BUILD_WHEELS = {
         url='https://files.pythonhosted.org/packages/64/8d/3d10b7852b4e7f1392d6b68457537d3e4cdd8be04dcdaae83c14344b571b/torch_npu-2.10.0.post4-cp312-cp312-manylinux_2_28_aarch64.whl',
         requirement='torch-npu==2.10.0.post4'),
 }
+NESTED_BUILD_ARTIFACTS = {
+    'arctic-inference': dict(package='arctic-inference',requirement='arctic-inference==0.1.1',
+        stage='03-ascend/arctic-inference-source',filename='arctic_inference-0.1.1.tar.gz',bytes=122018,
+        sha256='36857e2fbe3ead34821a04be98dfab95086050c1e38199c8fdfe308234fdcf63',
+        url='https://files.pythonhosted.org/packages/2a/d2/3bcebda042d08cfa0f35a2bbc6dd168d60fea60b6678824665c7a3665418/arctic_inference-0.1.1.tar.gz',
+        publisher_metadata_url='https://pypi.org/pypi/arctic-inference/0.1.1/json',
+        publisher_metadata_sha256='168ccfa2d592dc5da43abcc7209c25b0398f4f204acc3d50927670dd8a1932d4',
+        pyproject_sha256='1153b9073458302fcc2a4eb8a745f33b9242fa3c1f7b443404b0232c70e20031'),
+    'arctic-build-torch': dict(package='torch',requirement='torch==2.7.0',
+        stage='03-ascend/arctic-inference-build',filename='torch-2.7.0+cpu-cp312-cp312-manylinux_2_28_aarch64.whl',bytes=99013119,
+        sha256='a845b6f3bda3c40f736847dede95d8bfec81fb7e11458cd25973ba13542cf1f6',
+        url='https://download-r2.pytorch.org/whl/cpu/torch-2.7.0%2Bcpu-cp312-cp312-manylinux_2_28_aarch64.whl',
+        publisher_index='https://download.pytorch.org/whl/cpu/torch/',
+        publisher_index_sha256='6c8b2b749da2f0978e62cc2a259f262dfadcfc478851e2fc5ba1f4c86ed1bd77'),
+}
 
 
 def build_dependency_artifacts():
@@ -51,6 +66,7 @@ def build_dependency_artifacts():
         raise ValueError('Shared Torch artifact differs from the official isolated build wheel')
     rows=[dict(source,stage='01-core',package='torch',requirement='torch==2.13.0')]
     rows += [dict(row,stage='03-ascend',package=name,upstream_url=row['url']) for name,row in ASCEND_BUILD_WHEELS.items()]
+    rows += [dict(row,upstream_url=row['url']) for row in NESTED_BUILD_ARTIFACTS.values()]
     return {'sha256:'+row['sha256']:row for row in rows}
 
 
