@@ -72,6 +72,7 @@ class BuildAssetsTests(unittest.TestCase):
             self.assertNotEqual(path.stat().st_ino,source.stat().st_ino)
             self.assertIsNone(assets.admit_pip_cache(dict(row,sha256='a'*64),root/'other',pip_cache=pip_cache,report_url=url))
             self.assertIsNone(assets.admit_pip_cache(row,root/'other',pip_cache=pip_cache,report_url=url+'other'))
+            self.assertIsNone(assets.admit_pip_cache(row,root/'other',pip_cache=pip_cache,report_url=source.as_uri()))
 
     def test_existing_range_downloader_resumes_real_http_and_checks_whole_sha(self):
         body=b'build-assets-range-fixture'*2048

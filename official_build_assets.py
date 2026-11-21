@@ -91,6 +91,8 @@ def fetch(row,cache):
 
 def admit_pip_cache(row,cache,*,pip_cache,report_url):
     """Copy only this report URL's verified whole body from our metadata cache."""
+    if urllib.parse.urlsplit(report_url).scheme not in ('https','http'):
+        return None
     from baseline_setup import download_lock
     from pip._internal.network.cache import SafeFileCache
     from pip._vendor.cachecontrol.controller import CacheController
