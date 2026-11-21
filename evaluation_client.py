@@ -674,6 +674,38 @@ def http_state_drain_bridge(result):
         result[script] = text.encode()
 
 
+def http_replay_bridge(result):
+    """Reuse an independently sealed HTTP observation with prior native clocks."""
+    key = 'third-party-test-kit/public_output_binding.py'
+    text = result[key].decode()
+    text = once(text, 'plan["engine_release"] != "full-answer-b1-20261117-r8"',
+        'plan["engine_release"] not in ("full-answer-b1-20261117-r8", "full-answer-b1-20261119-r9")')
+    result[key] = text.encode()
+
+    key = 'scripts/reference_model_reuse.py'
+    text = result[key].decode()
+    text = once(text, '"qualification_reuse", "stage_resume", "canonical_reuse")',
+                '"qualification_reuse", "stage_resume", "canonical_reuse", "observation_reuse")')
+    result[key] = text.encode()
+
+    key = 'scripts/reference_observation_reuse.py'
+    text = result[key].decode()
+    text = once(text, '    "scripts/reference_qualification_reuse.py", "scripts/run_native_reference.py", "scripts/third_party.py",',
+        '    "scripts/reference_qualification_reuse.py", "scripts/run_native_reference.py", "scripts/third_party.py",\n'
+        '    "scripts/reference_observation_reuse.py", "scripts/context_baseline_reuse.py",')
+    result[key] = text.encode()
+
+    key = 'scripts/automatic_reference.py'
+    text = result[key].decode()
+    text = once(text, '            if resume_source:\n                raise ValueError("Choose a completed model-stage source or a separate HTTP observation source")',
+        '            if resume and "current-http-work-observation" in resume["stages"]:\n'
+        '                raise ValueError("Completed model-stage continuation already supplies a sealed HTTP observation")')
+    text = once(text, '                    if "current-http-work-observation" not in resumed_models["stages"]:',
+        '                    if ("current-http-work-observation" not in resumed_models["stages"]\n'
+        '                            and not plan.get("observation_reuse")):')
+    result[key] = text.encode()
+
+
 def context_baseline_bridge(result):
     """Preserve completed fixed-B0 context phases across a B1-only change."""
     def scripts(files):
@@ -724,6 +756,7 @@ def context_baseline_bridge(result):
     historical_mmlu_location_bridge(result)
     device_change_bridge(result)
     http_state_drain_bridge(result)
+    http_replay_bridge(result)
     current = digest(scripts(result))
     result['scripts/context_baseline_reuse.py'] = CONTEXT_BASELINE_HELPER.replace('__CURRENT_SOURCES__', current).encode()
 
