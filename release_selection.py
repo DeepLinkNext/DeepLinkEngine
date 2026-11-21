@@ -215,11 +215,40 @@ def runtime_lock(root=None):
 
 
 def kit_path():
-    record = active()
-    if record and record['client']:
-        return Path(record['client']['path'])
+    client = selected_client()
+    if client:
+        return Path(client['path'])
     return ROOT / 'benchmark/one-click-kit'
 
 
 def profile():
     return active()['engine_profile'] if active() else 'r8'
+
+
+METADATA_CLIENT = 'DEEPLINKENGINE_METADATA_ASSESSMENT_CLIENT'
+
+
+def selected_client():
+    record = active()
+    if record is None:
+        return None
+    raw = os.environ.get(METADATA_CLIENT)
+    if raw:
+        value = json.loads(raw)
+        if value.get('selection_sha256') != os.environ[SELECTION_SHA] or value['client']['release'] != record['release']:
+            raise ValueError('CPU metadata assessment client belongs to a different engine selection')
+        from evaluation_client import verify
+        verify(value['client'])
+        return value['client']
+    return record.get('client')
+
+
+def ensure_metadata_client(cache):
+    """Bind an explicit derived client without rewriting a historical selection."""
+    record = active()
+    if record is None:
+        return None
+    from evaluation_client import metadata_client
+    client = metadata_client(cache, release=record['release'], record=selected_client())
+    os.environ[METADATA_CLIENT] = json.dumps(dict(selection_sha256=os.environ[SELECTION_SHA], client=client), sort_keys=True)
+    return client

@@ -33,3 +33,5 @@ python3 run_all.py --config prepare-protocol.json --prepare-official-protocol-on
 模型锁：[Qwen3.5-35B-A3B](../engine/models/qwen3.5-35b-a3b.json)。14 个权重分片及 tokenizer、配置和模板 SHA 与原完整题单相同；来源为 ModelScope 官方仓库各文件的固定提交。宿主、驱动、固件和各镜像运行时仍分别记录，跨主机结果按环境分组。
 
 宿主 glibc 较旧时，入口从固定官方 Ubuntu 基础层准备独立执行根，自动让 SDK 探测、完整流程和后续子进程使用其 glibc。记录同时保留宿主与执行层的系统身份、真实 PID/boot 和共享租约 inode。SDK 准备按版本互斥；活跃或身份未知的旧准备目录保留。
+
+原生 glibc 主机不需要创建执行根。入口核验已安装的 Python 字节后自动选择 3.12；依赖元数据探测显式禁写字节码。容器不允许挂载命名空间时，只对固定输入配方中的唯一 tokenizer 路径做声明适配，保存原件及派生源码，仍强核完整模型、C8 与 200 题输入摘要。

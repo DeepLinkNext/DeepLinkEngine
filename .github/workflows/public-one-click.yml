@@ -26,6 +26,9 @@ jobs:
       - run: python -B tests/test_pip_transport.py
       - run: python -B tests/test_triton_backend_probe.py
       - run: python -B tests/test_official_protocol_data.py
+      - run: python -B tests/test_sdk_dependency_probe.py
+      - run: python -B tests/test_native_sdk_controller.py
+      - run: python -B tests/test_official_input_adapter.py
       - run: python -B tests/test_official_protocol_download.py
       - run: python -B tests/test_dependency_resume.py
       - run: python -B tests/test_official_image_recovery.py

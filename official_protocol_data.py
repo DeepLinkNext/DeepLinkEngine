@@ -33,7 +33,7 @@ def admit_model(model,pin):
         before=p.stat();digest=sha(p);after=p.stat()
         if (before.st_dev,before.st_ino,before.st_size,before.st_mtime_ns,before.st_ctime_ns)!=(after.st_dev,after.st_ino,after.st_size,after.st_mtime_ns,after.st_ctime_ns):raise ValueError('Model changed during pure input admission')
         if after.st_size!=row['bytes'] or digest!=row['sha256']:raise ValueError('Original model bytes differ: '+name)
-        observed[name]=dict(bytes=after.st_size,sha256=digest,revision=row['revision'])
+        observed[name]=dict(bytes=after.st_size,sha256=digest,revision=row['revision'],stat_identity=[after.st_dev,after.st_ino,after.st_size,after.st_mtime_ns,after.st_ctime_ns])
     for name,digest in pin['tokenizer_files'].items():
         if observed[name]['sha256']!=digest:raise ValueError('Original tokenizer differs')
     return dict(manifest_sha256=pin['model_manifest_sha256'],files=observed,files_verified=len(observed),model_started=False)
@@ -57,13 +57,18 @@ def verify_prepared_inputs(root):
         raise ValueError('Official input preparation must not impersonate legacy018 admission')
     if sha(root/'continuous-B0/inputs/continuous-inputs-r1.json')!=pin['continuous_input_sha256']:
         raise ValueError('Actual original C8 input bytes differ')
+    if receipt.get('continuous_inputs',{}).get('recipe_sha256')!=pin['continuous_recipe_sha256']:
+        raise ValueError('Original C8 recipe authority differs')
+    if receipt.get('continuous_inputs',{}).get('path_binding_adapter'):
+        from official_input_adapter import verify_record
+        verify_record(receipt['continuous_inputs'])
     workload=json.loads((root/'native-token-workload.json').read_bytes());ids=workload['request_token_ids']
     actual=hashlib.sha256((json.dumps(ids,separators=(',',':'))+'\n').encode()).hexdigest()
     if actual!=pin['prompt_tokens_sha256'] or len(ids)!=pin['requests'] or sum(map(len,ids))!=pin['input_tokens']:
         raise ValueError('Actual original ordered MMLU200 inputs differ')
     return dict(continuous_input_sha256=pin['continuous_input_sha256'],prompt_tokens_sha256=actual,requests=len(ids),input_tokens=sum(map(len,ids)))
 
-def prepare(config,anchor):
+def prepare(config,anchor,*,native_path_binding=False,capability=None):
     sys.path.insert(0,str(TOOLS/'scripts'))
     out=Path(config['out']).resolve();out.mkdir(parents=True,exist_ok=False)
     pin=contracts();model=Path(config['model']).resolve();sdk=Path(config['deployment']).resolve()
@@ -71,14 +76,21 @@ def prepare(config,anchor):
     try:
         if config.get('engine_profile')!='r8' or config.get('test_mode')!='full':raise ValueError('Official protocol preparation requires the original full R8 judge and five inputs')
         alias=Path('/models/Qwen3.5-35B-A3B')
-        if not alias.is_dir() or not os.path.samefile(alias,model) or not os.statvfs(alias).f_flag&os.ST_RDONLY:
-            raise ValueError('Frozen tokenizer recipe requires its read-only model alias in the private child namespace')
-        record['readonly_tokenizer_alias']=dict(source=str(model),target=str(alias),read_only=True,private_namespace=os.readlink('/proc/self/ns/mnt'))
-        record['preparation_sources']={name:sha(ROOT/name) for name in ('official_protocol_data.py','official_protocol_preparation.py','run_all.py','official_execution.py','data/official-protocol-inputs.json')}
+        if native_path_binding:
+            from native_sdk_controller import native_scope
+            if not native_scope() or not capability or capability.get('allowed') is not False:
+                raise ValueError('Capless C8 adapter requires an actual native namespace capability refusal')
+            record['tokenizer_path_mode']='declared-single-constant-binding'
+            record['namespace_capability']=capability
+        else:
+            if not alias.is_dir() or not os.path.samefile(alias,model) or not os.statvfs(alias).f_flag&os.ST_RDONLY:
+                raise ValueError('Frozen tokenizer recipe requires its read-only model alias in the private child namespace')
+            record['readonly_tokenizer_alias']=dict(source=str(model),target=str(alias),read_only=True,private_namespace=os.readlink('/proc/self/ns/mnt'))
+        record['preparation_sources']={name:sha(ROOT/name) for name in ('official_protocol_data.py','official_protocol_preparation.py','run_all.py','official_execution.py','sdk_dependency_probe.py','official_input_adapter.py','native_sdk_controller.py','data/official-protocol-inputs.json')}
         from dataset_contract import prepare as prepare_dataset
         from third_party import descriptor,script_sources
         from restore_b1_r4 import verify_installed_sources
-        from dependency_admission import admit_dependencies
+        from sdk_dependency_probe import admit_dependencies, receipt_path
         from mmlu_scope import verify as verify_mmlu_scope
         from continuous_inputs import prepare as prepare_continuous
         from native_timing_inputs import prepare as prepare_native
@@ -87,7 +99,7 @@ def prepare(config,anchor):
         if installation['release']!=pin['protocol_engine_release'] or profile['release']!=pin['protocol_engine_release'] or installation['package_version']!=pin['protocol_engine_version']:
             raise ValueError('Actual R8 judge installation differs')
         verify_installed_sources(sdk)
-        record['r8_dependencies']=admit_dependencies(sdk)
+        record['r8_dependencies']=admit_dependencies(sdk,receipt=receipt_path(out))
         save(out/'optimized-dependency-admission.json',record['r8_dependencies'])
         installed=json.loads((sdk/'provenance/installed-files.json').read_bytes())
         for name,expected in [('runtime/entrypoints/prepare_continuous.py',pin['continuous_recipe_sha256']),('inputs/mmlu-quality018-r2/quality-request-plan.json',pin['quality_plan_sha256'])]:
@@ -112,7 +124,11 @@ def prepare(config,anchor):
                     if name=='hle':
                         from judge_grammar import selected
                         spec['structured_output_policy']=selected(dict(hle_judge_whitespace='bounded-v2'));save(target,spec)
-        c8=out/'continuous-B0/inputs';c8.parent.mkdir();continuous=prepare_continuous(sdk,c8)
+        c8=out/'continuous-B0/inputs';c8.parent.mkdir()
+        if native_path_binding:
+            from official_input_adapter import prepare as prepare_bound
+            continuous=prepare_bound(sdk,c8,model,pin,record['model_admission'])
+        else:continuous=prepare_continuous(sdk,c8)
         if continuous['recipe_sha256']!=pin['continuous_recipe_sha256'] or continuous['sha256']!=pin['continuous_input_sha256']:raise ValueError('Original C8 input bytes differ')
         cases=json.loads(Path(continuous['path']).read_bytes())
         if {k:len(v) for k,v in cases.items()}!=pin['continuous_cohorts']:raise ValueError('Original C8 population differs')
@@ -127,7 +143,8 @@ def prepare(config,anchor):
             target=out/'execution-source'/name;target.parent.mkdir(parents=True,exist_ok=True);shutil.copyfile(TOOLS/name,target)
         frozen=dict(schema=SCHEMA,prepared_before_model_start=True,model=str(model),datasets=ORDER,smoke_evaluators=False,engine_release=profile['release'],optimized_deployment=str(sdk),prepared_datasets=prepared,hle_profile='fixed200-v1',hle_judge_whitespace='bounded-v2',sources=sources,execution_source_snapshots=True,official_anchor=record['official_anchor'],r8_judge=record['r8_judge'],legacy018_sdk_required=False,legacy018_sdk_admitted=False,continuous_input_sha256=continuous['sha256'],mmlu_inputs=dict(requests=len(ids),input_tokens=sum(map(len,ids)),prompt_tokens_sha256=input_hash,quality_plan_sha256=pin['quality_plan_sha256']),model_service_started=False,formal_client_started=False)
         save(out/'frozen-execution-plan.json',frozen)
-        record.update(status='prepared',continuous_inputs=continuous,mmlu_inputs=frozen['mmlu_inputs'],prepared_plan_sha256=sha(out/'frozen-execution-plan.json'),source_functions_unchanged=True)
+        if continuous.get('path_binding_adapter'):frozen['input_path_binding_adapter']=continuous['path_binding_adapter'];save(out/'frozen-execution-plan.json',frozen)
+        record.update(status='prepared',continuous_inputs=continuous,mmlu_inputs=frozen['mmlu_inputs'],prepared_plan_sha256=sha(out/'frozen-execution-plan.json'),source_functions_unchanged=not native_path_binding,pure_dataset_functions_unchanged=True)
     except BaseException as error:record.update(status='failed',error=type(error).__name__+': '+str(error));raise
     finally:record['ended']=time.time();save(out/'official-protocol-preparation.json',record)
     return record
@@ -136,6 +153,15 @@ def main():
     parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('--config',type=Path,required=True);parser.add_argument('--anchor-sdk',type=Path,required=True);parser.add_argument('--tokenizer-child',action='store_true');args=parser.parse_args();config=json.loads(args.config.read_bytes())
     if config.get('baseline_deployment'):raise ValueError('Official data preparation does not admit a legacy baseline deployment')
     if args.tokenizer_child:return prepare(config,args.anchor_sdk)
+    from native_sdk_controller import native_scope, namespace_capability
+    if native_scope():
+        capability=namespace_capability()
+        if not capability['allowed']:
+            # This process only prepares input data; no serving or timing child
+            # inherits these CPU-only safeguards.
+            os.environ['TORCH_DEVICE_BACKEND_AUTOLOAD']='0'
+            os.environ['ASCEND_RT_VISIBLE_DEVICES']=''
+            return prepare(config,args.anchor_sdk,native_path_binding=True,capability=capability)
     import official_execution as E
     env={k:v for k,v in os.environ.items() if not k.endswith(('_TOKEN','_API_KEY','_PASSWORD','_SECRET'))}
     command=[sys.executable,'-B',str(Path(__file__).resolve()),'--config',str(args.config.resolve()),'--anchor-sdk',str(args.anchor_sdk.resolve()),'--tokenizer-child']

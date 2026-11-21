@@ -102,12 +102,14 @@ import json,sys
 from pathlib import Path
 sys.path.insert(0,str(Path(sys.argv[2])/'scripts'))
 from restore_b1_r4 import verify_installed_sources
-from dependency_admission import admit_dependencies
+sys.path.insert(0,sys.argv[3])
+from sdk_dependency_probe import admit_dependencies
 root=Path(sys.argv[1])
 sources=verify_installed_sources(root)
-dependencies=admit_dependencies(root)
+dependencies=admit_dependencies(root, tools=Path(sys.argv[2]), receipt=Path(sys.argv[4]))
 assert not {'torch','torch_npu','vllm','vllm_ascend'} & set(sys.modules)
-print(json.dumps({'verified_runtime_files':len(sources),'dependencies':dependencies}))
+print(json.dumps({'verified_runtime_files':len(sources),'dependencies':dependencies,
+                  'cpu_metadata_admission':json.loads(Path(sys.argv[4]).read_bytes())}))
 """
 
 
@@ -116,8 +118,10 @@ def audit_sources(sdk, tools):
                  for path in (sdk, tools, Path(sys.executable).parent))
     timeout = 1800 if remote else 180
     print('RUNTIME_AUDIT preparation_timeout_seconds', timeout, flush=True)
+    from sdk_dependency_probe import receipt_path
+    admission = receipt_path(Path(os.environ.get('XDG_CACHE_HOME', str(Path.home()/'.cache'))) / 'deeplinkengine')
     result = subprocess.run(
-        [sys.executable, '-B', '-c', SOURCE_AUDIT_CODE, str(sdk), str(tools)],
+        [sys.executable, '-B', '-c', SOURCE_AUDIT_CODE, str(sdk), str(tools), str(Path(__file__).resolve().parent), str(admission)],
         env=dict(os.environ, PYTHONDONTWRITEBYTECODE='1', PYTHONPATH=''),
         capture_output=True, text=True, check=True, timeout=timeout)
     return json.loads(result.stdout)

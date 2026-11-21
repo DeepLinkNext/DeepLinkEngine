@@ -151,9 +151,9 @@ def main():
     if not os.environ.get("DEEPLINK_SERVICE_BOOTSTRAPPED"):
         print("SERVICE verifying runtime and dependencies", flush=True)
         from restore_b1_r4 import verify_installed_sources
-        from dependency_admission import admit_dependencies
+        from sdk_dependency_probe import admit_dependencies, receipt_path
         verify_installed_sources(root)
-        admit_dependencies(root)
+        admit_dependencies(root, receipt=receipt_path(args.cache))
         from environment_setup import probe, differences, vendor_integrity
         profile = json.loads((root / "deployment.json").read_bytes())
         required = json.loads((ROOT / "engine/r8-lock.json").read_bytes())["required_python_packages"]

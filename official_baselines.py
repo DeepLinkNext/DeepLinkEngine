@@ -106,6 +106,8 @@ def main(arguments=None):
         if not args.prepare_environment:
             from official_protocol_preparation import selection
             selection(config)
+            from native_sdk_controller import maybe_enter_official as native_controller
+            native_controller(config,list(arguments) if arguments is not None else sys.argv[1:])
             from official_execution import maybe_enter_official, needed
             if needed():
                 from transport_trust import configure
@@ -140,6 +142,8 @@ def main(arguments=None):
                                           for p in [ROOT / 'run_all.py', ROOT / 'official_baselines.py', ROOT / 'official_image.py', ROOT / 'official_storage.py']})
     from official_protocol_bootstrap import host_identity
     record['host_identity'] = host_identity()
+    from native_sdk_controller import ENV as native_marker
+    if os.environ.get(native_marker):record['native_controller_handoff']=json.loads(os.environ[native_marker])
     if protocol_preparation is not None:
         record['protocol_preparation'] = protocol_preparation
     save(out / 'results.json', record)

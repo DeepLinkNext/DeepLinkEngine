@@ -371,8 +371,13 @@ def run(data, *, prepare_protocol_only=False, prepare_official_protocol_only=Fal
                     (out / name).rename(original / name)
             receipt["previous_attempts"][-1]["campaign_directory"] = str(original.relative_to(out))
 
+    from release_selection import selected_client
+    if selected_client():
+        receipt['assessment_client'] = selected_client()
     if os.environ.get('DEEPLINKENGINE_SDK_RECOVERY'):
         receipt['sdk_bytecode_recovery'] = json.loads(os.environ['DEEPLINKENGINE_SDK_RECOVERY'])
+    from native_sdk_controller import ENV as native_marker
+    if os.environ.get(native_marker):receipt['native_controller_handoff']=json.loads(os.environ[native_marker])
     environment_report = os.environ.get("DEEPLINKENGINE_ENVIRONMENT_REPORT")
     if environment_report:
         import shutil
@@ -671,6 +676,9 @@ def main():
             recovery = verify_or_repair(data['environment']['official_sdk'], data['cache'])
             if recovery:
                 os.environ['DEEPLINKENGINE_SDK_RECOVERY'] = json.dumps(recovery)
+        if data.get('environment', {}).get('official_sdk') and not args.report_only:
+            from native_sdk_controller import maybe_enter as native_controller
+            native_controller(data['environment']['official_sdk'],ROOT/'run_all.py',sys.argv[1:],cache=data['cache'])
         if data.get('environment', {}).get('official_sdk') and needed():
             from transport_trust import configure
             configure(data['cache'], data['environment']['official_sdk'])
@@ -697,6 +705,9 @@ def main():
                 data, prior=args.reuse_completed_run, context=args.reuse_context_baseline_arm,
                 compute=args.reuse_compute_baseline_arm, recovery=recovery)
         select_run_engine(data, recovery=recovery, reuse_completed_run=args.reuse_completed_run)
+        if not args.prepare_environment:
+            from release_selection import ensure_metadata_client
+            ensure_metadata_client(data['cache'])
         if sum((args.resume_bootstrap,args.resume_before_model,args.resume_before_inference))>1:
             raise ValueError("Choose only one recovery mode")
         if args.reuse_completed_run and (args.resume_bootstrap or args.resume_before_model or args.resume_before_inference):
