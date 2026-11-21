@@ -246,10 +246,15 @@ def completed_run_source(data, source):
         raise ValueError("Reuse source and new output must be independent")
     prior = json.loads((source / "results.json").read_text())
     comparable = lambda value: {k: v for k, v in value.items() if k not in ("out", "engine_version", "rerun_b0")}
-    if comparable(prior.get("configuration", {})) != comparable(data):
-        raise ValueError("Reuse model/device/cache configuration differs")
-    if prior.get("status") not in ("failed", "completed"):
-        raise ValueError("Reuse requires a stopped prior run")
+    before, after = comparable(prior.get("configuration", {})), comparable(data)
+    if before != after:
+        changed = sorted(k for k in before.keys() | after.keys() if before.get(k) != after.get(k))
+        detail = ", ".join(changed)
+        if "physical_devices" in changed:
+            detail += f" (original {before.get('physical_devices')}, current {after.get('physical_devices')}; restore the original pair for formal reuse)"
+        raise ValueError("Reuse model/device/cache configuration differs: " + detail)
+    from recovery_source import stopped
+    interruption = stopped(source, prior)
     sys.path.insert(0, str(kit_path() / "scripts"))
     from reuse_campaign import source as audit_source, audit_stage
     print("RECOVERY_AUDIT campaign", source / "fixed-five", flush=True)
@@ -278,8 +283,11 @@ def completed_run_source(data, source):
                          "swe-trace-B0", "terminal-trace-B0"}
         if any(name not in baseline_only for name in names):
             raise ValueError("Changing engine version requires baseline-only completed stages")
-    return dict(root=str(source), completed_stages=names,
-                results_sha256=hashlib.sha256((source / "results.json").read_bytes()).hexdigest())
+    result = dict(root=str(source), completed_stages=names,
+                  results_sha256=hashlib.sha256((source / "results.json").read_bytes()).hexdigest())
+    if interruption:
+        result["interruption_recovery"] = interruption
+    return result
 
 
 def run(data, *, resume_bootstrap=False, resume_before_model=False, resume_before_inference=False,
@@ -310,7 +318,8 @@ def run(data, *, resume_bootstrap=False, resume_before_model=False, resume_befor
     out.mkdir(parents=True, exist_ok=reuse_installation)
     installation = out / "installation"
     cli = str(Path(sysconfig.get_path("scripts")) / "vllm-hust-engine")
-    receipt = {"status": "running", "stages": [], "configuration": data, "automated_acceptance_complete": False, "baseline_policy": {"rerun_b0": data.get("rerun_b0", False)}}
+    from recovery_source import process_identity
+    receipt = {"status": "running", "stages": [], "configuration": data, "automated_acceptance_complete": False, "baseline_policy": {"rerun_b0": data.get("rerun_b0", False)}, "controller_owner": process_identity()}
     if reused_run:
         receipt["reused_run"] = reused_run
         receipt["reuse_selection"] = reuse_selection
@@ -341,7 +350,12 @@ def run(data, *, resume_bootstrap=False, resume_before_model=False, resume_befor
     receipt["engine_selection"] = active_selection()
 
     def save():
-        (out / "results.json").write_text(json.dumps(receipt, ensure_ascii=False, indent=2) + "\n")
+        temporary = out / (".results-" + uuid.uuid4().hex + ".tmp")
+        with temporary.open("w") as stream:
+            stream.write(json.dumps(receipt, ensure_ascii=False, indent=2) + "\n")
+            stream.flush()
+            os.fsync(stream.fileno())
+        temporary.replace(out / "results.json")
 
     def stage(name, args, *, mode="execute"):
         record = {"name": name, "status": "running", "command": args, "mode": mode}
