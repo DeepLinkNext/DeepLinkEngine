@@ -29,6 +29,49 @@ SOURCES = {
                         sha256='bde8bf4207d225df86d8f3b7d9b2bd89ff5e5e56af0cbe4bf8b5b691b98bbe95',
                         url='https://files.pythonhosted.org/packages/b0/bc/afe9b8d66680ff14d04b15b18f13cd7dea601c583a8d1514792448a7a75c/vllm_ascend-0.28.0rc1.tar.gz'),
 }
+TORCH_BUILD_WHEEL = dict(filename='torch-2.13.0+cpu-cp312-cp312-manylinux_2_28_aarch64.whl',
+    bytes=155005253,sha256='6f307c2c32d764ffc6ff6893b801fad6d4752f3e67966cb8abf1843427c02604',
+    upstream_url='https://download-r2.pytorch.org/whl/cpu/torch-2.13.0%2Bcpu-cp312-cp312-manylinux_2_28_aarch64.whl')
+
+
+def torch_build_constraint(python, core, cache, build, env, *, sdk):
+    """Bind only isolated build Torch to the same official wheel in shared cache."""
+    import tomllib
+    from official_execution import sdk_run
+    from official_image import digest
+    from environment_setup import cached_wheel
+    pyproject=core/'pyproject.toml'
+    requirements=tomllib.loads(pyproject.read_text())['build-system']['requires']
+    torch=[r for r in requirements if re.match(r'^torch(?:\s|[=<>!~\[])',r)]
+    if len(torch)!=1 or re.sub(r'\s+','',torch[0])!='torch==2.13.0':
+        raise ValueError('Official core isolated Torch build requirement changed')
+    catalog=Path(__file__).parent/'engine/r8-lock.json'
+    source=json.loads(catalog.read_bytes())['environment_sources']['torch']
+    if any(source.get(k)!=v for k,v in TORCH_BUILD_WHEEL.items()):
+        raise ValueError('Shared Torch artifact differs from the official isolated build wheel')
+    wheel=cached_wheel(source,[],cache/'wheels')
+    if wheel.stat().st_size!=TORCH_BUILD_WHEEL['bytes'] or digest(wheel)!=TORCH_BUILD_WHEEL['sha256']:
+        raise ValueError('Isolated Torch build cache failed fresh whole SHA verification')
+    constraint=build/'isolated-build-constraints.txt'
+    constraint.write_text('torch @ '+wheel.as_uri()+'#sha256='+TORCH_BUILD_WHEEL['sha256']+'\n')
+    # Parse through this actual private pip, rather than infer support from a
+    # version string. No install or framework import is performed by this probe.
+    probe_env=dict(env,PIP_BUILD_CONSTRAINT=str(constraint))
+    code="from pip._internal.commands import create_command; import json,pip; o,_=create_command('install').parse_args([]); print(json.dumps(dict(pip_version=pip.__version__,build_constraints=getattr(o,'build_constraints',None),runtime_constraints=o.constraints)))"
+    observed=sdk_run([str(python),'-S','-c',code],sdk=sdk,env=probe_env,
+                     capture_output=True,text=True,timeout=30)
+    if observed.returncode:
+        raise ValueError('Private pip build-constraint capability probe failed: '+observed.stderr)
+    capability=json.loads(observed.stdout)
+    if capability.get('build_constraints')!=[str(constraint)]:
+        raise ValueError('Private pip does not support isolated PIP_BUILD_CONSTRAINT')
+    return constraint,dict(scope='01-core-isolated-build-only',requirement=torch[0],
+        pyproject_sha256=digest(pyproject),wheel=str(wheel),wheel_bytes=wheel.stat().st_size,
+        wheel_sha256=digest(wheel),upstream_index='https://download.pytorch.org/whl/cpu/torch/',
+        upstream_index_observed_sha256='0261c242ed4b430439d719acf44c0c418c145594222eb850a4b37140792d0d25',
+        upstream_wheel_url=TORCH_BUILD_WHEEL['upstream_url'],shared_catalog=str(catalog),
+        shared_catalog_sha256=digest(catalog),constraint=str(constraint),constraint_sha256=digest(constraint),
+        pip_capability=capability,runtime_constraint_added=False,upstream_source_modified=False)
 
 
 def identity():
@@ -377,6 +420,8 @@ def prepare(base_lock_path, cache, output):
         core = output / 'rootfs/vllm-workspace/vllm'
         ascend = output / 'rootfs/vllm-workspace/vllm-ascend'
         core_env = dict(env, VLLM_TARGET_DEVICE='empty')
+        build_constraint,receipt['isolated_torch_build_cache']=torch_build_constraint(python,core,cache,build,env,sdk=output)
+        core_env['PIP_BUILD_CONSTRAINT']=str(build_constraint)
         ascend_env = dict(env, VLLM_BATCH_INVARIANT='1')
         receipt['official_build_only_environment'] = dict(
             values=dict(VLLM_TARGET_DEVICE='empty',VLLM_BATCH_INVARIANT='1'),

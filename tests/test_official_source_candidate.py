@@ -17,6 +17,28 @@ import official_storage
 
 
 class CandidateTests(unittest.TestCase):
+    def test_build_torch_cache_binds_only_exact_requirement_and_fresh_bytes(self):
+        import official_execution,environment_setup
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);core=root/'core';core.mkdir();build=root/'build';build.mkdir();(root/'engine').mkdir()
+            pyproject=core/'pyproject.toml';pyproject.write_text('[build-system]\nrequires=["torch == 2.13.0"]\n')
+            wheel=root/'cached.whl';wheel.write_bytes(b'cpu-wheel-fixture')
+            item=dict(candidate.TORCH_BUILD_WHEEL,bytes=wheel.stat().st_size,sha256=hashlib.sha256(wheel.read_bytes()).hexdigest())
+            (root/'engine/r8-lock.json').write_text(json.dumps(dict(environment_sources=dict(torch=item))))
+            constraint=build/'isolated-build-constraints.txt';capability=dict(pip_version='fixture',build_constraints=[str(constraint)],runtime_constraints=[])
+            with patch.object(candidate,'__file__',str(root/'controller.py')),patch.object(candidate,'TORCH_BUILD_WHEEL',item), \
+                 patch.object(environment_setup,'cached_wheel',return_value=wheel) as fetch, \
+                 patch.object(official_execution,'sdk_run',return_value=subprocess.CompletedProcess([],0,stdout=json.dumps(capability))) as probe:
+                path,proof=candidate.torch_build_constraint(Path(sys.executable),core,root/'cache',build,{},sdk=root/'sdk')
+                self.assertEqual(path,constraint);self.assertIn('torch @ '+wheel.as_uri(),path.read_text())
+                self.assertFalse(proof['runtime_constraint_added'])
+                self.assertEqual(probe.call_args.kwargs['env'],{'PIP_BUILD_CONSTRAINT':str(constraint)})
+                wheel.write_bytes(b'bad-bytes')
+                with self.assertRaisesRegex(ValueError,'fresh whole SHA'):candidate.torch_build_constraint(Path(sys.executable),core,root/'cache',build,{},sdk=root/'sdk')
+                pyproject.write_text('[build-system]\nrequires=["torch == 2.10.0"]\n');fetch.reset_mock()
+                with self.assertRaisesRegex(ValueError,'build requirement changed'):candidate.torch_build_constraint(Path(sys.executable),core,root/'cache',build,{},sdk=root/'sdk')
+                fetch.assert_not_called()
+
     def test_build_cmake_launchers_keep_scripts_and_bind_private_interpreter(self):
         with tempfile.TemporaryDirectory() as directory:
             root=Path(directory)/"private python's tools";root.mkdir()
@@ -179,6 +201,7 @@ class CandidateTests(unittest.TestCase):
                  patch.object(candidate,'safe_extract',side_effect=extract),patch.object(candidate,'command') as commands, \
                  patch.object(candidate,'toolchain_evidence',return_value={'cpu_fixture':True}), \
                  patch.object(candidate,'build_console_launchers',return_value={'cpu_fixture':True}), \
+                 patch.object(candidate,'torch_build_constraint',return_value=(root/'isolated-build-only.txt',{'cpu_fixture':True})), \
                  patch.object(candidate.shutil,'which',return_value='/cpu-rustup'), \
                  patch.object(candidate.shutil,'disk_usage',return_value=SimpleNamespace(free=200*1024**3)):
                 installed=candidate.prepare(lock,cache,output)
@@ -191,6 +214,9 @@ class CandidateTests(unittest.TestCase):
                 self.assertFalse(Path(env['PIP_CACHE_DIR']).is_relative_to(output.resolve()))
                 steps={call.args[4]:call.args[1] for call in commands.call_args_list}
                 self.assertEqual(steps['01-core']['LD_LIBRARY_PATH'],'/private/python/lib:/private/cann/lib64')
+                self.assertEqual(steps['01-core']['PIP_BUILD_CONSTRAINT'],str(root/'isolated-build-only.txt'))
+                self.assertTrue(all('PIP_BUILD_CONSTRAINT' not in value for name,value in steps.items() if name!='01-core'))
+                self.assertTrue(all('PIP_CONSTRAINT' not in value for value in steps.values()))
                 self.assertEqual(steps['03-ascend']['LD_LIBRARY_PATH'],'/private/python/lib:/private/cann/lib64')
                 self.assertEqual(steps['01-core']['VLLM_TARGET_DEVICE'],'empty')
                 self.assertNotIn('VLLM_BATCH_INVARIANT',steps['01-core'])
