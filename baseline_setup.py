@@ -1,6 +1,12 @@
 """Warm the pinned baseline OCI cache with bounded, resumable public downloads."""
 from concurrent.futures import ThreadPoolExecutor
-import fcntl
+from contextlib import contextmanager
+import errno
+import os
+try:
+    import fcntl
+except ImportError:
+    fcntl = None
 import hashlib
 import http.client
 import json
@@ -15,7 +21,40 @@ import urllib.request
 
 def digest(path):
     with path.open('rb') as stream:
-        return hashlib.file_digest(stream, 'sha256').hexdigest()
+        hasher = hashlib.sha256()
+        for block in iter(lambda: stream.read(4 * 1024**2), b''):
+            hasher.update(block)
+        return hasher.hexdigest()
+
+
+@contextmanager
+def download_lock(stream):
+    if fcntl is not None:
+        fcntl.flock(stream, fcntl.LOCK_EX)
+        try:
+            yield
+        finally:
+            fcntl.flock(stream, fcntl.LOCK_UN)
+    elif os.name == 'nt':
+        import msvcrt
+        if os.fstat(stream.fileno()).st_size == 0:
+            stream.write(b'\0'); stream.flush()
+        while True:
+            stream.seek(0)
+            try:
+                msvcrt.locking(stream.fileno(), msvcrt.LK_NBLCK, 1)
+                break
+            except OSError as error:
+                if error.errno not in (errno.EACCES, errno.EAGAIN, errno.EDEADLK):
+                    raise
+                time.sleep(.1)
+        try:
+            yield
+        finally:
+            stream.seek(0)
+            msvcrt.locking(stream.fileno(), msvcrt.LK_UNLCK, 1)
+    else:
+        raise OSError('No supported exclusive download lock on this platform')
 
 
 def fetch(cache, registry, kind, identity, size=None, attempts=3):
@@ -25,8 +64,7 @@ def fetch(cache, registry, kind, identity, size=None, attempts=3):
     cache.mkdir(parents=True, exist_ok=True)
     target = cache / identity.replace(':', '-')
     expected = identity.split(':')[1]
-    with target.with_suffix('.download.lock').open('a+b') as lock:
-        fcntl.flock(lock, fcntl.LOCK_EX)
+    with target.with_suffix('.download.lock').open('a+b') as lock, download_lock(lock):
         if target.is_symlink():
             raise ValueError('Cached OCI blob must not be a symlink')
         if target.exists():
@@ -66,11 +104,17 @@ def fetch(cache, registry, kind, identity, size=None, attempts=3):
                         mode = 'wb'
                     else:
                         raise ValueError('Unexpected baseline HTTP status: ' + str(response.status))
+                    transfer_started, transferred = time.monotonic(), 0
+                    read = getattr(response, 'read1', response.read)
                     with partial.open(mode) as stream:
-                        while block := response.read(4 * 1024 * 1024):
+                        while block := read(4 * 1024 * 1024):
                             stream.write(block)
+                            transferred += len(block)
                             if stream.tell() > (size if size is not None else 5 * 1024 * 1024):
                                 raise ValueError('Baseline download exceeds pinned size')
+                            elapsed = time.monotonic() - transfer_started
+                            if elapsed > 1800 or (elapsed >= 45 and transferred / elapsed < 64 * 1024):
+                                raise OSError('Baseline Python transfer is slow; retain verified-contract partial and retry transport')
                 if size is not None and partial.stat().st_size != size:
                     raise OSError('Incomplete baseline OCI download')
                 if digest(partial) != expected:

@@ -1,0 +1,77 @@
+"""Cross-platform download-only route for digest-pinned official OCI files."""
+import json
+from pathlib import Path
+import time
+import platform
+import shutil
+import os
+
+
+def artifacts(versions):
+    from official_baselines import ROOT
+    from official_image import read_lock
+    result = {}
+    for version in versions:
+        path = ROOT / 'engine/official-baselines' / (version + '.json')
+        if not path.is_file():
+            raise ValueError('No admitted official image for download: ' + version)
+        lock = read_lock(path)
+        entries = [('manifests', lock['manifest_digest'], lock['manifest_bytes']),
+                   ('blobs', lock['config']['digest'], lock['config']['size'])]
+        entries += [('blobs', row['digest'], row['size']) for row in lock['layers']]
+        for kind, identity, size in entries:
+            entry = dict(registry=lock['registry'], kind=kind, digest=identity, bytes=size)
+            if identity in result and result[identity] != entry:
+                raise ValueError('Conflicting official artifact identity')
+            result[identity] = entry
+    return result
+
+
+def run(config, *, artifact=None, transport='auto'):
+    from official_baselines import save
+    from baseline_setup import fetch, digest
+    if transport not in ('auto', 'curl'):
+        raise ValueError('Unknown official download transport')
+    try:
+        range_workers=int(os.environ.get('DEEPLINKENGINE_DOWNLOAD_RANGE_WORKERS','1'))
+    except ValueError as error:
+        raise ValueError('Range workers must be an integer between 1 and 4') from error
+    if not 1<=range_workers<=4:
+        raise ValueError('Range workers must be between 1 and 4')
+    if range_workers>1 and not shutil.which('curl'):
+        raise ValueError('Parallel official ranges require native curl')
+    use_curl = transport == 'curl' or (platform.system() == 'Windows' and shutil.which('curl'))
+    if use_curl and not shutil.which('curl'):
+        raise ValueError('Requested native curl transport is unavailable')
+    selected = artifacts(config['versions'])
+    if artifact is not None:
+        if artifact not in selected:
+            raise ValueError('Artifact digest is not in the selected official lock')
+        selected = {artifact: selected[artifact]}
+    out = Path(config['out'])
+    out.mkdir(parents=True, exist_ok=False)
+    record = dict(schema='deeplinkengine-official-download/v1', started=time.time(), status='running',
+                  model_execution_authorized=False, extraction_performed=False,
+                  transport='native-curl' if use_curl else 'python-with-curl-fallback',
+                  range_workers_requested=range_workers,files=[])
+    try:
+        save(out / 'results.json', record)
+        for identity, row in selected.items():
+            # Native Windows curl uses the system TLS transport. Python TLS
+            # can trickle through the same configured proxy without timing out.
+            attempts = 0 if use_curl else 3
+            if range_workers>1 and row['bytes']>=2*1024**2:
+                from official_range_download import fetch as ranges
+                path=ranges(Path(config['cache'])/'official-oci',row['registry'],row['kind'],identity,row['bytes'],workers=range_workers)
+            else:
+                path = fetch(Path(config['cache']) / 'official-oci', row['registry'], row['kind'], identity, row['bytes'], attempts=attempts)
+            record['files'].append(dict(row, path=str(path), sha256=digest(path)))
+            save(out / 'results.json', record)
+        record['status'] = 'completed'
+        return 0
+    except BaseException as error:
+        record.update(status='failed', error=type(error).__name__ + ': ' + str(error))
+        raise
+    finally:
+        record['ended'] = time.time()
+        save(out / 'results.json', record)

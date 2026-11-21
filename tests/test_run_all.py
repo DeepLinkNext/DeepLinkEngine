@@ -82,6 +82,33 @@ class WorkflowTests(unittest.TestCase):
         names = [row["name"] for row in receipt["stages"]]
         self.assertLess(names.index("verify-installed-tools"), names.index("run-context-tenant"))
 
+    def test_prepare_protocol_stops_before_every_model_and_formal_client(self):
+        with patch('child_runner.run_stage', side_effect=self.execute), patch('one_click.verify_kit'), \
+             contextlib.redirect_stdout(io.StringIO()):
+            result = workflow.run(self.data, prepare_protocol_only=True)
+        receipt = json.loads((self.root / 'result/results.json').read_text())
+        self.assertEqual(result, 0)
+        self.assertEqual([r['name'] for r in receipt['stages']],
+            ['prepare-datasets', 'install-package', 'verify-engine', 'install-engine', 'prepare-fixed-five'])
+        self.assertEqual(receipt['status'], 'prepared')
+        self.assertFalse(receipt['model_service_started'])
+        self.assertFalse(receipt['formal_client_started'])
+        self.assertFalse(receipt['automated_acceptance_complete'])
+        self.assertFalse(any('run' in command for command in self.calls))
+
+    def test_failed_protocol_preparation_cannot_publish_prepared(self):
+        def execute(args, **kwargs):
+            if 'prepare' in args:
+                return types.SimpleNamespace(returncode=9)
+            return self.execute(args, **kwargs)
+        with patch('child_runner.run_stage', side_effect=execute), patch('one_click.verify_kit'), \
+             contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+            result = workflow.run(self.data, prepare_protocol_only=True)
+        receipt = json.loads((self.root / 'result/results.json').read_text())
+        self.assertEqual(result, 1)
+        self.assertEqual(receipt['status'], 'failed')
+        self.assertNotIn('protocol_preparation_complete', receipt)
+
     def test_sealed_stage_reuse_is_forwarded_and_failure_originals_are_untouched(self):
         self.data["rerun_b0"] = False
         source=self.root/'previous';source.mkdir();original=b'original failed ledger\n'
