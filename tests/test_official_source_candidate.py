@@ -143,7 +143,8 @@ class CandidateTests(unittest.TestCase):
                 version='0.28.0rc1' if path.name=='vllm-ascend' else '0.28.0'
                 (path/'PKG-INFO').write_text('Metadata-Version: 2.1\nVersion: '+version+'\n')
             env=dict(os.environ,PYTHONHOME=str(output/'cpu-python'),CARGO_HOME=str(output/'cargo'),
-                     RUSTUP_HOME=str(output/'rustup'),PATH=os.environ['PATH'])
+                     RUSTUP_HOME=str(output/'rustup'),PATH=os.environ['PATH'],
+                     LD_LIBRARY_PATH='/private/python/lib:/private/site/torch/lib:/private/site/torch_npu/lib:/private/cann/lib64')
             with patch.object(official_image,'file_map',return_value={}), \
                  patch.object(official_image,'probe',return_value={'cpu_fixture':True}), \
                  patch.object(official_image,'environment',return_value=(Path(sys.executable),env)), \
@@ -163,6 +164,8 @@ class CandidateTests(unittest.TestCase):
                 self.assertTrue(Path(env['PIP_CACHE_DIR']).is_relative_to(cache.resolve()/'source-build-downloads'))
                 self.assertFalse(Path(env['PIP_CACHE_DIR']).is_relative_to(output.resolve()))
                 steps={call.args[4]:call.args[1] for call in commands.call_args_list}
+                self.assertEqual(steps['01-core']['LD_LIBRARY_PATH'],'/private/python/lib:/private/cann/lib64')
+                self.assertEqual(steps['03-ascend']['LD_LIBRARY_PATH'],'/private/python/lib:/private/cann/lib64')
                 self.assertEqual(steps['01-core']['VLLM_TARGET_DEVICE'],'empty')
                 self.assertNotIn('VLLM_BATCH_INVARIANT',steps['01-core'])
                 self.assertEqual(steps['03-ascend']['VLLM_BATCH_INVARIANT'],'1')

@@ -327,6 +327,14 @@ def prepare(base_lock_path, cache, output):
         python, env = environment(output, build / 'cache')
         site = Path(env['PYTHONHOME']) / 'lib/python3.12/site-packages'
         receipt['removed_copied_editable_registrations'] = remove_old_editables(output, site)
+        # Pip's isolated backend may require another Torch version. Match the
+        # original Docker loader environment rather than shadowing that backend
+        # with the copied SDK's Torch shared libraries.
+        libraries = [part for part in env.get('LD_LIBRARY_PATH','').split(':') if part]
+        excluded = [part for part in libraries if part.endswith(('/torch/lib','/torch_npu/lib'))]
+        env['LD_LIBRARY_PATH'] = ':'.join(part for part in libraries if part not in excluded)
+        receipt['build_loader_environment'] = dict(excluded_sdk_torch_libraries=excluded,
+            upstream_pip_build_isolation_retained=True,serving_environment_unchanged=True)
         env.pop('VLLM_TARGET_DEVICE', None)
         env.pop('VLLM_BATCH_INVARIANT', None)
         env.update(SOC_VERSION='ascend910b1', ASCEND_RT_VISIBLE_DEVICES='',
