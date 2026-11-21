@@ -49,6 +49,35 @@ class C8Replay(unittest.TestCase):
         self.assertEqual(formal['requests'], 8)
         self.assertEqual(rows['4096-warmup']['original_submission_seconds'], 60)
 
+    def test_tool_header_never_becomes_driver_evidence(self):
+        for version in ('26.0.rc1','99.9'):
+            hardware=replay.recorded_hardware(dict(npu_before='| npu-smi '+version+' |\n| 0 910B2 |',physical_cards=[0,7],admitted=True),'a'*64)
+            self.assertEqual(hardware['npu_smi_version'],version)
+            self.assertIsNone(hardware['driver_version'])
+            self.assertEqual(hardware['driver_version_status'],'not-recorded')
+
+    def test_fixed_geometry_and_prefix_policy_cannot_be_relabelled(self):
+        lock={'id':'official-vllm-0.23.0'}
+        values={'--tensor-parallel-size':'2','--dtype':'bfloat16','--max-model-len':'65536',
+                '--max-num-batched-tokens':'4096','--max-num-seqs':'24','--kv-cache-memory-bytes':str(20*1024**3),
+                '--speculative-config':json.dumps(dict(method='mtp',num_speculative_tokens=2)),
+                '--compilation-config':json.dumps(dict(cudagraph_mode='FULL'))}
+        arguments=[item for pair in values.items() for item in pair]+['--no-enable-prefix-caching']
+        plan=dict(baseline_id=lock['id'],role='B0',kind='continuous',runtime_versions=replay.VERSIONS,
+            original_baseline_018_relabelled=False,necessary_work_certified=False,
+            model='/models/Qwen3.5-35B-A3B',serve_arguments=arguments)
+        replay.admit_plan(plan,lock)
+        for key in values:
+            wrong=copy.deepcopy(plan);wrong['serve_arguments'][arguments.index(key)+1]='{}' if key.endswith('-config') else '1'
+            with self.subTest(key=key),self.assertRaises(ValueError):replay.admit_plan(wrong,lock)
+        for args in (arguments[:-1],arguments+['--enable-prefix-caching'],arguments+['--max-num-seqs=100']):
+            with self.subTest(args=args),self.assertRaises(ValueError):replay.admit_plan(dict(plan,serve_arguments=args),lock)
+
+    def test_json_transport_is_identical_on_windows_and_linux(self):
+        path=self.root/'data.json';replay.write(path,dict(actual='原值',value=1.25))
+        self.assertNotIn(b'\r',path.read_bytes())
+        self.assertTrue(path.read_bytes().endswith(b'\n'))
+
     def test_duplicate_missing_or_reordered_populations_refused(self):
         for records, phases in ((self.records+self.records[:1], self.phases),
                                  (self.records[1:], self.phases),

@@ -30,7 +30,7 @@ def digest(path):
 
 
 def write(path, value):
-    Path(path).write_text(json.dumps(value, ensure_ascii=False, indent=2, allow_nan=False) + '\n', encoding='utf-8')
+    Path(path).write_text(json.dumps(value, ensure_ascii=False, indent=2, allow_nan=False) + '\n', encoding='utf-8', newline='\n')
 
 
 def relative(name):
@@ -102,6 +102,41 @@ def trusted(name, evidence, bindings):
     return module
 
 
+def admit_plan(plan, lock):
+    arguments = plan['serve_arguments']
+    def option(name):
+        if (arguments.count(name) != 1 or any(arg.startswith(name+'=') for arg in arguments)
+                or arguments.index(name)+1 >= len(arguments)):
+            return None
+        return arguments[arguments.index(name) + 1]
+    if (plan['baseline_id'] != lock['id'] or plan['role'] != 'B0' or plan['kind'] != 'continuous'
+            or plan['runtime_versions'] != VERSIONS or plan['original_baseline_018_relabelled'] is not False
+            or plan['necessary_work_certified'] is not False
+            or PurePosixPath(plan['model']).name != 'Qwen3.5-35B-A3B'
+            or option('--tensor-parallel-size') != '2' or option('--dtype') != 'bfloat16'
+            or option('--max-model-len') != '65536'
+            or option('--max-num-batched-tokens') != '4096' or option('--max-num-seqs') != '24'
+            or option('--kv-cache-memory-bytes') != str(20*1024**3)
+            or json.loads(option('--speculative-config') or '{}') != dict(method='mtp', num_speculative_tokens=2)
+            or arguments.count('--no-enable-prefix-caching') != 1
+            or any(arg.split('=')[0] == '--enable-prefix-caching' or arg.startswith('--no-enable-prefix-caching=') for arg in arguments)
+            or json.loads(option('--compilation-config') or '{}').get('cudagraph_mode') != 'FULL'):
+        raise ValueError('Original official model/runtime plan differs')
+
+
+def recorded_hardware(admission, seal_sha):
+    text = admission['npu_before']
+    tool_version = re.search(r'npu-smi\s+(\S+)', text)
+    if (not tool_version or set(re.findall(r'\|\s*\d+\s+(910B\w+)\s*\|', text)) != {'910B2'}
+            or len(admission['physical_cards']) != 2 or len(set(admission['physical_cards'])) != 2
+            or admission.get('admitted') is not True):
+        raise ValueError('Original recorded hardware identity is unavailable')
+    return dict(chip_model='Ascend 910B2', driver_version=None, driver_version_status='not-recorded',
+                      npu_smi_version=tool_version[1], npu_smi_version_evidence='original npu-smi header; tool version only',
+                      physical_devices=admission['physical_cards'], host_identity=None,
+                      host_identity_status='Not recorded in original sealed arm', cohort_id=seal_sha)
+
+
 def replay(evidence):
     campaign = evidence.read('campaign.json')
     lock = json.loads((ROOT / 'engine/official-baselines/0.23.0.json').read_bytes())
@@ -132,16 +167,7 @@ def replay(evidence):
                           official_runtime=True, source_code_patched=False):
         raise ValueError('Original official image attribution differs')
     plan = evidence.read(prefix + 'service/plan.json')
-    arguments = plan['serve_arguments']
-    def option(name):
-        return arguments[arguments.index(name) + 1] if arguments.count(name) == 1 else None
-    if (plan['baseline_id'] != lock['id'] or plan['role'] != 'B0' or plan['kind'] != 'continuous'
-            or plan['runtime_versions'] != VERSIONS or plan['original_baseline_018_relabelled'] is not False
-            or plan['necessary_work_certified'] is not False
-            or PurePosixPath(plan['model']).name != 'Qwen3.5-35B-A3B'
-            or option('--tensor-parallel-size') != '2' or option('--dtype') != 'bfloat16'
-            or json.loads(option('--compilation-config') or '{}').get('cudagraph_mode') != 'FULL'):
-        raise ValueError('Original official model/runtime plan differs')
+    admit_plan(plan, lock)
     bindings = campaign['sources']
     if any(bindings.get(name) != pin for name, pin in plan['client_sources'].items()):
         raise ValueError('Original client source binding differs')
@@ -222,22 +248,15 @@ def replay(evidence):
                 records.append(row)
     groups = aggregate(records, phases['phases'], inputs)
     admission = evidence.read(prefix + 'resource-admission.json')
-    text = admission['npu_before']
-    driver = re.search(r'npu-smi\s+(\S+)', text)
-    if (not driver or set(re.findall(r'\|\s*\d+\s+(910B\w+)\s*\|', text)) != {'910B2'}
-            or len(admission['physical_cards']) != 2 or len(set(admission['physical_cards'])) != 2
-            or admission.get('admitted') is not True):
-        raise ValueError('Original recorded hardware identity is unavailable')
     seal_sha = evidence.seal[prefix + 'checksums.json']
+    hardware = recorded_hardware(admission, seal_sha)
     observations = dict(schema='vllm-hust-official-baseline-observations/v1', baseline_id='official-0.23.0',
         model='Qwen3.5-35B-A3B', precision='BF16', tensor_parallel_size=2,
         runtime=dict(kind='official-image', image_digest=lock['manifest_digest'], baseline_id=lock['id'],
                      versions=plan['runtime_versions'], requested_graph_mode='FULL',
                      effective_graph_mode='FULL_DECODE_ONLY' if b'setting cudagraph_mode=FULL_DECODE_ONLY' in evidence.raw(prefix + 'service.log') else None),
-        hardware=dict(chip_model='Ascend 910B2', driver_version=driver[1], driver_version_evidence='original npu-smi header',
-                      physical_devices=admission['physical_cards'], host_identity=None,
-                      host_identity_status='Not recorded in original sealed arm', cohort_id=seal_sha),
-        profiles=[dict(id=name, label=('4K' if name.startswith('4096') else '16K') + ' / C8 · continuous synthetic',
+        hardware=hardware,
+        profiles=[dict(id=name, label=('4K' if name.startswith('4096') else '16K') + ' / C8 路 continuous synthetic',
                        workload_kind='continuous-synthetic', raw_phase_id=name,
                        arm=dict(role='B0', source_seal_sha256=seal_sha, **groups[name])) for name in PHASES if name.endswith('-formal')],
         pairs=None, F=None, efficiency_percent=None, necessary_work_certified=False,
@@ -333,7 +352,8 @@ def package(evidence, support, destination):
             files[name] = pin; logical[original] = name
         write(stage / 'manifest.json', dict(schema='deeplinkengine-official-c8-portable/v1',
             original_source_root=evidence.logical_root, files=files, logical_support=logical,
-            sdk_and_weights_included=False, model_requests_executed=0))
+            sdk_runtime_and_model_weights_included=False, supporting_source_files_included=True,
+            model_requests_executed=0))
         with tarfile.open(destination, 'x:gz') as archive:
             for name in sorted(set(files) | {'manifest.json'}):archive.add(stage / name, arcname=name, recursive=False)
 
@@ -366,7 +386,7 @@ def run(configuration):
             source_execution_status=provenance['original_campaign_status'], model_requests_executed=0,
             original_results_modified=False, F=None, efficiency_percent=None))
         rows=''.join('<tr><td>'+html.escape(name)+'</td><td>'+str(row['requests'])+'</td><td>'+format(row['output_tokens_per_second'], '.6f')+'</td><td>'+str(row['failed'])+'</td></tr>' for name,row in groups.items())
-        (out/'report.html').write_text('<!doctype html><meta charset="utf-8"><title>Official C8 replay</title><h1>Official 0.23 C8 · CPU replay</h1><p>Original campaign: '+html.escape(provenance['original_campaign_status'])+'. Partial results; F and efficiency remain unqualified. No model requests.</p><table><tr><th>Original phase</th><th>Requests</th><th>Output token/s (including drain)</th><th>Failed</th></tr>'+rows+'</table><p><a href="report.json">Report</a> · <a href="observations.json">Observations</a></p>', encoding='utf-8')
+        (out/'report.html').write_text('<!doctype html><meta charset="utf-8"><title>Official C8 replay</title><h1>Official 0.23 C8 路 CPU replay</h1><p>Original campaign: '+html.escape(provenance['original_campaign_status'])+'. Partial results; F and efficiency remain unqualified. No model requests.</p><table><tr><th>Original phase</th><th>Requests</th><th>Output token/s (including drain)</th><th>Failed</th></tr>'+rows+'</table><p><a href="report.json">Report</a> 路 <a href="observations.json">Observations</a></p>', encoding='utf-8')
         archive = out / 'portable-c8.tar.gz'; package(evidence, support, archive)
         write(out / 'derivation.json', dict(schema='deeplinkengine-official-report-only/v1', status='completed',
             scope='CPU replay and archive only, not completed full-suite execution', generated_at=time.time(),
