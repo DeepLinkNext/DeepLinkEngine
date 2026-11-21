@@ -220,10 +220,20 @@ def test_formal_context_rank_replays_sealed_whole_and_window_clocks(tmp_path):
 
 def test_plot_only_failure_admits_sealed_context_but_other_failures_do_not(tmp_path):
     _, folder, arms, state, stored = fixture(tmp_path)
-    state.update(status='failed', failure=report.PLOT_FAILURE)
+    state.update(status='failed', failure='An alternate renderer exited while formatting the graph')
     (folder/'execution.json').write_text(json.dumps(state))
     assert report.context_sources(folder, stored) == arms
-    state['failure'] = 'unexpected service failure'
+    state['stages'][1].update(status='failed', returncode=1)
     (folder/'execution.json').write_text(json.dumps(state))
     with pytest.raises(ValueError, match='before the plotting boundary'):
         report.context_sources(folder, stored)
+
+
+def test_mod_catalog_is_selected_by_recorded_release_not_filename(tmp_path):
+    file = tmp_path / 'active-stack-other-profile-name.json'
+    release = 'full-answer-stage-renamed-profile'
+    file.write_text(json.dumps(dict(release=release, enabled_mods=[])))
+    assert report.measured_stack(tmp_path, release)[0] == file
+    (tmp_path / 'active-stack-duplicate.json').write_bytes(file.read_bytes())
+    with pytest.raises(ValueError, match='exactly one MOD catalog'):
+        report.measured_stack(tmp_path, release)
