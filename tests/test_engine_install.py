@@ -139,7 +139,7 @@ class RuntimeDependencyTests(unittest.TestCase):
                  patch.object(engine_install, "sources", return_value=[]), \
                  patch.object(engine_install, "RUNTIME_ROOTS", ()), \
                  patch.object(engine_install, "ADAPTER_REQUIREMENTS", ()), \
-                 patch.object(engine_install.metadata, "version", side_effect=engine_install.metadata.PackageNotFoundError), \
+                 patch.object(engine_install.metadata, "version", side_effect=("0.9", source["version"])), \
                  patch.object(engine_install, "dependency_audit", side_effect=[dict(verified=False, issues=[{"requires": "fixture>=1", "found": None}], observed_versions={}), dict(verified=True, issues=[], observed_versions={})]), \
                  patch("one_click.verify_kit"), \
                  patch("engine.environment_setup.vendor_integrity", return_value={"verified": True}), \
@@ -150,6 +150,8 @@ class RuntimeDependencyTests(unittest.TestCase):
                 result = engine_install.resolve_runtime_dependencies(root / "cache", wheelhouse=wheels)
             self.assertTrue(result["after"]["verified"])
             self.assertIn(str(wheel), commands[0])
+            self.assertIn("--force-reinstall", commands[0])
+            self.assertNotIn("--ignore-installed", commands[0])
             self.assertEqual(commands[0][1:6], ["-I", "-B", "-m", "pip", "install"])
             resolver_command = next(command for command in commands if "-c" in command)
             self.assertEqual(resolver_command[1:6], ["-I", "-B", "-m", "pip", "install"])

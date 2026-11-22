@@ -89,10 +89,13 @@ def resolve_runtime_dependencies(cache, *, wheelhouse=None):
             observed = None
         if observed != source["version"] or not distribution_integrity(name)["verified"]:
             wheel = cached_wheel(source, links, Path(cache) / "wheels")
+            # Replace the old distribution and its metadata before invoking the resolver.
             completed = run_stage([sys.executable, "-I", "-B", "-m", "pip", "install", "--disable-pip-version-check",
-                                   "--no-deps", "--ignore-installed", "--no-compile", str(wheel)])
+                                   "--no-deps", "--force-reinstall", "--no-compile", str(wheel)])
             if completed.returncode:
                 raise RuntimeError("Runtime compatibility package installation failed: " + name)
+            if metadata.version(name) != source["version"] or not distribution_integrity(name)["verified"]:
+                raise ValueError("Installed runtime compatibility package differs from the frozen wheel: " + name)
         expected[name] = source["version"]
         if name == "opencv-python-headless":
             expected["numpy"] = "1.26.4"
