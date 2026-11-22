@@ -1,6 +1,6 @@
 # 安装与推理服务
 
-在仓库根目录执行。安装默认跟随上游最新稳定发行版。R10 的系统要求和安装核验见[发行说明](https://github.com/vLLM-HUST/vllm-hust-engine/releases/tag/full-answer-b1-20261121-r10)。引擎源码由发行包提供。
+在仓库根目录执行。安装默认跟随上游最新稳定发行版。R10 的系统要求和安装核验见[发行说明](https://pypi.org/project/vllm-hust-engine/2026.11.21.10/)。引擎源码由发行包提供。
 
 ## 安装
 

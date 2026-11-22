@@ -22,7 +22,7 @@ python deeplink.py serve --installation /workspace/deeplink-install \
 python examples/chat.py "你好，请介绍一下自己"
 ```
 
-[安装与服务配置](engine/README.md) · [R10 发行说明](https://github.com/vLLM-HUST/vllm-hust-engine/releases/tag/full-answer-b1-20261121-r10) · [R10 运行包](https://github.com/vLLM-HUST/vllm-hust-website/releases/tag/engine-wheels-r10-v1) · [引擎官网](https://vllm-hust.sage.org.ai/engine.html)
+[安装与服务配置](engine/README.md) · [R10 发行说明](https://pypi.org/project/vllm-hust-engine/2026.11.21.10/) · [R10 运行包](https://github.com/vLLM-HUST/vllm-hust-website/releases/tag/engine-wheels-r10-v1) · [引擎官网](https://vllm-hust.sage.org.ai/engine.html)
 
 ## 测试与报告
 
