@@ -8,13 +8,13 @@
 
 完整数据正文从[本仓库固定数据包](../data/README.md)自动恢复并校验，安装前完成准备。离线环境设置 `DEEPLINKENGINE_DATA_ARCHIVES` 指向已下载的五包目录。
 
-按[首页说明](../README.md#测试与报告)填写配置后，在仓库根目录执行：
+按[首页说明](../README.md#测试与报告)填写 `evaluation.json` 后，在仓库根目录运行。
 
 ```sh
-python run_all.py --config evaluation.json --rerun-b0
+python run_all.py
 ```
 
-是否重跑 B0 默认选择“否”（`rerun_b0: false`）。上例用于首次测量，显式 `--rerun-b0` 才启动固定 B0。后续省略该开关，并用 `--reuse-completed-run` 指定旧结果；已保存的 B0 上下文和原生计时来源随恢复记录沿用，也可分别用 `--reuse-context-baseline-arm`、`--reuse-compute-baseline-arm` 指定。缺少匹配原件时在模型启动前报错，不自动退回重跑。`--no-rerun-b0` 可覆盖配置中的 `true`；重跑选项不与复用来源并用。
+首次全量实测将配置中的 `rerun_b0` 设为 `true`。已有匹配的 B0 结果时，保留 `false` 并按[恢复与结果复用](#恢复与结果复用)指定封存来源。`--config` 可指定其他配置文件，`--help-all` 显示高级参数。
 
 入口依次完成引擎安装与校验、固定五项 B0/B1 测试、长上下文和四租户测试，输出原始记录、校验值、JSON 结果及 HTML 报告。第三方见证运行，核对版本、配置、当次原始记录和报告后出具结论。4.1 随一键流程自动生成本轮原生双卡计时、必要算量与原完整参考分母复用认证，报告保留其方法身份。若现场方案要求重新独立标定完整参考，按[现场采集说明](indicator-retest.md)执行；自动复用报告不冒充现场新标定结果。历史预检不替代第三方正式判定。
 

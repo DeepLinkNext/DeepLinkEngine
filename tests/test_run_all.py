@@ -146,6 +146,26 @@ class WorkflowTests(unittest.TestCase):
             self.assertEqual(args[-2:], ['--actual-cost', str(selected)])
             self.assertIn('full-report-', args[-3])
 
+    def test_default_configuration_starts_the_full_workflow(self):
+        config = self.root / "evaluation.json"
+        config.write_text(json.dumps(self.data))
+        with contextlib.chdir(self.root), patch.object(sys, "argv", ["run_all.py"]), \
+             patch.dict(workflow.os.environ, {}), patch.object(workflow, "select_run_engine"), \
+             patch("engine.release_selection.ensure_metadata_client"), \
+             patch("engine.environment_setup.ensure_environment", return_value=None), \
+             patch.object(workflow, "preflight"), patch.object(workflow, "run", return_value=0) as run:
+            self.assertEqual(workflow.main(), 0)
+        self.assertEqual(run.call_args.args[0], workflow.configuration(config))
+
+    def test_advanced_flags_are_listed_in_full_help(self):
+        for flag in ("--help", "--help-all"):
+            with self.subTest(flag=flag), patch.object(sys, "argv", ["run_all.py", flag]), \
+                 contextlib.redirect_stdout(io.StringIO()) as stdout, self.assertRaises(SystemExit) as exit_code:
+                workflow.main()
+            self.assertEqual(exit_code.exception.code, 0)
+            self.assertIn("--config", stdout.getvalue())
+            self.assertEqual("--resume-bootstrap" in stdout.getvalue(), flag == "--help-all")
+
     def test_full_entry_routes_the_fee_config_to_report_not_measurement(self):
         config = self.root / 'evaluation.json'
         config.write_text(json.dumps(dict(self.data, actual_cost='fees.json')))
