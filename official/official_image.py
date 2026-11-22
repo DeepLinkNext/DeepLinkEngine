@@ -185,6 +185,12 @@ def environment(root, cache, *, devices=None):
     for item in config['config']['Env']:
         key, value = item.split('=', 1)
         env[key] = relocate(value) if key in ('PATH', 'LD_LIBRARY_PATH', 'PYTHONPATH', 'CMAKE_PREFIX_PATH') or value.startswith('/usr/local/') else value
+    # The execution context binds the live driver utility at its host path.
+    driver_utility = shutil.which('npu-smi')
+    if driver_utility:
+        paths = env.get('PATH', os.defpath).split(os.pathsep)
+        paths.append(str(Path(driver_utility).absolute().parent))
+        env['PATH'] = os.pathsep.join(dict.fromkeys(paths))
     homes = sorted((rootfs / 'usr/local').glob('python3.12*'))
     homes = [p for p in homes if (p / 'bin/python3').is_file()]
     if len(homes) != 1:

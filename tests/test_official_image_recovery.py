@@ -10,7 +10,7 @@ sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 from official import enable_module_imports
 
 enable_module_imports()
-from official_image import quarantine_partial_sdk
+from official_image import environment, quarantine_partial_sdk
 
 
 class Recovery(unittest.TestCase):
@@ -18,6 +18,20 @@ class Recovery(unittest.TestCase):
         self.temp=tempfile.TemporaryDirectory();self.addCleanup(self.temp.cleanup)
         self.root=Path(self.temp.name);self.lock=self.root/'requested.json';self.lock.write_bytes(b'official-lock')
         self.sdk=self.root/'sdk';self.sdk.mkdir();(self.sdk/'image-lock.json').write_bytes(self.lock.read_bytes())
+
+    @unittest.skipUnless(sys.platform == 'linux', 'Ascend image paths use Linux PATH syntax')
+    def test_driver_utility_keeps_its_host_path_after_image_relocation(self):
+        config = {'config': {'Env': ['PATH=/usr/local/sbin:/usr/bin']}}
+        (self.sdk / 'image-config.json').write_text(json.dumps(config))
+        (self.sdk / 'image-lock.json').write_text('{"upstream_version": "0.23.0"}')
+        bin_dir = self.sdk / 'rootfs/usr/local/python3.12.13/bin'
+        bin_dir.mkdir(parents=True)
+        (bin_dir / 'python3').touch()
+        with patch('official_image.shutil.which', return_value='/usr/local/sbin/npu-smi'):
+            _, env = environment(self.sdk, self.root / 'cache')
+        self.assertEqual(env['PATH'].split(':'), [
+            str(self.sdk / 'rootfs/usr/local/sbin'), '/usr/bin', '/usr/local/sbin',
+        ])
 
     def test_lock_only_legacy_owner_is_unknown_and_retained(self):
         with self.assertRaises(ValueError):quarantine_partial_sdk(self.lock,self.sdk)
