@@ -34,7 +34,7 @@ class CandidateTests(unittest.TestCase):
         self.assertEqual(len(rows),5)
 
     def test_ascend_build_requires_both_original_torch_and_npu_pins(self):
-        import environment_setup
+        from engine import environment_setup
         with tempfile.TemporaryDirectory() as directory:
             root=Path(directory);(root/'pyproject.toml').write_text('[build-system]\nrequires=["torch==2.10.0","torch-npu==2.13.0rc1"]\n')
             with patch.object(environment_setup,'cached_wheel') as fetch:

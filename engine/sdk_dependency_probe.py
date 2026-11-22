@@ -8,7 +8,7 @@ from pathlib import Path
 import subprocess
 import time
 
-ROOT = Path(__file__).resolve().parent
+ROOT = Path(__file__).resolve().parents[1]
 SOURCE = 'scripts/dependency_admission.py'
 ORIGINAL_SHA256 = 'ef04dccfee4dd68ff5fd1be480e86f63efae0d91b1ddac31a5b74cd733514d54'
 VERSION = 'deeplinkengine-sdk-metadata-bytecode-guard/v1'

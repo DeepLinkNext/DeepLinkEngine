@@ -83,7 +83,7 @@ def prepare(config,anchor,*,native_path_binding=False,capability=None):
         if config.get('engine_profile')!='r8' or config.get('test_mode')!='full':raise ValueError('Official protocol preparation requires the original full R8 judge and five inputs')
         alias=Path('/models/Qwen3.5-35B-A3B')
         if native_path_binding:
-            from native_sdk_controller import native_scope
+            from engine.native_sdk_controller import native_scope
             if not native_scope() or not capability or capability.get('allowed') is not False:
                 raise ValueError('Capless C8 adapter requires an actual native namespace capability refusal')
             record['tokenizer_path_mode']='declared-single-constant-binding'
@@ -96,11 +96,11 @@ def prepare(config,anchor,*,native_path_binding=False,capability=None):
         from dataset_contract import prepare as prepare_dataset
         from third_party import descriptor,script_sources
         from restore_b1_r4 import verify_installed_sources
-        from sdk_dependency_probe import admit_dependencies, receipt_path
+        from engine.sdk_dependency_probe import admit_dependencies, receipt_path
         from mmlu_scope import verify as verify_mmlu_scope
         from continuous_inputs import prepare as prepare_continuous
         from native_timing_inputs import prepare as prepare_native
-        import dataset_bundle
+        from benchmark import dataset_bundle
         installation=json.loads((sdk.parent/'installation.json').read_bytes());profile=json.loads((sdk/'deployment.json').read_bytes())
         if installation['release']!=pin['protocol_engine_release'] or profile['release']!=pin['protocol_engine_release'] or installation['package_version']!=pin['protocol_engine_version']:
             raise ValueError('Actual R8 judge installation differs')
@@ -159,7 +159,7 @@ def main():
     parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('--config',type=Path,required=True);parser.add_argument('--anchor-sdk',type=Path,required=True);parser.add_argument('--tokenizer-child',action='store_true');args=parser.parse_args();config=json.loads(args.config.read_bytes())
     if config.get('baseline_deployment'):raise ValueError('Official data preparation does not admit a legacy baseline deployment')
     if args.tokenizer_child:return prepare(config,args.anchor_sdk)
-    from native_sdk_controller import native_scope, namespace_capability
+    from engine.native_sdk_controller import native_scope, namespace_capability
     if native_scope():
         capability=namespace_capability()
         if not capability['allowed']:

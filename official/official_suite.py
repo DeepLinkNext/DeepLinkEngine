@@ -211,7 +211,7 @@ def phase(config, image, phase_name, output, tools, sdk, sources, leases, contin
                 original_baseline_018_relabelled=False, necessary_work_certified=False, runtime_identity=runtime)
     plan['worker_sources'][str(ROOT / 'official/official_worker.py')] = sources[str(ROOT / 'official/official_worker.py')]
     plan['worker_sources'][str(ROOT / 'official/official_kernel_preparation.py')] = sources[str(ROOT / 'official/official_kernel_preparation.py')]
-    plan['worker_sources'][str(ROOT / 'service_logging.py')] = sources[str(ROOT / 'service_logging.py')]
+    plan['worker_sources'][str(ROOT / 'engine/service_logging.py')] = sources[str(ROOT / 'engine/service_logging.py')]
     plan['worker_sources'][str(ROOT / 'official/official_runtime_identity.py')] = sources[str(ROOT / 'official/official_runtime_identity.py')]
     inventory = tools / 'third-party-test-kit/proc_capture/m01_model_inventory.py'
     plan['worker_sources'][str(inventory)] = sources[str(inventory)]

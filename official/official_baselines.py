@@ -32,7 +32,7 @@ def configuration(path, *, download_only=False):
         if key not in value:
             raise ValueError('Missing official-baseline field: ' + key)
     if 'model_transport_base_url' in value:
-        from model_restore import transport_base_url
+        from engine.model_restore import transport_base_url
         value['model_transport_base_url']=transport_base_url(value['model_transport_base_url'])
         if 'model_manifest' not in value:raise ValueError('Model transport mirror requires a pinned model_manifest')
     for key in allowed - {'physical_devices', 'versions', 'model_transport_base_url'}:
@@ -99,7 +99,7 @@ def main(arguments=None):
             if not args.reuse_ft_companion:
                 from official_execution import maybe_enter_official, needed
                 if needed():
-                    from transport_trust import configure
+                    from engine.transport_trust import configure
                     configure(config['cache'])
                 maybe_enter_official(config, list(arguments) if arguments is not None else sys.argv[1:])
             from official_ft import continue_closed
@@ -126,16 +126,16 @@ def main(arguments=None):
         if not args.prepare_environment:
             from official_protocol_preparation import selection
             selection(config)
-            from native_sdk_controller import maybe_enter_official as native_controller
+            from engine.native_sdk_controller import maybe_enter_official as native_controller
             native_controller(config,list(arguments) if arguments is not None else sys.argv[1:])
         if not args.prepare_environment or '0.28.0rc1-source' in config['versions']:
             from official_execution import maybe_enter_official, needed
             if needed():
-                from transport_trust import configure
+                from engine.transport_trust import configure
                 configure(config['cache'])
             maybe_enter_official(config, list(arguments) if arguments is not None else sys.argv[1:])
         if config.get('model_manifest'):
-            from model_restore import restore
+            from engine.model_restore import restore
             restore(config['model_manifest'], config['model'], transport_base_url=config.get('model_transport_base_url'))
         from official_storage import prefer
         storage = []
@@ -164,7 +164,7 @@ def main(arguments=None):
                                           for p in [ROOT / 'run_all.py', ROOT / 'official/official_baselines.py', ROOT / 'official/official_image.py', ROOT / 'official/official_storage.py']})
     from official_protocol_bootstrap import host_identity
     record['host_identity'] = host_identity()
-    from native_sdk_controller import ENV as native_marker
+    from engine.native_sdk_controller import ENV as native_marker
     if os.environ.get(native_marker):record['native_controller_handoff']=json.loads(os.environ[native_marker])
     if protocol_preparation is not None:
         record['protocol_preparation'] = protocol_preparation

@@ -11,7 +11,7 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path[:0] = [str(ROOT), str(ROOT / "benchmark/one-click-kit/scripts")]
-import recovery_source
+from benchmark import recovery_source
 import run_all
 
 
@@ -56,7 +56,7 @@ def test_dead_root_keeps_source_bytes_and_requires_the_original_completed_stage_
     campaign = json.loads((old / "fixed-five/campaign.json").read_bytes())
     with patch.object(recovery_source, "alive", return_value=False), \
             patch("reuse_campaign.source", return_value=(old, {}, campaign, {})), \
-            patch("reuse_campaign.audit_stage") as audit, patch("release_selection.active", return_value=None):
+            patch("reuse_campaign.audit_stage") as audit, patch("engine.release_selection.active", return_value=None):
         result = run_all.completed_run_source(data, old)
     audit.assert_called_once_with(old / "fixed-five", "mmlu-pair")
     assert result["completed_stages"] == ["mmlu-pair"]
@@ -123,7 +123,7 @@ source = Path({str(old)!r})
 module = types.ModuleType('reuse_campaign')
 module.source = lambda path: (source, {{}}, json.loads((source/'fixed-five/campaign.json').read_bytes()), {{}})
 module.audit_stage = lambda root, name: None
-with patch.dict(sys.modules, reuse_campaign=module), patch('release_selection.active', return_value=None):
+with patch.dict(sys.modules, reuse_campaign=module), patch('engine.release_selection.active', return_value=None):
     result = run_all.completed_run_source({data!r}, source)
 assert result['completed_stages'] == ['mmlu-pair']
 assert sys.dont_write_bytecode and __import__('os').environ['PYTHONDONTWRITEBYTECODE'] == '1'

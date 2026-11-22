@@ -11,7 +11,7 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path[:0] = [str(ROOT), str(ROOT / 'benchmark/one-click-kit/scripts')]
-from managed_shutdown import stop_managed_service
+from benchmark.managed_shutdown import stop_managed_service
 from owned_processes import Owned
 
 pytestmark = pytest.mark.skipif(sys.platform != 'linux', reason='Requires Linux /proc')

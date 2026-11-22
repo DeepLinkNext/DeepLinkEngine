@@ -16,7 +16,7 @@ import urllib.error
 
 ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))
-from release_selection import kit_path, runtime_lock, profile as selected_profile
+from engine.release_selection import kit_path, runtime_lock, profile as selected_profile
 KIT = kit_path()
 LOCK = ROOT / "benchmark/one-click-lock.json"
 
@@ -28,11 +28,11 @@ def digest(path):
 
 def verify_kit(*, legacy=False):
     global KIT
-    from release_selection import active, selected_client
+    from engine.release_selection import active, selected_client
     selected = None if legacy else active()
     client = None if legacy else selected_client()
     if selected and client:
-        from evaluation_client import verify
+        from benchmark.evaluation_client import verify
         data = verify(client)
         KIT = kit_path()
         lock = json.loads(LOCK.read_bytes())
@@ -169,7 +169,7 @@ def configuration_arguments(subcommand, arguments):
     module.CONFIG_FIELDS = tuple(module.CONFIG_FIELDS) + ("rerun_b0",)
     config_name = option(arguments, '--config')
     data = json.loads(Path(config_name).read_bytes()) if config_name else {}
-    from b0_run_policy import boolean
+    from benchmark.b0_run_policy import boolean
     rerun = boolean(data.get('rerun_b0', False))
     flags = [x for x in arguments if x in ('--rerun-b0', '--no-rerun-b0')]
     if len(flags) > 1:
@@ -181,11 +181,11 @@ def configuration_arguments(subcommand, arguments):
 
 
 def prepare_data(arguments):
-    from dataset_bundle import prepare
+    from benchmark.dataset_bundle import prepare
     validate_deployment(arguments)
     cache = option(arguments, "--cache") or str(Path.home() / ".cache/vllm-hust-engine/third-party")
     if option(arguments, "--baseline-deployment") is None:
-        from baseline_bundle import ensure_deployment
+        from benchmark.baseline_bundle import ensure_deployment
         baseline = ensure_deployment(cache)
         if baseline is not None:
             arguments += ["--baseline-deployment", str(baseline)]
@@ -205,7 +205,7 @@ def prepare_data(arguments):
                     arguments[index + 1] = str(root)
                 elif value.startswith("--dataset-assets="):
                     arguments[index] = "--dataset-assets=" + str(root)
-    from artifact_cache import release
+    from engine.artifact_cache import release
     release(cache, option(arguments, "--baseline-deployment"))
     return arguments
 
@@ -214,7 +214,7 @@ def prepare_baseline(arguments):
     if (option(arguments, "--baseline-deployment") is None
             and "--context-tenant-only" not in arguments
             and "--compute-reference-only" not in arguments):
-        from baseline_setup import prepare
+        from benchmark.baseline_setup import prepare
         cache = option(arguments, "--cache") or str(Path.home() / ".cache/vllm-hust-engine/third-party")
         prepare(cache)
     return arguments
@@ -228,9 +228,9 @@ def main(arguments=None):
         initial=json.loads(Path(config_name).read_bytes()) if config_name else {}
         deployment=option(arguments,'--deployment') or initial.get('deployment')
         if deployment:
-            from native_sdk_controller import maybe_enter_deployment
+            from engine.native_sdk_controller import maybe_enter_deployment
             maybe_enter_deployment(deployment,ROOT/'one_click.py',arguments)
-        from release_selection import active, select, bind
+        from engine.release_selection import active, select, bind
         if not active():
             config_name = option(arguments, '--config')
             config = json.loads(Path(config_name).read_bytes()) if config_name else {}
@@ -240,7 +240,7 @@ def main(arguments=None):
                 bind(saved)
             else:
                 select(option(arguments, '--cache') or config.get('cache') or Path.home()/'.cache/deeplinkengine')
-        from release_selection import ensure_metadata_client
+        from engine.release_selection import ensure_metadata_client
         config_name = option(arguments, '--config')
         config = json.loads(Path(config_name).read_bytes()) if config_name else {}
         ensure_metadata_client(option(arguments, '--cache') or config.get('cache') or Path(os.environ.get('XDG_CACHE_HOME', str(Path.home()/'.cache'))) / 'deeplinkengine')
@@ -254,7 +254,7 @@ def main(arguments=None):
     if arguments[:1] == ["status"]:
         sys.dont_write_bytecode = True
         sys.path.insert(0, str(KIT / "scripts"))
-        from run_status import main as run_status
+        from benchmark.run_status import main as run_status
 
         return run_status(arguments[1:])
     help_only = not arguments or any(arg in ("--help", "-h") for arg in arguments)
@@ -279,7 +279,7 @@ def main(arguments=None):
                 raise ValueError("The requested profile differs from the selected engine release")
         if option(effective, "--deployment") is None:
             raise ValueError("Provide deployment: /path/to/installation/sdk from the selected stable installation; see engine/README.md")
-        from b0_run_policy import public_arguments, enabled
+        from benchmark.b0_run_policy import public_arguments, enabled
         effective = public_arguments(effective, prepare_only=arguments[0] == 'prepare' or '--prepare-only' in effective)
         print('是否重跑 B0：' + ('是' if enabled() else '否（复用已封存记录）'), flush=True)
         effective = prepare_data(effective)

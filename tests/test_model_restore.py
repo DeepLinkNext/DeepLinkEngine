@@ -7,7 +7,7 @@ import unittest
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-import model_restore
+from engine import model_restore
 
 
 class RestoreTests(unittest.TestCase):
@@ -20,7 +20,7 @@ class RestoreTests(unittest.TestCase):
             lock = root / 'manifest.json'
             lock.write_text(json.dumps(dict(schema='deeplinkengine-model-download/v1', repository='Qwen/model',
                 files={'config.json': dict(bytes=2, sha256=hashlib.sha256(b'{}').hexdigest(), revision='a' * 40)})))
-            with patch('model_restore.subprocess.run', side_effect=AssertionError('Must reuse verified bytes')):
+            with patch('engine.model_restore.subprocess.run', side_effect=AssertionError('Must reuse verified bytes')):
                 self.assertEqual(model_restore.restore(lock, output)['status'], 'completed')
                 (output / 'config.json').write_bytes(b'xx')
                 with self.assertRaisesRegex(ValueError, 'Existing model file differs'):

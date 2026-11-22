@@ -15,7 +15,7 @@ sys.path.insert(0, str(ROOT))
 
 
 def verify(cache):
-    from environment_setup import cached_wheel
+    from engine.environment_setup import cached_wheel
     lock = json.loads((ROOT / "engine/r8-lock.json").read_text())
     record = lock["runtime_compatibility_sources"]["opencv-python-headless"]
     adapted = cached_wheel(record, [], Path(cache) / "wheels")

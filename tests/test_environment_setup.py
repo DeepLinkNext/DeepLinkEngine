@@ -16,7 +16,7 @@ from unittest.mock import patch
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "benchmark/one-click-kit/scripts"))
-import environment_setup as setup
+from engine import environment_setup as setup
 import run_all as workflow
 
 
@@ -401,7 +401,7 @@ class EnvironmentTests(unittest.TestCase):
         finally:
             fixture.doCleanups()
 
-    @patch('release_selection.select',return_value=None)
+    @patch('engine.release_selection.select',return_value=None)
     def test_prepare_environment_flag_never_starts_the_workload(self, selected):
         with patch.object(sys, "argv", ["run_all.py", "--config", "fixture.json", "--prepare-environment"]), \
              patch.object(workflow, "configuration", return_value=self.data), \

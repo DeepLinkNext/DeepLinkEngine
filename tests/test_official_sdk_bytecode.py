@@ -151,9 +151,9 @@ class Recovery(unittest.TestCase):
             self.assertEqual(target.read_bytes(),self.raw);observed.append('public startup recovered');return False
         with patch.dict(os.environ),patch.object(sys,'argv',['run_all.py','--config',str(config),'--prepare-environment']), \
              patch.object(recovery,'ROOT',self.root),patch.object(run_all,'select_run_engine'),patch.object(run_all,'preflight'), \
-             patch('native_sdk_controller.maybe_enter',side_effect=recovered), \
+             patch('engine.native_sdk_controller.maybe_enter',side_effect=recovered), \
              patch('official_execution.needed',return_value=False),patch('official_execution.maybe_enter_config'), \
-             patch('environment_setup.ensure_environment',return_value=None):
+             patch('engine.environment_setup.ensure_environment',return_value=None):
             self.assertEqual(run_all.main(),0)
         self.assertEqual(observed,['public startup recovered']);self.assertFalse((self.root/'out').exists())
         self.assertFalse((self.sdk/'preparation.json').exists())
@@ -191,7 +191,8 @@ class Recovery(unittest.TestCase):
         self.assertEqual(result[self.file],b'new')
     def test_production_isolated_python_commands_explicitly_disable_bytecode(self):
         import ast
-        for name in ('environment_setup.py','engine_install.py','pip_transport.py','official_build_assets.py','official_image.py'):
+        for name in ('engine/environment_setup.py', 'engine/engine_install.py', 'engine/pip_transport.py',
+                     'official_build_assets.py', 'official_image.py'):
             tree=ast.parse(source_path(Path(__file__).resolve().parents[1], name).read_text())
             for node in ast.walk(tree):
                 if isinstance(node,(ast.List,ast.Tuple)):
@@ -200,7 +201,7 @@ class Recovery(unittest.TestCase):
                         self.assertIn('-B',strings,(name,node.lineno))
 
     def test_actual_probe_disables_bytecode_even_when_environment_requests_writes(self):
-        import environment_setup
+        from engine import environment_setup
         result=environment_setup.probe(sys.executable,[],env=dict(os.environ,PYTHONDONTWRITEBYTECODE='0'))
         self.assertTrue(result['bytecode_writes_disabled']);self.assertEqual(result['base_prefix'],sys.base_prefix)
 

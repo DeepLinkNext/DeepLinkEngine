@@ -1,4 +1,4 @@
-from release_selection import kit_path, runtime_lock, profile as selected_profile
+from engine.release_selection import kit_path, runtime_lock, profile as selected_profile
 """Install DeepLinkEngine and start an inference service without evaluation workloads."""
 import argparse
 import json
@@ -12,7 +12,7 @@ ROOT = Path(__file__).resolve().parent
 
 
 def installation(path):
-    from runtime_storage import restore_missing
+    from engine.runtime_storage import restore_missing
     restore_missing(Path(path).expanduser())
     path = Path(path).expanduser().resolve()
     receipt = json.loads((path / "installation.json").read_bytes())
@@ -29,7 +29,7 @@ def installation(path):
 
 
 def install(args):
-    from environment_setup import ensure_environment, cann_environment, probe, differences, compatible_python, vendor_integrity
+    from engine.environment_setup import ensure_environment, cann_environment, probe, differences, compatible_python, vendor_integrity
     target = Path(os.path.abspath(Path(args.out).expanduser()))
     cache = Path(args.cache or target.parent / ".cache/deeplinkengine").expanduser().resolve()
     if os.path.lexists(target):
@@ -37,7 +37,7 @@ def install(args):
     for name, folder in {"TMPDIR": cache / "tmp", "PIP_CACHE_DIR": cache / "pip"}.items():
         folder.mkdir(parents=True, exist_ok=True)
         os.environ[name] = str(folder)
-    from release_selection import select
+    from engine.release_selection import select
     select(cache, version=getattr(args,"engine_version",None))
     options = {key: value for key, value in {"python": args.python, "wheelhouse": args.wheelhouse, "cann_home": args.cann_home}.items() if value}
     if args.use_environment:
@@ -61,29 +61,29 @@ def install(args):
         if prepared is not None:
             os.execve(prepared["python"], [prepared["python"], str(Path(__file__).resolve()), *sys.argv[1:]], prepared["env"])
             raise RuntimeError("Environment handoff returned unexpectedly")
-    from environment_setup import run_repair_stage
+    from engine.environment_setup import run_repair_stage
     package_command = [sys.executable, str(ROOT / "engine_install.py"), "--cache", str(cache)]
     if args.wheelhouse:
         package_command += ["--wheelhouse", args.wheelhouse]
     cli = str(Path(sysconfig.get_path("scripts")) / "vllm-hust-engine")
-    commands = [package_command, [cli, "verify"], [sys.executable, str(ROOT / "runtime_storage.py"), "--out", str(target)]]
+    commands = [package_command, [cli, "verify"], [sys.executable, str(ROOT / "engine/runtime_storage.py"), "--out", str(target)]]
     for name, command in zip(("install-package", "verify-package", "install-runtime"), commands):
         if name == "verify-package":
-            from python_storage import admitted, ensure as local_python
+            from engine.python_storage import admitted, ensure as local_python
             if admitted(Path(sys.executable),cache):
                 local_python(Path(sys.executable).parent.parent,allow_current=True)
         print("INSTALL", name, flush=True)
         result = run_repair_stage(command, dict(os.environ), None)
         if result.returncode:
             return result.returncode
-    from release_selection import save
+    from engine.release_selection import save
     save(target)
     print("INSTALLED", target, flush=True)
     return 0
 
 
 def serve(args):
-    from environment_setup import cann_environment
+    from engine.environment_setup import cann_environment
     root, receipt = installation(args.installation)
     python = receipt["python"]
     env, _ = cann_environment({})

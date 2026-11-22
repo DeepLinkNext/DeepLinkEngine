@@ -7,7 +7,7 @@ import unittest
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-import baseline_setup
+from benchmark import baseline_setup
 
 
 class ColdTransfer(unittest.TestCase):
@@ -24,10 +24,10 @@ class ColdTransfer(unittest.TestCase):
             Path(args[args.index('--output') + 1]).write_bytes(payload)
             return types.SimpleNamespace(returncode=0, stderr='')
         with tempfile.TemporaryDirectory() as d, \
-             patch('baseline_setup.urllib.request.urlopen', side_effect=lambda *a, **k: Slow()) as python, \
-             patch('baseline_setup.time.monotonic', side_effect=[0,46,46,92,92,138]), \
-             patch('baseline_setup.time.sleep'), patch('baseline_setup.shutil.which', return_value='/usr/bin/curl'), \
-             patch('baseline_setup.subprocess.run', side_effect=curl) as fallback:
+             patch('benchmark.baseline_setup.urllib.request.urlopen', side_effect=lambda *a, **k: Slow()) as python, \
+             patch('benchmark.baseline_setup.time.monotonic', side_effect=[0,46,46,92,92,138]), \
+             patch('benchmark.baseline_setup.time.sleep'), patch('benchmark.baseline_setup.shutil.which', return_value='/usr/bin/curl'), \
+             patch('benchmark.baseline_setup.subprocess.run', side_effect=curl) as fallback:
             pin = 'sha256:' + hashlib.sha256(payload).hexdigest()
             target = baseline_setup.fetch(d, 'https://example.invalid/', 'blobs', pin, len(payload))
             self.assertEqual(target.read_bytes(), payload)

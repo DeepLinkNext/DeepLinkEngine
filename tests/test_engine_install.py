@@ -10,7 +10,7 @@ from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path[:0] = [str(ROOT), str(ROOT / "benchmark/one-click-kit/scripts")]
-import engine_install
+from engine import engine_install
 
 
 class EngineInstallTests(unittest.TestCase):
@@ -91,14 +91,14 @@ class RuntimeDependencyTests(unittest.TestCase):
             with patch.object(sys, "argv", ["engine_install.py", "--cache", str(cache),
                                            "--wheelhouse", str(wheels), "--repair-dependencies"]), \
                  patch.object(engine_install, "resolve_runtime_dependencies") as repair, \
-                 patch("release_selection.select"), \
+                 patch("engine.release_selection.select"), \
                  patch("importlib.metadata.version",return_value="2026.11.17.8.post2"):
                 engine_install.main()
             repair.assert_called_once_with(cache, wheelhouse=wheels)
 
     def test_repair_installs_new_selected_target_before_dependency_admission(self):
         with patch.object(sys, "argv", ["engine_install.py", "--cache", "/cache", "--repair-dependencies"]), \
-             patch("release_selection.active", return_value={"version":"2026.11.19.9.post1"}), \
+             patch("engine.release_selection.active", return_value={"version":"2026.11.19.9.post1"}), \
              patch.object(engine_install.metadata, "version", return_value="2026.11.17.8.post2"), \
              patch.object(engine_install, "install") as install, \
              patch.object(engine_install, "resolve_runtime_dependencies") as repair:
@@ -108,7 +108,7 @@ class RuntimeDependencyTests(unittest.TestCase):
 
     def test_same_selected_target_keeps_dependency_only_repair(self):
         with patch.object(sys, "argv", ["engine_install.py", "--cache", "/cache", "--repair-dependencies"]), \
-             patch("release_selection.active", return_value={"version":"2026.11.19.9.post1"}), \
+             patch("engine.release_selection.active", return_value={"version":"2026.11.19.9.post1"}), \
              patch.object(engine_install.metadata, "version", return_value="2026.11.19.9.post1"), \
              patch.object(engine_install, "install") as install, \
              patch.object(engine_install, "resolve_runtime_dependencies") as repair:
@@ -142,11 +142,11 @@ class RuntimeDependencyTests(unittest.TestCase):
                  patch.object(engine_install.metadata, "version", side_effect=engine_install.metadata.PackageNotFoundError), \
                  patch.object(engine_install, "dependency_audit", side_effect=[dict(verified=False, issues=[{"requires": "fixture>=1", "found": None}], observed_versions={}), dict(verified=True, issues=[], observed_versions={})]), \
                  patch("one_click.verify_kit"), \
-                 patch("environment_setup.vendor_integrity", return_value={"verified": True}), \
-                 patch("environment_setup.distribution_integrity", return_value={"verified": True}), \
+                 patch("engine.environment_setup.vendor_integrity", return_value={"verified": True}), \
+                 patch("engine.environment_setup.distribution_integrity", return_value={"verified": True}), \
                  patch("urllib.request.urlopen", side_effect=AssertionError("network forbidden")), \
                  patch("child_runner.run_stage", side_effect=execute), \
-                 patch("pip_transport.plan", side_effect=lambda args,env,folder:(args,env,None)):
+                 patch("engine.pip_transport.plan", side_effect=lambda args,env,folder:(args,env,None)):
                 result = engine_install.resolve_runtime_dependencies(root / "cache", wheelhouse=wheels)
             self.assertTrue(result["after"]["verified"])
             self.assertIn(str(wheel), commands[0])
@@ -201,7 +201,7 @@ class RuntimeDependencyTests(unittest.TestCase):
                  patch.object(metadata, "version", side_effect=lambda name: distribution(name).version), \
                  patch.object(metadata, "distribution", side_effect=distribution), \
                  patch("one_click.verify_kit"), patch("child_runner.run_stage", side_effect=execute), \
-                 patch("pip_transport.plan", side_effect=lambda args,env,folder:(args,env,None)):
+                 patch("engine.pip_transport.plan", side_effect=lambda args,env,folder:(args,env,None)):
                 first = engine_install.resolve_runtime_dependencies(cache)
                 second = engine_install.resolve_runtime_dependencies(cache)
 

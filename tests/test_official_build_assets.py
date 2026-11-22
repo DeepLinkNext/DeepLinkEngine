@@ -16,7 +16,7 @@ from official import enable_module_imports
 enable_module_imports()
 import official_build_assets as assets
 import official_source_candidate as candidate
-import transport_trust
+from engine import transport_trust
 
 
 class BuildAssetsTests(unittest.TestCase):

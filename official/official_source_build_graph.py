@@ -82,7 +82,7 @@ def clean_environment(environment):
 def prepare(python,core,cache,build,environment,*,sdk,stage,ancestry=()):
     import official_build_assets as assets
     from official_baselines import save
-    from transport_trust import configure
+    from engine.transport_trust import configure
     cache=Path(cache);build=Path(build);core=Path(core)
     if len(ancestry)>8:raise ValueError('Nested PEP 517 source graph exceeded its bounded depth')
     label=re.sub(r'[^A-Za-z0-9_.-]+','--',stage)

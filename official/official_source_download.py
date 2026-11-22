@@ -9,8 +9,8 @@ import time
 def run(config, *, artifact=None, transport='auto',arguments=None):
     from official_baselines import save
     from official_source_candidate import VERSION,build_dependency_artifacts,source_archive
-    from environment_setup import cached_wheel,wheel_digest
-    from baseline_setup import download_lock
+    from engine.environment_setup import cached_wheel,wheel_digest
+    from benchmark.baseline_setup import download_lock
     if config['versions']!=[VERSION]:
         raise ValueError('Source-build dependency prefetch requires the explicit source candidate')
     if artifact is None:

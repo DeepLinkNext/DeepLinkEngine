@@ -1,4 +1,3 @@
-from release_selection import kit_path, runtime_lock, profile as selected_profile
 """Build binary milestone/final decisions from independently audited run summaries."""
 import argparse
 from datetime import datetime, timezone
@@ -11,7 +10,12 @@ import re
 from pathlib import Path
 import sys
 
-ROOT = Path(__file__).resolve().parent
+ROOT = Path(__file__).resolve().parents[1]
+if __name__ == '__main__':
+    sys.path.insert(0, str(ROOT))
+
+from engine.release_selection import kit_path, runtime_lock, profile as selected_profile
+
 ACTUAL_COST_SCHEMA = 'deeplinkengine-v2-actual-card-cost/v1'
 ACTUAL_COST_TEMPLATE = 'actual-cost.template.json'
 PUBLISHED_RENTAL_EVIDENCE = 'evidence/indicator-4.4-cost-estimate.json'
@@ -628,13 +632,13 @@ def measured_stack(directory, release):
 
 
 def collect(root, actual_cost=None):
-    from release_selection import bind
+    from engine.release_selection import bind
     saved = Path(root) / 'engine-selection.json'
     if saved.is_file():
         bind(saved)
     """Re-audit sealed originals; generated summaries alone never authorize a pass."""
     root=Path(root).resolve()
-    from runtime_storage import restore_missing
+    from engine.runtime_storage import restore_missing
     restore_missing(root/'installation')
     sys.path.insert(0,str(kit_path()/'scripts'))
     from third_party_report import inspect

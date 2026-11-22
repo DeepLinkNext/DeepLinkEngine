@@ -8,7 +8,7 @@ from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path[:0] = [str(ROOT), str(ROOT / 'benchmark/one-click-kit/scripts')]
-from dataset_bundle import prepare
+from benchmark.dataset_bundle import prepare
 
 
 def verify(cache, archives=None):
@@ -46,7 +46,7 @@ def verify(cache, archives=None):
     mmlu = json.loads((ROOT / 'datasets/mmlu-fixed200.json').read_bytes())
     for name, expected in mmlu['frozen_files_sha256'].items():
         if name.startswith('inputs/'):
-            from dataset_bundle import digest
+            from benchmark.dataset_bundle import digest
             if digest(assets / 'mmlu' / name) != expected:
                 raise ValueError('MMLU original differs: ' + name)
     result['mmlu'] = dict(requests=200, original_input_files_verified=True)

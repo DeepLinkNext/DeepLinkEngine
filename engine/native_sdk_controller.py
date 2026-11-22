@@ -10,7 +10,7 @@ import sys
 from official import enable_module_imports
 
 enable_module_imports()
-ROOT = Path(__file__).resolve().parent
+ROOT = Path(__file__).resolve().parents[1]
 ENV = 'DEEPLINKENGINE_NATIVE_CONTROLLER'
 CAPABILITY = """import ctypes,json,os
 library=ctypes.CDLL(None,use_errno=True)
@@ -101,7 +101,7 @@ def maybe_enter(sdk, script, arguments, *, cache):
     from official_image import environment
     python, env = environment(sdk,Path(cache)/'native-controller')
     bootstrap=admit_interpreter(python,sdk=sdk)
-    from transport_trust import configure
+    from engine.transport_trust import configure
     configure(cache,sdk,env=env)
     record = dict(state(),schema='deeplinkengine-native-controller-python/v1',
         sdk=str(sdk),python=str(python),controller_source_sha256=hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),

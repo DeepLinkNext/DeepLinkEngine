@@ -5,7 +5,7 @@ from pathlib import Path
 import stat
 import time
 
-ROOT = Path(__file__).resolve().parent
+ROOT = Path(__file__).resolve().parents[1]
 
 
 def memory():
@@ -19,7 +19,7 @@ def memory():
 
 def release(cache, baseline=None):
     """Only advise known repository artifact files; never write or globally flush."""
-    from baseline_bundle import inventory
+    from benchmark.baseline_bundle import inventory
     from tools.verify_dependency_index import build_index
     cache = Path(cache).expanduser().resolve()
     b0 = inventory()
@@ -41,9 +41,9 @@ def release(cache, baseline=None):
     runtime = json.loads((ROOT / 'engine/r8-lock.json').read_text())
     evaluation = json.loads((ROOT / 'benchmark/one-click-lock.json').read_text())
     artifacts = build_index(runtime, evaluation)['artifacts']
-    from release_selection import active
+    from engine.release_selection import active
     if active() is not None:
-        from engine_install import sources
+        from engine.engine_install import sources
         # Different stable releases may intentionally publish the same wheel
         # filename with different bytes. Follow the already frozen selection,
         # retaining shared evaluation/reference artifacts from the legacy lock.

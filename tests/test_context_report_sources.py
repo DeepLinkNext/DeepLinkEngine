@@ -9,7 +9,7 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path[:0] = [str(ROOT), str(ROOT / 'benchmark/one-click-kit/scripts')]
-import full_report as report
+from benchmark import full_report as report
 
 
 def fixture(tmp_path):
@@ -122,7 +122,7 @@ def collect_fixture(tmp_path, changed=None, actual_cost=None):
 
     # This is a path/consumer contract fixture, not a measured performance run.
     # Real sealed-context replay is exercised separately on the actual originals.
-    with patch('runtime_storage.restore_missing'), patch.object(report, 'kit_path', return_value=kit), \
+    with patch('engine.runtime_storage.restore_missing'), patch.object(report, 'kit_path', return_value=kit), \
             patch('third_party_report.inspect', return_value=observed), \
             patch('acceptance_suite.paired', side_effect=paired), \
             patch.object(report, 'audit_context', side_effect=audit), \

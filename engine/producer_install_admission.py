@@ -6,7 +6,7 @@ import os
 from pathlib import Path
 import sys
 
-ROOT = Path(__file__).resolve().parent
+ROOT = Path(__file__).resolve().parents[1]
 ORIGINAL_SHA256 = 'cbb124ca19737524e73181930860a31d7da76ed55e1bd8b283ae71f103751edd'
 PROFILES = {
     ORIGINAL_SHA256: {'profile': 'r8', 'release': 'full-answer-b1-20261117-r8'},
@@ -54,7 +54,7 @@ def derive(raw, *, payload, receipts):
         raise ValueError('Producer CPU admission source changed')
     adapted = original_code.replace(old_import,
         'sys.path.insert(0,' + repr(str(ROOT)) + ')\n'
-        'from sdk_dependency_probe import admit_dependencies, receipt_path')
+        'from engine.sdk_dependency_probe import admit_dependencies, receipt_path')
     adapted = adapted.replace(old_call,
         'dependencies=admit_dependencies(root, tools=Path(sys.argv[2]), '
         'receipt=receipt_path(Path(' + repr(str(receipts)) + ')))')
@@ -72,12 +72,12 @@ def derive(raw, *, payload, receipts):
          and any(isinstance(t, ast.Name) and t.id == 'PAYLOAD' for t in n.targets)).value = ast.parse(old_payload, mode='eval').body
     if ast.dump(ast.parse(raw), include_attributes=False) != ast.dump(restored, include_attributes=False):
         raise ValueError('Producer adaptation changed other AST')
-    from sdk_dependency_probe import original, probe
+    from engine.sdk_dependency_probe import original, probe
     return derived, dict(schema=SCHEMA, source_profile=profile['profile'], source_release=profile['release'],
         original_source_sha256=sha(raw),
         derived_source_sha256=sha(derived), unchanged_other_ast=True,
         original_probe_sha256=sha(probe(original()).encode()),
-        cpu_metadata_adapter_sha256=sha((ROOT/'sdk_dependency_probe.py').read_bytes()),
+        cpu_metadata_adapter_sha256=sha((ROOT/'engine/sdk_dependency_probe.py').read_bytes()),
         payload_locator=str(payload), metadata_receipts=str(receipts),
         changes=['CPU metadata admission uses the declared -I -B -S adapter',
                  'payload locator explicitly retains the original installed payload'],

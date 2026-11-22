@@ -8,7 +8,7 @@ import re
 import tarfile
 from urllib.request import urlopen
 
-ROOT = Path(__file__).resolve().parent
+ROOT = Path(__file__).resolve().parents[1]
 SELECTION = 'DEEPLINKENGINE_RELEASE_SELECTION'
 SELECTION_SHA = SELECTION + '_SHA256'
 PROJECT = 'vllm-hust-engine'
@@ -158,7 +158,7 @@ def select(cache, *, version=None):
         return prior
     cache = Path(cache).resolve()
     text, sdist = stable_sdist(read_json('https://pypi.org/pypi/' + PROJECT + '/json'), version)
-    from environment_setup import cached_wheel
+    from engine.environment_setup import cached_wheel
     archive = cached_wheel(sdist, [], cache / 'wheels')
     frozen = metadata(archive, text)
     old = json.loads((ROOT / 'engine/r8-lock.json').read_bytes())
@@ -174,7 +174,7 @@ def select(cache, *, version=None):
         for name in ('torch','torch-npu','transformers'):
             if frozen['public_runtime']['versions'][name] != old['required_python_packages'][name]:
                 raise ValueError('Selected stable engine requires new vendor prerequisites: '+name)
-        from evaluation_client import prepare
+        from benchmark.evaluation_client import prepare
         client = prepare(cache, archive, frozen)
     record = dict(schema='deeplinkengine-stable-selection/v1', version=text, release=frozen['release'],
                   engine_profile=frozen['release'].rsplit('-', 1)[1], source='https://pypi.org/pypi/' + PROJECT + '/json',
@@ -237,7 +237,7 @@ def selected_client():
         value = json.loads(raw)
         if value.get('selection_sha256') != os.environ[SELECTION_SHA] or value['client']['release'] != record['release']:
             raise ValueError('CPU metadata assessment client belongs to a different engine selection')
-        from evaluation_client import verify
+        from benchmark.evaluation_client import verify
         verify(value['client'])
         return value['client']
     return record.get('client')
@@ -248,7 +248,7 @@ def ensure_metadata_client(cache):
     record = active()
     if record is None:
         return None
-    from evaluation_client import metadata_client
+    from benchmark.evaluation_client import metadata_client
     client = metadata_client(cache, release=record['release'], record=selected_client())
     os.environ[METADATA_CLIENT] = json.dumps(dict(selection_sha256=os.environ[SELECTION_SHA], client=client), sort_keys=True)
     return client

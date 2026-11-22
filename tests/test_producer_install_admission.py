@@ -17,8 +17,8 @@ from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
-import producer_install_admission as adapter
-import sdk_dependency_probe as probe
+from engine import producer_install_admission as adapter
+from engine import sdk_dependency_probe as probe
 
 ORIGINAL = ROOT/'tests/fixtures/r8_producer_cli.py'
 
