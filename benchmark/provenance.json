@@ -305,6 +305,18 @@
       "path": "benchmark/website-publication/data/r8-context-tenant-20261119/paired-curves.svg",
       "source": "https://github.com/vLLM-HUST/vllm-hust-benchmark/blob/4d539805a08268253719ec9894d86716b7290c34/website-publication/data/r8-context-tenant-20261119/paired-curves.svg",
       "sha256": "35a72b56d635c4e9d70cfe2723e8354db03ccd42358f36d58b6b059ab5685136"
+    },
+    {
+      "path": "benchmark/reports/r10-candidates-20261121/native-rms.json",
+      "source": "https://github.com/vLLM-HUST/vllm-hust-benchmark/blob/82f7cb195ac3076b485fad875ef3c6c72c5cf612/reports/r10-native-rms-fixed-five-20261121/summary.json",
+      "sha256": "2ee1b5b5319be86b45f83e91e2d9b4bcc401d325cfe3114ef98f36ff335828d1",
+      "bytes": 18225
+    },
+    {
+      "path": "benchmark/reports/r10-candidates-20261121/contiguous-restore.json",
+      "source": "https://github.com/vLLM-HUST/vllm-hust-benchmark/blob/82f7cb195ac3076b485fad875ef3c6c72c5cf612/reports/r10-contiguous-restore-fixed-five-20261121/summary.json",
+      "sha256": "06087f1fe2805c004202610df80a13bd884a3da46bb80dcf9e02f077f4939201",
+      "bytes": 28561
     }
   ]
 }
