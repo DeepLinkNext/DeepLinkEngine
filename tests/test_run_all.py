@@ -49,7 +49,7 @@ class WorkflowTests(unittest.TestCase):
                        compute_reference=reference()))
             self.write("fixed-five-report/report.html", "fixture report")
         if "--context-tenant-only" in args:
-            self.assertEqual(args[1], str(ROOT / "one_click.py"))
+            self.assertEqual(args[1], str(ROOT / "benchmark/one_click.py"))
             self.assertNotIn("--engine-profile", args)
             self.assertEqual(args[args.index("--physical-devices") + 1], "0,7")
             self.assertEqual(args[args.index("--devices") + 1], "0,1")
@@ -73,7 +73,7 @@ class WorkflowTests(unittest.TestCase):
 
     def invoke(self, execute=None):
         with patch("child_runner.run_stage", side_effect=execute or self.execute), \
-             patch("one_click.verify_kit"), \
+             patch("benchmark.one_click.verify_kit"), \
              contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
             result = workflow.run(self.data)
         receipt = json.loads((self.root / "result/results.json").read_text())
@@ -242,7 +242,7 @@ class WorkflowTests(unittest.TestCase):
         self.assertFalse((source/'environment-recovery.json').exists())
 
     def test_prepare_protocol_stops_before_every_model_and_formal_client(self):
-        with patch('child_runner.run_stage', side_effect=self.execute), patch('one_click.verify_kit'), \
+        with patch('child_runner.run_stage', side_effect=self.execute), patch('benchmark.one_click.verify_kit'), \
              contextlib.redirect_stdout(io.StringIO()):
             result = workflow.run(self.data, prepare_protocol_only=True)
         receipt = json.loads((self.root / 'result/results.json').read_text())
@@ -260,7 +260,7 @@ class WorkflowTests(unittest.TestCase):
             if 'prepare' in args:
                 return types.SimpleNamespace(returncode=9)
             return self.execute(args, **kwargs)
-        with patch('child_runner.run_stage', side_effect=execute), patch('one_click.verify_kit'), \
+        with patch('child_runner.run_stage', side_effect=execute), patch('benchmark.one_click.verify_kit'), \
              contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
             result = workflow.run(self.data, prepare_protocol_only=True)
         receipt = json.loads((self.root / 'result/results.json').read_text())
@@ -282,8 +282,8 @@ class WorkflowTests(unittest.TestCase):
             return self.execute(args,**kwargs)
         with patch.object(workflow,'completed_run_source',return_value=dict(root=str(source),completed_stages=['continuous-B0'])), \
              patch('engine.release_selection.active',return_value=dict(version='new',client=None,engine_profile='r9')),patch('engine.release_selection.save'), \
-             patch('one_click.configuration_arguments',return_value=['--datasets','mmlu,hle,frontier,swe,terminal']), \
-             patch('one_click.verify_kit'),patch('child_runner.run_stage',side_effect=execute), \
+             patch('benchmark.one_click.configuration_arguments',return_value=['--datasets','mmlu,hle,frontier,swe,terminal']), \
+             patch('benchmark.one_click.verify_kit'),patch('child_runner.run_stage',side_effect=execute), \
              contextlib.redirect_stdout(io.StringIO()):
             self.assertEqual(workflow.run(self.data,reuse_completed_run=source),0)
         self.assertEqual((source/'results.json').read_bytes(),original)
@@ -318,8 +318,8 @@ class WorkflowTests(unittest.TestCase):
         def execute(args,**kwargs):
             return self.execute([*args,'run'] if '--reuse-completed-campaign' in args else args,**kwargs)
         with patch.object(workflow,'completed_run_source',return_value=reused) as audit, \
-             patch('one_click.configuration_arguments',return_value=['--datasets','mmlu,hle,frontier,swe,terminal']), \
-             patch('one_click.verify_kit'),patch('child_runner.run_stage',side_effect=execute), \
+             patch('benchmark.one_click.configuration_arguments',return_value=['--datasets','mmlu,hle,frontier,swe,terminal']), \
+             patch('benchmark.one_click.verify_kit'),patch('child_runner.run_stage',side_effect=execute), \
              contextlib.redirect_stdout(io.StringIO()):
             self.assertEqual(workflow.run(self.data,resume_bootstrap=True),0)
             audit.assert_called_once_with(self.data,reused['root'])
@@ -430,7 +430,7 @@ class WorkflowTests(unittest.TestCase):
         self.failed_preflight()
         before = (self.root / "result/results.json").read_bytes()
         self.calls.clear()
-        with patch("one_click.verify_kit"), patch("child_runner.run_stage", side_effect=self.execute), \
+        with patch("benchmark.one_click.verify_kit"), patch("child_runner.run_stage", side_effect=self.execute), \
              contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
             result = workflow.run(self.data, resume_bootstrap=True)
         self.assertEqual(result, 0)
@@ -457,7 +457,7 @@ class WorkflowTests(unittest.TestCase):
         self.assertEqual(result,1)
         prior=workflow.bootstrap_resume(self.data)
         self.assertEqual(prior["stages"][-1]["name"],"install-engine")
-        with patch("one_click.verify_kit"),patch("child_runner.run_stage",side_effect=self.execute), \
+        with patch("benchmark.one_click.verify_kit"),patch("child_runner.run_stage",side_effect=self.execute), \
              contextlib.redirect_stdout(io.StringIO()),contextlib.redirect_stderr(io.StringIO()):
             self.assertEqual(workflow.run(self.data,resume_bootstrap=True),0)
         self.assertTrue(any(Path(a[1]).name=="runtime_storage.py" and "--reuse" in a for a in self.calls))
@@ -489,7 +489,7 @@ class WorkflowTests(unittest.TestCase):
         self.data["environment"] = {"wheelhouse": str(self.root / "wheelhouse")}
         self.before_model_failure()
         original = (self.root / "result/fixed-five/campaign.json").read_bytes()
-        with patch("one_click.verify_kit"), patch("child_runner.run_stage", side_effect=self.execute), \
+        with patch("benchmark.one_click.verify_kit"), patch("child_runner.run_stage", side_effect=self.execute), \
              contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
             self.assertEqual(workflow.run(self.data, resume_before_model=True), 0)
         receipt = json.loads((self.root / "result/results.json").read_text())
@@ -507,7 +507,7 @@ class WorkflowTests(unittest.TestCase):
     def test_failed_model_startup_can_resume_without_repeating_any_formal_request(self):
         self.startup_failure()
         with patch("qualification.sealed_files") as sealed,patch("third_party_report.verify_campaign_bindings") as bindings, \
-             patch("one_click.verify_kit"),patch("child_runner.run_stage",side_effect=self.execute), \
+             patch("benchmark.one_click.verify_kit"),patch("child_runner.run_stage",side_effect=self.execute), \
              contextlib.redirect_stdout(io.StringIO()),contextlib.redirect_stderr(io.StringIO()):
             self.assertEqual(workflow.run(self.data,resume_before_inference=True),0)
         sealed.assert_called_once();bindings.assert_called_once()

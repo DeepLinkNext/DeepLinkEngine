@@ -148,7 +148,7 @@ class Standalone(unittest.TestCase):
                 service.set_option(command,'--port',8000)
 
     def test_changed_runtime_stops_before_device_or_model_use(self):
-        import one_click
+        from benchmark import one_click
         with tempfile.TemporaryDirectory() as folder:
             out=Path(folder);model=out/'model';model.mkdir()
             (model/'config.json').write_text(json.dumps({'model_type':'qwen3_5_moe_text','num_hidden_layers':40,'hidden_size':2048}))
@@ -162,7 +162,7 @@ class Standalone(unittest.TestCase):
             guard.acquire.assert_not_called()
 
     def test_bootstrapped_service_still_requires_device_lease(self):
-        import one_click
+        from benchmark import one_click
         with tempfile.TemporaryDirectory() as folder:
             out=Path(folder);model=out/'model';model.mkdir();sdk=out/'sdk';sdk.mkdir()
             (model/'config.json').write_text(json.dumps({'model_type':'qwen3_5_moe_text','num_hidden_layers':40,'hidden_size':2048}))
@@ -175,7 +175,7 @@ class Standalone(unittest.TestCase):
                 build.assert_not_called()
 
     def check_service_environment_rejection(self, *, changed_version=False):
-        import one_click
+        from benchmark import one_click
         from engine import environment_setup as setup
         with tempfile.TemporaryDirectory() as folder:
             out=Path(folder);model=out/'model';model.mkdir();sdk=out/'sdk';sdk.mkdir()
@@ -221,7 +221,7 @@ class Standalone(unittest.TestCase):
             self.assertEqual(command[command.index('--cache')+1],str(installed.parent/'.cache/deeplinkengine/serving'))
 
     def test_qualified_service_reaches_device_admission(self):
-        import one_click
+        from benchmark import one_click
         from engine import environment_setup as setup
         with tempfile.TemporaryDirectory() as folder:
             out=Path(folder);model=out/'model';model.mkdir();sdk=out/'sdk';sdk.mkdir()

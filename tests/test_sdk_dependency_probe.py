@@ -40,7 +40,7 @@ class Admission(unittest.TestCase):
     @unittest.skipUnless(sys.platform=='linux','The public client uses Linux fcntl')
     def test_real_selected_r8_kit_recursive_import_and_selection_unchanged(self):
         from engine import release_selection as selection
-        import one_click
+        from benchmark import one_click
         from benchmark import evaluation_client
         record=dict(schema='deeplinkengine-stable-selection/v1',release='full-answer-b1-20261117-r8',legacy=True,engine_profile='r8',version='2026.11.17.8.post2',client=None)
         saved=self.root/'selection.json';saved.write_text(json.dumps(record));original=saved.read_bytes()

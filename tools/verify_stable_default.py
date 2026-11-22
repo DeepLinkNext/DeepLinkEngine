@@ -26,7 +26,7 @@ def main():
     if args.download:
         from engine.engine_install import install
         install(args.cache,download_only=True)
-    from one_click import verify_kit,configuration_arguments
+    from benchmark.one_click import verify_kit,configuration_arguments
     verify_kit()
     with tempfile.TemporaryDirectory(prefix='stable-client-contract-') as folder:
         folder=Path(folder)

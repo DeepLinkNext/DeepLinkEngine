@@ -11,7 +11,7 @@ import zipfile
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[2]
 sys.path.insert(0, str(ROOT))
-from one_click import reference_evidence, verify_kit
+from benchmark.one_click import reference_evidence, verify_kit
 
 
 def main():

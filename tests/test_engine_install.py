@@ -141,7 +141,7 @@ class RuntimeDependencyTests(unittest.TestCase):
                  patch.object(engine_install, "ADAPTER_REQUIREMENTS", ()), \
                  patch.object(engine_install.metadata, "version", side_effect=engine_install.metadata.PackageNotFoundError), \
                  patch.object(engine_install, "dependency_audit", side_effect=[dict(verified=False, issues=[{"requires": "fixture>=1", "found": None}], observed_versions={}), dict(verified=True, issues=[], observed_versions={})]), \
-                 patch("one_click.verify_kit"), \
+                 patch("benchmark.one_click.verify_kit"), \
                  patch("engine.environment_setup.vendor_integrity", return_value={"verified": True}), \
                  patch("engine.environment_setup.distribution_integrity", return_value={"verified": True}), \
                  patch("urllib.request.urlopen", side_effect=AssertionError("network forbidden")), \
@@ -200,7 +200,7 @@ class RuntimeDependencyTests(unittest.TestCase):
                  patch.object(engine_install, "RUNTIME_ROOTS", ()), \
                  patch.object(metadata, "version", side_effect=lambda name: distribution(name).version), \
                  patch.object(metadata, "distribution", side_effect=distribution), \
-                 patch("one_click.verify_kit"), patch("child_runner.run_stage", side_effect=execute), \
+                 patch("benchmark.one_click.verify_kit"), patch("child_runner.run_stage", side_effect=execute), \
                  patch("engine.pip_transport.plan", side_effect=lambda args,env,folder:(args,env,None)):
                 first = engine_install.resolve_runtime_dependencies(cache)
                 second = engine_install.resolve_runtime_dependencies(cache)

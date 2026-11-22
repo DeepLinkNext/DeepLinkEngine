@@ -37,15 +37,19 @@ class Native(unittest.TestCase):
         (deployment/'deployment.json').write_text(json.dumps(dict(python=str(python),root=str(deployment),release='r8')))
         (deployment.parent/'installation.json').write_text(json.dumps(dict(python='/foreign/python',deployment=str(deployment),release='r8',dependencies=dict(python=str(python),python_version='3.12.13'))))
         with patch.object(controller,'native_scope',return_value=True),patch.object(controller,'runtime_version',return_value=(3,10)),patch.object(controller.os,'execve',side_effect=AssertionError('must not exec')),self.assertRaisesRegex(ValueError,'original installation receipt'):
-            controller.maybe_enter_deployment(deployment,ROOT/'one_click.py',['run'])
+            controller.maybe_enter_deployment(deployment,ROOT/'benchmark/one_click.py',['run'])
     def test_direct_compute_handoff_binds_original_installation_and_native_python(self):
+        from benchmark import one_click
+
         sdk,python=self.sdk();deployment=self.root/'installed/sdk';deployment.mkdir(parents=True)
+        arguments = ['run', '--deployment', str(deployment), '--compute-reference-only']
         (deployment/'deployment.json').write_text(json.dumps(dict(python=str(python),root=str(deployment.resolve()),release='r8')))
         (deployment.parent/'installation.json').write_text(json.dumps(dict(python=str(python),deployment=str(deployment.resolve()),release='r8',dependencies=dict(python=str(python),python_version='3.12.13'))))
         with patch.object(controller,'native_scope',return_value=True),patch.object(controller,'runtime_version',return_value=(3,10)),patch.object(controller,'state',return_value=dict(libc='2.38',root_dev_inode=[1,2],os_release_sha256='a'*64,pid=123,start_ticks='9')),patch.object(controller.os,'execve',side_effect=RuntimeError('fixture exec boundary')) as execute:
-            with self.assertRaisesRegex(RuntimeError,'exec boundary'):controller.maybe_enter_deployment(deployment,ROOT/'one_click.py',['run','--compute-reference-only'])
+            with self.assertRaisesRegex(RuntimeError, 'exec boundary'):
+                one_click.main(arguments)
         _,command,env=execute.call_args.args
-        self.assertEqual(command,[str(python),'-B',str(ROOT/'one_click.py'),'run','--compute-reference-only'])
+        self.assertEqual(command, [str(python), '-B', str(ROOT / 'benchmark/one_click.py'), *arguments])
         self.assertTrue(env['LD_LIBRARY_PATH'].startswith(str(python.resolve().parent.parent/'lib')))
         self.assertEqual(len(json.loads(env[controller.ENV])['bootstrap_admission']['binary_and_libpython_sha256']),2)
     @unittest.skipUnless(sys.platform=='linux','Linux real SDK-compatible metadata subprocess')

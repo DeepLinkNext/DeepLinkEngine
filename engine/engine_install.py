@@ -71,7 +71,7 @@ def resolve_runtime_dependencies(cache, *, wheelhouse=None):
     import os
     sys.path.insert(0, str(kit_path() / "scripts"))
     from child_runner import run_stage
-    from one_click import verify_kit
+    from benchmark.one_click import verify_kit
     verify_kit()
     lock = runtime_lock(ROOT)
     expected = dict(lock["required_python_packages"])
@@ -178,7 +178,7 @@ def sources():
 
 def install(cache, *, wheelhouse=None, download_only=False):
     from engine.environment_setup import cached_wheel
-    from one_click import verify_kit
+    from benchmark.one_click import verify_kit
     verify_kit()
     cache = Path(cache).resolve()
     links = [str(Path(wheelhouse).resolve())] if wheelhouse else []

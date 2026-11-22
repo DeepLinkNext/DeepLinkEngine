@@ -13,7 +13,7 @@ import tempfile
 import urllib.request
 import urllib.error
 
-ROOT = Path(__file__).resolve().parent
+ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 from engine.release_selection import kit_path, runtime_lock, profile as selected_profile
 KIT = ROOT / "benchmark/one-click-kit"
@@ -237,7 +237,7 @@ def main(arguments=None):
         deployment=option(arguments,'--deployment') or initial.get('deployment')
         if deployment:
             from engine.native_sdk_controller import maybe_enter_deployment
-            maybe_enter_deployment(deployment,ROOT/'one_click.py',arguments)
+            maybe_enter_deployment(deployment,Path(__file__).resolve(),arguments)
         from engine.release_selection import active, select, bind
         if not active():
             config_name = option(arguments, '--config')
@@ -295,7 +295,7 @@ def main(arguments=None):
         os.environ["VLLM_HUST_PROJECT_EVIDENCE"] = str(reference_evidence(lock))
         arguments = effective
     if help_only:
-        print("CPU report: one_click.py report --engine-version VERSION --out DIRECTORY", flush=True)
+        print("CPU report: benchmark/one_click.py report --engine-version VERSION --out DIRECTORY", flush=True)
         print("B0 选项：--rerun-b0 显式重跑；--no-rerun-b0 默认复用旧记录。配置项 rerun_b0 默认 false。", flush=True)
     sys.dont_write_bytecode = True
     sys.argv = [str(KIT / "one_click.py"), *arguments]

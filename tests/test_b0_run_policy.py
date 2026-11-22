@@ -12,7 +12,7 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 sys.path[:0] = [str(ROOT), str(ROOT / 'benchmark/one-click-kit/scripts')]
 from benchmark import b0_run_policy as policy
-import one_click
+from benchmark import one_click
 import run_all
 
 

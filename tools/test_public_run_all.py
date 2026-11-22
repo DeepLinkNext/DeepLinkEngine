@@ -35,7 +35,7 @@ class FullSuiteEntryTests(unittest.TestCase):
                 record = out / "installation/installation.json"
                 record.parent.mkdir(parents=True, exist_ok=True)
                 record.write_text(json.dumps(dict(release="full-answer-b1-20261117-r8")))
-            if "run" in args and str(ROOT / "one_click.py") in args:
+            if "run" in args and str(ROOT / "benchmark/one_click.py") in args:
                 if interrupt:
                     raise KeyboardInterrupt("cancelled fixture")
                 if failure:
@@ -68,7 +68,7 @@ class FullSuiteEntryTests(unittest.TestCase):
                 for name in ("report.html","fixed-five.svg","fixed-five.png"):(folder/name).write_text("fixture only")
             return SimpleNamespace(returncode=0)
 
-        with patch("one_click.verify_kit"), patch("child_runner.run_stage", side_effect=command):
+        with patch("benchmark.one_click.verify_kit"), patch("child_runner.run_stage", side_effect=command):
             status = run_all.run(dict(out=str(out), model="/model", physical_devices=[1, 6], cache="/cache", rerun_b0=True))
         return status, json.loads((out / "results.json").read_text()), commands, out
 
@@ -80,9 +80,9 @@ class FullSuiteEntryTests(unittest.TestCase):
             self.assertEqual(len(commands), 9)
             self.assertEqual(commands[1][:2], [sys.executable, str(ROOT / "engine/engine_install.py")])
             self.assertTrue(all("evaluate" not in args for args in commands))
-            entry_calls = [args for args in commands if str(ROOT / "one_click.py") in args]
+            entry_calls = [args for args in commands if str(ROOT / "benchmark/one_click.py") in args]
             self.assertEqual(len(entry_calls), 3)
-            self.assertTrue(all(args[:2] == [sys.executable, str(ROOT / "one_click.py")] for args in entry_calls))
+            self.assertTrue(all(args[:2] == [sys.executable, str(ROOT / "benchmark/one_click.py")] for args in entry_calls))
             config = json.loads((out / "evaluation.json").read_text())
             self.assertEqual(config["reference_profile"], "submission-v2")
             self.assertNotIn("rerun_b0", config)
