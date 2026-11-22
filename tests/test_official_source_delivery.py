@@ -21,6 +21,25 @@ sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 import official_source_delivery as delivery
 
 
+class CargoTransportTests(unittest.TestCase):
+    def test_native_http1_default_retains_other_settings(self):
+        env={'CARGO_NET_RETRY':'3','CARGO_HTTP_TIMEOUT':'30'}
+        result=delivery.configure_cargo_transport(env)
+        self.assertEqual(env,dict(CARGO_NET_RETRY='3',CARGO_HTTP_TIMEOUT='30',CARGO_HTTP_MULTIPLEXING='false'))
+        self.assertFalse(result['explicit_user_setting'])
+        self.assertFalse(result['registry_or_source_replacement'])
+        self.assertFalse(result['dependency_lock_modified'])
+        self.assertFalse(result['original_command_timeout_changed'])
+
+    def test_explicit_user_transport_is_preserved(self):
+        for value in ('true','false'):
+            with self.subTest(value=value):
+                env={'CARGO_HTTP_MULTIPLEXING':value}
+                result=delivery.configure_cargo_transport(env)
+                self.assertEqual(env['CARGO_HTTP_MULTIPLEXING'],value)
+                self.assertTrue(result['explicit_user_setting'])
+
+
 class DeliveryTests(unittest.TestCase):
     def setUp(self):
         self.temporary=tempfile.TemporaryDirectory();self.addCleanup(self.temporary.cleanup)

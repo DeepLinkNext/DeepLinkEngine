@@ -15,6 +15,17 @@ import re
 PIP_VERSION = '26.2'
 
 
+def configure_cargo_transport(environ=None):
+    """Use Cargo's native HTTP/1 transport; retain an explicit user setting."""
+    environ = os.environ if environ is None else environ
+    previous = environ.get('CARGO_HTTP_MULTIPLEXING')
+    environ.setdefault('CARGO_HTTP_MULTIPLEXING', 'false')
+    return dict(variable='CARGO_HTTP_MULTIPLEXING', value=environ['CARGO_HTTP_MULTIPLEXING'],
+                explicit_user_setting=previous is not None, cargo_native_configuration=True,
+                registry_or_source_replacement=False, dependency_lock_modified=False,
+                original_command_timeout_changed=False, tls_verification_retained=True)
+
+
 def sha(path):
     with Path(path).open('rb') as stream:
         h=hashlib.sha256()
@@ -299,6 +310,7 @@ def prepare(cache,sdk,out):
         original_constraints_and_pep517_isolation_retained=True,model_started=False,steps=[])
     caches=[cache/'source-build-downloads/verified-metadata-pip',cache/'source-build-downloads'/key/'pip']
     try:
+        record['cargo_transport'] = configure_cargo_transport()
         save(out/'results.json',record)
         # Apply the original candidate's raw-base admission before any metadata
         # subprocess. This does not repair, copy, or re-sign an SDK payload.
