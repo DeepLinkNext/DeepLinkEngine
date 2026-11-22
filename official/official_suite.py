@@ -15,6 +15,7 @@ import urllib.request
 from official import FT_PLUGIN_METADATA, source_path, worker_pythonpath
 from official_baselines import save
 from official_image import digest, environment
+from official_memory import admit_startup, memory_guard
 from official_runtime_identity import runtime_identity
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -191,14 +192,14 @@ def derive_metrics(config, service_plan):
 
 def phase(config, image, phase_name, output, tools, sdk, sources, leases, continuous, weights):
     from owned_processes import Owned
-    from run_b1_r4 import admit_startup_memory, listener_owned, check_memory
+    from run_b1_r4 import listener_owned, check_memory
     output.mkdir(exist_ok=False)
     service = output / 'service'
     service.mkdir()
     cache = service_cache(config, output)
-    guard = load(sdk / 'mods/packed-host/memory_guard.py', 'official_memory_guard')
+    guard = memory_guard(load(sdk / 'mods/packed-host/memory_guard.py', 'official_memory_guard'))
     save(output / 'model-weights.json', weights)
-    initial = admit_startup_memory(guard, Path(config['model']), weights, output)
+    initial = admit_startup(guard, Path(config['model']), weights, output)
     kind = 'dataset' if phase_name in ('frontier', 'hle', 'swe', 'terminal') else 'context' if phase_name == 'context' else 'continuous' if phase_name == 'continuous' else 'joint'
     installed = json.loads((image / 'installation.json').read_bytes())
     lock = json.loads((image / 'image-lock.json').read_bytes())
@@ -342,7 +343,7 @@ def run(config, image, output):
     controller_sources = ('official_suite.py', 'official_http.py', 'official_serve.py', 'official_worker.py',
                           'official_judge.py', 'official_native.py', 'official_native_entry.py', 'official_report.py',
                           'official_plots.py', 'official_kernel_preparation.py', 'official_endpoint.py', 'official_reuse.py',
-                          'official_runtime_identity.py', 'official_resource_compat.py',
+                          'official_runtime_identity.py', 'official_resource_compat.py', 'official_memory.py',
                           'official/__init__.py', 'service_logging.py', 'logging_entry.py',
                           'engine/service.py')
     for name in controller_sources:

@@ -62,6 +62,50 @@ class OfficialBaselines(unittest.TestCase):
         self.assertEqual(lock.read_bytes(), b'original')
         self.assertEqual(lock.stat().st_ino, identity.st_ino)
 
+    def test_cgroup_v1_guard_admits_real_counters_and_checks_ancestors_and_oom(self):
+        from types import SimpleNamespace
+        from official_memory import CgroupV1Memory
+
+        proc = self.root / 'proc'
+        (proc / 'self').mkdir(parents=True)
+        mount = self.root / 'cgroup-memory'
+        leaf = mount / 'jobs' / 'solver'
+        leaf.mkdir(parents=True)
+        (proc / 'self/cgroup').write_text('11:memory:/jobs/solver\n')
+        (proc / 'self/mountinfo').write_text(f'45 31 0:42 / {mount} ro - cgroup cgroup rw,memory\n')
+        gib = 2**30
+        (proc / 'meminfo').write_text(f'MemTotal: {128 * gib // 1024} kB\nMemFree: {80 * gib // 1024} kB\n')
+        (proc / 'vmstat').write_text('oom_kill 1\n')
+
+        for scope, current, limit in ((leaf, 8, 128), (leaf.parent, 30, 64), (mount, 36, 128)):
+            (scope / 'memory.use_hierarchy').write_text('1\n')
+            (scope / 'memory.stat').write_text(f'cache {4*gib}\ninactive_file {2*gib}\n'
+                f'shmem 0\ndirty 0\nwriteback 0\nhierarchical_memory_limit {64*gib if scope != mount else 128*gib}\n')
+            (scope / 'memory.usage_in_bytes').write_text(str(current*gib))
+            (scope / 'memory.limit_in_bytes').write_text(str(limit*gib))
+            (scope / 'memory.oom_control').write_text('under_oom 0\noom_kill 0\n')
+            (scope / 'memory.failcnt').write_text('0\n')
+
+        def check(value, initial):
+            if value['events']['oom_kill'] > initial['events']['oom_kill']:
+                raise RuntimeError('New cgroup oom_kill event')
+
+        original = SimpleNamespace(estimate=lambda current, stat: current-stat['inactive_file'], check=check)
+        guard = CgroupV1Memory(original, proc)
+        initial = guard.sample()
+        self.assertEqual(initial['limit'] - initial['current'], 34*gib)
+        self.assertEqual(initial['working_estimate'], 28*gib)
+        self.assertEqual(len(initial['scopes']), 3)
+        self.assertFalse(initial['host_raw_headroom_selected'])
+        guard.check(initial, initial)
+
+        (leaf.parent / 'memory.usage_in_bytes').write_text(str(62*gib))
+        with self.assertRaisesRegex(RuntimeError, '4GiB'):
+            guard.check(guard.sample(), initial)
+        (leaf.parent / 'memory.oom_control').write_text('under_oom 0\noom_kill 1\n')
+        with self.assertRaisesRegex(RuntimeError, 'oom_kill'):
+            guard.check(guard.sample(), initial)
+
     def test_protocol_clients_keep_driver_paths_and_use_their_own_torch(self):
         from official_suite import clean_client_environment
 
