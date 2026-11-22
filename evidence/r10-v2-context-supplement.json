@@ -1611,5 +1611,1618 @@
       "runtime_overlay_sha256": "87a28d509bbe36a19e0ea5f60de1851ae6f96325a07607d36ad3ec27dee8f972",
       "runtime_configuration_sha256": "eb5be336aa5d983a3c5144f4c25584763de0bb82a357f8443cc2d1b65335bb02"
     }
+  },
+  "r10-contiguous-restore": {
+    "schema": "deeplinkengine-r10-v2-context-projection/v1",
+    "release": "full-answer-b1-20261121-r10-contiguous-restore",
+    "datasets": [
+      "Terminal-Bench 2.1"
+    ],
+    "input_sha256": "5156a6ae436c7e32364a5ecbb028b52f26da1808be883c02e8e230defd556559",
+    "physical_cards": {
+      "B0": [
+        1,
+        6
+      ],
+      "B1": [
+        0,
+        3
+      ]
+    },
+    "paired": {
+      "arm_seals": {
+        "B0": "ea79bc36280efbe3e7272bf2453c5589b186583e18f49f4f8857f24993439ba2",
+        "B1": "7d27d50833caf92056d602c3ab9601e42daf97853a19f49d136126d81b6466db"
+      },
+      "comparison": [
+        {
+          "phase": "4096-formal",
+          "B0": {
+            "phase": "4096-formal",
+            "cohort": "4096",
+            "tenants": 1,
+            "concurrency": 8,
+            "status": "completed",
+            "metrics": {
+              "requests": 122,
+              "successful": 122,
+              "failed": 0,
+              "duration_seconds": 309.02535623597214,
+              "output_tokens": 31232,
+              "output_tokens_per_second": 101.06614026892734,
+              "ttft_ms": {
+                "mean": 2580.812573677681,
+                "p95": 5144.773530017119,
+                "p99": 23307.546311989427
+              },
+              "tpot_ms": {
+                "mean": 68.01082439812237,
+                "p95": 75.01686109006222,
+                "p99": 159.50111282724595
+              }
+            },
+            "utilization": {
+              "per_card_percent": {
+                "1": 30.559997035074435,
+                "6": 27.40044300322029
+              },
+              "mean_percent": 28.98022001914736,
+              "covered_seconds": 309.02535623597214,
+              "missing_seconds": 0.0,
+              "max_hold_age_seconds": 8.128122526977677,
+              "method": "Sampler clock midpoint; request interval clipped; left-hold, time weighted. A sample estimate, not continuous hardware truth."
+            },
+            "windows": [
+              {
+                "submission_window": 0,
+                "start_monotonic": 461354.915837373,
+                "submission_end_monotonic": 461414.915837373,
+                "drain_end_monotonic": 461457.759624906,
+                "metrics": {
+                  "requests": 29,
+                  "successful": 29,
+                  "failed": 0,
+                  "duration_seconds": 102.84378753299825,
+                  "output_tokens": 7424,
+                  "output_tokens_per_second": 72.1871508049813,
+                  "ttft_ms": {
+                    "mean": 3573.120698760312,
+                    "p95": 9415.27783300262,
+                    "p99": 10760.799018025864
+                  },
+                  "tpot_ms": {
+                    "mean": 73.29100543449547,
+                    "p95": 155.34843667844018,
+                    "p99": 155.79520038434066
+                  }
+                }
+              },
+              {
+                "submission_window": 1,
+                "start_monotonic": 461414.915837373,
+                "submission_end_monotonic": 461474.915837373,
+                "drain_end_monotonic": 461492.260899,
+                "metrics": {
+                  "requests": 15,
+                  "successful": 15,
+                  "failed": 0,
+                  "duration_seconds": 77.3450616269838,
+                  "output_tokens": 3840,
+                  "output_tokens_per_second": 49.6476429034264,
+                  "ttft_ms": {
+                    "mean": 4864.945180613237,
+                    "p95": 23876.238401047885,
+                    "p99": 23876.238401047885
+                  },
+                  "tpot_ms": {
+                    "mean": 83.76103269646941,
+                    "p95": 160.33685150985406,
+                    "p99": 160.33685150985406
+                  }
+                }
+              },
+              {
+                "submission_window": 2,
+                "start_monotonic": 461474.915837373,
+                "submission_end_monotonic": 461534.915837373,
+                "drain_end_monotonic": 461550.42994413,
+                "metrics": {
+                  "requests": 26,
+                  "successful": 26,
+                  "failed": 0,
+                  "duration_seconds": 75.51410675700754,
+                  "output_tokens": 6656,
+                  "output_tokens_per_second": 88.14247146454312,
+                  "ttft_ms": {
+                    "mean": 1807.918378125088,
+                    "p95": 2709.9660750245675,
+                    "p99": 3554.96158398455
+                  },
+                  "tpot_ms": {
+                    "mean": 64.27299773557073,
+                    "p95": 68.10563173323102,
+                    "p99": 69.10096737624639
+                  }
+                }
+              },
+              {
+                "submission_window": 3,
+                "start_monotonic": 461534.915837373,
+                "submission_end_monotonic": 461594.915837373,
+                "drain_end_monotonic": 461613.544507148,
+                "metrics": {
+                  "requests": 26,
+                  "successful": 26,
+                  "failed": 0,
+                  "duration_seconds": 78.6286697749747,
+                  "output_tokens": 6656,
+                  "output_tokens_per_second": 84.65105691153913,
+                  "ttft_ms": {
+                    "mean": 1683.2283325403785,
+                    "p95": 2628.312040993478,
+                    "p99": 2827.6579729863442
+                  },
+                  "tpot_ms": {
+                    "mean": 64.83324074870653,
+                    "p95": 69.65138250208624,
+                    "p99": 73.26204549799691
+                  }
+                }
+              },
+              {
+                "submission_window": 4,
+                "start_monotonic": 461594.915837373,
+                "submission_end_monotonic": 461654.915837373,
+                "drain_end_monotonic": 461663.93104192,
+                "metrics": {
+                  "requests": 26,
+                  "successful": 26,
+                  "failed": 0,
+                  "duration_seconds": 69.01520454697311,
+                  "output_tokens": 6656,
+                  "output_tokens_per_second": 96.4425164525854,
+                  "ttft_ms": {
+                    "mean": 1826.7169822356664,
+                    "p95": 2757.761239015963,
+                    "p99": 2772.701595968101
+                  },
+                  "tpot_ms": {
+                    "mean": 59.95014338201189,
+                    "p95": 69.0947523452433,
+                    "p99": 69.56463912935635
+                  }
+                }
+              }
+            ],
+            "per_tenant": {
+              "tenant-0": {
+                "requests": 122,
+                "successful": 122,
+                "failed": 0,
+                "duration_seconds": 309.02535623597214,
+                "output_tokens": 31232,
+                "output_tokens_per_second": 101.06614026892734,
+                "ttft_ms": {
+                  "mean": 2580.812573677681,
+                  "p95": 5144.773530017119,
+                  "p99": 23307.546311989427
+                },
+                "tpot_ms": {
+                  "mean": 68.01082439812237,
+                  "p95": 75.01686109006222,
+                  "p99": 159.50111282724595
+                }
+              }
+            }
+          },
+          "B1": {
+            "phase": "4096-formal",
+            "cohort": "4096",
+            "tenants": 1,
+            "concurrency": 8,
+            "status": "completed",
+            "metrics": {
+              "requests": 275,
+              "successful": 275,
+              "failed": 0,
+              "duration_seconds": 303.9827724285424,
+              "output_tokens": 70400,
+              "output_tokens_per_second": 231.5920716084298,
+              "ttft_ms": {
+                "mean": 1484.5389786565845,
+                "p95": 3565.7166428864,
+                "p99": 4047.3588332533836
+              },
+              "tpot_ms": {
+                "mean": 28.698848478695286,
+                "p95": 34.02461769680182,
+                "p99": 36.29155194058138
+              }
+            },
+            "utilization": {
+              "per_card_percent": {
+                "0": 64.68670399962441,
+                "3": 63.33337395083521
+              },
+              "mean_percent": 64.0100389752298,
+              "covered_seconds": 303.9827724285424,
+              "missing_seconds": 0.0,
+              "max_hold_age_seconds": 6.809551548212767,
+              "method": "Sampler clock midpoint; request interval clipped; left-hold, time weighted. A sample estimate, not continuous hardware truth."
+            },
+            "windows": [
+              {
+                "submission_window": 0,
+                "start_monotonic": 11030673.159101516,
+                "submission_end_monotonic": 11030733.159101516,
+                "drain_end_monotonic": 11030738.977848327,
+                "metrics": {
+                  "requests": 56,
+                  "successful": 56,
+                  "failed": 0,
+                  "duration_seconds": 65.81874681077898,
+                  "output_tokens": 14336,
+                  "output_tokens_per_second": 217.81028498178924,
+                  "ttft_ms": {
+                    "mean": 2611.421598520662,
+                    "p95": 4047.3588332533836,
+                    "p99": 4205.650068819523
+                  },
+                  "tpot_ms": {
+                    "mean": 24.999363987943998,
+                    "p95": 33.25141054742477,
+                    "p99": 38.575101344316614
+                  }
+                }
+              },
+              {
+                "submission_window": 1,
+                "start_monotonic": 11030733.159101516,
+                "submission_end_monotonic": 11030793.159101516,
+                "drain_end_monotonic": 11030801.057693353,
+                "metrics": {
+                  "requests": 56,
+                  "successful": 56,
+                  "failed": 0,
+                  "duration_seconds": 67.89859183691442,
+                  "output_tokens": 14336,
+                  "output_tokens_per_second": 211.13839937113318,
+                  "ttft_ms": {
+                    "mean": 1409.5975151950759,
+                    "p95": 3131.28599524498,
+                    "p99": 3195.5891083925962
+                  },
+                  "tpot_ms": {
+                    "mean": 29.120223240206847,
+                    "p95": 34.81459795113872,
+                    "p99": 36.004675924777985
+                  }
+                }
+              },
+              {
+                "submission_window": 2,
+                "start_monotonic": 11030793.159101516,
+                "submission_end_monotonic": 11030853.159101516,
+                "drain_end_monotonic": 11030862.460465824,
+                "metrics": {
+                  "requests": 55,
+                  "successful": 55,
+                  "failed": 0,
+                  "duration_seconds": 69.30136430822313,
+                  "output_tokens": 14080,
+                  "output_tokens_per_second": 203.17060335750566,
+                  "ttft_ms": {
+                    "mean": 1149.7499412095005,
+                    "p95": 2076.656088232994,
+                    "p99": 2466.96905978024
+                  },
+                  "tpot_ms": {
+                    "mean": 30.064143705150233,
+                    "p95": 35.88733148633265,
+                    "p99": 38.354123982728694
+                  }
+                }
+              },
+              {
+                "submission_window": 3,
+                "start_monotonic": 11030853.159101516,
+                "submission_end_monotonic": 11030913.159101516,
+                "drain_end_monotonic": 11030921.869369611,
+                "metrics": {
+                  "requests": 54,
+                  "successful": 54,
+                  "failed": 0,
+                  "duration_seconds": 68.71026809513569,
+                  "output_tokens": 13824,
+                  "output_tokens_per_second": 201.19263660650253,
+                  "ttft_ms": {
+                    "mean": 1100.0572629617873,
+                    "p95": 1637.2788455337286,
+                    "p99": 1641.320027410984
+                  },
+                  "tpot_ms": {
+                    "mean": 31.07117833319399,
+                    "p95": 34.10574619238283,
+                    "p99": 36.1181172377923
+                  }
+                }
+              },
+              {
+                "submission_window": 4,
+                "start_monotonic": 11030913.159101516,
+                "submission_end_monotonic": 11030973.159101516,
+                "drain_end_monotonic": 11030977.138101447,
+                "metrics": {
+                  "requests": 54,
+                  "successful": 54,
+                  "failed": 0,
+                  "duration_seconds": 63.97899993136525,
+                  "output_tokens": 13824,
+                  "output_tokens_per_second": 216.07089849528708,
+                  "ttft_ms": {
+                    "mean": 1119.1075888151925,
+                    "p95": 2000.3270916640759,
+                    "p99": 2179.807838052511
+                  },
+                  "tpot_ms": {
+                    "mean": 28.33546135350034,
+                    "p95": 33.43820666857794,
+                    "p99": 35.684427224537906
+                  }
+                }
+              }
+            ],
+            "per_tenant": {
+              "tenant-0": {
+                "requests": 275,
+                "successful": 275,
+                "failed": 0,
+                "duration_seconds": 303.9827724285424,
+                "output_tokens": 70400,
+                "output_tokens_per_second": 231.5920716084298,
+                "ttft_ms": {
+                  "mean": 1484.5389786565845,
+                  "p95": 3565.7166428864,
+                  "p99": 4047.3588332533836
+                },
+                "tpot_ms": {
+                  "mean": 28.698848478695286,
+                  "p95": 34.02461769680182,
+                  "p99": 36.29155194058138
+                }
+              }
+            }
+          }
+        },
+        {
+          "phase": "16384-formal",
+          "B0": {
+            "phase": "16384-formal",
+            "cohort": "16384",
+            "tenants": 1,
+            "concurrency": 8,
+            "status": "completed",
+            "metrics": {
+              "requests": 73,
+              "successful": 73,
+              "failed": 0,
+              "duration_seconds": 315.78981192200445,
+              "output_tokens": 18688,
+              "output_tokens_per_second": 59.178603281272636,
+              "ttft_ms": {
+                "mean": 6685.884033694181,
+                "p95": 17057.602046988904,
+                "p99": 28422.105961013585
+              },
+              "tpot_ms": {
+                "mean": 107.15664126888693,
+                "p95": 119.06617210981636,
+                "p99": 122.42965432929387
+              }
+            },
+            "utilization": {
+              "per_card_percent": {
+                "1": 33.46922735848962,
+                "6": 34.53675111232191
+              },
+              "mean_percent": 34.002989235405764,
+              "covered_seconds": 315.78981192200445,
+              "missing_seconds": 0.0,
+              "max_hold_age_seconds": 6.821941401925869,
+              "method": "Sampler clock midpoint; request interval clipped; left-hold, time weighted. A sample estimate, not continuous hardware truth."
+            },
+            "windows": [
+              {
+                "submission_window": 0,
+                "start_monotonic": 461736.701751547,
+                "submission_end_monotonic": 461796.701751547,
+                "drain_end_monotonic": 461830.164448428,
+                "metrics": {
+                  "requests": 16,
+                  "successful": 16,
+                  "failed": 0,
+                  "duration_seconds": 93.46269688103348,
+                  "output_tokens": 4096,
+                  "output_tokens_per_second": 43.82497120978335,
+                  "ttft_ms": {
+                    "mean": 10918.797634447401,
+                    "p95": 28422.105961013585,
+                    "p99": 28422.105961013585
+                  },
+                  "tpot_ms": {
+                    "mean": 110.02474488211423,
+                    "p95": 122.40070108251244,
+                    "p99": 122.40070108251244
+                  }
+                }
+              },
+              {
+                "submission_window": 1,
+                "start_monotonic": 461796.701751547,
+                "submission_end_monotonic": 461856.701751547,
+                "drain_end_monotonic": 461891.660054368,
+                "metrics": {
+                  "requests": 14,
+                  "successful": 14,
+                  "failed": 0,
+                  "duration_seconds": 94.9583028210327,
+                  "output_tokens": 3584,
+                  "output_tokens_per_second": 37.74288180734171,
+                  "ttft_ms": {
+                    "mean": 6128.38825178499,
+                    "p95": 8725.575721997302,
+                    "p99": 8725.575721997302
+                  },
+                  "tpot_ms": {
+                    "mean": 112.14018664254313,
+                    "p95": 122.42965432929387,
+                    "p99": 122.42965432929387
+                  }
+                }
+              },
+              {
+                "submission_window": 2,
+                "start_monotonic": 461856.701751547,
+                "submission_end_monotonic": 461916.701751547,
+                "drain_end_monotonic": 461949.194695088,
+                "metrics": {
+                  "requests": 14,
+                  "successful": 14,
+                  "failed": 0,
+                  "duration_seconds": 92.4929435410304,
+                  "output_tokens": 3584,
+                  "output_tokens_per_second": 38.74890194634272,
+                  "ttft_ms": {
+                    "mean": 5201.138536844935,
+                    "p95": 7570.9854569868185,
+                    "p99": 7570.9854569868185
+                  },
+                  "tpot_ms": {
+                    "mean": 112.30871364543103,
+                    "p95": 118.04350544310485,
+                    "p99": 118.04350544310485
+                  }
+                }
+              },
+              {
+                "submission_window": 3,
+                "start_monotonic": 461916.701751547,
+                "submission_end_monotonic": 461976.701751547,
+                "drain_end_monotonic": 462005.329717329,
+                "metrics": {
+                  "requests": 14,
+                  "successful": 14,
+                  "failed": 0,
+                  "duration_seconds": 88.62796578201232,
+                  "output_tokens": 3584,
+                  "output_tokens_per_second": 40.438703160751075,
+                  "ttft_ms": {
+                    "mean": 5274.112099482279,
+                    "p95": 7786.5102119976655,
+                    "p99": 7786.5102119976655
+                  },
+                  "tpot_ms": {
+                    "mean": 111.41855004320185,
+                    "p95": 118.68330959216965,
+                    "p99": 118.68330959216965
+                  }
+                }
+              },
+              {
+                "submission_window": 4,
+                "start_monotonic": 461976.701751547,
+                "submission_end_monotonic": 462036.701751547,
+                "drain_end_monotonic": 462052.481315405,
+                "metrics": {
+                  "requests": 15,
+                  "successful": 15,
+                  "failed": 0,
+                  "duration_seconds": 75.77956385799916,
+                  "output_tokens": 3840,
+                  "output_tokens_per_second": 50.673292435354334,
+                  "ttft_ms": {
+                    "mean": 5394.521858329729,
+                    "p95": 8049.399329989683,
+                    "p99": 8049.399329989683
+                  },
+                  "tpot_ms": {
+                    "mean": 90.65963932523029,
+                    "p95": 119.06617210981636,
+                    "p99": 119.06617210981636
+                  }
+                }
+              }
+            ],
+            "per_tenant": {
+              "tenant-0": {
+                "requests": 73,
+                "successful": 73,
+                "failed": 0,
+                "duration_seconds": 315.78981192200445,
+                "output_tokens": 18688,
+                "output_tokens_per_second": 59.178603281272636,
+                "ttft_ms": {
+                  "mean": 6685.884033694181,
+                  "p95": 17057.602046988904,
+                  "p99": 28422.105961013585
+                },
+                "tpot_ms": {
+                  "mean": 107.15664126888693,
+                  "p95": 119.06617210981636,
+                  "p99": 122.42965432929387
+                }
+              }
+            }
+          },
+          "B1": {
+            "phase": "16384-formal",
+            "cohort": "16384",
+            "tenants": 1,
+            "concurrency": 8,
+            "status": "completed",
+            "metrics": {
+              "requests": 191,
+              "successful": 191,
+              "failed": 0,
+              "duration_seconds": 306.6961680147797,
+              "output_tokens": 48896,
+              "output_tokens_per_second": 159.4281412659962,
+              "ttft_ms": {
+                "mean": 2877.46367658152,
+                "p95": 5717.499202117324,
+                "p99": 9838.654423132539
+              },
+              "tpot_ms": {
+                "mean": 38.76867168154171,
+                "p95": 44.036945883257715,
+                "p99": 45.16869376541353
+              }
+            },
+            "utilization": {
+              "per_card_percent": {
+                "0": 84.48897003463435,
+                "3": 88.33206392394143
+              },
+              "mean_percent": 86.41051697928789,
+              "covered_seconds": 306.6961680147797,
+              "missing_seconds": 0.0,
+              "max_hold_age_seconds": 6.765502877533436,
+              "method": "Sampler clock midpoint; request interval clipped; left-hold, time weighted. A sample estimate, not continuous hardware truth."
+            },
+            "windows": [
+              {
+                "submission_window": 0,
+                "start_monotonic": 11031044.733129753,
+                "submission_end_monotonic": 11031104.733129753,
+                "drain_end_monotonic": 11031117.818848547,
+                "metrics": {
+                  "requests": 39,
+                  "successful": 39,
+                  "failed": 0,
+                  "duration_seconds": 73.08571879379451,
+                  "output_tokens": 9984,
+                  "output_tokens_per_second": 136.60671557693857,
+                  "ttft_ms": {
+                    "mean": 4499.430292023298,
+                    "p95": 9838.654423132539,
+                    "p99": 9931.932931765914
+                  },
+                  "tpot_ms": {
+                    "mean": 36.86069108118748,
+                    "p95": 44.831951985172196,
+                    "p99": 46.07196746065336
+                  }
+                }
+              },
+              {
+                "submission_window": 1,
+                "start_monotonic": 11031104.733129753,
+                "submission_end_monotonic": 11031164.733129753,
+                "drain_end_monotonic": 11031176.381976867,
+                "metrics": {
+                  "requests": 36,
+                  "successful": 36,
+                  "failed": 0,
+                  "duration_seconds": 71.64884711429477,
+                  "output_tokens": 9216,
+                  "output_tokens_per_second": 128.62733136931806,
+                  "ttft_ms": {
+                    "mean": 2448.9342980086803,
+                    "p95": 4323.82301799953,
+                    "p99": 4840.314580127597
+                  },
+                  "tpot_ms": {
+                    "mean": 40.40915237451561,
+                    "p95": 44.42869359079529,
+                    "p99": 44.92051623323385
+                  }
+                }
+              },
+              {
+                "submission_window": 2,
+                "start_monotonic": 11031164.733129753,
+                "submission_end_monotonic": 11031224.733129753,
+                "drain_end_monotonic": 11031234.05581702,
+                "metrics": {
+                  "requests": 38,
+                  "successful": 38,
+                  "failed": 0,
+                  "duration_seconds": 69.3226872663945,
+                  "output_tokens": 9728,
+                  "output_tokens_per_second": 140.32923972807146,
+                  "ttft_ms": {
+                    "mean": 2370.199669250532,
+                    "p95": 3701.5794571489096,
+                    "p99": 4025.544064119458
+                  },
+                  "tpot_ms": {
+                    "mean": 40.31083506865521,
+                    "p95": 43.46468252878563,
+                    "p99": 44.146638137160565
+                  }
+                }
+              },
+              {
+                "submission_window": 3,
+                "start_monotonic": 11031224.733129753,
+                "submission_end_monotonic": 11031284.733129753,
+                "drain_end_monotonic": 11031295.655756546,
+                "metrics": {
+                  "requests": 38,
+                  "successful": 38,
+                  "failed": 0,
+                  "duration_seconds": 70.92262679338455,
+                  "output_tokens": 9728,
+                  "output_tokens_per_second": 137.16356034499555,
+                  "ttft_ms": {
+                    "mean": 2325.0068419269824,
+                    "p95": 3698.4134763479233,
+                    "p99": 4294.606512412429
+                  },
+                  "tpot_ms": {
+                    "mean": 39.88128726411961,
+                    "p95": 43.97947304681236,
+                    "p99": 44.940601464580084
+                  }
+                }
+              },
+              {
+                "submission_window": 4,
+                "start_monotonic": 11031284.733129753,
+                "submission_end_monotonic": 11031344.733129753,
+                "drain_end_monotonic": 11031351.42445867,
+                "metrics": {
+                  "requests": 40,
+                  "successful": 40,
+                  "failed": 0,
+                  "duration_seconds": 66.6913289166987,
+                  "output_tokens": 10240,
+                  "output_tokens_per_second": 153.54319918846346,
+                  "ttft_ms": {
+                    "mean": 2688.4574671275914,
+                    "p95": 4271.443938836455,
+                    "p99": 4983.193047344685
+                  },
+                  "tpot_ms": {
+                    "mean": 36.63048012200378,
+                    "p95": 42.33371848423107,
+                    "p99": 45.16869376541353
+                  }
+                }
+              }
+            ],
+            "per_tenant": {
+              "tenant-0": {
+                "requests": 191,
+                "successful": 191,
+                "failed": 0,
+                "duration_seconds": 306.6961680147797,
+                "output_tokens": 48896,
+                "output_tokens_per_second": 159.4281412659962,
+                "ttft_ms": {
+                  "mean": 2877.46367658152,
+                  "p95": 5717.499202117324,
+                  "p99": 9838.654423132539
+                },
+                "tpot_ms": {
+                  "mean": 38.76867168154171,
+                  "p95": 44.036945883257715,
+                  "p99": 45.16869376541353
+                }
+              }
+            }
+          }
+        },
+        {
+          "phase": "32768-formal",
+          "B0": {
+            "phase": "32768-formal",
+            "cohort": "32768",
+            "tenants": 1,
+            "concurrency": 8,
+            "status": "completed",
+            "metrics": {
+              "requests": 38,
+              "successful": 38,
+              "failed": 0,
+              "duration_seconds": 324.08489521295996,
+              "output_tokens": 9728,
+              "output_tokens_per_second": 30.01682628129774,
+              "ttft_ms": {
+                "mean": 23033.163101948478,
+                "p95": 50891.82633400196,
+                "p99": 58357.814504997805
+              },
+              "tpot_ms": {
+                "mean": 171.29892556491632,
+                "p95": 272.132718952957,
+                "p99": 274.95220505093755
+              }
+            },
+            "utilization": {
+              "per_card_percent": {
+                "1": 36.25858398103479,
+                "6": 36.12109553833793
+              },
+              "mean_percent": 36.189839759686365,
+              "covered_seconds": 324.08489521295996,
+              "missing_seconds": 0.0,
+              "max_hold_age_seconds": 8.557007884548511,
+              "method": "Sampler clock midpoint; request interval clipped; left-hold, time weighted. A sample estimate, not continuous hardware truth."
+            },
+            "windows": [
+              {
+                "submission_window": 0,
+                "start_monotonic": 462133.290689336,
+                "submission_end_monotonic": 462193.290689336,
+                "drain_end_monotonic": 462247.180239313,
+                "metrics": {
+                  "requests": 10,
+                  "successful": 10,
+                  "failed": 0,
+                  "duration_seconds": 113.88954997697147,
+                  "output_tokens": 2560,
+                  "output_tokens_per_second": 22.47791830345834,
+                  "ttft_ms": {
+                    "mean": 28640.903500601416,
+                    "p95": 58357.814504997805,
+                    "p99": 58357.814504997805
+                  },
+                  "tpot_ms": {
+                    "mean": 167.64170435058665,
+                    "p95": 178.30417531761614,
+                    "p99": 178.30417531761614
+                  }
+                }
+              },
+              {
+                "submission_window": 1,
+                "start_monotonic": 462193.290689336,
+                "submission_end_monotonic": 462253.290689336,
+                "drain_end_monotonic": 462308.891587226,
+                "metrics": {
+                  "requests": 8,
+                  "successful": 8,
+                  "failed": 0,
+                  "duration_seconds": 115.60089788999176,
+                  "output_tokens": 2048,
+                  "output_tokens_per_second": 17.716125370833364,
+                  "ttft_ms": {
+                    "mean": 19103.21625362849,
+                    "p95": 20850.63178098062,
+                    "p99": 20850.63178098062
+                  },
+                  "tpot_ms": {
+                    "mean": 167.901389266669,
+                    "p95": 177.08129142342574,
+                    "p99": 177.08129142342574
+                  }
+                }
+              },
+              {
+                "submission_window": 2,
+                "start_monotonic": 462253.290689336,
+                "submission_end_monotonic": 462313.290689336,
+                "drain_end_monotonic": 462396.140930064,
+                "metrics": {
+                  "requests": 8,
+                  "successful": 8,
+                  "failed": 0,
+                  "duration_seconds": 142.85024072800297,
+                  "output_tokens": 2048,
+                  "output_tokens_per_second": 14.336692675930017,
+                  "ttft_ms": {
+                    "mean": 19261.431443868787,
+                    "p95": 21463.23339699302,
+                    "p99": 21463.23339699302
+                  },
+                  "tpot_ms": {
+                    "mean": 242.91519105395042,
+                    "p95": 274.95220505093755,
+                    "p99": 274.95220505093755
+                  }
+                }
+              },
+              {
+                "submission_window": 3,
+                "start_monotonic": 462313.290689336,
+                "submission_end_monotonic": 462373.290689336,
+                "drain_end_monotonic": 462427.723879094,
+                "metrics": {
+                  "requests": 4,
+                  "successful": 4,
+                  "failed": 0,
+                  "duration_seconds": 114.4331897579832,
+                  "output_tokens": 1024,
+                  "output_tokens_per_second": 8.948452823570468,
+                  "ttft_ms": {
+                    "mean": 32595.166112005245,
+                    "p95": 46081.27978496486,
+                    "p99": 46081.27978496486
+                  },
+                  "tpot_ms": {
+                    "mean": 161.20578875883902,
+                    "p95": 166.60128673333128,
+                    "p99": 166.60128673333128
+                  }
+                }
+              },
+              {
+                "submission_window": 4,
+                "start_monotonic": 462373.290689336,
+                "submission_end_monotonic": 462433.290689336,
+                "drain_end_monotonic": 462457.363029913,
+                "metrics": {
+                  "requests": 8,
+                  "successful": 8,
+                  "failed": 0,
+                  "duration_seconds": 84.07234057696769,
+                  "output_tokens": 2048,
+                  "output_tokens_per_second": 24.35997363633607,
+                  "ttft_ms": {
+                    "mean": 18944.164605003607,
+                    "p95": 21262.829773011617,
+                    "p99": 21262.829773011617
+                  },
+                  "tpot_ms": {
+                    "mean": 112.69829129508021,
+                    "p95": 171.16691043130214,
+                    "p99": 171.16691043130214
+                  }
+                }
+              }
+            ],
+            "per_tenant": {
+              "tenant-0": {
+                "requests": 38,
+                "successful": 38,
+                "failed": 0,
+                "duration_seconds": 324.08489521295996,
+                "output_tokens": 9728,
+                "output_tokens_per_second": 30.01682628129774,
+                "ttft_ms": {
+                  "mean": 23033.163101948478,
+                  "p95": 50891.82633400196,
+                  "p99": 58357.814504997805
+                },
+                "tpot_ms": {
+                  "mean": 171.29892556491632,
+                  "p95": 272.132718952957,
+                  "p99": 274.95220505093755
+                }
+              }
+            }
+          },
+          "B1": {
+            "phase": "32768-formal",
+            "cohort": "32768",
+            "tenants": 1,
+            "concurrency": 8,
+            "status": "completed",
+            "metrics": {
+              "requests": 111,
+              "successful": 111,
+              "failed": 0,
+              "duration_seconds": 313.8428757991642,
+              "output_tokens": 28416,
+              "output_tokens_per_second": 90.54212216110363,
+              "ttft_ms": {
+                "mean": 12037.202959309692,
+                "p95": 19048.61863143742,
+                "p99": 19698.808580636978
+              },
+              "tpot_ms": {
+                "mean": 41.246999404841446,
+                "p95": 70.51255628466606,
+                "p99": 74.30078005966018
+              }
+            },
+            "utilization": {
+              "per_card_percent": {
+                "0": 94.8970845223599,
+                "3": 94.57142166415761
+              },
+              "mean_percent": 94.73425309325876,
+              "covered_seconds": 313.8428757991642,
+              "missing_seconds": 0.0,
+              "max_hold_age_seconds": 6.753657169640064,
+              "method": "Sampler clock midpoint; request interval clipped; left-hold, time weighted. A sample estimate, not continuous hardware truth."
+            },
+            "windows": [
+              {
+                "submission_window": 0,
+                "start_monotonic": 11031421.699175676,
+                "submission_end_monotonic": 11031481.699175676,
+                "drain_end_monotonic": 11031498.106463948,
+                "metrics": {
+                  "requests": 25,
+                  "successful": 25,
+                  "failed": 0,
+                  "duration_seconds": 76.4072882719338,
+                  "output_tokens": 6400,
+                  "output_tokens_per_second": 83.76164296293803,
+                  "ttft_ms": {
+                    "mean": 14734.319048896432,
+                    "p95": 19698.808580636978,
+                    "p99": 20222.97876700759
+                  },
+                  "tpot_ms": {
+                    "mean": 36.34016242418804,
+                    "p95": 72.37402753648804,
+                    "p99": 73.21890273368827
+                  }
+                }
+              },
+              {
+                "submission_window": 1,
+                "start_monotonic": 11031481.699175676,
+                "submission_end_monotonic": 11031541.699175676,
+                "drain_end_monotonic": 11031553.206501428,
+                "metrics": {
+                  "requests": 18,
+                  "successful": 18,
+                  "failed": 0,
+                  "duration_seconds": 71.50732575170696,
+                  "output_tokens": 4608,
+                  "output_tokens_per_second": 64.44094995245997,
+                  "ttft_ms": {
+                    "mean": 11135.458995795085,
+                    "p95": 15570.63147611916,
+                    "p99": 15570.63147611916
+                  },
+                  "tpot_ms": {
+                    "mean": 45.357233031869974,
+                    "p95": 76.24910551981598,
+                    "p99": 76.24910551981598
+                  }
+                }
+              },
+              {
+                "submission_window": 2,
+                "start_monotonic": 11031541.699175676,
+                "submission_end_monotonic": 11031601.699175676,
+                "drain_end_monotonic": 11031619.073220156,
+                "metrics": {
+                  "requests": 24,
+                  "successful": 24,
+                  "failed": 0,
+                  "duration_seconds": 77.37404447980225,
+                  "output_tokens": 6144,
+                  "output_tokens_per_second": 79.40647333750056,
+                  "ttft_ms": {
+                    "mean": 10318.875371323278,
+                    "p95": 14438.833555206656,
+                    "p99": 14475.93155503273
+                  },
+                  "tpot_ms": {
+                    "mean": 46.285526096528656,
+                    "p95": 67.60031496192894,
+                    "p99": 70.51255628466606
+                  }
+                }
+              },
+              {
+                "submission_window": 3,
+                "start_monotonic": 11031601.699175676,
+                "submission_end_monotonic": 11031661.699175676,
+                "drain_end_monotonic": 11031681.407818744,
+                "metrics": {
+                  "requests": 19,
+                  "successful": 19,
+                  "failed": 0,
+                  "duration_seconds": 79.70864306762815,
+                  "output_tokens": 4864,
+                  "output_tokens_per_second": 61.022240660566496,
+                  "ttft_ms": {
+                    "mean": 12420.966943725944,
+                    "p95": 18192.427795380354,
+                    "p99": 18192.427795380354
+                  },
+                  "tpot_ms": {
+                    "mean": 40.502890335132584,
+                    "p95": 74.30078005966018,
+                    "p99": 74.30078005966018
+                  }
+                }
+              },
+              {
+                "submission_window": 4,
+                "start_monotonic": 11031661.699175676,
+                "submission_end_monotonic": 11031721.699175676,
+                "drain_end_monotonic": 11031735.536358548,
+                "metrics": {
+                  "requests": 25,
+                  "successful": 25,
+                  "failed": 0,
+                  "duration_seconds": 73.83718287199736,
+                  "output_tokens": 6400,
+                  "output_tokens_per_second": 86.67719638078432,
+                  "ttft_ms": {
+                    "mean": 11347.27637976408,
+                    "p95": 15662.989538162947,
+                    "p99": 15857.303876429796
+                  },
+                  "tpot_ms": {
+                    "mean": 38.923005442993315,
+                    "p95": 69.60070277107697,
+                    "p99": 73.45271520316601
+                  }
+                }
+              }
+            ],
+            "per_tenant": {
+              "tenant-0": {
+                "requests": 111,
+                "successful": 111,
+                "failed": 0,
+                "duration_seconds": 313.8428757991642,
+                "output_tokens": 28416,
+                "output_tokens_per_second": 90.54212216110363,
+                "ttft_ms": {
+                  "mean": 12037.202959309692,
+                  "p95": 19048.61863143742,
+                  "p99": 19698.808580636978
+                },
+                "tpot_ms": {
+                  "mean": 41.246999404841446,
+                  "p95": 70.51255628466606,
+                  "p99": 74.30078005966018
+                }
+              }
+            }
+          }
+        },
+        {
+          "phase": "multi-tenant-formal",
+          "B0": {
+            "phase": "multi-tenant-formal",
+            "cohort": "4096",
+            "tenants": 4,
+            "concurrency": 24,
+            "status": "completed",
+            "metrics": {
+              "requests": 157,
+              "successful": 157,
+              "failed": 0,
+              "duration_seconds": 311.53741639497457,
+              "output_tokens": 40192,
+              "output_tokens_per_second": 129.01179083106865,
+              "ttft_ms": {
+                "mean": 6756.797381032,
+                "p95": 26731.083229999058,
+                "p99": 37916.46304499591
+              },
+              "tpot_ms": {
+                "mean": 157.0996520913681,
+                "p95": 177.7823653254731,
+                "p99": 181.84954100767808
+              }
+            },
+            "utilization": {
+              "per_card_percent": {
+                "1": 30.927905763274776,
+                "6": 30.384589131887108
+              },
+              "mean_percent": 30.65624744758094,
+              "covered_seconds": 311.53741639497457,
+              "missing_seconds": 0.0,
+              "max_hold_age_seconds": 6.8488598674885,
+              "method": "Sampler clock midpoint; request interval clipped; left-hold, time weighted. A sample estimate, not continuous hardware truth."
+            },
+            "windows": [
+              {
+                "submission_window": 0,
+                "start_monotonic": 462535.719590066,
+                "submission_end_monotonic": 462595.719590066,
+                "drain_end_monotonic": 462636.706741794,
+                "metrics": {
+                  "requests": 34,
+                  "successful": 34,
+                  "failed": 0,
+                  "duration_seconds": 100.98715172801167,
+                  "output_tokens": 8704,
+                  "output_tokens_per_second": 86.18918200052272,
+                  "ttft_ms": {
+                    "mean": 14870.806543613606,
+                    "p95": 37916.46304499591,
+                    "p99": 39731.96409200318
+                  },
+                  "tpot_ms": {
+                    "mean": 164.76188783035445,
+                    "p95": 175.81907730599792,
+                    "p99": 188.14627794918658
+                  }
+                }
+              },
+              {
+                "submission_window": 1,
+                "start_monotonic": 462595.719590066,
+                "submission_end_monotonic": 462655.719590066,
+                "drain_end_monotonic": 462704.00543461,
+                "metrics": {
+                  "requests": 33,
+                  "successful": 33,
+                  "failed": 0,
+                  "duration_seconds": 108.28584454400698,
+                  "output_tokens": 8448,
+                  "output_tokens_per_second": 78.01573728842058,
+                  "ttft_ms": {
+                    "mean": 4548.098491824048,
+                    "p95": 7628.288269042969,
+                    "p99": 7684.469695028383
+                  },
+                  "tpot_ms": {
+                    "mean": 164.36641376351562,
+                    "p95": 177.19730010584874,
+                    "p99": 181.84954100767808
+                  }
+                }
+              },
+              {
+                "submission_window": 2,
+                "start_monotonic": 462655.719590066,
+                "submission_end_monotonic": 462715.719590066,
+                "drain_end_monotonic": 462759.473441069,
+                "metrics": {
+                  "requests": 29,
+                  "successful": 29,
+                  "failed": 0,
+                  "duration_seconds": 103.75385100301355,
+                  "output_tokens": 7424,
+                  "output_tokens_per_second": 71.55397055849396,
+                  "ttft_ms": {
+                    "mean": 4292.421326516918,
+                    "p95": 7159.603929030709,
+                    "p99": 8401.271098991856
+                  },
+                  "tpot_ms": {
+                    "mean": 165.9504296166235,
+                    "p95": 179.2173379568803,
+                    "p99": 180.44195538044303
+                  }
+                }
+              },
+              {
+                "submission_window": 3,
+                "start_monotonic": 462715.719590066,
+                "submission_end_monotonic": 462775.719590066,
+                "drain_end_monotonic": 462819.821459528,
+                "metrics": {
+                  "requests": 32,
+                  "successful": 32,
+                  "failed": 0,
+                  "duration_seconds": 104.10186946199974,
+                  "output_tokens": 8192,
+                  "output_tokens_per_second": 78.69215070138891,
+                  "ttft_ms": {
+                    "mean": 4804.245304503638,
+                    "p95": 9110.608865972608,
+                    "p99": 9132.067754981108
+                  },
+                  "tpot_ms": {
+                    "mean": 166.9176740557376,
+                    "p95": 175.75395880403983,
+                    "p99": 178.18557408241116
+                  }
+                }
+              },
+              {
+                "submission_window": 4,
+                "start_monotonic": 462775.719590066,
+                "submission_end_monotonic": 462835.719590066,
+                "drain_end_monotonic": 462847.243520781,
+                "metrics": {
+                  "requests": 29,
+                  "successful": 29,
+                  "failed": 0,
+                  "duration_seconds": 71.52393071498955,
+                  "output_tokens": 7424,
+                  "output_tokens_per_second": 103.79742731958275,
+                  "ttft_ms": {
+                    "mean": 4376.084410202096,
+                    "p95": 7322.623842046596,
+                    "p99": 7393.902404990513
+                  },
+                  "tpot_ms": {
+                    "mean": 120.16281066382898,
+                    "p95": 173.844798250973,
+                    "p99": 178.66671031760964
+                  }
+                }
+              }
+            ],
+            "per_tenant": {
+              "tenant-0": {
+                "requests": 39,
+                "successful": 39,
+                "failed": 0,
+                "duration_seconds": 311.53741639497457,
+                "output_tokens": 9984,
+                "output_tokens_per_second": 32.047514919819605,
+                "ttft_ms": {
+                  "mean": 6604.156503944884,
+                  "p95": 36053.66051098099,
+                  "p99": 39731.96409200318
+                },
+                "tpot_ms": {
+                  "mean": 158.38791700240995,
+                  "p95": 178.66671031760964,
+                  "p99": 188.14627794918658
+                }
+              },
+              "tenant-1": {
+                "requests": 40,
+                "successful": 40,
+                "failed": 0,
+                "duration_seconds": 311.53741639497457,
+                "output_tokens": 10240,
+                "output_tokens_per_second": 32.86924607160985,
+                "ttft_ms": {
+                  "mean": 6758.98487992381,
+                  "p95": 21054.598107002676,
+                  "p99": 37916.46304499591
+                },
+                "tpot_ms": {
+                  "mean": 154.47191394678333,
+                  "p95": 175.81907730599792,
+                  "p99": 178.18557408241116
+                }
+              },
+              "tenant-2": {
+                "requests": 39,
+                "successful": 39,
+                "failed": 0,
+                "duration_seconds": 311.53741639497457,
+                "output_tokens": 9984,
+                "output_tokens_per_second": 32.047514919819605,
+                "ttft_ms": {
+                  "mean": 6815.538098132655,
+                  "p95": 30393.276799004525,
+                  "p99": 34224.277757050004
+                },
+                "tpot_ms": {
+                  "mean": 158.01913388846737,
+                  "p95": 180.44195538044303,
+                  "p99": 181.84954100767808
+                }
+              },
+              "tenant-3": {
+                "requests": 39,
+                "successful": 39,
+                "failed": 0,
+                "duration_seconds": 311.53741639497457,
+                "output_tokens": 9984,
+                "output_tokens_per_second": 32.047514919819605,
+                "ttft_ms": {
+                  "mean": 6848.453952411476,
+                  "p95": 26731.083229999058,
+                  "p99": 28580.637982988264
+                },
+                "tpot_ms": {
+                  "mean": 157.58702142895496,
+                  "p95": 177.60914909406839,
+                  "p99": 177.7823653254731
+                }
+              }
+            }
+          },
+          "B1": {
+            "phase": "multi-tenant-formal",
+            "cohort": "4096",
+            "tenants": 4,
+            "concurrency": 24,
+            "status": "completed",
+            "metrics": {
+              "requests": 467,
+              "successful": 467,
+              "failed": 0,
+              "duration_seconds": 306.4468403570354,
+              "output_tokens": 119552,
+              "output_tokens_per_second": 390.1231282421194,
+              "ttft_ms": {
+                "mean": 4515.530408585416,
+                "p95": 9077.720051631331,
+                "p99": 11481.726132333279
+              },
+              "tpot_ms": {
+                "mean": 43.48698271878078,
+                "p95": 55.439316634746156,
+                "p99": 57.814716474682676
+              }
+            },
+            "utilization": {
+              "per_card_percent": {
+                "0": 86.30193479453088,
+                "3": 87.0397707183599
+              },
+              "mean_percent": 86.67085275644538,
+              "covered_seconds": 306.4468403570354,
+              "missing_seconds": 0.0,
+              "max_hold_age_seconds": 6.761793982237577,
+              "method": "Sampler clock midpoint; request interval clipped; left-hold, time weighted. A sample estimate, not continuous hardware truth."
+            },
+            "windows": [
+              {
+                "submission_window": 0,
+                "start_monotonic": 11031802.552968215,
+                "submission_end_monotonic": 11031862.552968215,
+                "drain_end_monotonic": 11031875.765292188,
+                "metrics": {
+                  "requests": 96,
+                  "successful": 96,
+                  "failed": 0,
+                  "duration_seconds": 73.21232397295535,
+                  "output_tokens": 24576,
+                  "output_tokens_per_second": 335.68118953686513,
+                  "ttft_ms": {
+                    "mean": 6020.695754889554,
+                    "p95": 11481.726132333279,
+                    "p99": 12334.869923070073
+                  },
+                  "tpot_ms": {
+                    "mean": 42.336415746812314,
+                    "p95": 56.53616832751854,
+                    "p99": 68.74880044191491
+                  }
+                }
+              },
+              {
+                "submission_window": 1,
+                "start_monotonic": 11031862.552968215,
+                "submission_end_monotonic": 11031922.552968215,
+                "drain_end_monotonic": 11031940.01878966,
+                "metrics": {
+                  "requests": 97,
+                  "successful": 97,
+                  "failed": 0,
+                  "duration_seconds": 77.46582144498825,
+                  "output_tokens": 24832,
+                  "output_tokens_per_second": 320.5542720234917,
+                  "ttft_ms": {
+                    "mean": 4203.165732324123,
+                    "p95": 6649.164207279682,
+                    "p99": 6925.850452855229
+                  },
+                  "tpot_ms": {
+                    "mean": 45.3915360922678,
+                    "p95": 56.11214483631592,
+                    "p99": 68.84697579285678
+                  }
+                }
+              },
+              {
+                "submission_window": 2,
+                "start_monotonic": 11031922.552968215,
+                "submission_end_monotonic": 11031982.552968215,
+                "drain_end_monotonic": 11032000.285192106,
+                "metrics": {
+                  "requests": 91,
+                  "successful": 91,
+                  "failed": 0,
+                  "duration_seconds": 77.7322238907218,
+                  "output_tokens": 23296,
+                  "output_tokens_per_second": 299.69552952389716,
+                  "ttft_ms": {
+                    "mean": 4318.338987304942,
+                    "p95": 6632.6072588562965,
+                    "p99": 6906.579867005348
+                  },
+                  "tpot_ms": {
+                    "mean": 44.09601401848298,
+                    "p95": 55.767388167042355,
+                    "p99": 62.90406630027528
+                  }
+                }
+              },
+              {
+                "submission_window": 3,
+                "start_monotonic": 11031982.552968215,
+                "submission_end_monotonic": 11032042.552968215,
+                "drain_end_monotonic": 11032057.780072087,
+                "metrics": {
+                  "requests": 90,
+                  "successful": 90,
+                  "failed": 0,
+                  "duration_seconds": 75.22710387222469,
+                  "output_tokens": 23040,
+                  "output_tokens_per_second": 306.2725907823605,
+                  "ttft_ms": {
+                    "mean": 4048.3068085586033,
+                    "p95": 5539.938174188137,
+                    "p99": 5823.675632476807
+                  },
+                  "tpot_ms": {
+                    "mean": 44.221576341470474,
+                    "p95": 55.289697143084865,
+                    "p99": 66.2417472212338
+                  }
+                }
+              },
+              {
+                "submission_window": 4,
+                "start_monotonic": 11032042.552968215,
+                "submission_end_monotonic": 11032102.552968215,
+                "drain_end_monotonic": 11032108.994049229,
+                "metrics": {
+                  "requests": 93,
+                  "successful": 93,
+                  "failed": 0,
+                  "duration_seconds": 66.44108101353049,
+                  "output_tokens": 23808,
+                  "output_tokens_per_second": 358.3325201339151,
+                  "ttft_ms": {
+                    "mean": 3932.7136740809487,
+                    "p95": 5538.778295740485,
+                    "p99": 5842.465423047543
+                  },
+                  "tpot_ms": {
+                    "mean": 41.38136420013305,
+                    "p95": 52.94111823188324,
+                    "p99": 55.182516545641654
+                  }
+                }
+              }
+            ],
+            "per_tenant": {
+              "tenant-0": {
+                "requests": 117,
+                "successful": 117,
+                "failed": 0,
+                "duration_seconds": 306.4468403570354,
+                "output_tokens": 29952,
+                "output_tokens_per_second": 97.73962741826116,
+                "ttft_ms": {
+                  "mean": 4198.7513127521825,
+                  "p95": 8862.656395882368,
+                  "p99": 9658.563757315278
+                },
+                "tpot_ms": {
+                  "mean": 44.455827658867065,
+                  "p95": 56.28037646997209,
+                  "p99": 66.2417472212338
+                }
+              },
+              "tenant-1": {
+                "requests": 117,
+                "successful": 117,
+                "failed": 0,
+                "duration_seconds": 306.4468403570354,
+                "output_tokens": 29952,
+                "output_tokens_per_second": 97.73962741826116,
+                "ttft_ms": {
+                  "mean": 4543.345303696572,
+                  "p95": 9395.89649811387,
+                  "p99": 12295.142985880375
+                },
+                "tpot_ms": {
+                  "mean": 43.25272081641769,
+                  "p95": 54.66492249831265,
+                  "p99": 57.814716474682676
+                }
+              },
+              "tenant-2": {
+                "requests": 116,
+                "successful": 116,
+                "failed": 0,
+                "duration_seconds": 306.4468403570354,
+                "output_tokens": 29696,
+                "output_tokens_per_second": 96.90424598733586,
+                "ttft_ms": {
+                  "mean": 4835.663917153303,
+                  "p95": 9368.89435723424,
+                  "p99": 11137.31973990798
+                },
+                "tpot_ms": {
+                  "mean": 42.69133016657263,
+                  "p95": 50.2927609956732,
+                  "p99": 54.1107903581624
+                }
+              },
+              "tenant-3": {
+                "requests": 117,
+                "successful": 117,
+                "failed": 0,
+                "duration_seconds": 306.4468403570354,
+                "output_tokens": 29952,
+                "output_tokens_per_second": 97.73962741826116,
+                "ttft_ms": {
+                  "mean": 4487.0972845735205,
+                  "p95": 9160.943703725934,
+                  "p99": 11424.019103869796
+                },
+                "tpot_ms": {
+                  "mean": 43.54125178410157,
+                  "p95": 56.375949544941676,
+                  "p99": 57.63026414548649
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "audit": {
+      "B0": {
+        "clean": true,
+        "errors": [],
+        "logs": [
+          "input-preparation.log",
+          "service.log",
+          "warmup.log",
+          "client.log",
+          "service/pinned-memory-preflight.log",
+          "service/cann-logs/run/plog/plog-1100009_20261118185115183.log",
+          "service/cann-logs/run/plog/plog-1091483_20261118185156694.log",
+          "service/cann-logs/run/plog/plog-1103124_20261118185241343.log",
+          "service/cann-logs/run/plog/plog-1104121_20261118185319952.log",
+          "service/cann-logs/run/plog/plog-1105914_20261118185400190.log",
+          "service/cann-logs/run/plog/plog-1107941_20261118185438209.log",
+          "service/cann-logs/run/plog/plog-1107940_20261118185438278.log",
+          "service/cann-logs/run/device-0/device-1100009_20261118185140888.log",
+          "service/cann-logs/run/device-0/device-1107940_20261118185520895.log",
+          "service/cann-logs/run/device-1/device-1100009_20261118185145230.log",
+          "service/cann-logs/run/device-1/device-1107941_20261118185521236.log"
+        ],
+        "post_measurement_teardown": []
+      },
+      "B1": {
+        "clean": true,
+        "errors": [],
+        "logs": [
+          "input-preparation.log",
+          "service.log",
+          "warmup.log",
+          "client.log",
+          "service/pinned-memory-preflight.log"
+        ],
+        "post_measurement_teardown": []
+      }
+    },
+    "candidate_runtime": {
+      "installed_files_sha256": "17d3e4b4e4951cca2d18df6256d6b3f74247b52449acf840c0b2359b0ff15b31",
+      "receipt_sha256": "1a19816080b41c2cf059a3bc53bb604d303be6fbab8e5096beae5cd20571f604",
+      "runtime_overlay_sha256": "96ecd0418ada8f8f7ea6a91af875676f2249c34a5559efcaf707496cf5ecb749",
+      "runtime_configuration_sha256": "1ea20d37e93ad88162944ed87ed874230382df1b9c337164310b8367b7152089"
+    }
   }
 }
