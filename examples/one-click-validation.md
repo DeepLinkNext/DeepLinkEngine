@@ -1,18 +1,18 @@
-# One-click acceptance testing
+# 一键验收说明
 
-Run `run_all.py` once on an Ascend host or container to prepare the environment, run the acceptance tests, and generate the reports.
+在昇腾主机或容器中填好配置后，执行一次 `run_all.py`，即可准备 B0 和 B1 的运行环境、完成配对测试并生成报告。
 
-## 1. Check the environment
+## 1. 核对宿主环境
 
-Use Linux aarch64, CPython 3.12, Ascend drivers and CANN compatible with the selected engine release, and readable Qwen3.5-35B-A3B model weights. Check that both assigned devices are healthy and idle. Use their physical IDs from the `NPU` column.
+宿主机或容器需提前具备 Linux aarch64、昇腾驱动、CANN 9.1.0、可用的 CPython 3.12 和可读的 Qwen3.5-35B-A3B 权重。运行下面的命令，确认实际分配的两张 910B2 健康且空闲。物理卡号取 `NPU` 列。
 
 ```bash
 npu-smi info
 ```
 
-## 2. Write the configuration
+## 2. 填写本机配置
 
-Replace each placeholder, including the angle brackets. Use a writable absolute path with enough free space for `<WORK_DIR>` and the model weights directory for `<MODEL_DIR>`. Enter two distinct physical NPU IDs as integers for `<NPU_A>` and `<NPU_B>`.
+将尖括号占位符连同括号替换为实际值。用有写权限且有足够空间的绝对路径填写 `<WORK_DIR>`，用模型权重目录填写 `<MODEL_DIR>`，用两个不同的整数填写物理卡号 `<NPU_A>`、`<NPU_B>`。
 
 ```bash
 mkdir -p '<WORK_DIR>'
@@ -27,27 +27,28 @@ cat > evaluation.json <<'JSON'
 JSON
 ```
 
-`cache` stores reusable downloads and Python environments. Set `out` to a new directory for each run. To specify environment paths, set `environment.python` or `environment.cann_home`.
+`cache` 保存可复用的下载和环境缓存。每轮测试的 `out` 使用尚未创建的目录。如需指定宿主环境路径，可填写 `environment.python` 或 `environment.cann_home`。
 
-## 3. Run the tests
+## 3. 一键运行
 
-Set `<PYTHON>` to a Python command or interpreter path and `<REPO_DIR>` to the DeepLinkEngine checkout. Use `--rerun-b0` to measure the B0 baseline in this run. The entry point selects and records the latest stable B1 release by default.
+`<PYTHON>` 填启动用的 Python 命令或解释器路径，`<REPO_DIR>` 填 DeepLinkEngine 仓库根目录。`--rerun-b0` 要求本轮实测 B0，与本轮 B1 配对。入口默认选择并记录最新稳定版 B1。
 
 ```bash
 '<PYTHON>' '<REPO_DIR>/run_all.py' --config '<WORK_DIR>/evaluation.json' --rerun-b0
 ```
 
-| Stage | What the command does |
+| 自动阶段 | 做什么 |
 | --- | --- |
-| Environment, data, and deployment | Prepare an isolated Python environment, download and verify the evaluation data and engine packages, and install B1. Restore or verify the fixed B0 deployment during preflight. |
-| Paired preflight | Check the model, device mapping, and test inputs, then save the execution plan. |
-| Five datasets and compute reference | Test B0 and B1 on the same model and device pair. Run MMLU-Pro, HLE, FrontierScience, SWE-bench-Pro, and Terminal-Bench, then validate the compute reference. The SWE and Terminal stages replay fixed traces. |
-| Context and four-tenant workloads | Run the built-in 4K, 16K, and 32K context tests and the four-tenant workload. |
-| Reporting | Verify the raw records and checksums, then generate the HTML and JSON reports. |
+| B1 环境和数据准备 | 加载已安装的 CANN 9.1.0，创建独立 Python 虚拟环境，补齐并校验依赖。下载并校验固定评测数据。 |
+| B1 安装 | 安装并校验选定版本的 B1 SDK，记录到本轮 `out/installation`。 |
+| B0 环境和配对预检 | 从校验过的固定 `original018` OCI 镜像恢复 B0 SDK，包括镜像内的 Python、依赖和 CANN 8.5.1 运行库。已提供 `baseline_deployment` 时校验该 B0 SDK。随后核对模型、设备映射和测试输入，冻结执行计划。 |
+| 固定五项与算力参考 | 用同一模型和同一对卡测 B0/B1，运行 MMLU-Pro、HLE、FrontierScience、SWE-bench-Pro 和 Terminal-Bench，并完成算力参考认证。SWE 和 Terminal 按固定轨迹回放。 |
+| 上下文与四租户 | 运行仓库内置的 4K、16K、32K 上下文和四租户负载。 |
+| 汇总 | 核对原始记录和校验值，生成 HTML 和 JSON 报告。 |
 
-## 4. Review the results
+## 4. 查看结果
 
-- `<WORK_DIR>/run-01/results.json` records stage status and report paths.
-- `<WORK_DIR>/run-01/full-report/report.html` shows the overall results. The `summary.json` in the same directory contains the structured acceptance decisions.
+- `<WORK_DIR>/run-01/results.json` 记录各阶段执行状态和报告路径。
+- `<WORK_DIR>/run-01/full-report/report.html` 是 HTML 总报告。同目录的 `summary.json` 保存结构化验收结论。
 
-Check `results.json` for completion and the full report for which acceptance targets were met. See the [two-NPU example](one-click-validation-0-1.md) for a complete configuration.
+执行是否完成查 `results.json`，各项指标是否达标查总报告。固定路径配置见[双卡验收示例](one-click-validation-0-1.md)。

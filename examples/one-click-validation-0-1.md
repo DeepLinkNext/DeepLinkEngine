@@ -1,18 +1,18 @@
-# One-click acceptance example for physical NPUs 0 and 1
+# 一键验收示例 · 物理 NPU 0、1
 
-This example runs in `/root/.deeplinkengine-validation`. It assumes a checkout at `/root/DeepLinkEngine`, model weights at `/data/shared_models/Qwen3.5-35B-A3B`, and a Linux aarch64 environment with compatible Ascend drivers, CANN, and CPython 3.12.
+本例在 `/root/.deeplinkengine-validation` 执行。仓库位于 `/root/DeepLinkEngine`，模型权重位于 `/data/shared_models/Qwen3.5-35B-A3B`。宿主机或容器需提前具备 Linux aarch64、昇腾驱动、CANN 9.1.0 和可用的 CPython 3.12。
 
-## 1. Check the devices
+## 1. 核对卡号
 
-Check the `NPU` column to confirm physical NPUs `0` and `1` are assigned to this environment, healthy, and idle.
+查看 `NPU` 列，确认物理卡 `0`、`1` 都分配给当前环境，且健康、空闲。
 
 ```bash
 npu-smi info
 ```
 
-## 2. Write the configuration
+## 2. 写入验收配置
 
-Both engines use the same model weights. The configuration stores the reusable cache under the working directory and writes this run to `run-01`. Use a new `out` directory for a fresh run.
+两套引擎使用同一份模型权重。缓存留在工作目录下，本轮结果写入 `run-01`。再次从零测试时，先把 `out` 改为尚未创建的目录。
 
 ```bash
 mkdir -p /root/.deeplinkengine-validation
@@ -27,17 +27,17 @@ cat > evaluation.json <<'JSON'
 JSON
 ```
 
-## 3. Run the tests
+## 3. 启动本轮验收
 
 ```bash
 python3 /root/DeepLinkEngine/run_all.py \
   --config /root/.deeplinkengine-validation/evaluation.json --rerun-b0
 ```
 
-The command prepares Python and the datasets, installs and verifies B1, and prepares the fixed B0 baseline. After preflight, it runs the paired tests and compute reference, then runs the built-in context and four-tenant tests and generates the reports. `--rerun-b0` measures B0 as part of this run. See the [one-click acceptance guide](one-click-validation.md) for the full stage breakdown.
+这条命令为 B1 准备独立 Python 环境、校验依赖并安装 SDK，也会在预检时从固定 OCI 镜像恢复或校验 B0 运行环境。预检通过后，脚本运行固定五项、算力参考、内置上下文和四租户测试，再生成报告。`--rerun-b0` 要求本轮重新测 B0。各阶段的内容见[一键验收说明](one-click-validation.md)。
 
-## 4. Review the results
+## 4. 查看结果
 
-- Stage status in `/root/.deeplinkengine-validation/run-01/results.json`
-- HTML report in `/root/.deeplinkengine-validation/run-01/full-report/report.html`
-- JSON summary in `/root/.deeplinkengine-validation/run-01/full-report/summary.json`
+- 阶段状态 `/root/.deeplinkengine-validation/run-01/results.json`
+- HTML 总报告 `/root/.deeplinkengine-validation/run-01/full-report/report.html`
+- JSON 汇总 `/root/.deeplinkengine-validation/run-01/full-report/summary.json`
