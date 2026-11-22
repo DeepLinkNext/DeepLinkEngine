@@ -217,7 +217,7 @@ def continue_closed(config, original, expected_seal, *, companion_source=None, c
         native_evidence = Evidence(original / 'native-timing', source.seal['native-timing/checksums.json'])
         retained = Evidence(companion_source, companion_seal)
         try:
-            preflight = prefix_preflight(native_evidence, retained)
+            preflight = prefix_preflight(native_evidence, retained, version=version)
         except OfficialDraftPrefixMismatch as error:
             # A counterexample needs no SDK installation, device inspection,
             # checkpoint reads, or new model calls. Passing this JSON check
