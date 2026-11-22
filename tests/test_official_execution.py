@@ -235,5 +235,55 @@ class ExecutionContextTests(unittest.TestCase):
             self.assertEqual(enter.call_args.args[0],sdk)
 
 
+@unittest.skipUnless(sys.platform=='linux', 'Directory-reference verification uses Linux procfs')
+class StaticUnderlayReferenceTests(unittest.TestCase):
+    def owner(self):
+        return dict(start_ticks=Path('/proc/self/stat').read_text().rsplit(')',1)[1].split()[19])
+
+    def context(self, root, reference):
+        info=root.stat()
+        return dict(root_dev_inode=[info.st_dev,info.st_ino],static_root_underlay=reference,
+                    execution_root_receipt=str(root.parent/'receipt.json'))
+
+    def test_read_reference_is_inherited_and_closed_on_exception(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);(root/'original').write_bytes(b'Original bytes');descriptor=None
+            with patch.object(execution,'context_identity',return_value=None):
+                with self.assertRaisesRegex(RuntimeError,'controlled'):
+                    with execution.preserve_static_root_view(root,self.owner()) as reference:
+                        descriptor=reference['descriptor'];self.assertTrue(os.get_inheritable(descriptor))
+                        with patch.object(execution,'context_identity',return_value=self.context(root,reference)):
+                            view=execution.static_root_view(root);self.assertEqual((view/'original').read_bytes(),b'Original bytes')
+                        raise RuntimeError('controlled exec failure')
+            with self.assertRaises(OSError):os.fstat(descriptor)
+
+    def test_owner_birth_mount_and_descriptor_are_checked(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory)
+            with patch.object(execution,'context_identity',return_value=None),execution.preserve_static_root_view(root,self.owner()) as original:
+                changes=[dict(owner_start_ticks='0'),dict(mount_id=original['mount_id']+1),dict(descriptor=999999),dict(owner_pid=1073741824)]
+                for changed in changes:
+                    with self.subTest(changed=changed),patch.object(execution,'context_identity',return_value=self.context(root,dict(original,**changed))):
+                        with self.assertRaises(ValueError):execution.static_root_view(root)
+
+    def test_closed_reference_and_legacy_context_fail_closed(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory)
+            with patch.object(execution,'context_identity',return_value=None):
+                with execution.preserve_static_root_view(root,self.owner()) as reference:pass
+            with patch.object(execution,'context_identity',return_value=self.context(root,reference)):
+                with self.assertRaisesRegex(ValueError,'underlay owner'):execution.static_root_view(root)
+            with patch.object(execution,'context_identity',return_value=self.context(root,None)):
+                with self.assertRaisesRegex(ValueError,'fresh context'):execution.static_root_view(root)
+
+    def test_replaced_current_root_cannot_fall_back_to_a_different_inode(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory)/'rootfs';root.mkdir();other=Path(directory)/'other';other.mkdir()
+            context=dict(root_dev_inode=[-1,-1],execution_root_receipt=str(root.parent/'receipt.json'))
+            with patch.object(execution,'context_identity',return_value=context):
+                with self.assertRaisesRegex(ValueError,'path no longer matches'):execution.static_root_view(root)
+                self.assertEqual(execution.static_root_view(other),other)
+
+
 if __name__ == '__main__':
     unittest.main()
