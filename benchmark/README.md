@@ -30,6 +30,8 @@ python run_all.py --config evaluation.json --rerun-b0
 
 ## 公开结果复核
 
+[B1 r10 原生 RMS 与连续写回候选的完整固定五项及两档 C8 结果](reports/r10-candidates-20261121/README.md)已收录，保留两份独立裁判记录和逐臂封存来源。
+
 | 任务 | 入口 | 输入及产出 |
 | --- | --- | --- |
 | 公开材料快速复核 | `python tools/review_results.py` | 仓库汇总和固定清单。输出五项吞吐、TTFT、TPOT、答题正确数和四组专项成本、利用率对照。 |
@@ -38,7 +40,7 @@ python run_all.py --config evaluation.json --rerun-b0
 | 从原始运行封存重新生成 4.2 汇总 | [固定五项摘要生成器](reports/r8-fixed-five-20261118/reproduce_publication.py) | 需要原始 `summary.json` 及它引用的封存目录，输出新生成的公开 JSON。 |
 | 从原始运行封存重新生成 4.3 和四租户汇总 | [上下文与四租户摘要生成器](reports/r8-context-tenant-20261119/reproduce_publication.py) | 需要原始专项 ZIP，输出 JSON 与配对曲线。 |
 
-公开复算入口使用 Python 3.11 及以上，无需加载模型。原始运行封存包含请求和响应，需要相应资料访问权限。公开摘要保留来源校验值。仓库的 benchmark 副本固定在[公开上游提交](https://github.com/vLLM-HUST/vllm-hust-benchmark/tree/4d539805a08268253719ec9894d86716b7290c34)，逐文件 SHA-256 见 [provenance.json](provenance.json)。
+公开复算入口使用 Python 3.11 及以上，无需加载模型。原始运行封存包含请求和响应，需要相应资料访问权限。公开摘要保留来源校验值。历史 benchmark 副本固定在[公开上游提交](https://github.com/vLLM-HUST/vllm-hust-benchmark/tree/4d539805a08268253719ec9894d86716b7290c34)，各副本的来源提交与 SHA-256 见 [provenance.json](provenance.json)。
 
 取得原始封存后，可从仓库根目录执行：
 
