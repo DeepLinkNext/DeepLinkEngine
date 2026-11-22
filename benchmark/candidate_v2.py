@@ -4,7 +4,7 @@ from math import isclose
 
 from benchmark.full_report import (
     COUNTS, MMLU_UNIT_COST_REDUCTION_MIN, PERFORMANCE_LIMITS, QUALITY_TRACKS,
-    cost_per_million, coverage, decimal_text, number, performance_clears, performance_ratios,
+    context_decisions, cost_decisions, cost_per_million, coverage, decimal_text, number, performance_clears, performance_ratios,
     published_rental, quality_gates, reduction,
 )
 
@@ -279,7 +279,39 @@ def assess_cost(archive, accelerator_count, speed, fixed_b0, original=None):
     }
 
 
-def assess(archive, selection, fixed_b0, priority_source=None, original=None):
+def attach_context(indicators, observed, archive, fixed_b0):
+    baseline = fixed_b0["context"]
+    paired = observed["paired"]
+    if (observed.get("schema") != "deeplinkengine-r10-v2-context-projection/v1"
+            or observed["release"] != archive["release"]
+            or observed["input_sha256"] != baseline["input_sha256"]
+            or paired["arm_seals"]["B0"] != baseline["seal_sha256"]
+            or observed["datasets"] != baseline["workload"]["datasets"]
+            or [row["phase"] for row in paired["comparison"]] != baseline["phases"]):
+        raise ValueError("Real-context evidence differs from the archived candidate or frozen B0 contract")
+    context = context_decisions(paired, observed["audit"])
+    indicators["4.3"].update(
+        available="固定 B0 和所选候选均已有 Terminal-Bench 2.1 真实 4K、16K、32K 与四租户 C24 封存。",
+        milestone=verdict(context["milestone"]["met"], context["milestone"]["reason"]),
+        final=verdict(context["final"]["met"], context["final"]["reason"]),
+        paired=paired,
+        physical_cards=observed["physical_cards"],
+        candidate_runtime=observed["candidate_runtime"],
+        measured_ratios=context["measured_ratios"],
+        measured_window_ratios=context["measured_window_ratios"],
+        blocking_errors=context["blocking_errors"],
+    )
+    costs = cost_decisions({}, {}, paired, observed["audit"], None)
+    tenant = costs["formal_cost"]["four_tenant"]
+    indicators["4.4"].update(
+        four_tenant={"arms": tenant["arms"], "utilization": tenant["utilization"],
+                     "unit_cost_reduction_percent": costs["four_tenant_cost_reduction_percent"],
+                     "ai_core_mean_percent": costs["four_tenant_ai_core_mean_percent"]},
+        final=verdict(costs["final"]["met"], costs["final"]["reason"]),
+    )
+
+
+def assess(archive, selection, fixed_b0, priority_source=None, original=None, context=None):
     recovered = recover_priority_tracks(archive, priority_source) if priority_source is not None else {}
     quality, proof = grade_details(archive, recovered)
     if original is not None:
@@ -305,6 +337,8 @@ def assess(archive, selection, fixed_b0, priority_source=None, original=None):
         },
         "4.4": assess_cost(archive, selection["accelerator_count"], speed, fixed_b0, original),
     }
+    if context is not None:
+        attach_context(indicators, context, archive, fixed_b0)
     for row in indicators.values():
         milestone, final = row["milestone"], row["final"]
         states = {milestone["status"], final["status"]}
