@@ -23,6 +23,7 @@ PROFILES = {
 ARM_NAMES = {"B0": "固定 B0 0.18", "r10_original": "原始 r10",
              "native_rms": "原生 RMS（封存对照）", "candidate": "所选候选"}
 FIXED_B0_V2 = "evidence/r10-fixed-b0-v2.json"
+ORIGINAL_AUDIT = "evidence/r10-original-evidence-audit-v1.json"
 VERDICTS = {"met": "达成", "not_met": "未达成", "missing_evidence": "证据不足"}
 
 
@@ -87,8 +88,14 @@ def collect(version):
     baseline = read_bound_json(baseline_binding, "evidence")
     quality_binding = pins[binding["quality_source"]] if "quality_source" in binding else None
     priority = read_bound_json(quality_binding, "benchmark/reports") if quality_binding else None
-    targets = assess(archive, binding["candidate"], baseline, priority)
+    audit_binding = pins[ORIGINAL_AUDIT]
+    audit = read_bound_json(audit_binding, "evidence")
+    if audit.get("schema") != "deeplinkengine-r10-original-evidence-audit/v1":
+        raise ValueError("Unknown r10 original evidence audit schema")
+    original = audit["candidates"][binding["candidate"]["version"]]
+    targets = assess(archive, binding["candidate"], baseline, priority, original)
     assessment_sources = {"fixed_b0": {**source_identity(baseline_binding), "projection_inputs": baseline["sources"]}}
+    assessment_sources["original_evidence_audit"] = source_identity(audit_binding)
     if quality_binding:
         assessment_sources["priority_grades"] = source_identity(quality_binding)
     roles = tuple(archive["measurements"]["mmlu"])
@@ -142,7 +149,7 @@ def v2_html(data):
     for indicator, assessment in assessments.items():
         for level, label in (("milestone", "里程碑"), ("final", "结题")):
             result = assessment[level]
-            status = status_text(result) + ("（封存汇总）" if indicator == "4.2" else "")
+            status = status_text(result)
             targets.append((f"{indicator} {LABELS[indicator]}", label, status,
                             assessment.get("available", "两臂固定五项的封存汇总及对应判分。"), result["reason"]))
 
@@ -161,7 +168,9 @@ def v2_html(data):
                            status_text(row["milestone"]), row["milestone"]["reason"],
                            status_text(row["final"]), row["final"]["reason"]))
 
-    missing = "".join(f"<li>{html.escape(item)}</li>" for item in speed["raw_missing"])
+    audit_note = f'<p>{html.escape(speed["raw_reaudit"]["reason"])}</p>'
+    if speed["raw_missing"]:
+        audit_note += "<ul>" + "".join(f"<li>{html.escape(item)}</li>" for item in speed["raw_missing"]) + "</ul>"
     costs = assessments["4.4"]
     rent = costs["published_rental"]
     cost_rows = []
@@ -178,7 +187,8 @@ def v2_html(data):
     savings = float(costs["mmlu_full_answers"]["unit_cost_reduction_percent"])
     cost_gate = status_text(costs["mmlu_full_answers"]["cost_gate"])
     labels = {"fixed_b0": "固定 B0 V2 封存", "matched_mmlu_utilization": "同封存 MMLU-Pro 双卡采样",
-              "context_workloads": "真实上下文数据集来源", "priority_grades": "原生 RMS 同轮裁判分层对照"}
+              "context_workloads": "真实上下文数据集来源", "priority_grades": "原生 RMS 同轮裁判分层对照",
+              "original_evidence_audit": "固定五项与同窗 AI Core 原件复算"}
     links = []
     for kind, source in data["assessment_sources"].items():
         origins = source.get("projection_inputs") or {kind: {"url": source["source"], "sha256": source["sha256"]}}
@@ -192,7 +202,7 @@ def v2_html(data):
 结题要求吞吐≥2×、平均 TTFT/TPOT 各≤0.80×。分数按固定计划分母，未决计非成功。</p>
 {table(("数据集", "吞吐 B1/B0", "平均 TTFT B1/B0", "平均 TPOT B1/B0", "质量门槛及降幅",
         "里程碑", "里程碑依据", "结题", "结题依据"), speed_rows)}
-<p>4.2 判定以已校验的封存汇总为依据。完整送测原件的独立复审仍缺</p><ul>{missing}</ul>
+{audit_note}
 <h3>4.4 按公开租金折算</h3>
 <p><a href="{html.escape(rent["source_url"], quote=True)}">{html.escape(rent["publisher"])}公开报价</a>
  · {rent["server_monthly_price"]:,} 元/{rent["cards_per_server"]} 卡月，折 {float(rent["monthly_cost_per_card_cny"]):,.0f}
