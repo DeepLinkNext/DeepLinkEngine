@@ -204,7 +204,7 @@ class BuildContextTests(unittest.TestCase):
             def initial(blob,output):
                 output.mkdir();(output/'rootfs').mkdir();(output/'receipt.json').write_text('{}')
                 return output/'rootfs'
-            with patch('baseline_setup.fetch',return_value=root/'layer'),patch.object(execution,'prepare_root',side_effect=initial), \
+            with patch('benchmark.baseline_setup.fetch',return_value=root/'layer'),patch.object(execution,'prepare_root',side_effect=initial), \
                  patch.object(build,'provision_protobuf',side_effect=RuntimeError('controlled package failure')):
                 with self.assertRaisesRegex(RuntimeError,'controlled package failure'):build.ensure(sdk)
             contexts=root/'execution-contexts'

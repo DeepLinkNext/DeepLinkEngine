@@ -1,4 +1,4 @@
-from release_selection import kit_path, runtime_lock, profile as selected_profile
+from engine.release_selection import kit_path, runtime_lock, profile as selected_profile
 """Install a selected stable engine and run fixed-five and context/tenant tests."""
 import argparse
 import json
@@ -22,7 +22,7 @@ def configuration(path, *, allow_existing=False, report_only=False):
     data = json.loads(path.read_bytes())
     if not isinstance(data, dict) or (not report_only and set(data) - FIELDS):
         raise ValueError("Use the fields in benchmark/run-all.example.json")
-    from release_selection import archived_candidate, is_stable_version_name, reject_candidate_for_execution
+    from engine.release_selection import archived_candidate, is_stable_version_name, reject_candidate_for_execution
 
     version = data.get("engine_version")
     if report_only:
@@ -52,7 +52,7 @@ def configuration(path, *, allow_existing=False, report_only=False):
             or any(type(x) is not int or x < 0 for x in pair) or pair[0] == pair[1]):
             raise ValueError(name + " requires two distinct non-negative integers")
     if "environment" in data:
-        from environment_setup import OPTIONS
+        from engine.environment_setup import OPTIONS
         options = data["environment"]
         if not isinstance(options, dict) or set(options) - OPTIONS:
             raise ValueError("environment accepts only python, wheelhouse, cann_home and official_sdk")
@@ -62,7 +62,7 @@ def configuration(path, *, allow_existing=False, report_only=False):
             if name != "python" or "/" in value or "\\" in value:
                 options[name] = str((path.parent / Path(value).expanduser()).resolve())
     if "rerun_b0" in data:
-        from b0_run_policy import boolean
+        from benchmark.b0_run_policy import boolean
         boolean(data["rerun_b0"])
     if "allow_device_change" in data and type(data["allow_device_change"]) is not bool:
         raise ValueError("allow_device_change requires a boolean")
@@ -149,7 +149,7 @@ def before_model_resume(data, *, allow_model_startup=False):
 
 def recovery_environment(data, *, source=None, source_cache=None):
     """Reuse the installation's private interpreter after fresh version/file probes."""
-    from environment_setup import cann_environment, probe, differences, compatible_python, vendor_integrity, runtime_imports
+    from engine.environment_setup import cann_environment, probe, differences, compatible_python, vendor_integrity, runtime_imports
     out = Path(source or data["out"])
     if (out / "installation/installation.json").is_file():
         info = json.loads((out / "installation/installation.json").read_text())
@@ -157,12 +157,12 @@ def recovery_environment(data, *, source=None, source_cache=None):
     else:
         info = json.loads((out / "environment.json").read_text())
         python = Path(info["after"]["python"]).absolute()
-    from python_storage import admitted, ensure as restore_python
+    from engine.python_storage import admitted, ensure as restore_python
     if not admitted(python, source_cache or data["cache"]):
         raise ValueError("Recovery requires the installation's private interpreter")
     restore_python(python.parent.parent)
     if not (python.parent.parent / "pyvenv.cfg").is_file():
-        from environment_setup import ensure_environment
+        from engine.environment_setup import ensure_environment
         return ensure_environment(data)
     lock = runtime_lock(ROOT)
     env, _ = cann_environment(data.get("environment", {}))
@@ -204,7 +204,7 @@ def completed_evidence(out):
     campaign = json.loads((out / "fixed-five/campaign.json").read_text())
     execution = json.loads((out / "context-tenant/execution.json").read_text())
     pair = json.loads((out / "context-tenant/paired-summary.json").read_text())
-    from full_report import completed_context_after_error, context_sources
+    from benchmark.full_report import completed_context_after_error, context_sources
     report_failed = completed_context_after_error(execution, pair)
     phases = [row["phase"] for row in pair["comparison"]]
     if (campaign["status"] != "completed" or campaign["selected_execution_complete"] is not True
@@ -251,10 +251,13 @@ def qualified_reference(campaign):
 def full_report_command(out, destination=None, actual_cost=None):
     command="""import subprocess,sys
 from pathlib import Path
-root=Path(sys.argv[1]);sys.path.insert(0,str(__import__('release_selection').kit_path()/'scripts'))
+root=Path(sys.argv[1])
+sys.path.insert(0,str(root))
+from engine.release_selection import kit_path
+sys.path.insert(0,str(kit_path()/'scripts'))
 from report_environment import report_python
 python,env=report_python()
-raise SystemExit(subprocess.run([str(python),'-B',str(root/'full_report.py'),'--run',sys.argv[2],'--out',sys.argv[3],*sys.argv[4:]],env=env).returncode)
+raise SystemExit(subprocess.run([str(python),'-B',str(root/'benchmark/full_report.py'),'--run',sys.argv[2],'--out',sys.argv[3],*sys.argv[4:]],env=env).returncode)
 """
     args = [sys.executable, '-c', command, str(ROOT), str(out), str(destination or out/'full-report')]
     if actual_cost is not None:
@@ -281,7 +284,7 @@ def completed_run_source(data, source):
             detail += f" (original {before.get('physical_devices')}, current {after.get('physical_devices')}; explicit device-change admission is required)"
         raise ValueError("Reuse workload or runtime configuration differs: " + detail)
     sys.path.insert(0, str(kit_path() / "scripts"))
-    from recovery_source import stopped
+    from benchmark.recovery_source import stopped
     interruption = stopped(source, prior)
     from reuse_campaign import source as audit_source, audit_stage
     print("RECOVERY_AUDIT campaign", source / "fixed-five", flush=True)
@@ -289,7 +292,7 @@ def completed_run_source(data, source):
     if campaign.get("status") not in ("failed", "completed"):
         raise ValueError("Reuse campaign is not sealed and stopped")
     names = [row["name"] for row in campaign["stages"] if row["status"] == "completed"]
-    from release_selection import active
+    from engine.release_selection import active
     selected = active()
     previous_selection = prior.get("engine_selection") or {}
     if (source / "engine-selection.json").is_file():
@@ -360,7 +363,7 @@ def run(data, *, prepare_protocol_only=False, prepare_official_protocol_only=Fal
     out.mkdir(parents=True, exist_ok=reuse_installation)
     installation = out / "installation"
     cli = str(Path(sysconfig.get_path("scripts")) / "vllm-hust-engine")
-    from recovery_source import process_identity
+    from benchmark.recovery_source import process_identity
     receipt = {"status": "running", "stages": [], "configuration": data, "automated_acceptance_complete": False, "baseline_policy": {"rerun_b0": data.get("rerun_b0", False)}, "controller_owner": process_identity()}
     if reused_run:
         receipt["reused_run"] = reused_run
@@ -381,12 +384,12 @@ def run(data, *, prepare_protocol_only=False, prepare_official_protocol_only=Fal
                     (out / name).rename(original / name)
             receipt["previous_attempts"][-1]["campaign_directory"] = str(original.relative_to(out))
 
-    from release_selection import selected_client
+    from engine.release_selection import selected_client
     if selected_client():
         receipt['assessment_client'] = selected_client()
     if os.environ.get('DEEPLINKENGINE_SDK_RECOVERY'):
         receipt['sdk_bytecode_recovery'] = json.loads(os.environ['DEEPLINKENGINE_SDK_RECOVERY'])
-    from native_sdk_controller import ENV as native_marker
+    from engine.native_sdk_controller import ENV as native_marker
     if os.environ.get(native_marker):receipt['native_controller_handoff']=json.loads(os.environ[native_marker])
     environment_report = os.environ.get("DEEPLINKENGINE_ENVIRONMENT_REPORT")
     if environment_report:
@@ -394,7 +397,7 @@ def run(data, *, prepare_protocol_only=False, prepare_official_protocol_only=Fal
         shutil.copyfile(environment_report, out / "environment.json")
         receipt["environment"] = {"path": "environment.json", "sha256": hashlib.sha256((out / "environment.json").read_bytes()).hexdigest()}
 
-    from release_selection import save as save_selection, active as active_selection
+    from engine.release_selection import save as save_selection, active as active_selection
     save_selection(out)
     receipt["engine_selection"] = active_selection()
 
@@ -422,7 +425,7 @@ def run(data, *, prepare_protocol_only=False, prepare_official_protocol_only=Fal
                       status="completed" if result.returncode == 0 else "failed")
         save()
         if result.returncode > 0 and name == "run-context-tenant":
-            from full_report import completed_context_after_error
+            from benchmark.full_report import completed_context_after_error
             folder = out / "context-tenant"
             path, summary = folder / "execution.json", folder / "paired-summary.json"
             if path.is_file() and summary.is_file():
@@ -458,15 +461,15 @@ def run(data, *, prepare_protocol_only=False, prepare_official_protocol_only=Fal
             receipt["runtime_dependencies"] = dict(path="runtime-dependencies.json",
                 sha256=hashlib.sha256((out / "runtime-dependencies.json").read_bytes()).hexdigest())
             save()
-        from python_storage import admitted, ensure as local_python
+        from engine.python_storage import admitted, ensure as local_python
         if admitted(Path(sys.executable),data["cache"]):
             managed=local_python(Path(sys.executable).parent.parent,allow_current=True)
-            from python_storage import marker as python_storage_marker
+            from engine.python_storage import marker as python_storage_marker
             if python_storage_marker(managed).is_file():
                 receipt["python_storage"] = json.loads(python_storage_marker(managed).read_text())
                 save()
         stage("verify-engine", [cli, "verify"])
-        runtime_command = [sys.executable, str(ROOT / "runtime_storage.py"), "--out", str(installation)]
+        runtime_command = [sys.executable, str(ROOT / "engine/runtime_storage.py"), "--out", str(installation)]
         if reuse_installation:
             runtime_command.append("--reuse")
         if reused_run and prior is None:
@@ -617,7 +620,7 @@ def historical_engine(source):
 
 def select_run_engine(data, *, recovery=False, reuse_completed_run=None):
     """Freeze a new target once; in-place recovery retains its original target."""
-    from release_selection import select, bind
+    from engine.release_selection import select, bind
     saved = Path(data["out"]) / "engine-selection.json"
     if recovery or (reuse_completed_run and not data.get("engine_version")):
         if reuse_completed_run:
@@ -691,7 +694,7 @@ def main():
             if "engine_version" in data:
                 if args.rerun_b0 is not None or args.actual_cost or data.get("actual_cost"):
                     raise ValueError("Archived candidate reporting accepts only its version and output directory")
-                from full_report import main as report_main
+                from benchmark.full_report import main as report_main
 
                 return report_main(["--engine-version", data["engine_version"], "--out", str(data["out"])])
         configured_cost = data.pop("actual_cost", None)
@@ -701,7 +704,7 @@ def main():
             if not actual_cost.is_file():
                 raise ValueError("Actual cost manifest is not a file: " + str(actual_cost))
             if not args.report_only and not args.prepare_environment and not args.prepare_protocol_only and not args.prepare_official_protocol_only:
-                from full_report import actual_cost_inputs
+                from benchmark.full_report import actual_cost_inputs
                 actual_cost_inputs(actual_cost)
         if args.prepare_official_protocol_only and not data.get('environment',{}).get('official_sdk'):
             raise ValueError('Official input preparation requires the publicly prepared environment.official_sdk anchor')
@@ -712,10 +715,10 @@ def main():
             if recovery:
                 os.environ['DEEPLINKENGINE_SDK_RECOVERY'] = json.dumps(recovery)
         if data.get('environment', {}).get('official_sdk') and not args.report_only:
-            from native_sdk_controller import maybe_enter as native_controller
+            from engine.native_sdk_controller import maybe_enter as native_controller
             native_controller(data['environment']['official_sdk'],ROOT/'run_all.py',sys.argv[1:],cache=data['cache'])
         if data.get('environment', {}).get('official_sdk') and needed():
-            from transport_trust import configure
+            from engine.transport_trust import configure
             configure(data['cache'], data['environment']['official_sdk'])
         maybe_enter_config(args.config, sys.argv[1:])
         if args.rerun_b0 is not None:
@@ -724,7 +727,7 @@ def main():
         os.environ["MPLCONFIGDIR"] = os.environ.get("MPLCONFIGDIR") or str(Path(os.environ["XDG_CACHE_HOME"]) / "matplotlib")
         if args.report_only:
             out = Path(data["out"])
-            from release_selection import bind
+            from engine.release_selection import bind
             if (out / 'engine-selection.json').is_file():
                 bind(out / 'engine-selection.json')
             destination = out / ("full-report-" + uuid.uuid4().hex)
@@ -733,13 +736,13 @@ def main():
         if (args.reuse_completed_campaign or args.reuse_mmlu_baseline_arm or args.reuse_context_baseline_arm or args.reuse_compute_baseline_arm or args.reuse_compute_observation) and not (args.reuse_completed_run or recovery):
             raise ValueError('Additional sealed sources require explicit completed-run recovery')
         if not args.prepare_environment and not args.prepare_protocol_only and not args.prepare_official_protocol_only:
-            from b0_run_policy import full_entry_policy
+            from benchmark.b0_run_policy import full_entry_policy
             args.reuse_context_baseline_arm, args.reuse_compute_baseline_arm = full_entry_policy(
                 data, prior=args.reuse_completed_run, context=args.reuse_context_baseline_arm,
                 compute=args.reuse_compute_baseline_arm, recovery=recovery)
         select_run_engine(data, recovery=recovery, reuse_completed_run=args.reuse_completed_run)
         if not args.prepare_environment:
-            from release_selection import ensure_metadata_client
+            from engine.release_selection import ensure_metadata_client
             ensure_metadata_client(data['cache'])
         if sum((args.resume_bootstrap,args.resume_before_model,args.resume_before_inference))>1:
             raise ValueError("Choose only one recovery mode")
@@ -753,7 +756,7 @@ def main():
             before_model_resume(data,allow_model_startup=args.resume_before_inference)
         if args.resume_bootstrap:
             bootstrap_resume(data)
-        from environment_setup import ensure_environment
+        from engine.environment_setup import ensure_environment
         if args.reuse_completed_run:
             source = args.reuse_completed_run.resolve()
             saved_configuration = json.loads((source / "results.json").read_bytes()).get("configuration", {})

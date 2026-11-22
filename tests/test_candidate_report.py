@@ -13,8 +13,8 @@ from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
-import candidate_report
-import release_selection
+from benchmark import candidate_report
+from engine import release_selection
 
 
 CPU_ENTRY = """
@@ -121,7 +121,7 @@ class CandidateReportTests(unittest.TestCase):
         out.mkdir()
         marker = out / "keep.txt"
         marker.write_text("keep", encoding="utf-8")
-        result = self.invoke("full_report.py", "--engine-version", "r10-native-rms", "--out", out)
+        result = self.invoke("benchmark/full_report.py", "--engine-version", "r10-native-rms", "--out", out)
         self.assertEqual(result.returncode, 2, result.stderr)
         self.assertEqual(marker.read_text(encoding="utf-8"), "keep")
         self.assertEqual(list(out.iterdir()), [marker])

@@ -98,7 +98,7 @@ class WorkflowTests(unittest.TestCase):
                 return types.SimpleNamespace(returncode=7)
             return result
 
-        with patch('full_report.context_sources') as admit:
+        with patch('benchmark.full_report.context_sources') as admit:
             code, receipt = self.invoke(execute)
         admit.assert_called_once()
         self.assertEqual(code, 0)
@@ -166,7 +166,7 @@ class WorkflowTests(unittest.TestCase):
         expense.write_text(json.dumps(dict(schema='deeplinkengine-v2-actual-card-cost/v1',
                                           scenarios={'mmlu': scenario})))
         with patch.object(sys, 'argv', command), patch.object(workflow, 'select_run_engine'), \
-             patch('environment_setup.ensure_environment', return_value=None), patch.object(workflow, 'preflight'), \
+             patch('engine.environment_setup.ensure_environment', return_value=None), patch.object(workflow, 'preflight'), \
              patch.dict(workflow.os.environ, {}), patch.object(workflow, 'run', return_value=0) as run:
             self.assertEqual(workflow.main(), 0)
         self.assertEqual(run.call_args.kwargs['actual_cost'], expense)
@@ -178,11 +178,11 @@ class WorkflowTests(unittest.TestCase):
         installed = out/'installation/installation.json'
         installed.write_text(json.dumps(dict(package_version='9.42', release='recorded-B1')))
         data = dict(self.data, out=str(out))
-        with patch('release_selection.select', return_value={'version':'9.42','release':'recorded-B1'}) as select:
+        with patch('engine.release_selection.select', return_value={'version':'9.42','release':'recorded-B1'}) as select:
             self.assertEqual(workflow.select_run_engine(data, recovery=True)['version'], '9.42')
         select.assert_called_once_with(data['cache'], version='9.42')
         installed.write_text('{}')
-        with patch('release_selection.select') as select, self.assertRaisesRegex(ValueError, 'missing from preserved'):
+        with patch('engine.release_selection.select') as select, self.assertRaisesRegex(ValueError, 'missing from preserved'):
             workflow.select_run_engine(data, recovery=True)
         select.assert_not_called()
 
@@ -194,10 +194,10 @@ class WorkflowTests(unittest.TestCase):
                 engine_selection=dict(version='1'))))
         names = ('continuous-B0', 'continuous-B1', 'mmlu-pair', 'hle-judge-B0')
         campaign = dict(status='completed', stages=[dict(name=n, status='completed') for n in names])
-        with patch('recovery_source.stopped'), patch('reuse_campaign.source',
+        with patch('benchmark.recovery_source.stopped'), patch('reuse_campaign.source',
                 return_value=(None, {'engine_release':'B1-old'}, campaign, {})), \
              patch('reuse_campaign.audit_stage') as audit, \
-             patch('release_selection.active', return_value={'release':'B1-new','version':'2','client':None}):
+             patch('engine.release_selection.active', return_value={'release':'B1-new','version':'2','client':None}):
             result = workflow.completed_run_source(self.data, source)
         self.assertEqual(result['completed_stages'], ['continuous-B0', 'mmlu-pair'])
         audit.assert_called_once_with(source/'fixed-five', 'continuous-B0')
@@ -212,11 +212,11 @@ class WorkflowTests(unittest.TestCase):
         python.parent.mkdir(parents=True)
         (python.parent.parent/'pyvenv.cfg').touch()
         (install/'installation.json').write_text(json.dumps(dict(python=str(python))))
-        with patch('python_storage.admitted', return_value=True) as admitted, \
-             patch('python_storage.ensure'), patch('environment_setup.cann_environment', return_value=({}, None)), \
-             patch('environment_setup.probe', return_value={}), patch('environment_setup.compatible_python', return_value=True), \
-             patch('environment_setup.differences', return_value=[]), patch('environment_setup.vendor_integrity', return_value={'verified':True}), \
-             patch('environment_setup.runtime_imports'), patch.object(sys, 'executable', str(python)):
+        with patch('engine.python_storage.admitted', return_value=True) as admitted, \
+             patch('engine.python_storage.ensure'), patch('engine.environment_setup.cann_environment', return_value=({}, None)), \
+             patch('engine.environment_setup.probe', return_value={}), patch('engine.environment_setup.compatible_python', return_value=True), \
+             patch('engine.environment_setup.differences', return_value=[]), patch('engine.environment_setup.vendor_integrity', return_value={'verified':True}), \
+             patch('engine.environment_setup.runtime_imports'), patch.object(sys, 'executable', str(python)):
             self.assertIsNone(workflow.recovery_environment(self.data, source=source, source_cache=str(cache)))
         admitted.assert_called_once_with(python, str(cache))
         self.assertFalse((source/'environment-recovery.json').exists())
@@ -261,7 +261,7 @@ class WorkflowTests(unittest.TestCase):
                 return self.execute([*args,'run'],**kwargs)
             return self.execute(args,**kwargs)
         with patch.object(workflow,'completed_run_source',return_value=dict(root=str(source),completed_stages=['continuous-B0'])), \
-             patch('release_selection.active',return_value=dict(version='new',client=None,engine_profile='r9')),patch('release_selection.save'), \
+             patch('engine.release_selection.active',return_value=dict(version='new',client=None,engine_profile='r9')),patch('engine.release_selection.save'), \
              patch('one_click.configuration_arguments',return_value=['--datasets','mmlu,hle,frontier,swe,terminal']), \
              patch('one_click.verify_kit'),patch('child_runner.run_stage',side_effect=execute), \
              contextlib.redirect_stdout(io.StringIO()):
@@ -545,8 +545,8 @@ class WorkflowTests(unittest.TestCase):
                         selected.append(report_environment.report_python()[0])
                     return None
                 with patch.object(workflow,'configuration',return_value=self.data),patch.object(workflow,'preflight'), \
-                     patch('release_selection.select',return_value=None), \
-                     patch('environment_setup.ensure_environment',side_effect=prepare), \
+                     patch('engine.release_selection.select',return_value=None), \
+                     patch('engine.environment_setup.ensure_environment',side_effect=prepare), \
                      patch.object(sys,'argv',['run_all.py','--config','unused.json','--prepare-environment']), \
                      contextlib.redirect_stdout(io.StringIO()):
                     self.assertEqual(workflow.main(),0)

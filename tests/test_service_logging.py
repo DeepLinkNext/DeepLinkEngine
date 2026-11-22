@@ -15,7 +15,7 @@ sys.path.insert(0, str(ROOT))
 from official import enable_module_imports
 
 enable_module_imports()
-import service_logging as adapter
+from engine import service_logging as adapter
 
 URL = ('https://raw.githubusercontent.com/vllm-project/vllm-ascend/'
        'c09d3e20b9c45c80b34ae3781440d90904a44023/vllm_ascend/logger.py')
@@ -84,7 +84,7 @@ class LoggingTests(unittest.TestCase):
         result = self.child("""
 import sys,os,json,logging
 from pathlib import Path
-sys.path.insert(0,sys.argv[1]);import service_logging as a
+sys.path.insert(0,sys.argv[1]);from engine import service_logging as a
 home=os.environ.get('HOME');before=set(sys.modules);p=a.prepare(sys.argv[2],sys.argv[3],os.environ)
 assert not {'vllm','torch','vllm_ascend'} & (set(sys.modules)-before)
 finder=a.install(p);assert 'vllm' not in sys.modules
@@ -127,7 +127,7 @@ assert not any(isinstance(x,logging.StreamHandler) and not isinstance(x,logging.
         result = self.child("""
 import sys,os,marshal,logging
 from pathlib import Path
-sys.path.insert(0,sys.argv[1]);import service_logging as a
+sys.path.insert(0,sys.argv[1]);from engine import service_logging as a
 p=a.prepare(sys.argv[2],sys.argv[3],os.environ);a.install(p)
 import vllm_ascend.logger as v
 exec(marshal.loads((Path(sys.argv[3])/'platform-logging.marshal').read_bytes()),vars(v))
@@ -157,7 +157,7 @@ assert 'actual platform console and file' in Path(v._file_handler.baseFilename).
         self.child("""
 import sys,os
 from pathlib import Path
-sys.path.insert(0,sys.argv[1]);import service_logging as a
+sys.path.insert(0,sys.argv[1]);from engine import service_logging as a
 p=a.prepare(sys.argv[2],sys.argv[3],os.environ)
 source=Path(p['vendor_source']);source.write_bytes(source.read_bytes()+b'\\n')
 try:a.install(p)
@@ -173,7 +173,7 @@ else:raise AssertionError('late hook accepted')
         self.child("""
 import sys,os,types,json
 from pathlib import Path
-sys.path.insert(0,sys.argv[1]);import service_logging as a
+sys.path.insert(0,sys.argv[1]);from engine import service_logging as a
 p=a.prepare(sys.argv[2],sys.argv[3],os.environ);finder=a.install(p)
 package=types.ModuleType('vllm_ascend');package.__path__=[str(Path(sys.argv[3])/'absent')]
 sys.modules['vllm_ascend']=package
@@ -192,7 +192,7 @@ def child(pipe):
  pipe.send(dict(hooks=[type(x).__name__ for x in sys.meta_path],xdg=os.environ['XDG_CONFIG_HOME']))
  pipe.close()
 if __name__=='__main__':
- sys.path.insert(0,sys.argv[1]);import service_logging as a
+ sys.path.insert(0,sys.argv[1]);from engine import service_logging as a
  p=a.prepare(sys.argv[2],sys.argv[3],os.environ);a.install(p)
  ctx=multiprocessing.get_context('spawn');receive,send=ctx.Pipe(False)
  process=ctx.Process(target=child,args=(send,));process.start();send.close()
@@ -249,10 +249,10 @@ assert json.loads((out/'actual-package-imports.json').read_bytes())['logging_ada
         self.env['VLLM_PLUGINS'] = 'cpu-only'
         plan = adapter.prepare(self.sdk, self.out, self.env)
         plan.update(child=str(child.resolve()), child_sha256=adapter.digest(child),
-                    entry_sha256=adapter.digest(ROOT/'logging_entry.py'))
+                    entry_sha256=adapter.digest(ROOT/'engine/logging_entry.py'))
         path=self.out/'service-logging-plan.json';adapter.save(path, plan)
         service=self.out/'plan.json';service.write_text(json.dumps(dict(output=str(self.out),expected_versions=dict(vllm='pinned',vllm_ascend='1.0'))))
-        result=subprocess.run([sys.executable,'-B',str(ROOT/'logging_entry.py'),str(path),'--',str(child),str(service),'serve','/cpu-only'],env=self.env,capture_output=True,text=True,timeout=30)
+        result=subprocess.run([sys.executable,'-B',str(ROOT/'engine/logging_entry.py'),str(path),'--',str(child),str(service),'serve','/cpu-only'],env=self.env,capture_output=True,text=True,timeout=30)
         self.assertEqual(result.returncode,0,result.stdout+result.stderr)
         receipt=json.loads(Path(plan['receipt']).read_bytes())
         self.assertEqual(receipt['state'],'applied')

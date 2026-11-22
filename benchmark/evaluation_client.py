@@ -12,7 +12,7 @@ import shutil
 import tarfile
 import tempfile
 
-ROOT = Path(__file__).resolve().parent
+ROOT = Path(__file__).resolve().parents[1]
 ADMISSION = ('model_adapter.py', 'runtime_geometry.py', 'runtime_overlay.py',
              'restore_b1_r4.py', 'capacity_snapshot.py', 'project_evidence.py',
              'serving_warmup.py', 'completion_warmup.py')
@@ -36,7 +36,7 @@ def verify(record):
     if any(p.is_symlink() for p in root.rglob('*')) or inventory(root) != data['files']:
         raise ValueError('Selected evaluation client source inventory changed')
     if data.get('cpu_metadata_admission'):
-        from sdk_dependency_probe import derive
+        from engine.sdk_dependency_probe import derive
         _, expected = derive((root / 'scripts/dependency_admission.py').read_bytes())
         declared = data['cpu_metadata_admission']
         if (declared != json.loads((root / 'adapters/sdk-metadata-admission.json').read_bytes())
@@ -275,7 +275,7 @@ def validate(prior, args, current):
 
 def native_baseline_bridge(result):
     """Keep the original B0 native clocks when only the optimized arm changes."""
-    result['scripts/reference_baseline_reuse.py'] = (ROOT / 'reference_baseline_reuse.py').read_bytes()
+    result['scripts/reference_baseline_reuse.py'] = Path(__file__).with_name('reference_baseline_reuse.py').read_bytes()
     key = 'scripts/third_party.py'
     text = result[key].decode()
     text = once(text, '    parser.add_argument("--reference-qualification-source", type=Path,',
@@ -344,7 +344,7 @@ def native_baseline_bridge(result):
 
 def warmup_memory_bridge(result):
     """Release bounded cache pressure before any warmup or formal request."""
-    result['scripts/warmup_memory_recovery.py'] = (ROOT / 'warmup_memory_recovery.py').read_bytes()
+    result['scripts/warmup_memory_recovery.py'] = Path(__file__).with_name('warmup_memory_recovery.py').read_bytes()
     key = 'scripts/checkpoint_cache.py'
     text = result[key].decode()
     text = once(text,
@@ -375,7 +375,7 @@ def warmup_memory_bridge(result):
     # Raw pressure can exhaust the driver's pinned allocator while the original
     # cache-adjusted working-set gate still passes. Return only our optional
     # startup pages early; retain every original memory and OOM check.
-    result['scripts/startup_memory_recovery.py'] = (ROOT / 'startup_memory_recovery.py').read_bytes()
+    result['scripts/startup_memory_recovery.py'] = Path(__file__).with_name('startup_memory_recovery.py').read_bytes()
     key = 'scripts/run_b1_r4.py'
     text = result[key].decode()
     anchor = '    # A later warmup still requires the original raw-headroom admission, even\n'
@@ -415,7 +415,7 @@ def campaign_pair_weights_bridge(result):
 
 def b0_run_policy_bridge(result):
     """Default to sealed fixed-B0 reuse at every model-launch boundary."""
-    result['scripts/b0_run_policy.py'] = (ROOT / 'b0_run_policy.py').read_bytes()
+    result['scripts/b0_run_policy.py'] = Path(__file__).with_name('b0_run_policy.py').read_bytes()
     key = 'scripts/third_party.py'
     text = result[key].decode()
     text = once(text, '        composed_pairs = [stage for stage in stages if stage["name"] == "mmlu-pair"',
@@ -442,7 +442,7 @@ def b0_run_policy_bridge(result):
 
 def device_change_bridge(result):
     """Bind changed physical pairs while retaining each original measurement."""
-    result['scripts/device_reuse.py'] = (ROOT / 'device_reuse.py').read_bytes()
+    result['scripts/device_reuse.py'] = Path(__file__).with_name('device_reuse.py').read_bytes()
 
     def edit(name, replacements):
         key = 'scripts/' + name + '.py'
@@ -720,10 +720,10 @@ def http_replay_bridge(result):
 
 def managed_shutdown_bridge(result):
     """Change only completed B1 HTTP cleanup and preserve prior source bindings."""
-    from managed_shutdown import DIRECT_STOP, MANAGED_STOP
+    from benchmark.managed_shutdown import DIRECT_STOP, MANAGED_STOP
 
     module = 'scripts/managed_shutdown.py'
-    result[module] = (ROOT / 'managed_shutdown.py').read_bytes()
+    result[module] = Path(__file__).with_name('managed_shutdown.py').read_bytes()
     key = 'scripts/run_b1_r4.py'
     result[key] = once(result[key].decode(), DIRECT_STOP, MANAGED_STOP).encode()
 
@@ -886,7 +886,7 @@ def bridge(client, provider):
     result[key] = (json.dumps(compat, indent=2) + '\n').encode()
     baseline_location_bridge(result)
     context_baseline_bridge(result)
-    from sdk_dependency_probe import client_bridge
+    from engine.sdk_dependency_probe import client_bridge
     client_bridge(result)
     return result
 
@@ -946,7 +946,7 @@ def prepare(cache, archive, frozen):
 
 def metadata_client(cache, *, release, record=None):
     """Upgrade only CPU metadata admission; retain the old client and selection."""
-    from sdk_dependency_probe import client_bridge
+    from engine.sdk_dependency_probe import client_bridge
     if record:
         prior = verify(record)
         if prior.get('cpu_metadata_admission'):

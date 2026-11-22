@@ -29,7 +29,7 @@ def artifacts(versions):
 
 def run(config, *, artifact=None, transport='auto'):
     from official_baselines import save
-    from baseline_setup import fetch, digest
+    from benchmark.baseline_setup import fetch, digest
     if transport not in ('auto', 'curl'):
         raise ValueError('Unknown official download transport')
     try:

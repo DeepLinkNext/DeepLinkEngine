@@ -16,7 +16,7 @@ import zipfile
 ROOT = Path(__file__).resolve().parents[1]
 sys.path[:0] = [str(ROOT / 'tools'), str(ROOT)]
 import triton_backend_probe as probe
-import environment_setup as setup
+from engine import environment_setup as setup
 
 
 class Identity(unittest.TestCase):

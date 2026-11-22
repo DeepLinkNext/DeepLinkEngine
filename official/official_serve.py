@@ -23,7 +23,7 @@ def main():
         raise ValueError('Serving runtime source/build identity differs')
     if any(key.startswith(('BETTERSCALE', 'HUST', 'MTP', 'KVMAT')) for key in os.environ):
         raise ValueError('Optimized-engine settings leaked into official serving')
-    import service_logging
+    from engine import service_logging
     output = Path(plan['output'])
     logging_plan = service_logging.prepare(root, output, os.environ)
     service_logging.install(logging_plan)

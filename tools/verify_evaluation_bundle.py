@@ -47,7 +47,7 @@ def inventory(path):
 
 
 def verify(cache):
-    from environment_setup import cached_wheel
+    from engine.environment_setup import cached_wheel
     from one_click import verify_kit
     lock = verify_kit()['tools']
     candidate = cached_wheel(dict(lock, filename=lock['archive']), [], Path(cache) / 'evaluation')

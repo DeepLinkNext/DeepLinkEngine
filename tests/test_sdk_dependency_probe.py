@@ -4,7 +4,7 @@ from pathlib import Path
 import subprocess, sys, tempfile, unittest
 from unittest.mock import patch
 ROOT=Path(__file__).resolve().parents[1];sys.path.insert(0,str(ROOT))
-import sdk_dependency_probe as probe
+from engine import sdk_dependency_probe as probe
 
 class Admission(unittest.TestCase):
     def setUp(self):
@@ -39,7 +39,9 @@ class Admission(unittest.TestCase):
             probe.inspect_sdk(sys.executable,{},tools=tools,receipt=self.root/'bad-source.json')
     @unittest.skipUnless(sys.platform=='linux','The public client uses Linux fcntl')
     def test_real_selected_r8_kit_recursive_import_and_selection_unchanged(self):
-        import release_selection as selection, one_click, evaluation_client
+        from engine import release_selection as selection
+        import one_click
+        from benchmark import evaluation_client
         record=dict(schema='deeplinkengine-stable-selection/v1',release='full-answer-b1-20261117-r8',legacy=True,engine_profile='r8',version='2026.11.17.8.post2',client=None)
         saved=self.root/'selection.json';saved.write_text(json.dumps(record));original=saved.read_bytes()
         with patch.dict(os.environ):

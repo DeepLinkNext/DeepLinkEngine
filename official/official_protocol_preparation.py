@@ -66,7 +66,7 @@ def _recipe(config):
 
 def ensure(config):
     if selection(config)=='explicit':return config,None
-    from baseline_setup import download_lock
+    from benchmark.baseline_setup import download_lock
     base=Path(config['cache'])/'official-protocol-preparation';base.mkdir(parents=True,exist_ok=True)
     recipe=_recipe(config);key=hashlib.sha256(json.dumps(recipe,sort_keys=True).encode()).hexdigest()
     lock=base/(key+'.lock')

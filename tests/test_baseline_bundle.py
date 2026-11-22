@@ -12,7 +12,7 @@ from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
-import baseline_bundle as bundle
+from benchmark import baseline_bundle as bundle
 
 
 class BaselineBundleTests(unittest.TestCase):

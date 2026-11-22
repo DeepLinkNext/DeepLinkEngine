@@ -248,7 +248,7 @@ def provision_protobuf(root, staging):
 
 def ensure(base_sdk):
     """Publish only a complete root; interrupted staging roots remain intact."""
-    from baseline_setup import fetch, download_lock
+    from benchmark.baseline_setup import fetch, download_lock
     base_sdk = Path(base_sdk).resolve()
     cache = base_sdk.parent.parent
     lock = json.loads((base_sdk / 'image-lock.json').read_bytes())

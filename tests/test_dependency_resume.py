@@ -12,7 +12,7 @@ import threading
 import unittest
 
 ROOT=Path(__file__).resolve().parents[1];sys.path.insert(0,str(ROOT))
-from environment_setup import cached_wheel
+from engine.environment_setup import cached_wheel
 
 
 class Resume(unittest.TestCase):

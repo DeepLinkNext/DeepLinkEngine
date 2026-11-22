@@ -9,7 +9,7 @@ from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
-import artifact_cache
+from engine import artifact_cache
 
 
 class ArtifactCacheTests(unittest.TestCase):
@@ -34,7 +34,7 @@ class ArtifactCacheTests(unittest.TestCase):
 
     def run_hint(self):
         with patch.object(artifact_cache, 'ROOT', self.root), \
-             patch('baseline_bundle.inventory', return_value=self.data), \
+             patch('benchmark.baseline_bundle.inventory', return_value=self.data), \
              patch('tools.verify_dependency_index.build_index', return_value={'artifacts': []}), \
              patch.object(artifact_cache, 'memory', return_value={'memory.current': 100, 'memory.max': 200}), \
              patch.dict(os.environ, {}, clear=True):
@@ -81,10 +81,10 @@ class ArtifactCacheTests(unittest.TestCase):
         records=[dict(name=name,bytes=self.size,kind='engine'),
                  dict(name=shared.name,bytes=self.size,kind='tools')]
         with patch.object(artifact_cache,'ROOT',self.root), \
-             patch('baseline_bundle.inventory',return_value=dict(blobs=[])), \
+             patch('benchmark.baseline_bundle.inventory',return_value=dict(blobs=[])), \
              patch('tools.verify_dependency_index.build_index',return_value=dict(artifacts=records)), \
-             patch('release_selection.active',return_value=dict(version='2026.11.19.9.post1')), \
-             patch('engine_install.sources',return_value=[dict(name=name,bytes=self.size+4)]), \
+             patch('engine.release_selection.active',return_value=dict(version='2026.11.19.9.post1')), \
+             patch('engine.engine_install.sources',return_value=[dict(name=name,bytes=self.size+4)]), \
              patch.object(artifact_cache.os,'posix_fadvise') as advise:
             result=artifact_cache.release(self.cache)
         self.assertEqual(advise.call_count,2)

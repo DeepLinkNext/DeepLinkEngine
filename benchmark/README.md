@@ -74,7 +74,7 @@ python benchmark/reports/r8-context-tenant-20261119/reproduce_publication.py \
 
 B0 为固定的 `original018-cann8.5.1`，由工具核验上游镜像摘要并恢复，或指定已按该版本制备的 SDK。B1 使用[版本清单指定的引擎](../engine/README.md#版本与下载)。两臂使用同一套 Qwen3.5-35B-A3B 权重和同一对 910B2。物理卡号按实机分配填写。
 
-1. 按[引擎安装说明](../engine/README.md)安装 B1。复制根目录[配置示例](../evaluation.example.json)，填写本机权重、B1 部署目录、空的输出目录和两张物理卡号。已有 B0 SDK 时可追加 `baseline_deployment`。已有题目数据时可追加 `dataset_assets`，其下为 `hle/`、`frontier/` 及 `public-agent-traces/`，下载和核验规则由工具执行。
+1. 按[引擎安装说明](../engine/README.md)安装 B1。复制[配置示例](evaluation.example.json)，填写本机权重、B1 部署目录、空的输出目录和两张物理卡号。已有 B0 SDK 时可追加 `baseline_deployment`。已有题目数据时可追加 `dataset_assets`，其下为 `hle/`、`frontier/` 及 `public-agent-traces/`，下载和核验规则由工具执行。
 2. 直接运行下面的 `run` 命令。工具自动下载并逐项核验参考证据，不需要访问原私有仓库，也不需要配置令牌。已有经校验的固定证据目录时仍可设置 `VLLM_HUST_PROJECT_EVIDENCE`；手工传入的目录同样必须符合固定清单。
 3. 检查 `<out>-report/report.html`、`<out>/compute-reference/automatic-result.json`、`matched-reference-pair.json`、曲线和校验清单。可先用 `prepare` 检查环境并冻结计划；它不执行正式推理，写入 `<out>-prepare`。正式 `run` 使用配置中的 `<out>`。
 

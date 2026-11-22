@@ -7,7 +7,7 @@ from unittest.mock import patch
 import pytest
 ROOT=Path(__file__).resolve().parents[1]
 sys.path[:0]=[str(ROOT),str(ROOT/'benchmark/one-click-kit/scripts')]
-import evaluation_client as client
+from benchmark import evaluation_client as client
 
 
 def combined():
@@ -94,7 +94,7 @@ def test_context_b1_reuse_still_requires_exact_optimized_deployment(tmp_path):
 
 
 def test_host_pin_preparation_review_does_not_allow_changed_device_recipe():
-    import evaluation_client as client
+    from benchmark import evaluation_client as client
     root = ROOT / 'benchmark/one-click-kit'
     inventory = json.loads((root / 'DEPLOYMENT-TOOLS.json').read_bytes())['files']
     original = {name: (root / name).read_bytes() for name in inventory}

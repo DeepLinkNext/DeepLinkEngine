@@ -10,7 +10,7 @@ import subprocess
 import sys
 import uuid
 
-ROOT = Path(__file__).resolve().parent
+ROOT = Path(__file__).resolve().parents[1]
 
 
 def filesystem(path):
@@ -103,7 +103,7 @@ from pathlib import Path
 sys.path.insert(0,str(Path(sys.argv[2])/'scripts'))
 from restore_b1_r4 import verify_installed_sources
 sys.path.insert(0,sys.argv[3])
-from sdk_dependency_probe import admit_dependencies
+from engine.sdk_dependency_probe import admit_dependencies
 root=Path(sys.argv[1])
 sources=verify_installed_sources(root)
 dependencies=admit_dependencies(root, tools=Path(sys.argv[2]), receipt=Path(sys.argv[4]))
@@ -118,10 +118,10 @@ def audit_sources(sdk, tools):
                  for path in (sdk, tools, Path(sys.executable).parent))
     timeout = 1800 if remote else 180
     print('RUNTIME_AUDIT preparation_timeout_seconds', timeout, flush=True)
-    from sdk_dependency_probe import receipt_path
+    from engine.sdk_dependency_probe import receipt_path
     admission = receipt_path(Path(os.environ.get('XDG_CACHE_HOME', str(Path.home()/'.cache'))) / 'deeplinkengine')
     result = subprocess.run(
-        [sys.executable, '-B', '-c', SOURCE_AUDIT_CODE, str(sdk), str(tools), str(Path(__file__).resolve().parent), str(admission)],
+        [sys.executable, '-B', '-c', SOURCE_AUDIT_CODE, str(sdk), str(tools), str(ROOT), str(admission)],
         env=dict(os.environ, PYTHONDONTWRITEBYTECODE='1', PYTHONPATH=''),
         capture_output=True, text=True, check=True, timeout=timeout)
     return json.loads(result.stdout)
@@ -180,7 +180,7 @@ def ensure(logical, *, reuse=False, reuse_from=None):
                 raise ValueError('Incomplete direct installation requires a new output directory')
             target.rename(target.with_name('failed-installation-'+uuid.uuid4().hex))
         if not target.exists():
-            from producer_install_admission import command as producer_command
+            from engine.producer_install_admission import command as producer_command
             command=producer_command(target,logical.with_name(logical.name+'.producer-admission'))
             result=subprocess.run(command)
             if result.returncode:
@@ -216,18 +216,19 @@ def restore_missing(logical):
     if record.get('logical')!=str(logical) or record.get('verified') is not True:
         raise ValueError('Runtime storage marker differs')
     python=Path(record['python'])
-    from python_storage import ensure as restore_python
+    from engine.python_storage import ensure as restore_python
     restore_python(python.parent.parent)
     if not (python.parent.parent/'pyvenv.cfg').is_file():
         raise ValueError('Restore the recorded private environment before rebuilding runtime storage')
-    from environment_setup import cann_environment
+    from engine.environment_setup import cann_environment
     env,_=cann_environment({})
-    result=subprocess.run([str(python),str(ROOT/'runtime_storage.py'),'--out',str(logical),'--reuse'],env=env)
+    result=subprocess.run([str(python),str(Path(__file__).resolve()),'--out',str(logical),'--reuse'],env=env)
     if result.returncode:
         raise RuntimeError('Managed runtime reconstruction failed')
 
 
 if __name__=='__main__':
+    sys.path.insert(0, str(ROOT))
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--out',required=True,type=Path)
     parser.add_argument('--reuse',action='store_true')

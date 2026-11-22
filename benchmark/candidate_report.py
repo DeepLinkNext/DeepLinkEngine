@@ -7,11 +7,11 @@ import math
 from pathlib import Path
 import re
 
-from full_report import COUNTS, NAMES
-from release_selection import archived_candidate, archived_candidates
+from benchmark.full_report import COUNTS, NAMES
+from engine.release_selection import archived_candidate, archived_candidates
 
 
-ROOT = Path(__file__).resolve().parent
+ROOT = Path(__file__).resolve().parents[1]
 BASELINE = "original018-cann8.5.1"
 DATASET_NAMES = {**NAMES, "swe": "SWE-bench Pro 公开轨迹", "terminal": "Terminal-Bench 2.1 公开轨迹"}
 PROFILES = {
@@ -35,7 +35,7 @@ def load_archive(version):
         choices = ", ".join(row["candidate"]["version"] for row in archived_candidates())
         raise ValueError(f"Unknown archived candidate {version!r}. Available versions: {choices}")
     path = ROOT / binding["path"]
-    if path.is_symlink() or not path.resolve().is_relative_to(ROOT / "benchmark/reports"):
+    if path.is_symlink() or not path.resolve().is_relative_to((ROOT / "benchmark/reports").resolve()):
         raise ValueError("Invalid archived candidate path")
     raw = path.read_bytes()
     if len(raw) != binding["bytes"] or hashlib.sha256(raw).hexdigest() != binding["sha256"]:

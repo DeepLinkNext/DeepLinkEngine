@@ -153,7 +153,7 @@ def prime(request):
         pip_api_sources={str(Path(module.__file__).resolve()):sha(module.__file__) for module in (cache_module,link_module,direct_module)},
         helper_sha256=sha(__file__),model_started=False,sdk_payload_modified=False,upstream_requirements_modified=False,
         http_response_or_publisher_headers_fabricated=False,local_build_claimed=False,skipped=skipped,entries=[],started=time.time())
-    from baseline_setup import download_lock
+    from benchmark.baseline_setup import download_lock
     with global_tempdir_manager():
         for target in targets:
             target.mkdir(parents=True,exist_ok=True)

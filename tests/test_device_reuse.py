@@ -8,7 +8,8 @@ from unittest.mock import patch
 import pytest
 
 import run_all
-from device_reuse import compare, for_campaign
+from benchmark import device_reuse
+from benchmark.device_reuse import compare, for_campaign
 from test_multi_source_reuse import bridge
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "benchmark/one-click-kit/scripts"))
@@ -55,10 +56,10 @@ def test_full_entry_admits_new_cache_but_still_requires_device_admission(tmp_pat
     ledger.write_text(json.dumps(dict(configuration=previous)))
     current = dict(previous, physical_devices=[0, 3], out=str(tmp_path / "new"),
                    allow_device_change=True)
-    with patch("recovery_source.stopped"), patch("reuse_campaign.audit_stage"), patch(
+    with patch("benchmark.recovery_source.stopped"), patch("reuse_campaign.audit_stage"), patch(
         "reuse_campaign.source", return_value=(source, {}, dict(status="failed", stages=[
             dict(name="frontier-solver-B1", status="completed")]), {})
-    ), patch("release_selection.active", return_value=None):
+    ), patch("engine.release_selection.active", return_value=None):
         result = run_all.completed_run_source(current, source)
         assert result["physical_device_change"] == dict(original=[1, 6], current=[0, 3])
         relocated = run_all.completed_run_source(dict(current, cache="/other"), source)
@@ -80,12 +81,13 @@ def test_whole_mmlu_pair_survives_a_device_change_with_the_same_runtime(tmp_path
                     optimized_dependencies={"runtime": "r9"},
                     mmlu_inputs=dict(quality_plan_sha256="plan", scorer_sha256="score"))
     plan = dict(previous, physical_cards=[0, 3], device_reuse_mapping=current)
-    module["compatible"]("mmlu-pair", previous, plan, tmp_path)
-    with pytest.raises(ValueError, match="runtime/model"):
-        module["compatible"]("mmlu-pair", previous, dict(plan, optimized_deployment="/other"), tmp_path)
-    with pytest.raises(ValueError, match="scorer"):
-        module["compatible"]("mmlu-pair", previous, dict(plan, mmlu_inputs=dict(
-            quality_plan_sha256="plan", scorer_sha256="modified")), tmp_path)
+    with patch.dict(sys.modules, device_reuse=device_reuse):
+        module["compatible"]("mmlu-pair", previous, plan, tmp_path)
+        with pytest.raises(ValueError, match="runtime/model"):
+            module["compatible"]("mmlu-pair", previous, dict(plan, optimized_deployment="/other"), tmp_path)
+        with pytest.raises(ValueError, match="scorer"):
+            module["compatible"]("mmlu-pair", previous, dict(plan, mmlu_inputs=dict(
+                quality_plan_sha256="plan", scorer_sha256="modified")), tmp_path)
 
 def test_completed_run_carries_only_sealed_native_progress(tmp_path):
     source = tmp_path / "source"
@@ -103,7 +105,7 @@ def test_completed_run_carries_only_sealed_native_progress(tmp_path):
     bindings = {"compute-reference/checksums.json": "sealed",
                 "compute-reference/native-current-timing/checksums.json": "sealed"}
     with patch("reuse_campaign.audit_stage"), patch("reuse_campaign.source",
-            return_value=(compute.parent, {}, campaign, bindings)), patch("release_selection.active", return_value=None):
+            return_value=(compute.parent, {}, campaign, bindings)), patch("engine.release_selection.active", return_value=None):
         assert run_all.completed_run_source(current, source)["compute_resume_source"] == str(compute)
         bindings.pop("compute-reference/native-current-timing/checksums.json")
         assert "compute_resume_source" not in run_all.completed_run_source(current, source)
@@ -137,7 +139,7 @@ def test_context_pair_renderer_replays_cross_card_proof(tmp_path):
     def inspect(arm):
         return dict(role=arm.name, execution_complete=True, contract={}, phases=[])
 
-    with patch.dict(sys.modules, acceptance_suite=suite), patch.object(suite, "inspect", inspect):
+    with patch.dict(sys.modules, acceptance_suite=suite, device_reuse=device_reuse), patch.object(suite, "inspect", inspect):
         summary = suite.paired(arms, device_change=compare(original, current, allowed=True))
         source = tmp_path / "paired-summary.json"
         source.write_text(json.dumps(summary))

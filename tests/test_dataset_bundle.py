@@ -11,7 +11,7 @@ from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
-import dataset_bundle as bundle
+from benchmark import dataset_bundle as bundle
 
 
 class DataBundleTests(unittest.TestCase):
@@ -108,12 +108,12 @@ class DataBundleTests(unittest.TestCase):
         import one_click
         for mode, expected in [('mmlu',['mmlu']),('hle,frontier,swe,terminal',['hle','frontier','swe','terminal'])]:
             with patch.object(bundle,'prepare',return_value=self.root/'assets') as prepare, \
-                 patch('baseline_bundle.ensure_deployment', return_value=Path('/baseline')), patch.object(one_click, 'validate_deployment'), patch('artifact_cache.release'):
+                 patch('benchmark.baseline_bundle.ensure_deployment', return_value=Path('/baseline')), patch.object(one_click, 'validate_deployment'), patch('engine.artifact_cache.release'):
                 args=one_click.prepare_data(['--cache',str(self.cache),'--deployment','/sdk','--datasets',mode])
             self.assertEqual(prepare.call_args.args[1],expected)
             self.assertEqual(args[-2:],['--dataset-assets',str(self.root/'assets')])
         with patch.object(bundle,'prepare',return_value=self.root/'assets') as prepare, \
-             patch('baseline_bundle.ensure_deployment', return_value=Path('/baseline')), patch.object(one_click, 'validate_deployment'), patch('artifact_cache.release'):
+             patch('benchmark.baseline_bundle.ensure_deployment', return_value=Path('/baseline')), patch.object(one_click, 'validate_deployment'), patch('engine.artifact_cache.release'):
             args=one_click.prepare_data(['--context-tenant-only','--cache',str(self.cache),'--deployment','/sdk'])
         self.assertTrue(prepare.call_args.kwargs['context'])
         self.assertNotIn('--dataset-assets',args)
@@ -155,7 +155,7 @@ class DataBundleTests(unittest.TestCase):
         sdk = self.root / 'old-sdk'
         sdk.mkdir()
         (sdk / 'deployment.json').write_text(json.dumps({'release':'full-answer-b1-20261030-r4'}))
-        with patch('baseline_bundle.ensure_deployment') as baseline, patch.object(bundle, 'prepare') as data:
+        with patch('benchmark.baseline_bundle.ensure_deployment') as baseline, patch.object(bundle, 'prepare') as data:
             with self.assertRaisesRegex(ValueError, 'selected stable SDK'):
                 one_click.prepare_data(['--cache',str(self.cache),'--deployment',str(sdk)])
         baseline.assert_not_called()

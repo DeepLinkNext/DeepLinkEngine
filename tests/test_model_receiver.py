@@ -7,8 +7,8 @@ ROOT=Path(__file__).resolve().parents[1];sys.path.insert(0,str(ROOT))
 from official import enable_module_imports
 
 enable_module_imports()
-import model_restore as restore
-import model_receiver as receiver
+from engine import model_restore as restore
+from engine import model_receiver as receiver
 
 class HTTP(http.server.ThreadingHTTPServer):
     daemon_threads=True

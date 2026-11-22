@@ -102,7 +102,7 @@ for package,version,original,stage in [
         filename=local.name,bytes=local.stat().st_size,sha256=digest,url=local.as_uri(),upstream_url=local.as_uri())
 core=graph_folder/'original-metadata';core.mkdir();original=b'[build-system]\nrequires=["scope_build_dep==2.0","scope_nested==0.1"]\n';(core/'pyproject.toml').write_bytes(original)
 build=graph_folder/'build';build.mkdir();graph_trace=graph_folder/'trace.jsonl';environment=dict(base,SCOPE_FIXTURE_TRACE=str(graph_trace))
-with patch.object(candidate,'build_dependency_artifacts',return_value=registry),patch('transport_trust.configure',return_value=dict(offline_fixture_only=True)):
+with patch.object(candidate,'build_dependency_artifacts',return_value=registry),patch('engine.transport_trust.configure',return_value=dict(offline_fixture_only=True)):
     links,graph_proof=graph.prepare(Path(sys.executable),core,cache,build,environment,sdk=graph_folder/'fixture-sdk',stage='01-core')
 assert (core/'pyproject.toml').read_bytes()==original
 environment.update(PIP_FIND_LINKS=str(links),PIP_CACHE_DIR=str(graph_folder/'actual-pip-cache'))

@@ -182,7 +182,7 @@ def ensure_for_sdk(sdk):
             output.rename(quarantine)
             (quarantine / 'interrupted-recovery.json').write_text(json.dumps(
                 dict(original=str(output), preserved=str(quarantine), **stopped), indent=2) + '\n')
-        from baseline_setup import fetch
+        from benchmark.baseline_setup import fetch
         lock = json.loads((Path(__file__).resolve().parents[1] / 'engine/official-baselines/0.23.0.json').read_bytes())
         layers = [item for item in lock['layers'] if item['digest'] == 'sha256:' + BASE_DIGEST]
         if len(layers) != 1:

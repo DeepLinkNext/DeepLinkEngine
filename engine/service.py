@@ -90,13 +90,13 @@ def build(root, profile, model, out, cache, logical, host, port, name):
     plan_path = out / "plan.json"
     plan_path.write_text(json.dumps(plan, indent=2) + "\n")
     command = [profile["python"], str(root / "runtime/entrypoints/serve_b1_child.py"), str(plan_path), *command[2:]]
-    import service_logging
+    from engine import service_logging
     logging_plan = service_logging.prepare(root, out, env)
     logging_plan.update(child=command[1], child_sha256=service_logging.digest(command[1]),
-                        entry_sha256=service_logging.digest(ROOT / 'logging_entry.py'))
+                        entry_sha256=service_logging.digest(ROOT / 'engine/logging_entry.py'))
     logging_path = out / 'service-logging-plan.json'
     service_logging.save(logging_path, logging_plan)
-    command = [command[0], str(ROOT / 'logging_entry.py'), str(logging_path), '--', *command[1:]]
+    command = [command[0], str(ROOT / 'engine/logging_entry.py'), str(logging_path), '--', *command[1:]]
     return command, env
 
 
@@ -151,10 +151,10 @@ def main():
     if not os.environ.get("DEEPLINK_SERVICE_BOOTSTRAPPED"):
         print("SERVICE verifying runtime and dependencies", flush=True)
         from restore_b1_r4 import verify_installed_sources
-        from sdk_dependency_probe import admit_dependencies, receipt_path
+        from engine.sdk_dependency_probe import admit_dependencies, receipt_path
         verify_installed_sources(root)
         admit_dependencies(root, receipt=receipt_path(args.cache))
-        from environment_setup import probe, differences, vendor_integrity
+        from engine.environment_setup import probe, differences, vendor_integrity
         profile = json.loads((root / "deployment.json").read_bytes())
         required = json.loads((ROOT / "engine/r8-lock.json").read_bytes())["required_python_packages"]
         if differences(probe(profile["python"], required, os.environ), required):

@@ -9,7 +9,7 @@ import sys
 import tempfile
 import unittest
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
-import full_report as report
+from benchmark import full_report as report
 
 
 def stats(n,good):return dict(total=n,successes=good)

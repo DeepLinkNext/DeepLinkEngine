@@ -26,7 +26,7 @@ class Downloads(unittest.TestCase):
             with patch('official_download.artifacts',return_value={identity:row}), \
                  patch('official_download.platform.system',return_value='Windows'), \
                  patch('official_download.shutil.which',return_value='curl.exe'), \
-                 patch('baseline_setup.fetch',return_value=blob) as fetch:
+                 patch('benchmark.baseline_setup.fetch',return_value=blob) as fetch:
                 self.assertEqual(official_download.run(dict(versions=['0.23.0'],cache=str(root/'cache'),out=str(root/'out')),artifact=identity),0)
                 self.assertEqual(fetch.call_args.kwargs['attempts'],0)
 
@@ -44,7 +44,7 @@ class Downloads(unittest.TestCase):
     def test_unlisted_digest_is_refused_before_any_download_or_output(self):
         with tempfile.TemporaryDirectory() as d:
             config=dict(versions=['0.23.0'],cache=str(Path(d)/'cache'),out=str(Path(d)/'out'))
-            with patch('official_download.artifacts', return_value={}), patch('baseline_setup.fetch') as fetch:
+            with patch('official_download.artifacts', return_value={}), patch('benchmark.baseline_setup.fetch') as fetch:
                 with self.assertRaises(ValueError):
                     official_download.run(config, artifact='sha256:'+'a'*64)
                 fetch.assert_not_called()
@@ -65,7 +65,7 @@ class Downloads(unittest.TestCase):
             code="""import sys,time,json
 from pathlib import Path
 sys.path.insert(0,sys.argv[1])
-from baseline_setup import download_lock
+from benchmark.baseline_setup import download_lock
 r=Path(sys.argv[2]);name=sys.argv[3]
 with (r/'download.lock').open('a+b') as f, download_lock(f):
  (r/(name+'-begin')).write_text(str(time.monotonic()))
