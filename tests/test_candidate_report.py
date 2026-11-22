@@ -65,18 +65,23 @@ class CandidateReportTests(unittest.TestCase):
         self.assertTrue(v2["4.2"]["raw_reaudit"]["met"])
         self.assertFalse(v2["4.2"]["raw_missing"])
         self.assertIn("original_evidence_audit", receipt["assessment_sources"])
+        fixed = alias == "r10-native-rms"
         for level in ("milestone", "final"):
             self.assertEqual(v2["4.2"][level]["status"], "met")
             self.assertIn("mmlu", v2["4.2"][level]["datasets"])
-            for indicator in ("4.1", "4.3"):
-                self.assertEqual(v2[indicator][level]["status"], "missing_evidence")
-                self.assertIsNone(v2[indicator][level]["met"])
+            self.assertIsNone(v2["4.1"][level]["met"])
+            self.assertIs(v2["4.3"][level]["met"], False if fixed else None)
         self.assertTrue(v2["4.4"]["milestone"]["met"])
-        self.assertIsNone(v2["4.4"]["final"]["met"])
+        self.assertIs(v2["4.4"]["final"]["met"], True if fixed else None)
+        if fixed:
+            reviewed = v2["4.3"]
+            self.assertEqual(reviewed["physical_cards"], {"B0": [1, 6], "B1": [0, 3]})
+            self.assertAlmostEqual(float(reviewed["measured_ratios"]["ttft_p95"]), 3.10046, places=5)
+            self.assertAlmostEqual(float(reviewed["measured_window_ratios"]["ttft_p99"]), 2.34825, places=5)
+            self.assertIn("context_audit", receipt["assessment_sources"])
         speed = v2["4.2"]["datasets"]
         self.assertEqual(speed["hle"]["milestone"]["status"], "met")
         self.assertEqual(speed["hle"]["final"]["status"], "not_met")
-        fixed = alias == "r10-native-rms"
         expected_track_drop = {"olympiad": "1", "research": "0"} if fixed else {"olympiad": "6", "research": "-5"}
         self.assertEqual(speed["frontier"]["quality"]["drop_pp"], expected_track_drop)
         self.assertEqual(speed["frontier"]["final"]["met"], fixed)
@@ -97,7 +102,11 @@ class CandidateReportTests(unittest.TestCase):
         self.assertAlmostEqual(mmlu["utilization"]["B1"]["mean_percent"], 79.0069 if fixed else 79.8770, places=4)
         self.assertAlmostEqual(float(mmlu["same_window_utilization_gain_pp"]), 45.7797 if fixed else 46.6498, places=4)
         self.assertAlmostEqual(float(cost["four_tenant"]["arms"]["B0"]["cost_per_million_output_tokens_cny"]), 11.2142, places=4)
-        self.assertIsNone(cost["four_tenant"]["arms"]["B1"])
+        if fixed:
+            self.assertAlmostEqual(float(cost["four_tenant"]["unit_cost_reduction_percent"]), 63.65056, places=5)
+            self.assertAlmostEqual(float(cost["four_tenant"]["ai_core_mean_percent"]), 86.35871, places=5)
+        else:
+            self.assertIsNone(cost["four_tenant"]["arms"]["B1"])
         self.assertEqual(summary["archived"], json.loads((ROOT / binding["path"]).read_bytes()))
         self.assertEqual(summary["archived"]["measurements"]["mmlu"]["candidate"]["correct"], correct)
         for profile, row in summary["workloads"].items():
@@ -113,7 +122,7 @@ class CandidateReportTests(unittest.TestCase):
         self.assertIn("已按原件封存复算", document)
         self.assertIn("4.2 逐数据集门槛核验", document)
         self.assertIn("4.4 按公开租金折算", document)
-        self.assertIn("缺同窗采样", document)
+        self.assertIn("tenant-3" if fixed else "缺同窗采样", document)
         return summary
 
     def test_run_all_explicit_candidate_on_cpu(self):

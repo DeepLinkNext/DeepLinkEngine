@@ -24,6 +24,7 @@ ARM_NAMES = {"B0": "固定 B0 0.18", "r10_original": "原始 r10",
              "native_rms": "原生 RMS（封存对照）", "candidate": "所选候选"}
 FIXED_B0_V2 = "evidence/r10-fixed-b0-v2.json"
 ORIGINAL_AUDIT = "evidence/r10-original-evidence-audit-v1.json"
+CONTEXT_AUDIT = "evidence/r10-v2-context-supplement.json"
 VERDICTS = {"met": "达成", "not_met": "未达成", "missing_evidence": "证据不足"}
 
 
@@ -93,9 +94,14 @@ def collect(version):
     if audit.get("schema") != "deeplinkengine-r10-original-evidence-audit/v1":
         raise ValueError("Unknown r10 original evidence audit schema")
     original = audit["candidates"][binding["candidate"]["version"]]
-    targets = assess(archive, binding["candidate"], baseline, priority, original)
+    context_binding = pins.get(CONTEXT_AUDIT)
+    context_source = read_bound_json(context_binding, "evidence") if context_binding else {}
+    context = context_source.get(binding["candidate"]["version"])
+    targets = assess(archive, binding["candidate"], baseline, priority, original, context)
     assessment_sources = {"fixed_b0": {**source_identity(baseline_binding), "projection_inputs": baseline["sources"]}}
     assessment_sources["original_evidence_audit"] = source_identity(audit_binding)
+    if context is not None:
+        assessment_sources["context_audit"] = source_identity(context_binding)
     if quality_binding:
         assessment_sources["priority_grades"] = source_identity(quality_binding)
     roles = tuple(archive["measurements"]["mmlu"])
@@ -186,15 +192,58 @@ def v2_html(data):
             ))
     savings = float(costs["mmlu_full_answers"]["unit_cost_reduction_percent"])
     cost_gate = status_text(costs["mmlu_full_answers"]["cost_gate"])
+    tenant_block = ""
+    if costs["four_tenant"]["unit_cost_reduction_percent"] is not None:
+        tenant_savings = float(costs["four_tenant"]["unit_cost_reduction_percent"])
+        tenant = next(row for row in assessments["4.3"]["paired"]["comparison"] if row["phase"] == "multi-tenant-formal")
+        tenants = []
+        for role in ("B0", "B1"):
+            for name, metrics in tenant[role]["per_tenant"].items():
+                tenants.append((ARM_NAMES["B0" if role == "B0" else "candidate"], name,
+                                metrics["requests"], metrics["successful"], metrics["failed"]))
+        tenant_block = (f"<p>4K 四租户 C24 单位成本下降 {tenant_savings:.2f}%。</p>"
+                        + table(("运行臂", "租户", "请求", "成功", "失败"), tenants))
     labels = {"fixed_b0": "固定 B0 V2 封存", "matched_mmlu_utilization": "同封存 MMLU-Pro 双卡采样",
               "context_workloads": "真实上下文数据集来源", "priority_grades": "原生 RMS 同轮裁判分层对照",
-              "original_evidence_audit": "固定五项与同窗 AI Core 原件复算"}
+              "original_evidence_audit": "固定五项与同窗 AI Core 原件复算",
+              "context_audit": "真实上下文及四租户的封存复算"}
     links = []
     for kind, source in data["assessment_sources"].items():
         origins = source.get("projection_inputs") or {kind: {"url": source["source"], "sha256": source["sha256"]}}
         for name, origin in origins.items():
             links.append(f'<li><a href="{html.escape(origin["url"], quote=True)}">{html.escape(labels.get(name, name))}</a> '
                          f'<code>{html.escape(origin["sha256"])}</code></li>')
+    context = assessments["4.3"]
+    context_block = ""
+    if "paired" in context:
+        rows = []
+        phases = {"4096-formal": "4K / C8", "16384-formal": "16K / C8",
+                  "32768-formal": "32K / C8", "multi-tenant-formal": "4K 四租户 / C24"}
+        workload = context["baseline_context"]["workload"]
+
+        def cell(value):
+            return f"{value:.2f}" if value is not None else "—"
+
+        for phase in context["paired"]["comparison"]:
+            for role in ("B0", "B1"):
+                arm = phase[role]
+                metrics = arm["metrics"]
+                cards = ", ".join(map(str, context["physical_cards"][role]))
+                rows.append((
+                    "、".join(workload["datasets"]),
+                    phases[phase["phase"]], ARM_NAMES["B0" if role == "B0" else "candidate"], cards,
+                    metrics["successful"], metrics["failed"], cell(metrics["output_tokens_per_second"]),
+                    " / ".join(cell(metrics["ttft_ms"][q]) for q in ("p95", "p99")),
+                    " / ".join(cell(metrics["tpot_ms"][q]) for q in ("p95", "p99")),
+                    context["paired"]["arm_seals"][role],
+                ))
+        headers = ("数据集", "工况", "运行臂", "物理卡", "成功", "失败", "双卡 tok/s",
+                   "TTFT P95/P99（ms）", "TPOT P95/P99（ms）", "封存 SHA-256")
+        task_ids = "、".join(workload["task_ids"])
+        input_sha256 = context["baseline_context"]["input_sha256"]
+        context_block = ("<h3>4.3 真实长上下文</h3>"
+                         + f'<p>冻结任务 {html.escape(task_ids)}。输入 SHA-256 <code>{input_sha256}</code>。</p>'
+                         + table(headers, rows))
     return f"""<h2>送测 V2 按证据判定</h2>
 {table(("指标", "阶段", "状态", "已有证据", "判定依据或缺项"), targets)}
 <h3>4.2 逐数据集门槛核验</h3>
@@ -203,11 +252,13 @@ def v2_html(data):
 {table(("数据集", "吞吐 B1/B0", "平均 TTFT B1/B0", "平均 TPOT B1/B0", "质量门槛及降幅",
         "里程碑", "里程碑依据", "结题", "结题依据"), speed_rows)}
 {audit_note}
+{context_block}
 <h3>4.4 按公开租金折算</h3>
 <p><a href="{html.escape(rent["source_url"], quote=True)}">{html.escape(rent["publisher"])}公开报价</a>
  · {rent["server_monthly_price"]:,} 元/{rent["cards_per_server"]} 卡月，折 {float(rent["monthly_cost_per_card_cny"]):,.0f}
  元/卡月，按 {rent["days_per_month"]} 天。MMLU-Pro 200 单位成本下降 {savings:.2f}%，成本子项{cost_gate}。</p>
 {table(("工况", "运行臂", "元/百万输出词元", "同窗双卡 AI Core 均值"), cost_rows)}
+{tenant_block}
 <h3>判定附件来源</h3><ul>{"".join(links)}</ul>
 """
 
