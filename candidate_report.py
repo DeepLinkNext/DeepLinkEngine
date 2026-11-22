@@ -150,7 +150,7 @@ def report_html(data):
 <style>
 body{{font:16px system-ui;max-width:1200px;margin:2rem auto;padding:0 1rem;color:#17212b;background:#f8fafc}}
 .table{{overflow:auto;margin:1rem 0}} table{{border-collapse:collapse;width:100%;background:white}}
-th,td{{padding:.65rem;text-align:left;border-bottom:1px solid #cbd5e1}} td:last-child{{overflow-wrap:anywhere}}
+th,td{{padding:.65rem;text-align:left;border-bottom:1px solid #cbd5e1}} td:last-child,code{{overflow-wrap:anywhere}}
 </style></head><body>
 <h1>DeepLinkEngine 候选封存 CPU 复算</h1>
 <p><strong>{esc(selection["version"])}</strong> · {esc(selection["release"])} · 候选</p>
