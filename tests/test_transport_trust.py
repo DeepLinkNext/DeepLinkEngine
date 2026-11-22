@@ -80,9 +80,19 @@ class Trust(unittest.TestCase):
         with patch.object(ssl, 'get_default_verify_paths', return_value=type('Defaults', (), dict(cafile=str(self.bundle.resolve())))()):
             result = trust.configure(self.root / 'cache', env={})
         self.assertEqual(result['source_kind'], 'host-default-public-ca')
-        with patch.object(ssl, 'get_default_verify_paths', return_value=type('Defaults', (), dict(cafile=None))()):
+        with patch.object(ssl, 'get_default_verify_paths', return_value=type('Defaults', (), dict(cafile=None))()), patch.object(trust, 'SYSTEM_CA_BUNDLES', ()):
             with self.assertRaisesRegex(ValueError, 'No verified public CA'):
                 trust.configure(self.root / 'missing', env={})
+
+    def test_system_bundle_when_openssl_default_is_missing(self):
+        defaults = ssl.DefaultVerifyPaths(None, None, 'SSL_CERT_FILE', '/absent/ca.pem',
+                                         'SSL_CERT_DIR', '/absent/certs')
+        with patch.object(ssl, 'get_default_verify_paths', return_value=defaults), patch.object(
+            trust, 'SYSTEM_CA_BUNDLES', (self.root / 'absent.pem', self.bundle)
+        ):
+            result = trust.configure(self.root / 'cache', env={})
+        self.assertEqual(result['source_kind'], 'host-system-public-ca')
+        self.assertEqual(Path(result['bundle']).read_bytes(), self.raw)
 
     def test_public_protocol_entry_selects_trust_before_private_handoff(self):
         import run_all

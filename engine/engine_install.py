@@ -243,7 +243,7 @@ def main():
             version = args.engine_version
             if args.repair_dependencies and version is None:
                 version = metadata.version("vllm-hust-engine")
-            select(args.cache, version=version)
+            select(args.cache, version=version, wheelhouse=args.wheelhouse)
         selected = active()
         try:
             installed = metadata.version("vllm-hust-engine")

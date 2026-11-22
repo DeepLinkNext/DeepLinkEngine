@@ -50,6 +50,43 @@ def test_selected_version_survives_changed_feed_and_rejects_tampering(tmp_path):
         with pytest.raises(ValueError,match='changed'):selection.active()
 
 
+def test_release_selection_admits_sdist_from_configured_wheelhouse(tmp_path, monkeypatch):
+    from engine import environment_setup
+    import run_all
+
+    version = '2026.11.17.8.post2'
+    release = 'full-answer-b1-20261117-r8'
+    source = row(version)
+    wheelhouse = tmp_path / 'wheelhouse'
+    wheelhouse.mkdir()
+    archive = wheelhouse / source['filename']
+    frozen = json.dumps(dict(version=version, release=release)).encode()
+    with tarfile.open(archive, 'w:gz') as tar:
+        member = tarfile.TarInfo(
+            f'vllm_hust_engine-{version}/src/vllm_hust_engine/payload/frozen.json'
+        )
+        member.size = len(frozen)
+        tar.addfile(member, io.BytesIO(frozen))
+    source['size'] = archive.stat().st_size
+    source['digests']['sha256'] = hashlib.sha256(archive.read_bytes()).hexdigest()
+    lock = tmp_path / 'engine/r8-lock.json'
+    lock.parent.mkdir()
+    lock.write_text(json.dumps(dict(public_distribution='vllm-hust-engine==' + version,
+        assets=[dict(name=archive.name, sha256=source['digests']['sha256'])])))
+    monkeypatch.setattr(selection, 'ROOT', tmp_path)
+    monkeypatch.delenv(selection.SELECTION, raising=False)
+    monkeypatch.delenv(selection.SELECTION_SHA, raising=False)
+    monkeypatch.setattr(selection, 'read_json', lambda _: {'releases': {version: [source]}})
+    with patch.dict(os.environ), patch.object(environment_setup, '_download_dependency') as download:
+        record = run_all.select_run_engine(dict(
+            cache=str(tmp_path / 'cache'), out=str(tmp_path / 'out'), engine_version=version,
+            environment=dict(wheelhouse=str(wheelhouse)),
+        ))
+        download.assert_not_called()
+    assert record['release'] == release
+    assert record['sdist']['sha256'] == source['digests']['sha256']
+
+
 def test_model_client_bridge_keeps_reference_and_startup_fixes():
     provider={k:v.encode() for k,v in json.loads((ROOT/'tests/fixtures/producer-r9-adapter.json').read_bytes())['files'].items()}
     manifest=json.loads((ROOT/'benchmark/one-click-kit/DEPLOYMENT-TOOLS.json').read_bytes())

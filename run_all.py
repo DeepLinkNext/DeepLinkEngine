@@ -621,6 +621,7 @@ def historical_engine(source):
 def select_run_engine(data, *, recovery=False, reuse_completed_run=None):
     """Freeze a new target once; in-place recovery retains its original target."""
     from engine.release_selection import select, bind
+    wheelhouse = data.get("environment", {}).get("wheelhouse")
     saved = Path(data["out"]) / "engine-selection.json"
     if recovery or (reuse_completed_run and not data.get("engine_version")):
         if reuse_completed_run:
@@ -629,7 +630,7 @@ def select_run_engine(data, *, recovery=False, reuse_completed_run=None):
             record = bind(saved)
         else:
             version, release = historical_engine(saved.parent)
-            record = select(data["cache"], version=version)
+            record = select(data["cache"], version=version, wheelhouse=wheelhouse)
             if release is not None and record["release"] != release:
                 raise ValueError("Selected engine release differs from the preserved historical receipt")
         if data.get("engine_version") and record["version"] != data["engine_version"]:
@@ -638,7 +639,7 @@ def select_run_engine(data, *, recovery=False, reuse_completed_run=None):
     # With a fresh output an explicit target may reuse sealed B0 only. The
     # caller audits every completed stage before environment/model operations;
     # the campaign additionally checks B0 source, argv, weights and warmup.
-    return select(data["cache"], version=data.get("engine_version"))
+    return select(data["cache"], version=data.get("engine_version"), wheelhouse=wheelhouse)
 
 
 def main():

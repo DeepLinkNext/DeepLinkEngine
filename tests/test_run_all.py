@@ -180,7 +180,7 @@ class WorkflowTests(unittest.TestCase):
         data = dict(self.data, out=str(out))
         with patch('engine.release_selection.select', return_value={'version':'9.42','release':'recorded-B1'}) as select:
             self.assertEqual(workflow.select_run_engine(data, recovery=True)['version'], '9.42')
-        select.assert_called_once_with(data['cache'], version='9.42')
+        select.assert_called_once_with(data['cache'], version='9.42', wheelhouse=None)
         installed.write_text('{}')
         with patch('engine.release_selection.select') as select, self.assertRaisesRegex(ValueError, 'missing from preserved'):
             workflow.select_run_engine(data, recovery=True)

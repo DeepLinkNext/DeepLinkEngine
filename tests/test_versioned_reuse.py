@@ -42,10 +42,12 @@ def test_new_target_does_not_relax_shared_configuration(tmp_path,field,value):
         audit.assert_not_called()
 
 def test_explicit_new_target_is_selected_once_for_fresh_reuse(tmp_path):
-    data=dict(out=str(tmp_path/'new'),cache='/cache',engine_version='2026.11.19.9.post1')
+    data=dict(out=str(tmp_path/'new'),cache='/cache',engine_version='2026.11.19.9.post1',
+              environment={'wheelhouse': '/wheelhouse'})
     with patch('engine.release_selection.select',return_value={'version':data['engine_version']}) as select,patch('engine.release_selection.bind') as bind:
         run_all.select_run_engine(data,reuse_completed_run=tmp_path/'old')
-        select.assert_called_once_with('/cache',version=data['engine_version']);bind.assert_not_called()
+        select.assert_called_once_with('/cache',version=data['engine_version'],wheelhouse='/wheelhouse')
+        bind.assert_not_called()
 
 def test_in_place_recovery_cannot_retarget(tmp_path):
     (tmp_path/'engine-selection.json').write_text('{}')

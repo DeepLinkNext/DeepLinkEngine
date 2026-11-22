@@ -177,7 +177,7 @@ def reject_candidate_for_execution(version):
         raise ValueError(f"{version} is an archived candidate. Select it with --report-only --engine-version and --out.")
 
 
-def select(cache, *, version=None):
+def select(cache, *, version=None, wheelhouse=None):
     reject_candidate_for_execution(version)
     prior = active()
     if prior is not None:
@@ -185,9 +185,12 @@ def select(cache, *, version=None):
             raise ValueError('Requested version differs from the already selected engine')
         return prior
     cache = Path(cache).resolve()
+    links = [Path(wheelhouse).expanduser().resolve()] if wheelhouse else []
+    if links and not links[0].is_dir():
+        raise ValueError('Engine wheelhouse is not a directory')
     text, sdist = stable_sdist(read_json('https://pypi.org/pypi/' + PROJECT + '/json'), version)
     from engine.environment_setup import cached_wheel
-    archive = cached_wheel(sdist, [], cache / 'wheels')
+    archive = cached_wheel(sdist, links, cache / 'wheels')
     frozen = metadata(archive, text)
     old = json.loads((ROOT / 'engine/r8-lock.json').read_bytes())
     legacy = text == old['public_distribution'].split('==')[1]
