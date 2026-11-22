@@ -9,7 +9,7 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path[:0] = [str(ROOT), str(ROOT / 'benchmark/one-click-kit/scripts')]
-from startup_memory_recovery import release_startup_headroom
+from benchmark.startup_memory_recovery import release_startup_headroom
 
 G = 2**30
 
@@ -91,4 +91,4 @@ def test_generated_controller_changes_only_the_owned_reserve_boundary():
     assert len(additions) == 1
     b.body.remove(additions[0])
     assert ast.dump(a) == ast.dump(b)
-    assert files['scripts/startup_memory_recovery.py'] == (ROOT/'startup_memory_recovery.py').read_bytes()
+    assert files['scripts/startup_memory_recovery.py'] == (ROOT/'benchmark/startup_memory_recovery.py').read_bytes()

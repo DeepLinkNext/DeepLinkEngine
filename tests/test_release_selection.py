@@ -15,9 +15,10 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
-import release_selection as selection
-import evaluation_client as client
-from managed_shutdown import MANAGED_STOP, without_managed_stop
+from engine import release_selection as selection
+from benchmark import evaluation_client as client
+from benchmark import managed_shutdown
+from benchmark.managed_shutdown import MANAGED_STOP, without_managed_stop
 
 
 def row(version, **kw):
@@ -112,6 +113,7 @@ def test_shutdown_only_reference_reuse_checks_the_original_source_pin(tmp_path, 
     client.managed_shutdown_bridge(files)
     current.write_bytes(files[keys[0]])
     monkeypatch.syspath_prepend(str(root / 'scripts'))
+    monkeypatch.setitem(sys.modules, 'managed_shutdown', managed_shutdown)
     evidence = {}
     exec(files[keys[1]], evidence)
     compatible = evidence['http_scope_fix_only']
@@ -147,7 +149,8 @@ def test_frozen_metadata_rejects_traversal_and_version_mismatch(tmp_path):
 
 
 def test_default_sources_and_evaluation_share_selected_identity(tmp_path):
-    import engine_install,run_all
+    from engine import engine_install
+    import run_all
     record=dict(schema='deeplinkengine-stable-selection/v1',version='2026.11.19.9',
                 engine_profile='r9',legacy=False,sdist={'name':'engine'},runtime_artifacts=[{'name':n} for n in ('vllm','ascend','support')])
     path=tmp_path/'selection.json';path.write_text(json.dumps(record))
@@ -234,11 +237,13 @@ def test_post_revision_is_stable_and_keeps_frozen_release(tmp_path):
 def test_vendor_file_probe_loads_release_contract_in_real_isolated_python(tmp_path):
     import base64
     import shutil
-    import environment_setup
+    from engine import environment_setup
     # A real RECORD in a private fixture exercises the isolated import and hashing
     # on CPU-only test hosts; it does not install or import a vendor backend.
-    for name in ('environment_setup.py', 'release_selection.py'):
-        shutil.copyfile(ROOT / name, tmp_path / name)
+    package = tmp_path / 'engine'
+    package.mkdir()
+    for name in ('__init__.py', 'environment_setup.py', 'release_selection.py'):
+        shutil.copyfile(ROOT / 'engine' / name, package / name)
     payload = tmp_path / 'probe-payload.bin'
     payload.write_bytes(b'CPU metadata probe fixture\n')
     info = tmp_path / 'triton_ascend-3.6.0.dist-info'

@@ -8,8 +8,8 @@ from unittest.mock import patch
 import pytest
 ROOT=Path(__file__).resolve().parents[1]
 sys.path[:0]=[str(ROOT),str(ROOT/'benchmark/one-click-kit/scripts')]
-import evaluation_client as client
-import runtime_storage as storage
+from benchmark import evaluation_client as client
+from engine import runtime_storage as storage
 
 
 def bridge():
@@ -119,7 +119,7 @@ def test_new_root_forwards_all_explicit_sources_and_retains_full_scope():
         observation=case.root/'sealed-http-observation'
         def execute(argv,**kwargs):
             return case.execute([*argv,'run'] if '--reuse-completed-campaign' in argv else argv,**kwargs)
-        with patch.object(workflow,'completed_run_source',return_value=dict(root=str(source),completed_stages=['continuous-B1'])),patch('release_selection.active',return_value=dict(version='9',client=None,engine_profile='r9')),patch('release_selection.save'),patch('one_click.configuration_arguments',return_value=['--datasets','mmlu,hle,frontier,swe,terminal']),patch('one_click.verify_kit'),patch('child_runner.run_stage',side_effect=execute),contextlib.redirect_stdout(io.StringIO()):
+        with patch.object(workflow,'completed_run_source',return_value=dict(root=str(source),completed_stages=['continuous-B1'])),patch('engine.release_selection.active',return_value=dict(version='9',client=None,engine_profile='r9')),patch('engine.release_selection.save'),patch('one_click.configuration_arguments',return_value=['--datasets','mmlu,hle,frontier,swe,terminal']),patch('one_click.verify_kit'),patch('child_runner.run_stage',side_effect=execute),contextlib.redirect_stdout(io.StringIO()):
             assert workflow.run(case.data,reuse_completed_run=source,reuse_completed_campaigns=aux,reuse_mmlu_baseline_arm=baseline,reuse_context_baseline_arm=context,reuse_compute_baseline_arm=compute,reuse_compute_observation=observation)==0
         argv=next(c for c in case.calls if '--reuse-completed-campaign' in c)
         assert [argv[i+1] for i,x in enumerate(argv) if x=='--reuse-completed-campaign']==[str(source/'fixed-five'),*[str(p) for p in aux]]

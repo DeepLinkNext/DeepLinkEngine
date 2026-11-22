@@ -148,7 +148,7 @@ class ExecutionContextTests(unittest.TestCase):
                         layer_sha256=execution.BASE_DIGEST,destination=str(output),owner={'fixture': True})
             (output/'preparation.json').write_text(json.dumps(marker))
             with patch('official_sdk_state.refuse_active_owner', return_value={'reason':'process_absent'}), \
-                 patch('baseline_setup.fetch', return_value=cache/'layer'), \
+                 patch('benchmark.baseline_setup.fetch', return_value=cache/'layer'), \
                  patch.object(execution,'prepare_root',return_value=Path('/rebuilt')) as prepare:
                 self.assertEqual(execution.ensure_for_sdk(sdk),Path('/rebuilt'))
             preserved=list(output.parent.glob(output.name+'.interrupted-*'))

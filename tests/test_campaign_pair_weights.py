@@ -12,7 +12,7 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 sys.path[:0] = [str(ROOT), str(ROOT / 'benchmark/one-click-kit/scripts')]
 from test_context_baseline_reuse import combined
-import evaluation_client
+from benchmark import evaluation_client
 
 
 def fixture(tmp_path):

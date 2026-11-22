@@ -10,7 +10,7 @@ import urllib.parse
 import urllib.request
 import uuid
 
-ROOT = Path(__file__).resolve().parent
+ROOT = Path(__file__).resolve().parents[1]
 INDEX = 'https://pypi.tuna.tsinghua.edu.cn/simple/'
 PROBE = dict(
     url='https://pypi.tuna.tsinghua.edu.cn/packages/79/f8/97f10e6755e2a7d027ca783f63044d5b1bc1ae7acb12afe6a9b4286eac17/numpy-1.26.4-cp312-cp312-manylinux_2_17_aarch64.manylinux2014_aarch64.whl',
@@ -145,7 +145,7 @@ def audit(pending, lock):
 
 def run_stage(args, *, cache, phase, env=None, **kwargs):
     """Use the existing child owner and preserve a separate source audit."""
-    from release_selection import runtime_lock
+    from engine.release_selection import runtime_lock
     from child_runner import run_stage as owned
     folder = Path(cache) / 'private-pip-audits' / (phase + '-' + uuid.uuid4().hex)
     folder.mkdir(parents=True)

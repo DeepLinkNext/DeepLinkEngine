@@ -6,7 +6,7 @@ ROOT=Path(__file__).resolve().parents[1];sys.path.insert(0,str(ROOT))
 from official import enable_module_imports
 
 enable_module_imports()
-import native_sdk_controller as controller
+from engine import native_sdk_controller as controller
 
 class Native(unittest.TestCase):
     def setUp(self):
@@ -28,7 +28,7 @@ class Native(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,'one admitted'):controller.admit_interpreter(unrelated)
     def test_handoff_uses_same_script_arguments_B_and_preserves_native_identity(self):
         sdk,python=self.sdk();env={}
-        with patch.object(controller,'native_scope',return_value=True),patch.object(controller,'runtime_version',return_value=(3,10)),patch.object(controller,'state',return_value=dict(libc='2.38',root_dev_inode=[1,2],os_release_sha256='a'*64,pid=123,start_ticks='9')),patch('official_image.environment',return_value=(python,env)),patch('transport_trust.configure'),patch.object(controller.os,'execve',side_effect=RuntimeError('fixture exec boundary')) as execute:
+        with patch.object(controller,'native_scope',return_value=True),patch.object(controller,'runtime_version',return_value=(3,10)),patch.object(controller,'state',return_value=dict(libc='2.38',root_dev_inode=[1,2],os_release_sha256='a'*64,pid=123,start_ticks='9')),patch('official_image.environment',return_value=(python,env)),patch('engine.transport_trust.configure'),patch.object(controller.os,'execve',side_effect=RuntimeError('fixture exec boundary')) as execute:
             with self.assertRaisesRegex(RuntimeError,'exec boundary'):controller.maybe_enter(sdk,ROOT/'run_all.py',['--config','/x/config.json','--prepare-environment'],cache=self.root/'cache')
         command=execute.call_args.args[1];self.assertEqual(command,[str(python),'-B',str(ROOT/'run_all.py'),'--config','/x/config.json','--prepare-environment'])
         value=json.loads(env[controller.ENV]);self.assertFalse(value['chroot_performed']);self.assertFalse(value['mount_performed']);self.assertEqual(value['libc'],'2.38')
@@ -50,7 +50,8 @@ class Native(unittest.TestCase):
         self.assertEqual(len(json.loads(env[controller.ENV])['bootstrap_admission']['binary_and_libpython_sha256']),2)
     @unittest.skipUnless(sys.platform=='linux','Linux real SDK-compatible metadata subprocess')
     def test_public_prepare_environment_reaches_real_isolated_probe_capless(self):
-        import run_all, sdk_dependency_probe as probe
+        import run_all
+        from engine import sdk_dependency_probe as probe
         python=self.root/'venv/bin/python';python.parent.mkdir(parents=True);python.symlink_to(sys.executable)
         site=python.parent.parent/('lib/python%d.%d/site-packages'%sys.version_info[:2]);site.mkdir(parents=True)
         model=self.root/'model';model.mkdir();config=self.root/'evaluation.json'
@@ -58,7 +59,7 @@ class Native(unittest.TestCase):
         calls=[]
         def ensure(data):
             observed=probe.inspect_sdk(python,{},receipt=self.root/'public-probe.json');calls.append(observed);return None
-        with patch.object(sys,'argv',['run_all.py','--config',str(config),'--prepare-environment']),patch('official_sdk_bytecode.verify_or_repair',return_value=None),patch.dict(os.environ),patch.object(run_all,'select_run_engine'),patch('environment_setup.ensure_environment',side_effect=ensure),patch.object(run_all,'preflight'):
+        with patch.object(sys,'argv',['run_all.py','--config',str(config),'--prepare-environment']),patch('official_sdk_bytecode.verify_or_repair',return_value=None),patch.dict(os.environ),patch.object(run_all,'select_run_engine'),patch('engine.environment_setup.ensure_environment',side_effect=ensure),patch.object(run_all,'preflight'):
             os.environ.pop('DEEPLINK_EXECUTION_CONTEXT',None)
             self.assertEqual(run_all.main(),0)
         self.assertEqual(len(calls),1);self.assertFalse(calls[0]['native_packages_imported']);self.assertFalse((self.root/'out').exists())

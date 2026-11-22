@@ -11,7 +11,7 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path[:0] = [str(ROOT), str(ROOT / 'benchmark/one-click-kit/scripts')]
-import b0_run_policy as policy
+from benchmark import b0_run_policy as policy
 import one_click
 import run_all
 
@@ -134,7 +134,7 @@ def test_generated_guards_precede_each_model_launch_boundary():
     tree = ast.parse(context)
     function = next(x for x in tree.body if isinstance(x, ast.FunctionDef) and x.name == 'run')
     assert ast.unparse(function.body[1]) == 'require_context_reuse(args)'
-    assert files['scripts/b0_run_policy.py'] == (ROOT / 'b0_run_policy.py').read_bytes()
+    assert files['scripts/b0_run_policy.py'] == (ROOT / 'benchmark/b0_run_policy.py').read_bytes()
 
 
 def test_public_policy_stays_out_of_the_original_frozen_config_schema(tmp_path):

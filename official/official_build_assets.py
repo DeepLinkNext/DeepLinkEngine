@@ -80,8 +80,8 @@ def transports(row):
 
 def fetch(row,cache):
     """Use the existing Range-resume downloader and its standard wheel mutex."""
-    from baseline_setup import download_lock
-    from environment_setup import _download_dependency,wheel_digest
+    from benchmark.baseline_setup import download_lock
+    from engine.environment_setup import _download_dependency,wheel_digest
     cache=Path(cache);cache.mkdir(parents=True,exist_ok=True);target=cache/row['filename']
     if Path(row['filename']).name!=row['filename']:raise ValueError('Unsafe build artifact filename')
     def valid(path):return path.is_file() and not path.is_symlink() and path.stat().st_size==row['bytes'] and wheel_digest(path)==row['sha256']
@@ -139,7 +139,7 @@ def admit_pip_cache(row,cache,*,pip_cache,report_url):
     """Copy only this report URL's verified whole body from our metadata cache."""
     if urllib.parse.urlsplit(report_url).scheme not in ('https','http'):
         return None
-    from baseline_setup import download_lock
+    from benchmark.baseline_setup import download_lock
     from pip._internal.network.cache import SafeFileCache
     from pip._vendor.cachecontrol.controller import CacheController
     import tempfile
@@ -314,7 +314,7 @@ def prefetch_all(config,arguments):
     from official_image import environment
     from official_baselines import save
     from official_source_candidate import SOURCES,source_archive
-    from transport_trust import configure
+    from engine.transport_trust import configure
     import platform
     if sys.platform!='linux' or platform.machine()!='aarch64':
         raise ValueError('Resolve complete build closures in an already prepared Linux aarch64 SDK; individual artifacts are cross-platform')

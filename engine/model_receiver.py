@@ -31,8 +31,8 @@ def save(path,value):
 def regular(path):return path.is_file() and not path.is_symlink()
 
 def restore(lock,output,*,transport_base_url=None):
-    from model_restore import manifest
-    from baseline_setup import download_lock
+    from engine.model_restore import manifest
+    from benchmark.baseline_setup import download_lock
     value=manifest(lock);pin=digest(lock);base=globals()['transport_base_url'](transport_base_url);output=Path(output).absolute()
     if output.is_symlink():raise ValueError('Model destination must not be a symlink')
     output.mkdir(parents=True,exist_ok=True);lease_path=output.resolve().parent/(output.name+'.model-restoration.lock')

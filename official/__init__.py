@@ -18,8 +18,12 @@ def enable_module_imports():
 def source_path(root, name):
     """Resolve a source label without changing its name in provenance records."""
     relative = Path(name)
-    if relative.parent == Path('.') and relative.match('official_*.py'):
-        return root / 'official' / relative
+    if relative.parent == Path('.'):
+        if relative.match('official_*.py'):
+            return root / 'official' / relative
+        if relative.name in ('logging_entry.py', 'native_sdk_controller.py', 'sdk_dependency_probe.py',
+                             'service_logging.py', 'transport_trust.py'):
+            return root / 'engine' / relative
     return root / relative
 
 

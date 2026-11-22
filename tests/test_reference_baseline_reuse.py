@@ -8,7 +8,8 @@ from unittest.mock import patch
 import pytest
 ROOT=Path(__file__).resolve().parents[1]
 sys.path[:0]=[str(ROOT),str(ROOT/'benchmark/one-click-kit/scripts')]
-import reference_baseline_reuse as reuse
+from benchmark import b0_run_policy, device_reuse
+from benchmark import reference_baseline_reuse as reuse
 from reference_capture_profile import profile
 from baseline_admission import PINNED_SOURCE_MAP_SHA256
 
@@ -43,7 +44,8 @@ def original(tmp_path):
     for name,value in {'receipt.json':receipt,'service/native-plan.json':native,'device-mapping.json':dict(physical_cards=[1,6],logical_cards=[0,1]),
         'model-weights.json':weights,'service/baseline-source-admission.json':dict(source_map_sha256=PINNED_SOURCE_MAP_SHA256)}.items():write(source/name,value)
     plan=dict(capture_profile=capture,binding=dict(model=str(model)),physical_cards=[1,6],logical_devices='0,1',baseline_deployment='/relocated/same-pinned-b0')
-    with patch.dict(sys.modules,full_reference_reuse=SimpleNamespace(qualify_native=lambda *a:dict(role='B0')),
+    with patch.dict(sys.modules,b0_run_policy=b0_run_policy,device_reuse=device_reuse,
+        full_reference_reuse=SimpleNamespace(qualify_native=lambda *a:dict(role='B0')),
         qualify_baseline_capacity=SimpleNamespace(qualify=lambda *a,**k:dict(qualified=True)),
         baseline_relocation=SimpleNamespace(verify=lambda *a:dict(same_pinned_bytes=True))):
         yield source,plan,reseal(source)
@@ -160,7 +162,8 @@ def test_http_observation_launch_receives_the_frozen_device_change_option(tmp_pa
         return SimpleNamespace(returncode=2)
 
     admission = dict(plan="plans/automatic-plan.json", plan_sha256=reuse.sha(path))
-    with patch.dict(sys.modules, engine_entry=SimpleNamespace(environment=lambda *a: {})), patch.dict(namespace, run_stage=launch):
+    with patch.dict(sys.modules, b0_run_policy=b0_run_policy,
+                    engine_entry=SimpleNamespace(environment=lambda *a: {})), patch.dict(namespace, run_stage=launch):
         result = namespace["execute"](out, admission)
     assert result["blockers"] == ["Current HTTP observation failed: fixture"]
 

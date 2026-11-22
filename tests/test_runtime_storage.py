@@ -9,7 +9,7 @@ from unittest.mock import patch
 
 ROOT=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT))
-import runtime_storage as storage
+from engine import runtime_storage as storage
 
 
 class RuntimeStorageTests(unittest.TestCase):
@@ -31,7 +31,7 @@ class RuntimeStorageTests(unittest.TestCase):
 
     def invoke(self,reuse=False,run=None,audit=None):
         with patch.dict(sys.modules,self.modules),patch.object(storage,'storage_target',return_value=self.fast), \
-             patch('producer_install_admission.command', side_effect=lambda target,evidence:[sys.executable,'install',str(target)]), \
+             patch('engine.producer_install_admission.command', side_effect=lambda target,evidence:[sys.executable,'install',str(target)]), \
              patch.object(storage.subprocess,'run',side_effect=run or self.build), \
              patch.object(storage,'audit',side_effect=audit or (lambda target,frozen:json.loads((target/'installation.json').read_text()))):
             return storage.ensure(self.logical,reuse=reuse)
@@ -143,7 +143,7 @@ class RuntimeStorageTests(unittest.TestCase):
         venv=self.root/'venv';(venv/'bin').mkdir(parents=True);(venv/'pyvenv.cfg').write_text('home=/python')
         python=venv/'bin/python'
         storage.marker(self.logical).write_text(json.dumps(dict(logical=str(self.logical),verified=True,python=str(python))))
-        with patch('environment_setup.cann_environment',return_value=({'CANN':'ready'},{})), \
+        with patch('engine.environment_setup.cann_environment',return_value=({'CANN':'ready'},{})), \
              patch.object(storage.subprocess,'run',return_value=types.SimpleNamespace(returncode=0)) as run:
             storage.restore_missing(self.logical)
         command=run.call_args.args[0]

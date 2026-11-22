@@ -24,10 +24,10 @@ def manifest(path):
 
 
 def transport_base_url(value):
-    from model_receiver import transport_base_url as validate
+    from engine.model_receiver import transport_base_url as validate
     return validate(value)
 
 
 def restore(lock, output, *, transport_base_url=None):
-    from model_receiver import restore as receive
+    from engine.model_receiver import restore as receive
     return receive(lock, output, transport_base_url=transport_base_url)

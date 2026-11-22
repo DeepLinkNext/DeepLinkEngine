@@ -140,7 +140,7 @@ def recipe_vendor(row,out):
 
 def fetch_vendor(row,cache,out):
     import official_build_assets as assets
-    from baseline_setup import download_lock
+    from benchmark.baseline_setup import download_lock
     source,index=recipe_vendor(row,out);qualified=Path(cache)/'source-build-downloads/vendor-qualified';qualified.mkdir(parents=True,exist_ok=True)
     target=qualified/row['filename'];receipt=target.with_name(target.name+'.source-ranges.json')
     with target.with_name(target.name+'.lock').open('a+b') as lease,download_lock(lease):

@@ -14,17 +14,17 @@ def main():
     p.add_argument('--cache',type=Path,required=True)
     p.add_argument('--download',action='store_true',help='Download all four installation inputs using this same selection')
     args=p.parse_args()
-    from release_selection import select,save,kit_path
+    from engine.release_selection import select,save,kit_path
     selected=select(args.cache)
     from packaging.version import Version
     if Version(selected['version'])<Version('2026.11.19.9'):
         raise ValueError('R9 stable publication must precede enabling this consumer default')
-    from engine_install import sources
+    from engine.engine_install import sources
     actual=sources()
     if actual!=[selected['sdist'],*selected['runtime_artifacts']]:
         raise ValueError('Default installation inputs differ from selected stable source')
     if args.download:
-        from engine_install import install
+        from engine.engine_install import install
         install(args.cache,download_only=True)
     from one_click import verify_kit,configuration_arguments
     verify_kit()

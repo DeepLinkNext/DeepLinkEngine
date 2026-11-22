@@ -11,7 +11,7 @@ import tarfile
 import time
 import uuid
 
-from baseline_setup import fetch as sequential_fetch
+from benchmark.baseline_setup import fetch as sequential_fetch
 
 PREFIXES = ('usr/local/', 'etc/Ascend/', 'vllm-workspace/')
 SYSTEM_LIBS = ('libbz2.so', 'libnuma.so', 'libgomp.so', 'libffi.so', 'liblzma.so',

@@ -10,7 +10,7 @@ import tempfile
 import urllib.error
 import urllib.request
 
-ROOT = Path(__file__).resolve().parent
+ROOT = Path(__file__).resolve().parents[1]
 MANIFEST = ROOT / 'data/bundles.json'
 
 

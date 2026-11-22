@@ -53,7 +53,7 @@ class SourceGraph(unittest.TestCase):
                 Path(argv[argv.index('--report')+1]).write_text(json.dumps(dict(install=install,environment={})))
             def fetch(row,cache):return by_file[row['filename']],dict(cpu_fixture=True)
             def authority(item,primary):return by_name[item['download_info']['url'].rsplit('/',1)[-1]]
-            with patch.object(candidate,'build_dependency_artifacts',return_value=registry),patch('transport_trust.configure',return_value=dict(cpu_fixture=True)),patch.object(assets,'fetch',side_effect=fetch),patch.object(assets,'authority',side_effect=authority),patch.object(assets,'admit_pip_cache',return_value=None),patch.object(assets,'_run',side_effect=run):
+            with patch.object(candidate,'build_dependency_artifacts',return_value=registry),patch('engine.transport_trust.configure',return_value=dict(cpu_fixture=True)),patch.object(assets,'fetch',side_effect=fetch),patch.object(assets,'authority',side_effect=authority),patch.object(assets,'admit_pip_cache',return_value=None),patch.object(assets,'_run',side_effect=run):
                 links,proof=graph.prepare(Path(sys.executable),project,root/'cache',build,dict(PIP_BUILD_CONSTRAINT='wrong-flat-file',PIP_CONSTRAINT='wrong-global-file'),sdk=root/'sdk',stage='01-core')
             self.assertEqual((project/'pyproject.toml').read_bytes(),original)
             self.assertEqual({item.name for item in links.iterdir()},{one.name,two.name,nested.name})

@@ -6,7 +6,7 @@ import pytest
 ROOT=Path(__file__).resolve().parents[1]
 sys.path[:0]=[str(ROOT),str(ROOT/'benchmark/one-click-kit/scripts')]
 import checkpoint_cache as cache
-import warmup_memory_recovery as recovery
+from benchmark import warmup_memory_recovery as recovery
 G=2**30
 
 

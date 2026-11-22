@@ -66,7 +66,7 @@ def refuse_active_owner(marker):
 @contextmanager
 def sdk_preparation(sdk):
     """Hold this lock across quarantine, extraction, verification and commit."""
-    from baseline_setup import download_lock
+    from benchmark.baseline_setup import download_lock
     sdk = Path(sdk).absolute()
     if sdk.is_symlink() or (sdk.exists() and not sdk.is_dir()):
         raise ValueError('SDK preparation target must be an ordinary directory')

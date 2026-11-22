@@ -22,12 +22,12 @@ spec.loader.exec_module(entry)
 sys.path.insert(0, str(entry.KIT / "scripts"))
 from full_reference_reuse import arm_statistics, qualify_mapping
 from compute_reference import target
-import run_status
+from benchmark import run_status
 
 
 class PublicEntryTests(unittest.TestCase):
     def setUp(self):
-        selected=patch('release_selection.select',return_value=None)
+        selected=patch('engine.release_selection.select',return_value=None)
         selected.start()
         self.addCleanup(selected.stop)
 

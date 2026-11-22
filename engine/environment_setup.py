@@ -1,4 +1,4 @@
-from release_selection import kit_path, runtime_lock, profile as selected_profile
+from engine.release_selection import kit_path, runtime_lock, profile as selected_profile
 """Repair Python dependencies in a private cache; load an installed CANN toolkit."""
 import hashlib
 import http.client
@@ -17,7 +17,7 @@ import urllib.request
 import urllib.error
 import sys
 
-ROOT = Path(__file__).resolve().parent
+ROOT = Path(__file__).resolve().parents[1]
 OPTIONS = {"python", "wheelhouse", "cann_home", "official_sdk"}
 PROBE = """import importlib.metadata as m,json,platform,sys
 names=json.loads(sys.argv[1]);versions={}
@@ -144,7 +144,7 @@ def command(args, env, directory, name, report, report_path):
     report["steps"].append(record)
     save(report_path, report)
     try:
-        from pip_transport import plan, audit
+        from engine.pip_transport import plan, audit
         args, child_env, source_audit = plan(args, env, directory)
         if source_audit:
             record['pip_source_audit'] = source_audit
@@ -179,7 +179,7 @@ def wheel_digest(path):
 
 def cached_wheel(source, links, cache):
     """Use only a hash-matching local wheel or fetch the fixed public artifact."""
-    from baseline_setup import download_lock
+    from benchmark.baseline_setup import download_lock
     cache.mkdir(parents=True, exist_ok=True)
     filename = source["filename"]
     if Path(filename).name != filename:
@@ -340,14 +340,12 @@ def distribution_integrity(name):
 def vendor_integrity(python, required, env):
     if "triton-ascend" not in required:
         return dict(verified=True, packages={})
-    code = """import importlib.util,json,sys
-from pathlib import Path
-sys.path.insert(0,str(Path(sys.argv[1]).resolve().parent))
-spec=importlib.util.spec_from_file_location('environment_setup',sys.argv[1])
-module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
-print(json.dumps(module.distribution_integrity('triton-ascend')))
+    code = """import json,sys
+sys.path.insert(0,sys.argv[1])
+from engine.environment_setup import distribution_integrity
+print(json.dumps(distribution_integrity('triton-ascend')))
 """
-    observed = subprocess.run([str(python), "-I", "-B", "-X", "utf8", "-c", code, str(ROOT / "environment_setup.py")],
+    observed = subprocess.run([str(python), "-I", "-B", "-X", "utf8", "-c", code, str(ROOT)],
                               env=env, capture_output=True, text=True, encoding="utf-8", check=True, timeout=180)
     result = json.loads(observed.stdout)
     return dict(verified=result["verified"], packages={"triton-ascend": result})
@@ -463,7 +461,7 @@ def ensure_environment(data):
             integrity = vendor_integrity(python, required, env)
             if integrity["verified"]:
                 original_report = report_path.read_bytes()
-                from package_metadata import prepare
+                from engine.package_metadata import prepare
                 current["package_metadata"] = prepare(python)
                 try:
                     current["runtime_imports"] = runtime_imports(python, required, env)
@@ -501,7 +499,7 @@ def ensure_environment(data):
             report["differences"] = missing
             managed = directory / "venv"
             if managed.is_symlink():
-                from python_storage import admitted, ensure as restore_python
+                from engine.python_storage import admitted, ensure as restore_python
                 if not admitted(managed / "bin/python", data["cache"]):
                     raise ValueError("Managed venv must not be an unmanaged symlink")
                 restore_python(managed)
@@ -525,7 +523,7 @@ def ensure_environment(data):
                 install += ["--find-links", folder]
             qualified_imports = None
             if reusable and not differences(info, required):
-                from package_metadata import prepare
+                from engine.package_metadata import prepare
                 report["package_metadata"] = prepare(python)
                 try:
                     qualified_imports = runtime_imports(python, required, env)
@@ -567,7 +565,7 @@ def ensure_environment(data):
             after = probe(python, required, env)
             if differences(after, required):
                 raise ValueError("Dependency versions remain inconsistent after repair")
-            from package_metadata import prepare
+            from engine.package_metadata import prepare
             report["package_metadata"] = prepare(python)
             report["runtime_imports"] = qualified_imports or runtime_imports(python, required, env)
             report['triton_backend'] = triton_backend_smoke(python, required, env, data, options, directory, integrity)

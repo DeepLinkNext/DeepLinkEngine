@@ -12,7 +12,7 @@ from urllib.parse import urlsplit
 
 
 def fetch(cache, registry, kind, identity, size, *, workers=4, chunk_size=1024**2, source_url=None):
-    from baseline_setup import digest, download_lock, fetch as sequential
+    from benchmark.baseline_setup import digest, download_lock, fetch as sequential
     if (not re.fullmatch(r'sha256:[0-9a-f]{64}',identity)
             or type(size) is not int or size<=0 or type(workers) is not int or not 1<=workers<=4
             or type(chunk_size) is not int or not 1<=chunk_size<=4*1024**2):

@@ -110,7 +110,7 @@ class ProtocolDownload(unittest.TestCase):
 
     def test_continued_trickle_is_bounded_and_never_admitted(self):
         with patch('urllib.request.urlopen',side_effect=lambda *a,**k:io.BytesIO(self.raw[:1])), \
-             patch('environment_setup.time.monotonic',side_effect=itertools.count(0,46)):
+             patch('engine.environment_setup.time.monotonic',side_effect=itertools.count(0,46)):
             with self.assertRaisesRegex(OSError,'Dependency download failed'):self.invoke()
         self.assertFalse((self.root/'cache/b0-parts/fixture.part-001').exists())
         journal=json.loads((self.root/'cache/b0-parts/fixture.part-001.download.json').read_bytes())
