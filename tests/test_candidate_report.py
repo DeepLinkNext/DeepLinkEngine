@@ -69,15 +69,25 @@ class CandidateReportTests(unittest.TestCase):
         for level in ("milestone", "final"):
             self.assertEqual(v2["4.2"][level]["status"], "met")
             self.assertIn("mmlu", v2["4.2"][level]["datasets"])
-            expected_compute = (level == "milestone") if fixed else None
+            expected_compute = level == "milestone" or not fixed
             self.assertIs(v2["4.1"][level]["met"], expected_compute)
             self.assertIs(v2["4.3"][level]["met"], not fixed)
-        if fixed:
-            compute = v2["4.1"]
-            self.assertAlmostEqual(float(compute["efficiency_lower_percent"]["B1"]), 89.14006, places=5)
-            self.assertEqual(compute["native"]["profile"]["max_tokens"], 256)
-            self.assertEqual(compute["native"]["profile"]["formal_repetitions"], 3)
-            self.assertIn("compute_audit", receipt["assessment_sources"])
+        compute = v2["4.1"]
+        native = compute["native"]
+        self.assertAlmostEqual(float(compute["efficiency_lower_percent"]["B1"]),
+                               89.14006 if fixed else 93.59259, places=5)
+        self.assertAlmostEqual(float(compute["achieved_tflops_per_card_lower"]["B1"]),
+                               17.24003 if fixed else 18.10117, places=5)
+        self.assertEqual(native["profile"]["max_tokens"], 256)
+        self.assertEqual(native["profile"]["formal_repetitions"], 3)
+        self.assertIn("compute_audit", receipt["assessment_sources"])
+        if not fixed:
+            terminal = native["native_terminal_audit"]
+            self.assertEqual(terminal["verified_requests"], 600)
+            self.assertFalse(terminal["original_completed"])
+            self.assertTrue(terminal["all_selected_device_samples_owned"])
+            self.assertEqual([row["T_seconds"] for row in native["arms"]["B1"]["repetitions"]],
+                             ['49.822863073', '49.868149891', '49.804377711'])
         self.assertTrue(v2["4.4"]["milestone"]["met"])
         self.assertTrue(v2["4.4"]["final"]["met"])
         reviewed = v2["4.3"]
@@ -124,6 +134,7 @@ class CandidateReportTests(unittest.TestCase):
         self.assertIn("合成闭环 4K / C8", document)
         self.assertIn("已按原件封存复算", document)
         self.assertIn("4.2 逐数据集门槛核验", document)
+        self.assertIn("有效算力下界（TFLOP/s/卡）", document)
         self.assertIn("4.4 按公开租金折算", document)
         self.assertIn("tenant-3", document)
         return summary

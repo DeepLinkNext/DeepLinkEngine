@@ -261,10 +261,17 @@ def v2_html(data):
             card_ids = "、".join(map(str, native["physical_cards"][role]))
             clocks = " / ".join(f'{float(row["T_seconds"]):.3f}' for row in arm["repetitions"])
             rows.append((ARM_NAMES["B0" if role == "B0" else "candidate"], card_ids, clocks,
+                         f'{float(compute["achieved_tflops_per_card_lower"][role]):.4f}',
                          f'{float(arm["reference_tflops_per_card_upper"]):.4f}',
                          f'{float(arm["efficiency_lower_percent"]):.4f}%', native["native_seals"][role]))
         compute_block = "<h3>4.1 MMLU-Pro 固定 200 题 / out256</h3>" + table(
-            ("运行臂", "物理卡", "三轮原生计时（秒）", "参考上界（TFLOP/s/卡）", "效率下界", "原生封存 SHA-256"), rows)
+            ("运行臂", "物理卡", "三轮原生计时（秒）", "有效算力下界（TFLOP/s/卡）",
+             "参考算力上界（TFLOP/s/卡）", "效率下界", "原生封存 SHA-256"), rows)
+        if terminal := native.get("native_terminal_audit"):
+            proof_sha = html.escape(terminal["proof_sha256"])
+            observe_sha = html.escape(native["http_observation_seal_sha256"])
+            compute_block += (f'<p>退出时设备采样的独立审计 SHA-256 <code>{proof_sha}</code>。'
+                              f'必要算量观测封存 SHA-256 <code>{observe_sha}</code>。</p>')
     return f"""<h2>送测 V2 按证据判定</h2>
 {table(("指标", "阶段", "状态", "已有证据", "判定依据或缺项"), targets)}
 {compute_block}

@@ -2,6 +2,7 @@
 
 from decimal import Decimal, localcontext
 from math import isclose
+from re import fullmatch
 
 from benchmark.full_report import (
     COUNTS, MMLU_UNIT_COST_REDUCTION_MIN, PERFORMANCE_LIMITS, QUALITY_TRACKS,
@@ -321,7 +322,25 @@ def assess_compute(observed, archive, fixed_b0):
             or observed["profile"] != {"id": "submission-v2", "max_tokens": 256, "formal_repetitions": 3,
                                        "ignore_eos": False, "requests_per_repetition": 200}):
         raise ValueError("Native compute evidence differs from the frozen V2 candidate or baseline")
-    values = {}
+    terminal = observed.get("native_terminal_audit")
+    if terminal is not None and (
+            terminal["schema"] != "deeplinkengine-native-terminal-closure/v1"
+            or terminal["original_completed"] is not False
+            or terminal["original_checksums_sha256"] != observed["native_seals"]["B1"]
+            or terminal["original_receipt_sha256"] != observed["native_receipts"]["B1"]
+            or terminal["all_selected_device_samples_owned"] is not True
+            or terminal["all_formal_fences_closed"] is not True
+            or terminal["original_archive_unchanged"] is not True
+            or terminal["model_inference_rerun"] is not False
+            or terminal["verified_formal_repetitions"] != observed["profile"]["formal_repetitions"]
+            or terminal["verified_requests"] != terminal["verified_formal_repetitions"] * observed["profile"]["requests_per_repetition"]
+            or terminal["terminal_sample_monotonic_ns"] <= terminal["native_final_fence_ns"]
+            or any(not fullmatch(r"[a-f0-9]{64}", terminal[name]) for name in
+                   ("proof_sha256", "timings_sha256", "resource_samples_sha256", "cleanup_sha256"))
+            or any(not fullmatch(r"[a-f0-9]{64}", observed[name]) for name in
+                   ("http_observation_seal_sha256", "independent_http_observation_receipt_sha256"))):
+        raise ValueError("Completed native clocks lack a matching independent terminal closure")
+    values, achieved = {}, {}
     for role in ROLES:
         arm = observed["arms"][role]
         runs = arm["repetitions"]
@@ -329,18 +348,27 @@ def assess_compute(observed, archive, fixed_b0):
             precision.prec = 40
             work = sum(run["F_interval"][0] for run in runs)
             elapsed = sum(Decimal(run["T_seconds"]) for run in runs)
-            reference = Decimal(arm["reference_tflops_per_card_upper"])
-            value = 100 * (Decimal(work) / (2 * elapsed * 10**12)) / reference
+            reference = Decimal(arm["reference_F_interval"][1]) / (
+                2 * Decimal(arm["reference_seconds_lower"]) * 10**12)
+            per_card = Decimal(work) / (2 * elapsed * 10**12)
+            value = 100 * per_card / reference
         if ([run["repetition"] for run in runs] != [1, 2, 3]
                 or any(run["native_source_seal_sha256"] != observed["native_seals"][role] for run in runs)
+                or reference != Decimal(arm["reference_tflops_per_card_upper"])
+                or per_card != Decimal(arm["achieved_tflops_per_card_interval"][0])
                 or value != Decimal(arm["efficiency_lower_percent"])):
             raise ValueError(f"Native compute arithmetic or timing seal differs for {role}")
         values[role] = value
+        achieved[role] = per_card
+    available = "MMLU-Pro 固定 200 题、out256 三轮原生双卡计时、必要算量和已认证的同工况独立参考分母。"
+    if terminal is not None:
+        available += "原始启动器回执保留退出时的设备采样异常。独立审计核验了全部计时结束栅栏与设备归属。"
     return {
-        "available": "MMLU-Pro 固定 200 题、out256 三轮原生双卡计时、必要算量和已认证的同工况独立参考分母。",
+        "available": available,
         "milestone": verdict(values["B1"] >= 50, "所选候选的有效算力效率下界须达到 50%。"),
         "final": verdict(values["B1"] >= 90, "所选候选的有效算力效率下界须达到 90%。"),
         "efficiency_lower_percent": {role: decimal_text(value) for role, value in values.items()},
+        "achieved_tflops_per_card_lower": {role: decimal_text(value) for role, value in achieved.items()},
         "native": observed,
     }
 
