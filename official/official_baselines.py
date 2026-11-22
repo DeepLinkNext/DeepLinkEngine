@@ -72,7 +72,12 @@ def main(arguments=None):
     parser.add_argument('--companion-seal-sha256')
     parser.add_argument('--reuse-completed-continuous', type=Path,
                         help='In a new output, retain sealed C8 after a later pre-model failure; preserve original clocks')
+    parser.add_argument('--resume-source-rust-from', type=Path,
+                        help='Resume a candidate CPU build after its final Rust Git transport failed')
     args = parser.parse_args(arguments)
+    if args.resume_source_rust_from and (not args.prepare_environment or args.download_only
+            or args.report_only or args.complete_ft or args.reuse_completed_continuous):
+        parser.error('Rust build recovery requires CPU-only source candidate environment preparation')
     if args.download_source_build_dependencies and (not args.download_only or args.download_protocol_dependencies):
         parser.error('Source-build prefetch requires download-only, separate from protocol prefetch')
     if args.download_only and (args.report_only or args.complete_ft or args.reuse_ft_companion):
@@ -89,6 +94,8 @@ def main(arguments=None):
             return run(args.config)
         protocol_preparation = None
         config = configuration(args.config, download_only=args.download_only)
+        if args.resume_source_rust_from and config['versions'] != ['0.28.0rc1-source']:
+            raise ValueError('Rust build recovery requires the 0.28 source candidate')
         if (args.source_version_seal_sha256 or args.reuse_ft_companion or args.companion_seal_sha256) and not args.complete_ft:
             raise ValueError('F/T continuation options require --complete-ft')
         if args.complete_ft:
@@ -187,18 +194,25 @@ def main(arguments=None):
                     base_lock = ROOT / 'engine/official-baselines/0.23.0.json'
                     from official_sdk_state import sdk_preparation
                     with sdk_preparation(sdk):
-                        from official_source_candidate import quarantine_partial
-                        recovered = quarantine_partial(sdk)
-                        if recovered:
-                            row['interrupted_source_build'] = recovered
+                        if args.resume_source_rust_from:
+                            from official_source_rust_recovery import retry
+                            recovery = out / 'source-rust-recovery'
+                            row['rust_recovery'] = str(recovery / 'recovery.json')
                             save(out / 'results.json', record)
-                        if sdk.exists():
-                            installed = reuse_candidate(sdk)
+                            installed = retry(args.resume_source_rust_from.resolve(), cache, sdk, recovery)
                         else:
-                            from official_source_delivery import prepare as deliver_verified_wheels
-                            row['build_dependency_delivery'] = deliver_verified_wheels(cache, sdk, out / (version + '-dependency-delivery'))
-                            save(out / 'results.json', record)
-                            installed = prepare_candidate(base_lock, cache, sdk)
+                            from official_source_candidate import quarantine_partial
+                            recovered = quarantine_partial(sdk)
+                            if recovered:
+                                row['interrupted_source_build'] = recovered
+                                save(out / 'results.json', record)
+                            if sdk.exists():
+                                installed = reuse_candidate(sdk)
+                            else:
+                                from official_source_delivery import prepare as deliver_verified_wheels
+                                row['build_dependency_delivery'] = deliver_verified_wheels(cache, sdk, out / (version + '-dependency-delivery'))
+                                save(out / 'results.json', record)
+                                installed = prepare_candidate(base_lock, cache, sdk)
                     row.update(installation=str(sdk), installation_receipt=installed,
                                status='prepared' if args.prepare_environment else 'running',
                                model_started=False if args.prepare_environment else None)
