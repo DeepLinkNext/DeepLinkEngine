@@ -5,6 +5,7 @@ import json
 import os
 from pathlib import Path
 import platform
+import re
 import sys
 import time
 
@@ -72,11 +73,21 @@ def main(arguments=None):
     parser.add_argument('--companion-seal-sha256')
     parser.add_argument('--reuse-completed-continuous', type=Path,
                         help='In a new output, retain sealed C8 after a later pre-model failure; preserve original clocks')
+    parser.add_argument('--resume-official-from', type=Path,
+                        help='Retain the sealed 0.28 solver phases and resume at the failed fixed judge')
+    parser.add_argument('--resume-official-seal-sha256',
+                        help='SHA-256 of the source version checksums.json')
     parser.add_argument('--resume-source-rust-from', type=Path,
                         help='Resume a candidate CPU build after its final Rust Git transport failed')
     parser.add_argument('--rust-crate-mirror', choices=('rsproxy',),
                         help='Use a Cargo sparse mirror for the recovery, with the original locked crates')
     args = parser.parse_args(arguments)
+    if args.resume_official_from is not None or args.resume_official_seal_sha256 is not None:
+        if (args.resume_official_from is None
+                or not re.fullmatch('[a-f0-9]{64}', args.resume_official_seal_sha256 or '')
+                or any((args.prepare_environment, args.download_only, args.report_only, args.complete_ft,
+                        args.reuse_completed_continuous, args.resume_source_rust_from))):
+            parser.error('Sealed official resumption requires its source and SHA-256 and a full run')
     if args.rust_crate_mirror and not args.resume_source_rust_from:
         parser.error('A Rust crate mirror is only supported during source build recovery')
     if args.resume_source_rust_from and (not args.prepare_environment or args.download_only
@@ -98,6 +109,11 @@ def main(arguments=None):
             return run(args.config)
         protocol_preparation = None
         config = configuration(args.config, download_only=args.download_only)
+        if args.resume_official_from is not None:
+            if config['versions'] != ['0.28.0rc1-source']:
+                raise ValueError('Sealed fixed-judge resumption requires only the 0.28 source candidate')
+            config['resume_official_from'] = str(args.resume_official_from.absolute())
+            config['resume_official_seal_sha256'] = args.resume_official_seal_sha256
         if args.resume_source_rust_from and config['versions'] != ['0.28.0rc1-source']:
             raise ValueError('Rust build recovery requires the 0.28 source candidate')
         if (args.source_version_seal_sha256 or args.reuse_ft_companion or args.companion_seal_sha256) and not args.complete_ft:

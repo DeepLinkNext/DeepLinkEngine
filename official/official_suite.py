@@ -344,6 +344,7 @@ def run(config, image, output):
                           'official_judge.py', 'official_native.py', 'official_native_entry.py', 'official_report.py',
                           'official_plots.py', 'official_kernel_preparation.py', 'official_endpoint.py', 'official_reuse.py',
                           'official_runtime_identity.py', 'official_resource_compat.py', 'official_memory.py',
+                          'official_resume.py', 'official_judge_runtime.py', 'official_projection.py',
                           'official/__init__.py', 'service_logging.py', 'logging_entry.py',
                           'engine/service.py')
     for name in controller_sources:
@@ -375,6 +376,18 @@ def run(config, image, output):
         if len(weights) != 14 or sum(v['bytes'] for v in weights.values()) != 71903878016:
             raise ValueError('Fixed BF16 14-shard Qwen3.5-35B-A3B checkpoint required')
         save(output / 'model-weights.json', weights)
+        if 'resume_official_from' in config:
+            from official_resume import admit
+            retained = admit(config['resume_official_from'], output,
+                expected_seal=config['resume_official_seal_sha256'], config=config,
+                image_lock=frozen['baseline_image'], runtime=frozen['runtime_identity'],
+                sources=sources, weights=weights, mapping=mapping, inputs=continuous,
+                current_root=ROOT, phases=PHASES)
+            save(output / 'sealed-solver-resume.json', retained)
+            for row in frozen['stages']:
+                if row['name'] in retained:
+                    row.update(status='reused', reuse=retained[row['name']])
+            save(output / 'campaign.json', frozen)
         if config.get('reuse_completed_continuous'):
             from official_reuse import admit
             retained = admit(config['reuse_completed_continuous'], output / 'continuous',

@@ -57,6 +57,7 @@ class JudgeEndpointLifecycle(unittest.TestCase):
         with patch.dict(sys.modules,{'run_b1_r4':guard,'owned_processes':SimpleNamespace(Owned=lambda *a: owned)}), \
              patch.object(judge,'load',return_value=object()), \
              patch.object(judge,'memory_guard',side_effect=lambda guard: guard), \
+             patch.object(judge,'judge_command',side_effect=lambda command, *_: command), \
              patch('official_endpoint.available',side_effect=check), \
              patch.object(judge.subprocess,'Popen',side_effect=stop_before_child):
             return judge.run(self.config,'frontier',self.output,self.root/'tools',self.sdk,{},[],{})
