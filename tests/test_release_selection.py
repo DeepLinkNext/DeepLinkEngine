@@ -87,7 +87,7 @@ def test_release_selection_admits_sdist_from_configured_wheelhouse(tmp_path, mon
     assert record['sdist']['sha256'] == source['digests']['sha256']
 
 
-def test_model_client_bridge_keeps_reference_and_startup_fixes():
+def test_model_client_bridge_keeps_reference_and_startup_fixes(tmp_path):
     provider={k:v.encode() for k,v in json.loads((ROOT/'tests/fixtures/producer-r9-adapter.json').read_bytes())['files'].items()}
     manifest=json.loads((ROOT/'benchmark/one-click-kit/DEPLOYMENT-TOOLS.json').read_bytes())
     original={name:(ROOT/'benchmark/one-click-kit'/name).read_bytes() for name in manifest['files']}
@@ -105,7 +105,40 @@ def test_model_client_bridge_keeps_reference_and_startup_fixes():
         return controller[:start] + old[old_start:old_end] + controller[end:]
 
     native = 'scripts/run_native_reference.py'
-    assert remove_device_admission(combined[native].decode(), original[native].decode()) == original[native].decode()
+    native_controller = combined[native].decode()
+    reverted = native_controller
+    for before, after in client.NATIVE_SAMPLE_REPLACEMENTS:
+        assert reverted.count(after) == 1
+        reverted = reverted.replace(after, before, 1)
+    assert remove_device_admission(reverted, original[native].decode()) == original[native].decode()
+    monitor = tmp_path / "native_controller.py"
+    monitor.write_bytes(combined[native])
+    source = ast.parse(combined['scripts/reference_model_reuse.py'])
+    matcher = next(node for node in source.body if isinstance(node, ast.FunctionDef)
+                   and node.name == 'native_monitor_matches')
+    checks = {}
+    exec(compile(ast.Module(body=[matcher], type_ignores=[]), native, 'exec'), checks)
+    expected = client.sha(reverted.encode())
+    assert checks['native_monitor_matches'](monitor, expected)
+    monitor.write_bytes(combined[native].replace(b'model_service_started', b'model_service_ignored'))
+    assert not checks['native_monitor_matches'](monitor, expected)
+    tree = ast.parse(native_controller)
+    helper = next(node for node in tree.body if isinstance(node, ast.FunctionDef)
+                  and node.name == 'retired_sample_owner')
+    namespace = {}
+    exec(compile(ast.Module(body=[helper], type_ignores=[]), native, 'exec'), namespace)
+    retired = namespace['retired_sample_owner']
+    namespace['state'] = lambda pid: dict(start_ticks='200', state='Z')
+    assert retired(17, {17: '200'})
+    assert not retired(17, {17: '123'})
+    assert not retired(27, {17: '200'})
+    namespace['state'] = lambda pid: dict(start_ticks='200', state='R')
+    assert not retired(17, {17: '200'})
+    def exited(pid):
+        raise FileNotFoundError(pid)
+    namespace['state'] = exited
+    assert retired(17, {17: '200'})
+    assert not retired(27, {17: '200'})
     # Restore only the declared insertion, then compare the whole controller.
     added = ('    if startup_reserve is not None and not startup_reserve.record["released"]:\n'
              '        from startup_memory_recovery import release_startup_headroom\n'
