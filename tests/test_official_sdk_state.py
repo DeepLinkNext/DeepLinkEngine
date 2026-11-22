@@ -8,6 +8,9 @@ import unittest
 from unittest.mock import patch
 
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
+from official import enable_module_imports
+
+enable_module_imports()
 import official_sdk_state as state
 
 HOST=dict(hostname='fixture-host',boot_id='11111111-1111-1111-1111-111111111111')
@@ -55,10 +58,13 @@ class StateTests(unittest.TestCase):
     def test_sdk_level_lock_excludes_independent_process(self):
         with tempfile.TemporaryDirectory() as d:
             root=Path(d)
-            source=Path(state.__file__).resolve().parent
+            source=Path(state.__file__).resolve().parents[1]
             code="""from pathlib import Path
 import sys,time
-sys.path.insert(0,sys.argv[1]);from official_sdk_state import sdk_preparation
+sys.path.insert(0,sys.argv[1])
+from official import enable_module_imports
+enable_module_imports()
+from official_sdk_state import sdk_preparation
 r=Path(sys.argv[2]);name=sys.argv[3]
 with sdk_preparation(r/'sdk'):
  (r/(name+'-begin')).write_text(str(time.monotonic()))

@@ -11,6 +11,9 @@ import unittest
 from unittest.mock import patch
 
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
+from official import enable_module_imports
+
+enable_module_imports()
 import official_baselines as public
 import official_source_candidate as source
 import official_source_download as download

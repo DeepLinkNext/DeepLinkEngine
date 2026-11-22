@@ -50,4 +50,5 @@ R9 的书生单模型验证见[版本说明](engine/versions/2026.11.19.9.md)，
 | [examples/](examples/chat.py) | 推理 API 调用示例 |
 | [data/](data/README.md) · [datasets/](datasets/README.md) | 固定数据包、评测题单与协议 |
 | [benchmark/](benchmark/README.md) | 测试工具、公开结果与复算 |
+| [official/](official/) | 官方基线评测、SDK 准备、F/T 审计和报告实现 |
 | [tools/](tools/verify_snapshot.py) | 发布材料和校验工具 |

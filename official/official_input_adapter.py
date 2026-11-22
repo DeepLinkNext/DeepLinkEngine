@@ -5,7 +5,7 @@ import hashlib
 import json
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent
+ROOT = Path(__file__).resolve().parents[1]
 VERSION = 'deeplinkengine-capless-c8-model-path/v1'
 ORIGINAL_PATH = '/models/Qwen3.5-35B-A3B'
 

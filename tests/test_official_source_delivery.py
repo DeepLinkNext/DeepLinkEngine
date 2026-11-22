@@ -18,6 +18,9 @@ from urllib.parse import quote,unquote,urlsplit
 from unittest.mock import patch
 
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
+from official import enable_module_imports
+
+enable_module_imports()
 import official_source_delivery as delivery
 
 
@@ -357,9 +360,10 @@ class DeliveryTests(unittest.TestCase):
     def collector_script(self,mode='actual'):
         import official_source_prefetch as prefetch
         script=self.root/('collector-'+mode+'.py')
+        modules = Path(prefetch.__file__).resolve().parent
         script.write_text('''from pathlib import Path
 import sys,json,time,subprocess,tomllib
-sys.path.insert(0,''' + repr(str(Path(prefetch.__file__).resolve().parent)) + ''')
+sys.path[:0]=''' + repr([str(modules.parent), str(modules)]) + '''
 request=json.loads(Path(sys.argv[2]).read_bytes());out=Path(request['out'])
 if '''+repr(mode)+'''=='sleep':
  child=subprocess.Popen([sys.executable,'-B','-c','import time;time.sleep(60)'])

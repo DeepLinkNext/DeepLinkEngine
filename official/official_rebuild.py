@@ -13,7 +13,9 @@ import tarfile
 import tempfile
 import time
 
-ROOT = Path(__file__).resolve().parent
+from official import source_path
+
+ROOT = Path(__file__).resolve().parents[1]
 TOOLS = ROOT / 'benchmark/one-click-kit/scripts'
 PHASES = ('4096-warmup', '4096-formal', '16384-warmup', '16384-formal')
 VERSIONS = {'vllm': '0.23.0+empty', 'vllm-ascend': '0.23.0',
@@ -91,11 +93,13 @@ class Evidence:
     def auxiliary(self, logical, pin):
         if self.support is None:
             path = Path(logical)
+            if path.is_relative_to(ROOT) and not (path.exists() or path.is_symlink()):
+                path = source_path(ROOT, path.relative_to(ROOT))
         else:
             if logical not in self.support:
                 raise ValueError('Portable source binding missing: ' + logical)
             path = self.support[logical]
-        if digest(path) != pin:
+        if not Path(path).is_file() or digest(path) != pin:
             raise ValueError('Original supporting source changed: ' + logical)
         return Path(path)
 
@@ -198,7 +202,7 @@ def replay(evidence):
     audit = trusted('original_audit.py', evidence, bindings)
     warmup_module = trusted('serving_warmup.py', evidence, bindings)
     kernel_pins = [pin for name, pin in bindings.items() if PurePosixPath(name).name == 'official_kernel_preparation.py']
-    if kernel_pins != [digest(ROOT / 'official_kernel_preparation.py')]:
+    if kernel_pins != [digest(ROOT / 'official/official_kernel_preparation.py')]:
         raise ValueError('Kernel identity consumer differs from original binding')
     from official_kernel_preparation import POLICY, SOURCES
     ranks = evidence.read(prefix + 'service/official-kernel-preparation.json')
@@ -433,7 +437,7 @@ def run(configuration):
             model_requests_executed=0, portable_archive_sha256=digest(archive),
             input_sha256=config['source_sha256'], input_kind='portable-archive' if source.is_file() else 'original-version-directory',
             original_audit_sha256=provenance['original_audit_sha256'],
-            derivation_sources={name:digest(ROOT/name) for name in ('run_all.py','official_baselines.py','official_rebuild.py')},
+            derivation_sources={name:digest(source_path(ROOT, name)) for name in ('run_all.py','official_baselines.py','official_rebuild.py')},
             F=None, efficiency_percent=None))
         write(out / 'checksums.json', {path.name:digest(path) for path in out.iterdir() if path.is_file()})
     print('OFFICIAL_REPORT_ONLY_COMPLETED', str(out), 'model_requests=0', flush=True)

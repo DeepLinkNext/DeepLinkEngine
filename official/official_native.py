@@ -7,6 +7,7 @@ import time
 
 from official_baselines import save
 from official_image import digest, environment
+from official import worker_pythonpath
 from official_suite import ROOT, clean_client_environment, load, public_arguments, service_cache, kernel_cache, runtime_environment
 
 
@@ -25,7 +26,7 @@ def run(config, image, output, tools, sdk, sources, leases, continuous, *, nativ
     if native_source is None:
         save(preparation / 'plan.json', prepare)
         with (preparation / 'prepare-native.log').open('xb') as log:
-            result = subprocess.run([config['protocol_python'], '-B', str(ROOT / 'official_http.py'),
+            result = subprocess.run([config['protocol_python'], '-B', str(ROOT / 'official/official_http.py'),
                                      '--config', str(preparation / 'plan.json'), '--phase', 'prepare-native'],
                                     env=clean_client_environment(), stdout=log, stderr=subprocess.STDOUT,
                                     timeout=600, pass_fds=tuple(v['fd'] for v in leases))
@@ -64,7 +65,7 @@ def run(config, image, output, tools, sdk, sources, leases, continuous, *, nativ
     env.update(TRITON_CACHE_DIR=str(kernel_cache(config, image)), VLLMHUST_OFFICIAL_SDK=str(image))
     inventory = tools / 'third-party-test-kit/proc_capture/m01_model_inventory.py'
     env['VLLMHUST_OFFICIAL_INVENTORY'] = json.dumps(dict(path=str(inventory), sha256=sources[str(inventory)]))
-    env.update(PYTHONPATH=str(ROOT) + ':' + str(tools / 'scripts') + ':' + env['PYTHONPATH'],
+    env.update(PYTHONPATH=worker_pythonpath(ROOT, tools / 'scripts', env['PYTHONPATH']),
                VLLM_HUST_TEST_OUTPUT=str(output), VLLM_ENABLE_V1_MULTIPROCESSING='1',
                VLLM_DISABLE_REQUEST_ID_RANDOMIZATION='1')
     if native_source is not None:
@@ -85,7 +86,7 @@ def run(config, image, output, tools, sdk, sources, leases, continuous, *, nativ
     try:
         with (output / 'native.log').open('xb') as stream:
             entry = 'official_native_entry.py' if native_source is None else 'official_ft_entry.py'
-            process = subprocess.Popen([str(python), '-S', '-B', str(ROOT / entry), str(output / 'native-plan.json')],
+            process = subprocess.Popen([str(python), '-S', '-B', str(ROOT / 'official' / entry), str(output / 'native-plan.json')],
                                        env=env, stdout=stream, stderr=subprocess.STDOUT,
                                        pass_fds=tuple(v['fd'] for v in leases), start_new_session=True)
         owned.add(process.pid)

@@ -13,7 +13,7 @@ from pathlib import Path
 from pathlib import PurePosixPath
 import textwrap
 
-ROOT = Path(__file__).resolve().parent
+ROOT = Path(__file__).resolve().parents[1]
 PROFILE_SHA256 = 'b7a8d2460df7892c60d41c2957f4f1cf2091652993836321c602860a99ae65b6'
 _FILES = {}
 

@@ -15,6 +15,9 @@ import traceback
 import ssl
 from urllib.error import URLError, HTTPError
 
+if __name__ == '__main__':
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
 PIP_VERSION = '26.2'
 
 
@@ -319,7 +322,7 @@ def prepare(cache,sdk,out):
         # subprocess. This does not repair, copy, or re-sign an SDK payload.
         with sdk_preparation(base):
             installed=json.loads((base/'installation.json').read_bytes())
-            lock=Path(candidate.__file__).parent/'engine/official-baselines/0.23.0.json'
+            lock=candidate.ROOT/'engine/official-baselines/0.23.0.json'
             if (installed['image_manifest']!=candidate.BASE_MANIFEST
                     or (base/'image-lock.json').read_bytes()!=lock.read_bytes()
                     or sha(base/'installed-files.json')!=installed['installed_files_sha256']

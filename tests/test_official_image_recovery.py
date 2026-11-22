@@ -7,6 +7,9 @@ import unittest
 from unittest.mock import patch
 
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
+from official import enable_module_imports
+
+enable_module_imports()
 from official_image import quarantine_partial_sdk
 
 

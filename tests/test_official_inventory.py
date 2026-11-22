@@ -10,6 +10,9 @@ from unittest.mock import patch
 ROOT = Path(__file__).resolve().parents[1]
 TOOLS = ROOT / 'benchmark/one-click-kit'
 sys.path[:0] = [str(ROOT), str(TOOLS / 'scripts')]
+from official import enable_module_imports
+
+enable_module_imports()
 from official_worker import inventory_collector
 
 

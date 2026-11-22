@@ -75,7 +75,7 @@ def selection(python, env, folder):
         else:
             keys = json.loads(checked.stdout)
             explicit = [key for key in keys if key.endswith(('.index-url', '.extra-index-url', '.no-index', '.find-links'))]
-    binding = dict(helper_sha256=digest(__file__), authority_helper_sha256=digest(ROOT / 'official_build_assets.py'))
+    binding = dict(helper_sha256=digest(__file__), authority_helper_sha256=digest(ROOT / 'official/official_build_assets.py'))
     inherited = env.get('DEEPLINKENGINE_PIP_TRANSPORT')
     if inherited and not explicit:
         value = json.loads(Path(inherited).read_bytes())
@@ -116,6 +116,9 @@ def plan(args, env, folder):
 
 def audit(pending, lock):
     """pip checks the downloaded body hash; bind it to the original publisher."""
+    from official import enable_module_imports
+
+    enable_module_imports()
     from official_build_assets import authority
     path = Path(pending['report'])
     report = json.loads(path.read_bytes())

@@ -4,6 +4,9 @@ from pathlib import Path
 import sys, tarfile, tempfile, unittest
 from unittest.mock import patch
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
+from official import enable_module_imports, source_path
+
+enable_module_imports()
 import official_sdk_bytecode as recovery
 import official_image
 from official_sdk_state import refuse_active_owner as original_refuse_active_owner
@@ -189,7 +192,7 @@ class Recovery(unittest.TestCase):
     def test_production_isolated_python_commands_explicitly_disable_bytecode(self):
         import ast
         for name in ('environment_setup.py','engine_install.py','pip_transport.py','official_build_assets.py','official_image.py'):
-            tree=ast.parse((Path(__file__).resolve().parents[1]/name).read_text())
+            tree=ast.parse(source_path(Path(__file__).resolve().parents[1], name).read_text())
             for node in ast.walk(tree):
                 if isinstance(node,(ast.List,ast.Tuple)):
                     strings=[n.value for n in node.elts if isinstance(n,ast.Constant) and isinstance(n.value,str)]

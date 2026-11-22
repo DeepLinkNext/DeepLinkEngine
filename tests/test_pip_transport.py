@@ -15,6 +15,9 @@ import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path[:0] = [str(ROOT), str(ROOT / 'benchmark/one-click-kit/scripts')]
+from official import enable_module_imports
+
+enable_module_imports()
 import pip_transport as transport
 import official_build_assets as authority
 import environment_setup as setup

@@ -210,7 +210,7 @@ def provision_protobuf(root, staging):
             with (logs/('apt-'+str(attempt)+'-'+str(index)+'.log')).open('xb') as stream:
                 try:
                     process=execution.popen_in_context(command,root,env=environment,
-                        extra_paths=(staging,Path(__file__).parent),stdout=stream,stderr=subprocess.STDOUT,start_new_session=True)
+                        extra_paths=(staging,Path(__file__).resolve().parents[1]),stdout=stream,stderr=subprocess.STDOUT,start_new_session=True)
                     record['returncode']=process.wait(timeout=budget)
                     record['status']='completed' if record['returncode']==0 else 'failed'
                 except subprocess.TimeoutExpired:
@@ -317,7 +317,7 @@ def popen(command, *, sdk, env, **kwargs):
         return subprocess.Popen(command, env=env, **kwargs)
     root = ensure(base_for(sdk))
     return execution.popen_in_context(command, root, env=env,
-        extra_paths=(Path(sdk),Path(__file__).parent), **kwargs)
+        extra_paths=(Path(sdk),Path(__file__).resolve().parents[1]), **kwargs)
 
 
 def run(command, *, sdk, env, **kwargs):
@@ -326,4 +326,4 @@ def run(command, *, sdk, env, **kwargs):
         return subprocess.run(command, env=env, **kwargs)
     root = ensure(base_for(sdk))
     return execution.run_in_context(command, root, env=env,
-        extra_paths=(Path(sdk),Path(__file__).parent), **kwargs)
+        extra_paths=(Path(sdk),Path(__file__).resolve().parents[1]), **kwargs)

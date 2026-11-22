@@ -4,6 +4,8 @@ import json
 from pathlib import Path
 import shutil
 
+from official import source_path
+
 
 REVIEWED_CONTROLLERS = {
     'official_suite.py': {
@@ -76,11 +78,12 @@ def admit(source, destination, *, config, image_lock, sources, weights, mapping,
     source_changes = {}
     for name, pin in campaign['sources'].items():
         path = Path(name)
-        if sha(path) != pin:
-            raise ValueError('Original completed source changed: ' + name)
         if path.is_relative_to(old_root):
-            relative = str(path.relative_to(old_root))
-            target = current_root / relative
+            relative = path.relative_to(old_root).as_posix()
+            original = path if path.exists() or path.is_symlink() else source_path(old_root, relative)
+            if not original.is_file() or sha(original) != pin:
+                raise ValueError('Original completed source changed or is missing: ' + name)
+            target = source_path(current_root, relative)
             target_pin = sha(target)
             if target_pin != pin:
                 if REVIEWED_CONTROLLERS.get(relative, {}).get(pin) != target_pin:
@@ -88,7 +91,7 @@ def admit(source, destination, *, config, image_lock, sources, weights, mapping,
                 source_changes[relative] = dict(original_sha256=pin, current_sha256=target_pin)
             if sources.get(str(target.resolve())) != target_pin:
                 raise ValueError('Current source admission differs: ' + relative)
-        elif sources.get(name) != pin:
+        elif not path.is_file() or sha(path) != pin or sources.get(name) != pin:
             raise ValueError('Completed external protocol source differs: ' + name)
     result = read(source, 'service/continuous.json', seal)
     expected = ['4096-warmup', '4096-formal', '16384-warmup', '16384-formal']

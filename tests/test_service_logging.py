@@ -12,6 +12,9 @@ import urllib.request
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
+from official import enable_module_imports
+
+enable_module_imports()
 import service_logging as adapter
 
 URL = ('https://raw.githubusercontent.com/vllm-project/vllm-ascend/'
@@ -208,7 +211,10 @@ if __name__=='__main__':
 import sys,os,json
 from pathlib import Path
 from unittest.mock import patch
-sys.path.insert(0,sys.argv[1]);import official_serve
+sys.path.insert(0,sys.argv[1])
+from official import enable_module_imports
+enable_module_imports()
+import official_serve
 out=Path(sys.argv[3]).resolve();plan=dict(sdk=sys.argv[2],output=str(out),runtime_versions={n:'pinned' for n in ('vllm','vllm-ascend','torch','torch-npu')},worker_sources={},baseline_id='cpu',serve_arguments=[],model='/cpu-only')
 sdk=Path(plan['sdk']);(sdk/'image-lock.json').write_text(json.dumps(dict(manifest_digest='sha256:'+'a'*64)))
 from official_runtime_identity import runtime_identity

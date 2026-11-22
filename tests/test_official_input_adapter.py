@@ -3,6 +3,9 @@ import ast,hashlib,json,sys,tempfile,unittest
 from pathlib import Path
 from unittest.mock import patch
 ROOT=Path(__file__).resolve().parents[1];sys.path.insert(0,str(ROOT))
+from official import enable_module_imports
+
+enable_module_imports()
 import official_input_adapter as adapter
 
 RECIPE=b"from transformers import AutoTokenizer\nfrom pathlib import Path\nimport json\ntokenizer=AutoTokenizer.from_pretrained('/models/Qwen3.5-35B-A3B',local_files_only=True)\npath=Path(__file__).parent/'continuous-inputs-r1.json'\nwith path.open('x') as f:\n json.dump({'fixture':tokenizer.encode('x')},f)\nfor arm,out in []:\n raise AssertionError('historical execution must not run')\n"

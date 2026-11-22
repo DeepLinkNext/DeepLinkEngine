@@ -1,7 +1,13 @@
 """Freeze original inputs for official solvers; never restore or impersonate 0.18."""
 import argparse,hashlib,json,os,shutil,subprocess,sys,time
 from pathlib import Path
-ROOT=Path(__file__).resolve().parent
+
+if __name__ == '__main__':
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from official import source_path
+
+ROOT=Path(__file__).resolve().parents[1]
 TOOLS=ROOT/'benchmark/one-click-kit'
 SCHEMA='deeplinkengine-official-data-protocol/v1'
 ORDER=['mmlu','hle','frontier','swe','terminal']
@@ -86,7 +92,7 @@ def prepare(config,anchor,*,native_path_binding=False,capability=None):
             if not alias.is_dir() or not os.path.samefile(alias,model) or not os.statvfs(alias).f_flag&os.ST_RDONLY:
                 raise ValueError('Frozen tokenizer recipe requires its read-only model alias in the private child namespace')
             record['readonly_tokenizer_alias']=dict(source=str(model),target=str(alias),read_only=True,private_namespace=os.readlink('/proc/self/ns/mnt'))
-        record['preparation_sources']={name:sha(ROOT/name) for name in ('official_protocol_data.py','official_protocol_preparation.py','run_all.py','official_execution.py','sdk_dependency_probe.py','official_input_adapter.py','native_sdk_controller.py','data/official-protocol-inputs.json')}
+        record['preparation_sources']={name:sha(source_path(ROOT, name)) for name in ('official_protocol_data.py','official_protocol_preparation.py','run_all.py','official_execution.py','sdk_dependency_probe.py','official_input_adapter.py','native_sdk_controller.py','data/official-protocol-inputs.json')}
         from dataset_contract import prepare as prepare_dataset
         from third_party import descriptor,script_sources
         from restore_b1_r4 import verify_installed_sources
