@@ -798,12 +798,23 @@ def render(root, out, actual_cost=None):
     return data
 
 
-def main():
-    parser=argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--run',required=True,type=Path);parser.add_argument('--out',required=True,type=Path)
+def main(arguments=None):
+    parser = argparse.ArgumentParser(description=__doc__)
+    source = parser.add_mutually_exclusive_group(required=True)
+    source.add_argument('--run', type=Path, help='Completed local submission run')
+    source.add_argument('--engine-version', help='Archived candidate version or release for CPU replay')
+    parser.add_argument('--out', required=True, type=Path)
     parser.add_argument('--actual-cost', type=Path, help='V2 actual card cost manifest and expense evidence')
-    args = parser.parse_args()
+    args = parser.parse_args(arguments)
     try:
+        if args.engine_version is not None:
+            if args.actual_cost:
+                raise ValueError('Archived candidate reporting does not take a V2 cost manifest')
+            from candidate_report import render as render_candidate
+
+            render_candidate(args.engine_version, args.out)
+            print('CANDIDATE_CPU_REPORT', args.out / 'report.html', flush=True)
+            return 0
         data = render(args.run, args.out, args.actual_cost)
     except (OSError, ValueError) as error:
         parser.error(str(error))

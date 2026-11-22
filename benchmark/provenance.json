@@ -310,13 +310,31 @@
       "path": "benchmark/reports/r10-candidates-20261121/native-rms.json",
       "source": "https://github.com/vLLM-HUST/vllm-hust-benchmark/blob/82f7cb195ac3076b485fad875ef3c6c72c5cf612/reports/r10-native-rms-fixed-five-20261121/summary.json",
       "sha256": "2ee1b5b5319be86b45f83e91e2d9b4bcc401d325cfe3114ef98f36ff335828d1",
-      "bytes": 18225
+      "bytes": 18225,
+      "candidate": {
+        "version": "r10-native-rms",
+        "release": "full-answer-b1-20261120-r10-native-rms",
+        "model": "Qwen3.5-35B-A3B",
+        "precision": "BF16",
+        "accelerator": "Ascend 910B2",
+        "accelerator_count": 2,
+        "tensor_parallel_size": 2
+      }
     },
     {
       "path": "benchmark/reports/r10-candidates-20261121/contiguous-restore.json",
       "source": "https://github.com/vLLM-HUST/vllm-hust-benchmark/blob/82f7cb195ac3076b485fad875ef3c6c72c5cf612/reports/r10-contiguous-restore-fixed-five-20261121/summary.json",
       "sha256": "06087f1fe2805c004202610df80a13bd884a3da46bb80dcf9e02f077f4939201",
-      "bytes": 28561
+      "bytes": 28561,
+      "candidate": {
+        "version": "r10-contiguous-restore",
+        "release": "full-answer-b1-20261121-r10-contiguous-restore",
+        "model": "Qwen3.5-35B-A3B",
+        "precision": "BF16",
+        "accelerator": "Ascend 910B2",
+        "accelerator_count": 2,
+        "tensor_parallel_size": 2
+      }
     }
   ]
 }

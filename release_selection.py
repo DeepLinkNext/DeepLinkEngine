@@ -23,13 +23,17 @@ def read_json(url):
         return json.loads(response.read(16 * 1024**2))
 
 
+def is_stable_version_name(version):
+    return isinstance(version, str) and re.fullmatch(r"\d{4}\.\d{1,2}\.\d{1,2}\.\d+(?:\.post\d+)?", version) is not None
+
+
 def stable_sdist(index, version=None):
     from packaging.version import Version
     candidates = []
     for text, rows in index['releases'].items():
         parsed = Version(text)
         if (parsed.is_prerelease or parsed.is_devrelease or parsed.local
-                or not re.fullmatch(r'\d{4}\.\d{1,2}\.\d{1,2}\.\d+(?:\.post\d+)?', text)
+                or not is_stable_version_name(text)
                 or (version is not None and text != version)):
             continue
         sdists = [r for r in rows if r.get('packagetype') == 'sdist' and not r.get('yanked')]
@@ -150,7 +154,31 @@ def bind(path):
     return active()
 
 
+def archived_candidates():
+    records = json.loads((ROOT / "benchmark/provenance.json").read_bytes())["files"]
+    return [row for row in records if "candidate" in row]
+
+
+def archived_candidate(version):
+    """Resolve an explicitly selected candidate without consulting the package index."""
+    if not isinstance(version, str) or "-" not in version:
+        return None
+    matches = [
+        row for row in archived_candidates()
+        if version in (row["candidate"]["version"], row["candidate"]["release"])
+    ]
+    if len(matches) > 1:
+        raise ValueError("Ambiguous archived candidate: " + version)
+    return matches[0] if matches else None
+
+
+def reject_candidate_for_execution(version):
+    if archived_candidate(version):
+        raise ValueError(f"{version} is an archived candidate. Select it with --report-only --engine-version and --out.")
+
+
 def select(cache, *, version=None):
+    reject_candidate_for_execution(version)
     prior = active()
     if prior is not None:
         if version is not None and prior['version'] != version:

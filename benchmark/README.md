@@ -20,6 +20,23 @@ python run_all.py --config evaluation.json --rerun-b0
 
 模型启动后，入口在服务空闲、尚未预热时再次清理可回收缓存，并确认至少 24 GiB 原始内存余量后继续。临时页在预热前全部释放；模型配置、每卡 4 GiB 状态预算及原有内存保护保持不变。
 
+## r10 候选封存 CPU 复算
+
+从仓库根目录选择一个已封存候选。版本名可用 `r10-native-rms`、`r10-contiguous-restore` 或报告中完整的运行时身份。
+
+```bash
+python run_all.py --report-only --engine-version r10-native-rms --out ./reports/r10-native-rms
+python one_click.py report --engine-version r10-contiguous-restore --out ./reports/r10-contiguous-restore
+```
+
+也可在仅含 `engine_version` 和新输出路径 `out` 的 JSON 配置中选择候选，执行
+`python run_all.py --config candidate.json --report-only`。配置里的相对路径以配置所在目录为准。
+
+入口校验封存汇总的字节数和 SHA-256，按各臂输出数和耗时复算吞吐、吞吐变化和正确率，生成
+`report.html`、`summary.json` 和 `receipt.json`。固定五项、两档合成 C8、源封存和独立裁判都可逐行查看。
+4.1–4.4 在这两份候选报告中标为未判定，四租户与完整 V2 证据以相应运行原件为准。
+复算只读取本仓库公开汇总，无需安装引擎、加载模型或访问 NPU。
+
 ## 恢复与结果复用
 
 不填写版本即使用最新稳定版；配置中的 `engine_version` 可锁定历史稳定版。测试客户端保留已有的固定数据、参考算力、启动内存保护和恢复流程，按本轮发行包绑定模型适配器、运行几何和 MOD 清单；原有 R8 工具原件和历史结果保持封存。更换 B1 稳定版并复用原有结果时，在新输出目录的配置中指定 `engine_version`，使用 `--reuse-completed-run`。脚本仅允许复用通过原始数据审计的 B0 独立阶段，并进一步核验同模型、设备、基线源码、启动参数和预热协议；裁判服务属于 B1，不能作为 B0 跨版复用。一个已封存轮次同时包含 B0 和 B1 时，跨版入口会从相同工作负载中筛出可核验的 B0 原件，MMLU 两臂配对可单独核验其 B0 侧。原目录恢复保持原版本，旧轮缺独立版本锁时从已保存的安装、配置和执行计划查证。同版本恢复会重新核验并复用原 SDK 安装，保持其物理身份。若已完成记录分布在多个运行目录，可追加多个 `--reuse-completed-campaign`，并用 `--reuse-mmlu-baseline-arm` 指定固定 B0 的 200 题原始答卷。 已封存的 B0 上下文及四租户专项可用 `--reuse-context-baseline-arm` 指定；只有相同真实输入、预算、预热协议、模型、设备、固定镜像及已审阅控制源码组合才接受。入口会核验封存文件、同模型及权重、设备、题序、预算、预热和实际启动参数；固定 B0 的安装路径变化只在完整源码清单与固定镜像哈希一致时接受。原始运行日期、路径和结果始终保留，复用选项也随恢复记录保存。
