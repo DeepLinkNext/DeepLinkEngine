@@ -251,7 +251,8 @@ def continue_closed(config, original, expected_seal, *, companion_source=None, c
     if version != SOURCE_CANDIDATE:
         identity = read_lock(lock_path)
     from official_suite import source_bindings
-    from resource_guard import acquire, release, verify_mapping
+    from official_resource_compat import acquire
+    from resource_guard import release, verify_mapping
     if version == SOURCE_CANDIDATE:
         _, identity, image = selection(campaign['baseline_image'], config['cache'], ROOT)
         if not (image / 'installation.json').is_file():

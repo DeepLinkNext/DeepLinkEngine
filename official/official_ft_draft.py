@@ -13,8 +13,9 @@ from pathlib import Path
 
 from m01_proc_plugin import restore_fields, snapshot_fields
 
-# This pinned 0.30 implementation removed proposer.pcp_size and reads the
-# explicit parallel config plus runner.dcp_manager. No numeric default is used.
+# These pinned first-pass implementations omit proposer.pcp_size. Their
+# reindexing paths require an active runtime manager.
+ASCEND_028_FIRST_PASS = 'ba650e27ce8af63afc55c01c6dcaf5f6e9f3f0783c0224792db890d394da1e30'
 ASCEND_030_FIRST_PASS = 'b4925648562de8cffd7bf678bf695d512c184d70484b949c42a40897793b8b07'
 
 
@@ -35,9 +36,11 @@ def context_parallel_contract(proposer, runner, methods):
     if present:
         if type(proposer.pcp_size) is not int or proposer.pcp_size != pcp:
             raise ValueError('Draft proposer PCP size differs from its explicit configuration')
-    elif (methods['set_inputs_first_pass']['sha256'] != ASCEND_030_FIRST_PASS
-          or methods['_propose']['sha256'] != ASCEND_030_FIRST_PASS):
-        raise ValueError('Missing proposer PCP field requires the reviewed 0.30 first-pass source')
+    else:
+        first_pass = methods['set_inputs_first_pass']['sha256']
+        if (first_pass not in (ASCEND_028_FIRST_PASS, ASCEND_030_FIRST_PASS)
+                or methods['_propose']['sha256'] != first_pass):
+            raise ValueError('Missing proposer PCP field requires a reviewed first-pass source')
     if hasattr(runner, 'pcp_size') and (type(runner.pcp_size) is not int or runner.pcp_size != pcp):
         raise ValueError('Draft runner PCP size differs from its explicit configuration')
     managers = {}

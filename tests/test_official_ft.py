@@ -760,6 +760,18 @@ class DraftContextParallelABITests(unittest.TestCase):
         self.assertEqual(value['prefill_context_parallel_size'], 1)
         self.assertFalse(value['managers']['dcp_manager']['attribute_present'])
 
+    def test_candidate_pcp_uses_the_same_pinned_proposer_for_both_methods(self):
+        from official_ft_draft import ASCEND_028_FIRST_PASS, ASCEND_030_FIRST_PASS, context_parallel_contract
+        proposer, runner, methods = self.fixture()
+        for value in methods.values():
+            value['sha256'] = ASCEND_028_FIRST_PASS
+        contract = context_parallel_contract(proposer, runner, methods)
+        self.assertEqual(contract['prefill_context_parallel_size'], 1)
+        self.assertFalse(contract['numeric_default_used'])
+        methods['_propose']['sha256'] = ASCEND_030_FIRST_PASS
+        with self.assertRaisesRegex(ValueError, 'reviewed first-pass'):
+            context_parallel_contract(proposer, runner, methods)
+
     def test_no_default_for_missing_or_foreign_parallel_configuration(self):
         from official_ft_draft import context_parallel_contract
         for fault in ('missing-config', 'pcp2', 'dcp2', 'bool', 'runtime2', 'missing-runtime',
