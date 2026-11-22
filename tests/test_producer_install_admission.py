@@ -131,7 +131,8 @@ def verify_installed_sources(root):
             'mods/microflow/hust_prefill_microflow/school028/host-contract.json':
                 json.dumps({'versions':{'fixture':'2' if wrong_metadata else '1'}}).encode()}
         artifacts = {}
-        tools_name = 'tools-r4.tar.gz' if self.profile == 'r8' else 'tools-r9.tar.gz'
+        tools_profile = 'r4' if self.profile == 'r8' else self.profile
+        tools_name = f'tools-{tools_profile}.tar.gz'
         for name, files, prefix in [('sdk-'+self.profile+'.tar.gz', sdk, ''), (tools_name, tools, 'vllm-hust-engine/')]:
             path = package/'payload'/name
             with tarfile.open(path, 'w:gz') as archive:
@@ -208,6 +209,13 @@ class R9Producer(Producer):
     profile = 'r9'
     version = '2026.11.19.9.post1'
     release = 'full-answer-b1-20261119-r9'
+
+
+class R10Producer(Producer):
+    fixture = ROOT/'tests/fixtures/r10_producer_cli.py'
+    profile = 'r10'
+    version = '2026.11.21.10'
+    release = 'full-answer-b1-20261121-r10'
 
 
 if __name__ == '__main__':

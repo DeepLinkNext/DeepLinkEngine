@@ -16,10 +16,8 @@ def installation(path):
     restore_missing(Path(path).expanduser())
     path = Path(path).expanduser().resolve()
     receipt = json.loads((path / "installation.json").read_bytes())
-    from packaging.version import Version
-    v = Version(receipt['package_version'])
-    a, b, c, number = v.release
-    if receipt['release'] != f'full-answer-b1-{a:04d}{b:02d}{c:02d}-r{number}':
+    from engine.release_selection import release_name
+    if receipt['release'] != release_name(receipt['package_version']):
         raise ValueError('Installation release/version identity differs')
     if json.loads((path / 'sdk/deployment.json').read_bytes())['release'] != receipt['release']:
         raise ValueError('Installation SDK belongs to a different release')

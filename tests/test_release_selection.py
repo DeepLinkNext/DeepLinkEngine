@@ -37,6 +37,15 @@ def test_latest_final_skips_preview_dev_yanked_and_wheel_only():
     with pytest.raises(ValueError):selection.stable_sdist(index,'2026.11.23.10')
 
 
+def test_stable_release_order_respects_numeric_builds_and_post_releases():
+    versions = ('2026.11.21.9.post99', '2026.11.21.10', '2026.11.21.10.post0',
+                '2026.11.21.10.post2', '2026.11.21.10.post11', '2026.11.21.10+native')
+    index = {'releases': {version: [row(version)] for version in versions}}
+    assert selection.stable_sdist(index)[0] == '2026.11.21.10.post11'
+    assert selection.stable_sdist(index, '2026.11.21.10')[0] == '2026.11.21.10'
+    assert selection.release_name('2026.11.21.10.post11') == 'full-answer-b1-20261121-r10'
+
+
 def test_selected_version_survives_changed_feed_and_rejects_tampering(tmp_path):
     record=dict(schema='deeplinkengine-stable-selection/v1',version='2026.11.19.9')
     path=tmp_path/'selection.json';path.write_text(json.dumps(record))

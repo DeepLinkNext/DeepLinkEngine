@@ -1,6 +1,6 @@
 # 安装与推理服务
 
-在仓库根目录执行。安装默认跟随上游最新稳定发行版；R9 的设备、模型、实测范围及系统要求见[版本说明](versions/2026.11.19.9.md)。引擎源码由发行包提供，[R8 历史说明](versions/2026.11.17.8.post2.md)保留。
+在仓库根目录执行。安装默认跟随上游最新稳定发行版。R10 的系统要求和安装核验见[发行说明](https://pypi.org/project/vllm-hust-engine/2026.11.21.10/)。引擎源码由发行包提供。
 
 ## 安装
 
@@ -15,7 +15,7 @@ python deeplink.py install --out /workspace/deeplink-install \
 
 缓存位于 NFS 时优先使用本机磁盘存放 SDK 和私有 Python，逐文件核对 SHA-256，保留持久原件，并在本机缓存丢失后恢复。可设置 `DEEPLINKENGINE_RUNTIME_CACHE` 指定至少 10 GiB 的本机目录；默认探测无可用本机盘时沿用 NFS。
 
-可用 `--wheelhouse /path/to/packages` 指定已下载的包，`--python /path/to/python3.12`、`--cann-home /path/to/cann` 指定系统环境。已有满足版本要求的专用 venv 可通过 `--use-environment /path/to/venv/bin/python` 显式复用。Python 包可自动补齐；系统驱动、CANN 和模型权重需事先准备。
+可用 `--wheelhouse /path/to/packages` 指定已下载的包，`--python /path/to/python3.12`、`--cann-home /path/to/cann` 指定安装环境。已有满足版本要求的专用 venv 可通过 `--use-environment /path/to/venv/bin/python` 显式复用。Python 包可自动补齐。运行 R10 服务前准备昇腾驱动、CANN 9.1.0、ATB 和模型权重。服务读取 `/usr/local/Ascend/cann-9.1.0` 与 `/usr/local/Ascend/nnal/atb`，原生算子要求 `libstdc++` 提供 `GLIBCXX_3.4.29`。
 
 ## 启动服务
 
@@ -39,8 +39,8 @@ python examples/chat.py "你好" --base-url http://127.0.0.1:8000 --model deepli
 
 ## 版本与下载
 
-- [R9 发行版说明](versions/2026.11.19.9.md)
-- [官方最新稳定源码包](https://pypi.org/project/vllm-hust-engine/)与[R9 原生运行包](https://github.com/vLLM-HUST/vllm-hust-website/releases/tag/engine-wheels-r9-v1)
+- [官方最新稳定源码包](https://pypi.org/project/vllm-hust-engine/)与[R10 ARM64 运行包](https://github.com/vLLM-HUST/vllm-hust-website/releases/tag/engine-wheels-r10-v1)
+- [R9 发行说明](versions/2026.11.19.9.md)与[R8 历史说明](versions/2026.11.17.8.post2.md)
 - [依赖与工具下载中心](https://github.com/DeepLinkNext/DeepLinkEngine/releases/tag/r8-runtime-dependencies-20261119-v1)与[依赖与工具索引](dependencies.json)
 - [基础依赖清单](r8-lock.json)与[测试工具版本清单](../benchmark/one-click-lock.json)
 - [测试与复核](../benchmark/README.md)

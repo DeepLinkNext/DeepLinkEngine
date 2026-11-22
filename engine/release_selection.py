@@ -12,6 +12,7 @@ ROOT = Path(__file__).resolve().parents[1]
 SELECTION = 'DEEPLINKENGINE_RELEASE_SELECTION'
 SELECTION_SHA = SELECTION + '_SHA256'
 PROJECT = 'vllm-hust-engine'
+STABLE_VERSION = re.compile(r'(\d{4})\.(\d{1,2})\.(\d{1,2})\.(\d+)(?:\.post(\d+))?')
 
 
 def digest(raw):
@@ -24,21 +25,26 @@ def read_json(url):
 
 
 def is_stable_version_name(version):
-    return isinstance(version, str) and re.fullmatch(r"\d{4}\.\d{1,2}\.\d{1,2}\.\d+(?:\.post\d+)?", version) is not None
+    return isinstance(version, str) and STABLE_VERSION.fullmatch(version) is not None
+
+
+def release_name(version):
+    if not is_stable_version_name(version):
+        raise ValueError('Invalid stable engine version: ' + repr(version))
+    year, month, day, number = map(int, STABLE_VERSION.fullmatch(version).groups()[:4])
+    return f'full-answer-b1-{year:04d}{month:02d}{day:02d}-r{number}'
 
 
 def stable_sdist(index, version=None):
-    from packaging.version import Version
     candidates = []
     for text, rows in index['releases'].items():
-        parsed = Version(text)
-        if (parsed.is_prerelease or parsed.is_devrelease or parsed.local
-                or not is_stable_version_name(text)
-                or (version is not None and text != version)):
+        parsed = STABLE_VERSION.fullmatch(text)
+        if parsed is None or (version is not None and text != version):
             continue
         sdists = [r for r in rows if r.get('packagetype') == 'sdist' and not r.get('yanked')]
         if len(sdists) == 1:
-            candidates.append((parsed, text, sdists[0]))
+            fields = tuple(int(value) if value is not None else -1 for value in parsed.groups())
+            candidates.append((fields, text, sdists[0]))
     if not candidates:
         raise ValueError('No eligible official stable engine sdist')
     _, text, row = max(candidates, key=lambda x: x[0])
@@ -72,9 +78,7 @@ def metadata(archive, version):
                 result = json.load(source.extractfile(member))
     if result is None or result.get('version') != version:
         raise ValueError('sdist/frozen engine version differs')
-    parts = version.split('.post')[0].split('.')
-    release = f'full-answer-b1-{int(parts[0]):04d}{int(parts[1]):02d}{int(parts[2]):02d}-r{int(parts[3])}'
-    if result.get('release') != release:
+    if result.get('release') != release_name(version):
         raise ValueError('Frozen release does not match the selected stable version')
     return result
 

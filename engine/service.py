@@ -107,6 +107,9 @@ def main():
     if receipt['release'] != 'full-answer-b1-20261117-r8':
         # The installed producer owns model admission, worker selection and
         # geometry. Keep the original adapter for explicit historical R8 SDKs.
+        physical = pair(args.physical_devices)
+        if not math.isfinite(args.lease_timeout) or args.lease_timeout < 0:
+            raise ValueError('Invalid device lease timeout')
         if args.devices:
             logical = ','.join(map(str, pair(args.devices)))
         else:
@@ -117,7 +120,7 @@ def main():
                 words = line.split()
                 if len(words) >= 3 and words[0].isdigit() and words[1] == '0' and words[2].isdigit():
                     mapping[int(words[0])] = int(words[2])
-            logical = ','.join(str(mapping[x]) for x in pair(args.physical_devices))
+            logical = ','.join(str(mapping[x]) for x in physical)
         out = args.work_dir or args.cache / ('service-' + uuid.uuid4().hex)
         if os.path.lexists(out):
             raise ValueError('Choose a new service work directory')
@@ -126,12 +129,27 @@ def main():
                      '--physical-devices', args.physical_devices, '--host', args.host,
                      '--port', str(args.port), '--served-model-name', args.served_model_name,
                      '--lease-timeout', str(args.lease_timeout)]
+        leases = []
         if args.dry_run:
             forwarded.append('--dry-run')
+        else:
+            from vllm_hust_engine.cli import module, verify_tools
+            from official.official_resource_compat import acquire
+            tools = installed / 'tools'
+            verify_tools(tools)
+            guard = module(tools / 'scripts/resource_guard.py', 'producer_resource_guard')
+            out.mkdir(parents=True, exist_ok=False)
+            os.environ['VLLM_HUST_PHYSICAL_DEVICES'] = ','.join(map(str, physical))
+            leases = acquire(out, args.lease_timeout, guard=guard)
         python = receipt['python']
         entry = 'from vllm_hust_engine.cli import main; raise SystemExit(main())'
-        os.execve(python, [python, '-c', entry, 'serve',
-                          '--installation', str(installed), '--', *forwarded], dict(os.environ))
+        try:
+            os.execve(python, [python, '-c', entry, 'serve',
+                              '--installation', str(installed), '--', *forwarded], dict(os.environ))
+        finally:
+            if leases:
+                guard.release(leases)
+                os.environ.pop('VLLMHUST_ENGINE_LOCKS', None)
         raise RuntimeError('Producer service handoff returned unexpectedly')
     root = installed / "sdk"
     model = args.model.resolve()

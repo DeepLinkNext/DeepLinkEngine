@@ -4,7 +4,7 @@
 
 ## 安装与使用
 
-默认安装和测试 [vLLM-HUST-Engine](https://pypi.org/project/vllm-hust-engine/) 最新稳定发行版，跳过预览版、开发版和已撤回文件。R9 支持 Linux aarch64、双昇腾 910B2、CANN 9.1.0，推理服务支持 Qwen3.5-35B-A3B 和书生 Intern-S2。准备模型权重及系统环境后执行；无法克隆时可[下载源码归档](https://api.github.com/repos/DeepLinkNext/DeepLinkEngine/tarball/main)：
+默认安装和测试 [vLLM-HUST-Engine](https://pypi.org/project/vllm-hust-engine/) 最新稳定发行版。当前稳定版 R10 使用连续写回与原生 gated RMS，适用于 CPython 3.12、Linux ARM64、CANN 9.1.0 和双昇腾 910B2。准备系统环境和模型权重后执行。也可以[下载源码归档](https://api.github.com/repos/DeepLinkNext/DeepLinkEngine/tarball/main)。
 
 ```sh
 git clone https://github.com/DeepLinkNext/DeepLinkEngine.git
@@ -22,7 +22,7 @@ python deeplink.py serve --installation /workspace/deeplink-install \
 python examples/chat.py "你好，请介绍一下自己"
 ```
 
-[安装与服务配置](engine/README.md) · [R9 版本说明](engine/versions/2026.11.19.9.md) · [官方稳定包](https://pypi.org/project/vllm-hust-engine/) · [R9 运行包](https://github.com/vLLM-HUST/vllm-hust-website/releases/tag/engine-wheels-r9-v1) · [技术资料](https://vllm-hust.sage.org.ai/engine.html)
+[安装与服务配置](engine/README.md) · [R10 发行说明](https://pypi.org/project/vllm-hust-engine/2026.11.21.10/) · [R10 运行包](https://github.com/vLLM-HUST/vllm-hust-website/releases/tag/engine-wheels-r10-v1) · [引擎官网](https://vllm-hust.sage.org.ai/engine.html)
 
 ## 测试与报告
 
