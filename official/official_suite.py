@@ -78,9 +78,16 @@ def load(path, name):
 
 
 def clean_client_environment():
-    return {k: v for k, v in os.environ.items()
-            if not k.endswith(('_TOKEN', '_API_KEY', '_PASSWORD', '_SECRET'))
-            and k not in ('PYTHONPATH', 'PYTHONHOME', 'LD_PRELOAD', 'SSH_AUTH_SOCK', 'GIT_ASKPASS')}
+    env = {k: v for k, v in os.environ.items()
+           if not k.endswith(('_TOKEN', '_API_KEY', '_PASSWORD', '_SECRET'))
+           and k not in ('PYTHONPATH', 'PYTHONHOME', 'LD_PRELOAD', 'SSH_AUTH_SOCK', 'GIT_ASKPASS')}
+    if 'LD_LIBRARY_PATH' in env:
+        # Protocol Python owns its Torch ABI. Retain the private loader and driver paths.
+        env['LD_LIBRARY_PATH'] = os.pathsep.join(
+            path for path in env['LD_LIBRARY_PATH'].split(os.pathsep)
+            if path and not path.rstrip('/').endswith(('/torch/lib', '/torch_npu/lib'))
+        )
+    return env
 
 
 def public_arguments(kind):

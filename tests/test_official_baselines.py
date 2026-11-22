@@ -25,6 +25,17 @@ class OfficialBaselines(unittest.TestCase):
         self.addCleanup(self.temporary.cleanup)
         self.root = Path(self.temporary.name)
 
+    def test_protocol_clients_keep_driver_paths_and_use_their_own_torch(self):
+        from official_suite import clean_client_environment
+
+        libraries = ['/image/site-packages/torch/lib', '/usr/local/Ascend/driver/lib64',
+                     '/image/site-packages/torch_npu/lib/', '/lib/aarch64-linux-gnu']
+        with patch.dict(os.environ, {'LD_LIBRARY_PATH': os.pathsep.join(libraries),
+                                     'PYTHONPATH': '/image/site-packages'}, clear=True):
+            env = clean_client_environment()
+        self.assertEqual(env['LD_LIBRARY_PATH'].split(os.pathsep), [libraries[1], libraries[3]])
+        self.assertNotIn('PYTHONPATH', env)
+
     def config(self, **changes):
         model = self.root / 'model'
         model.mkdir(exist_ok=True)
