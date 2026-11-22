@@ -90,7 +90,11 @@ def baseline_reuse_compatibility(client, combined):
         before, after = sha(client[name]), sha(combined[name])
         if before == after:
             continue
-        if (before, after) != pair:
+        # The R10 revision only imports the release catalog and changes
+        # selected() to admit its named profiles. Timed warmup is unchanged.
+        r10_warmup = (name == "scripts/serving_warmup.py" and before == pair[0]
+                      and after == "7c39f8ec0cd24efeb3da03c619216d0c453f7eafd13a86e92a404127a7e831c7")
+        if (before, after) != pair and not r10_warmup:
             raise ValueError("Baseline reuse bridge requires source review: " + name)
         target = (compat if name.endswith("/serving_warmup.py") else
                   compat["unchanged_continuous_source_adaptations"][name])
@@ -686,12 +690,23 @@ def http_state_drain_bridge(result):
         result[script] = text.encode()
 
 
+def stable_r10_provider(files):
+    return b'R10_STABLE_RELEASE = "full-answer-b1-20261121-r10"' in files['scripts/runtime_overlay.py']
+
+
+def native_reference_releases(files):
+    names = ('full-answer-b1-20261117-r8', 'full-answer-b1-20261119-r9')
+    if stable_r10_provider(files):
+        names += ('full-answer-b1-20261121-r10',)
+    return json.dumps(names).replace('[', '(').replace(']', ')')
+
+
 def http_replay_bridge(result):
     """Reuse an independently sealed HTTP observation with prior native clocks."""
     key = 'third-party-test-kit/public_output_binding.py'
     text = result[key].decode()
     text = once(text, 'plan["engine_release"] != "full-answer-b1-20261117-r8"',
-        'plan["engine_release"] not in ("full-answer-b1-20261117-r8", "full-answer-b1-20261119-r9")')
+        'plan["engine_release"] not in ' + native_reference_releases(result))
     result[key] = text.encode()
 
     key = 'scripts/reference_model_reuse.py'
@@ -816,6 +831,9 @@ def context_baseline_bridge(result):
         '67bf9560a03a0b24ce7d0678fb742aa3fe57c5276fe376c74918d1bcbdac96fb',
         # Same pinned-copy payload and validators; only network import allowance/logs.
         'ee46611022f688bb96adb5a7604bcfedc02888b416dfcc366e546c15182d082b',
+        # R10 preserves the B0 warmup and input recipes. The producer-side
+        # changes select the measured contiguous-restore profile for B1.
+        'dfd6b42f2fc1bf076f89ac71a0745d94f7dd57fe0d49615e334ab9c04fce2083',
     }
     if digest(scripts(result)) not in reviewed_sources:
         raise ValueError('B0 context assessment-source compatibility requires review')
@@ -926,7 +944,7 @@ def bridge(client, provider):
     for key in ('scripts/native_timing_prepare.py', 'scripts/baseline_native_prepare.py'):
         text = result[key].decode()
         text = once(text, '!= "full-answer-b1-20261117-r8":',
-                    'not in ("full-answer-b1-20261117-r8", "full-answer-b1-20261119-r9"):')
+                    'not in ' + native_reference_releases(result) + ':')
         text = text.replace('requires the frozen r8 configuration', 'requires an admitted frozen Qwen capacity-36 configuration')
         text = text.replace('requires the frozen r8 campaign', 'requires an admitted frozen Qwen capacity-36 campaign')
         result[key] = text.encode()

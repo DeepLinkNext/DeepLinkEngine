@@ -12,6 +12,8 @@ PROFILES = {
     ORIGINAL_SHA256: {'profile': 'r8', 'release': 'full-answer-b1-20261117-r8'},
     '01d0a5f98d231a27b499adea9a2e90edeb62419f8c73ee2c26828b1efc77a2bf':
         {'profile': 'r9', 'release': 'full-answer-b1-20261119-r9'},
+    '58a48cd4af2447d843f109773f08b40ab28d7f7dcecd82183953e0219914b8b3':
+        {'profile': 'r10', 'release': 'full-answer-b1-20261121-r10'},
 }
 SCHEMA = 'deeplinkengine-producer-cpu-admission/v1'
 ENTRY = """import importlib.util,sys
