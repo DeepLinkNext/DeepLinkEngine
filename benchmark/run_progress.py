@@ -57,11 +57,31 @@ def timestamp():
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
 
+def _console_line(line, *, fallback=None, stream=None):
+    stream = sys.stdout if stream is None else stream
+    # A redirected Windows console can be unable to encode progress labels.
+    try:
+        print(line, file=stream, flush=True)
+    except UnicodeEncodeError:
+        alternative = fallback() if fallback is not None else line
+        print(alternative.encode("ascii", "backslashreplace").decode("ascii"), file=stream, flush=True)
+
+
+def _progress_line(fields):
+    prefix = "[PROGRESS] "
+    _console_line(prefix + " | ".join(label for _, label in fields),
+                  fallback=lambda: prefix + " | ".join(code for code, _ in fields))
+
+
 def announce(stage, detail=None):
-    fields = [f"{LABELS.get(stage, stage)} ({stage})"]
+    fields = [(stage, f"{LABELS.get(stage, stage)} ({stage})")]
     if detail:
-        fields.append(LABELS.get(detail, detail))
-    print("[PROGRESS] " + " | ".join(fields), flush=True)
+        fields.append((detail, LABELS.get(detail, STATE_TEXT.get(detail, detail))))
+    _progress_line(fields)
+
+
+def announce_state(state):
+    _progress_line([(state, STATE_TEXT.get(state, state))])
 
 
 def progress_path(out):
@@ -164,7 +184,7 @@ class BootstrapProgress:
             self.data["error"] = str(error) or type(error).__name__
         self.save()
         if state == "prepared":
-            announce("prepare-environment", STATE_TEXT[state])
+            announce("prepare-environment", state)
 
 
 def configured_output(config):
@@ -277,31 +297,39 @@ def snapshot(out):
 
 def emit(value, as_json):
     if as_json:
-        print(json.dumps(value, ensure_ascii=False), flush=True)
+        _console_line(json.dumps(value, ensure_ascii=False), fallback=lambda: json.dumps(value))
         return
-    fields = [STATE_TEXT.get(value["state"], value["state"])]
+    state = value["state"]
+    fields = [(state, STATE_TEXT.get(state, state))]
     if value["stage_label"]:
-        fields.append(value["stage_label"])
+        fields.append((value["stage"], value["stage_label"]))
     if detail := value["detail"]:
         if "step" in detail:
-            fields.append(LABELS.get(detail["step"], detail["step"]))
+            step = detail["step"]
+            fields.append((step, LABELS.get(step, step)))
         else:
-            fields.append(f"{detail['stage']} {detail['phase']}")
-            fields.append(f"评测阶段 {detail['stages_done']}/{detail['stages_total']}")
-            if reference := detail.get("reference"):
-                if "stages_total" in reference:
-                    fields.append(f"参考认证 {reference['stages_done']}/{reference['stages_total']}")
+            current = f"{detail['stage']} {detail['phase']}"
+            fields.append((current, current))
+            count = f"{detail['stages_done']}/{detail['stages_total']}"
+            fields.append((f"evaluation stages {count}", f"评测阶段 {count}"))
+            if (reference := detail.get("reference")) and "stages_total" in reference:
+                count = f"{reference['stages_done']}/{reference['stages_total']}"
+                fields.append((f"compute reference {count}", f"参考认证 {count}"))
             if detail["planned"] is not None:
-                fields.append(f"请求 {detail['responses']}/{detail['planned']}")
-    if value["rerun_b0"] is not None:
-        fields.append("B0 计划重跑" if value["rerun_b0"] else "B0 计划复用")
+                count = f"{detail['responses']}/{detail['planned']}"
+                fields.append((f"requests {count}", f"请求 {count}"))
+    if value["rerun_b0"] is True:
+        fields.append(("B0 planned rerun", "B0 计划重跑"))
+    elif value["rerun_b0"] is False:
+        fields.append(("B0 planned reuse", "B0 计划复用"))
     if value["elapsed_seconds"] is not None:
-        fields.append(f"本阶段 {value['elapsed_seconds']}s")
+        duration = f"{value['elapsed_seconds']}s"
+        fields.append((f"stage elapsed {duration}", f"本阶段 {duration}"))
     if value["failure"]:
-        fields.append(value["failure"])
+        fields.append((value["failure"], value["failure"]))
     if value["report_path"]:
-        fields.append(value["report_path"])
-    print("[PROGRESS] " + " | ".join(fields), flush=True)
+        fields.append((value["report_path"], value["report_path"]))
+    _progress_line(fields)
 
 
 def observe(config, *, watch=False, as_json=False):
@@ -329,5 +357,5 @@ def observe(config, *, watch=False, as_json=False):
     except KeyboardInterrupt:
         return 130
     except (OSError, ValueError) as error:
-        print("STATUS_ERROR " + str(error), file=sys.stderr, flush=True)
+        _console_line("STATUS_ERROR " + str(error), stream=sys.stderr)
         return 2

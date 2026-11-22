@@ -293,6 +293,32 @@ class WorkflowTests(unittest.TestCase):
                 run_progress.BootstrapProgress(out, run_progress.timestamp(), False)
         self.assertEqual(self.read_progress(config)["run_id"], original.run_id)
 
+    def test_progress_output_survives_windows_console_encoding(self):
+        config = self.root / "evaluation.json"
+        config.write_text(json.dumps(self.data))
+        failure = "\u73af\u5883\u51c6\u5907\u5931\u8d25 \U0001f680"
+        out = Path(self.data["out"])
+        progress = run_progress.BootstrapProgress(out, run_progress.timestamp(), True)
+        progress.finish("failed", failure)
+        status_args = ["run_all.py", "--status", "--config", str(config)]
+
+        with io.TextIOWrapper(io.BytesIO(), encoding="cp1252", errors="strict") as console:
+            with contextlib.redirect_stdout(console):
+                run_progress.announce("prepare-environment", "check-cann")
+                run_progress.announce_state("completed")
+                with patch.object(sys, "argv", status_args):
+                    self.assertEqual(workflow.main(), 0)
+                with patch.object(sys, "argv", [*status_args, "--json"]):
+                    self.assertEqual(workflow.main(), 0)
+            console.flush()
+            lines = console.buffer.getvalue().decode("cp1252").splitlines()
+
+        self.assertEqual(lines[0], "[PROGRESS] prepare-environment | check-cann")
+        self.assertEqual(lines[1], "[PROGRESS] completed")
+        self.assertIn("[PROGRESS] failed | read-config", lines[2])
+        status = json.loads(lines[3])
+        self.assertEqual((status["state"], status["failure"]), ("failed", failure))
+
     def test_terminal_progress_is_available_with_a_partial_child_receipt(self):
         config = self.root / "evaluation.json"
         config.write_text(json.dumps(self.data))

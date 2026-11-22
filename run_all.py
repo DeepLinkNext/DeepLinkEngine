@@ -15,7 +15,7 @@ if __name__ == "__main__":
     sys.dont_write_bytecode = True
 
 from benchmark.run_progress import (
-    BootstrapProgress, RUN_ID_ENV, STATE_TEXT, announce, observe, record_config_error, timestamp,
+    BootstrapProgress, RUN_ID_ENV, announce, announce_state, observe, record_config_error, timestamp,
 )
 from engine.release_selection import kit_path, runtime_lock, profile as selected_profile
 
@@ -627,7 +627,7 @@ def run(data, *, prepare_protocol_only=False, prepare_official_protocol_only=Fal
             current["ended_at"] = timestamp()
         save()
         if progress is not None:
-            print("[PROGRESS] " + STATE_TEXT[receipt["status"]], flush=True)
+            announce_state(receipt["status"])
         print("RESULTS", out / "results.json", flush=True)
 
 
