@@ -446,7 +446,7 @@ def run(data, *, prepare_protocol_only=False, prepare_official_protocol_only=Fal
         if data.get("dataset_assets"):
             data_command += ["--assets", data["dataset_assets"]]
         stage("prepare-datasets", data_command)
-        install_command = [sys.executable, str(ROOT / "engine_install.py"), "--cache", data["cache"]]
+        install_command = [sys.executable, str(ROOT / "engine/engine_install.py"), "--cache", data["cache"]]
         if data.get("environment", {}).get("wheelhouse"):
             install_command += ["--wheelhouse", data["environment"]["wheelhouse"]]
         if reuse_installation:

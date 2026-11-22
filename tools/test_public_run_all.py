@@ -78,6 +78,7 @@ class FullSuiteEntryTests(unittest.TestCase):
             self.assertEqual(status, 0)
             self.assertEqual(receipt["status"], "completed")
             self.assertEqual(len(commands), 9)
+            self.assertEqual(commands[1][:2], [sys.executable, str(ROOT / "engine/engine_install.py")])
             self.assertTrue(all("evaluate" not in args for args in commands))
             entry_calls = [args for args in commands if str(ROOT / "one_click.py") in args]
             self.assertEqual(len(entry_calls), 3)

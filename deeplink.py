@@ -62,7 +62,7 @@ def install(args):
             os.execve(prepared["python"], [prepared["python"], str(Path(__file__).resolve()), *sys.argv[1:]], prepared["env"])
             raise RuntimeError("Environment handoff returned unexpectedly")
     from engine.environment_setup import run_repair_stage
-    package_command = [sys.executable, str(ROOT / "engine_install.py"), "--cache", str(cache)]
+    package_command = [sys.executable, str(ROOT / "engine/engine_install.py"), "--cache", str(cache)]
     if args.wheelhouse:
         package_command += ["--wheelhouse", args.wheelhouse]
     cli = str(Path(sysconfig.get_path("scripts")) / "vllm-hust-engine")

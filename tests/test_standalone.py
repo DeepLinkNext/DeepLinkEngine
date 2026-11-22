@@ -83,7 +83,7 @@ class Standalone(unittest.TestCase):
             with patch.object(setup, "ensure_environment", return_value=None), patch.object(setup, "cached_wheel", side_effect=artifact), patch.object(setup, "run_repair_stage", side_effect=stage):
                 self.assertEqual(deeplink.install(args), 0)
             self.assertEqual(downloads, [])
-            self.assertEqual(calls[0][:2], [sys.executable, str(ROOT / "engine_install.py")])
+            self.assertEqual(calls[0][:2], [sys.executable, str(ROOT / "engine/engine_install.py")])
             self.assertEqual(calls[0][calls[0].index("--cache") + 1], str(cache))
             self.assertEqual(calls[1][1], "verify")
             self.assertEqual(Path(calls[2][1]).name, "runtime_storage.py")
