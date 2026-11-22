@@ -139,11 +139,18 @@ class PublicProjectionTests(unittest.TestCase):
     def test_unknown_kind_does_not_fall_through_to_projection(self):
         self.config['kind']='unknown-report';self.run_cli(False)
 
+    def load_projection(self):
+        self.enterContext(patch.object(sys, 'path', [str(ROOT), *sys.path]))
+        from official import enable_module_imports
+
+        enable_module_imports()
+        spec = importlib.util.spec_from_file_location('projection_under_test', ROOT / 'official/official_projection.py')
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        return module
+
     def test_cpu_plot_failure_and_timeout_cannot_leave_a_completed_projection(self):
-        sys.path.insert(0,str(ROOT))
-        self.addCleanup(lambda:sys.path.remove(str(ROOT)))
-        spec=importlib.util.spec_from_file_location('projection_failure_checks',ROOT / 'official/official_projection.py')
-        module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
+        module = self.load_projection()
         for index,outcome in enumerate((subprocess.CompletedProcess([],1,'','fixture failure'),subprocess.TimeoutExpired('fixture plot',300))):
             self.config.update(plots=True,out='failed-plot-'+str(index));config=self.root/'projection.json';config.write_bytes(raw(self.config))
             kwargs={'side_effect':outcome} if isinstance(outcome,Exception) else {'return_value':outcome}
@@ -159,9 +166,7 @@ class PublicProjectionTests(unittest.TestCase):
             self.config.update(plots=True,plot_cache=location);self.run_cli(False)
 
     def test_healthy_current_renderer_does_not_install_dependencies(self):
-        sys.path.insert(0,str(ROOT));self.addCleanup(lambda:sys.path.remove(str(ROOT)))
-        spec=importlib.util.spec_from_file_location('current_renderer_checks',ROOT / 'official/official_projection.py')
-        module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
+        module = self.load_projection()
         ready=json.dumps({'python':sys.executable,'matplotlib':'3.10.8'})
         record={}
         with patch.object(module.subprocess,'run',return_value=subprocess.CompletedProcess([],0,ready,'')) as commands:
@@ -170,9 +175,7 @@ class PublicProjectionTests(unittest.TestCase):
         self.assertEqual(commands.call_count,1);self.assertEqual(python,Path(sys.executable))
 
     def test_pinned_environment_install_failure_and_timeout_are_recorded(self):
-        sys.path.insert(0,str(ROOT));self.addCleanup(lambda:sys.path.remove(str(ROOT)))
-        spec=importlib.util.spec_from_file_location('repair_failure_checks',ROOT / 'official/official_projection.py')
-        module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
+        module = self.load_projection()
         for index,timeout in enumerate((False,True)):
             cache=self.root/('repair-cache-'+str(index));record={}
             def execute(command,**kwargs):
@@ -189,9 +192,7 @@ class PublicProjectionTests(unittest.TestCase):
             self.assertEqual(record['repair_step'],'install-pinned-renderer')
 
     def test_existing_one_click_report_environment_is_reused(self):
-        sys.path.insert(0,str(ROOT));self.addCleanup(lambda:sys.path.remove(str(ROOT)))
-        spec=importlib.util.spec_from_file_location('existing_report_renderer_checks',ROOT / 'official/official_projection.py')
-        module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
+        module = self.load_projection()
         existing=self.root/'existing-python';existing.write_bytes(b'fixture executable')
         responses=[subprocess.CompletedProcess([],1,'','Missing matplotlib'),subprocess.CompletedProcess([],0,json.dumps({'python':str(existing),'matplotlib':'3.10.8'}),'')]
         with patch.dict(os.environ,{'VLLM_HUST_REPORT_PYTHON':str(existing)}):
