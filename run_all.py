@@ -707,21 +707,22 @@ def main():
             if not args.report_only and not args.prepare_environment and not args.prepare_protocol_only and not args.prepare_official_protocol_only:
                 from benchmark.full_report import actual_cost_inputs
                 actual_cost_inputs(actual_cost)
-        if args.prepare_official_protocol_only and not data.get('environment',{}).get('official_sdk'):
+        official_sdk = data.get('environment', {}).get('official_sdk')
+        if args.prepare_official_protocol_only and not official_sdk:
             raise ValueError('Official input preparation requires the publicly prepared environment.official_sdk anchor')
-        from official_execution import maybe_enter_config, needed
-        if data.get('environment', {}).get('official_sdk') and not args.report_only:
-            from official_sdk_bytecode import verify_or_repair
-            recovery = verify_or_repair(data['environment']['official_sdk'], data['cache'])
-            if recovery:
-                os.environ['DEEPLINKENGINE_SDK_RECOVERY'] = json.dumps(recovery)
-        if data.get('environment', {}).get('official_sdk') and not args.report_only:
-            from engine.native_sdk_controller import maybe_enter as native_controller
-            native_controller(data['environment']['official_sdk'],ROOT/'run_all.py',sys.argv[1:],cache=data['cache'])
-        if data.get('environment', {}).get('official_sdk') and needed():
-            from engine.transport_trust import configure
-            configure(data['cache'], data['environment']['official_sdk'])
-        maybe_enter_config(args.config, sys.argv[1:])
+        if official_sdk:
+            from official_execution import maybe_enter_config, needed
+            if not args.report_only:
+                from official_sdk_bytecode import verify_or_repair
+                recovery = verify_or_repair(official_sdk, data['cache'])
+                if recovery:
+                    os.environ['DEEPLINKENGINE_SDK_RECOVERY'] = json.dumps(recovery)
+                from engine.native_sdk_controller import maybe_enter as native_controller
+                native_controller(official_sdk, ROOT/'run_all.py', sys.argv[1:], cache=data['cache'])
+            if needed():
+                from engine.transport_trust import configure
+                configure(data['cache'], official_sdk)
+            maybe_enter_config(args.config, sys.argv[1:])
         if args.rerun_b0 is not None:
             data["rerun_b0"] = args.rerun_b0
         os.environ["XDG_CACHE_HOME"] = os.environ.get("XDG_CACHE_HOME") or str(Path(data["cache"]) / "xdg")
