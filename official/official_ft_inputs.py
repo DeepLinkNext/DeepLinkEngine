@@ -8,7 +8,9 @@ import copy
 from collections import Counter
 
 
-ENVELOPE_VERSIONS = frozenset({"0.23.0", "0.30.0"})
+# The pinned 0.28rc1 proposer also advances the full KV envelope while
+# deriving the second-step write slot from the sampled position.
+ENVELOPE_VERSIONS = frozenset({"0.23.0", "0.28.0rc1-source", "0.30.0"})
 
 
 class OfficialDraftPrefixMismatch(ValueError):

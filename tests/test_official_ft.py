@@ -601,6 +601,18 @@ class CompletionTests(unittest.TestCase):
                 prefix_preflight(Evidence(native), Evidence(companion))
             self.assertFalse(Path(config['out']).exists())
 
+    def test_candidate_prefix_preflight_identifies_the_full_query_advance(self):
+        from official_ft_audit import prefix_preflight
+        from official_ft_inputs import OfficialDraftEnvelopeUnresolved
+        with tempfile.TemporaryDirectory() as temporary:
+            _, native, companion, _ = self.prefix_fixture(Path(temporary))
+            with self.assertRaises(OfficialDraftEnvelopeUnresolved) as caught:
+                prefix_preflight(Evidence(native), Evidence(companion), version='0.28.0rc1-source')
+            audit = caught.exception.envelope_audit
+            self.assertEqual(audit['row_counts'], dict(selected_prefix=5, full_query_advance=1))
+            self.assertEqual(audit['first_full_query_advance']['extra_reported_positions'], [1383, 1384])
+            self.assertFalse(audit['necessary_work_certified'])
+
     def test_no_mismatch_preflight_never_claims_full_qualification(self):
         from official_ft_audit import prefix_preflight
         with tempfile.TemporaryDirectory() as temporary:
