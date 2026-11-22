@@ -25,6 +25,35 @@ def seal(root):
     return files
 
 
+def render_plots(root, config, campaign):
+    from engine.transport_trust import configure
+    from official_projection import plot_python
+    from official_suite import ROOT, clean_client_environment
+
+    plotter = ROOT / 'official/official_plots.py'
+    plotter_hash = hashlib.sha256(plotter.read_bytes()).hexdigest()
+    record = dict(plotter_sha256=plotter_hash, status='preparing')
+    try:
+        if campaign['sources'].get(str(plotter)) != plotter_hash:
+            raise ValueError('Pinned official plot source changed')
+        env = clean_client_environment()
+        record['transport_trust'] = configure(config['cache'], env=env)
+        python, env = plot_python(Path(config['cache']) / 'official-report', record, inherited=env)
+        result = subprocess.run([str(python), '-B', str(plotter), str(root / 'report.json')],
+                                env=env, capture_output=True, text=True, timeout=300)
+        (root / 'plotting.log').write_text(result.stdout + result.stderr, encoding='utf-8')
+        if result.returncode:
+            raise ValueError('Pinned CPU plot generation exited ' + str(result.returncode))
+        figures = sorted(path.name for path in root.glob('*.svg'))
+        if not figures:
+            raise ValueError('The official plotter produced no SVG files')
+        record.update(status='completed', figures=figures)
+    except (OSError, ValueError, subprocess.SubprocessError) as error:
+        record.update(status='failed', error=type(error).__name__ + ': ' + str(error), figures=[])
+    save(root / 'plotting-plan.json', record)
+    return record
+
+
 def report(root, config=None):
     root = Path(root)
     campaign = json.loads((root / 'campaign.json').read_bytes())
@@ -73,26 +102,10 @@ def report(root, config=None):
     save(root / 'report.json', document)
     figures = []
     if config is not None and metrics:
-        from official_suite import ROOT, TOOLS, clean_client_environment
-        sdk = Path(config['protocol_deployment'])
-        cache = Path(config['cache']) / 'official-report'
-        temporary = cache / 'tmp'
-        temporary.mkdir(parents=True, exist_ok=True)
-        env = clean_client_environment()
-        env.update(XDG_CACHE_HOME=str(cache), TMPDIR=str(temporary), MPLCONFIGDIR=str(cache / 'matplotlib'))
-        plan = dict(client_tools=str(TOOLS), protocol_deployment=str(sdk),
-                    output=str(root), client_sources=campaign['sources'])
-        existing = Path(config['protocol_run']).parents[1] / 'cache/xdg/vllm-hust-engine/report-mpl3108/bin/python'
-        if existing.is_file():
-            plan['report_python'] = str(existing)
-        save(root / 'plotting-plan.json', plan)
-        result = subprocess.run([config['protocol_python'], '-B', str(ROOT / 'official/official_http.py'),
-                                 '--config', str(root / 'plotting-plan.json'), '--phase', 'plots'],
-                                env=env, capture_output=True, text=True, timeout=900)
-        (root / 'plotting.log').write_text(result.stdout + result.stderr)
-        if result.returncode:
-            raise ValueError('Pinned CPU plot generation failed; preserve plotting.log')
-        figures = sorted(path.name for path in root.glob('*.svg'))
+        plotting = render_plots(root, config, campaign)
+        figures = plotting['figures']
+        document['plotting'] = dict(status=plotting['status'], receipt='plotting-plan.json', figures=figures)
+        save(root / 'report.json', document)
     rows = ''.join('<tr><td>' + html.escape(name) + '</td><td>' + html.escape(row['status'])
                    + '</td><td>' + ' · '.join('<a href="' + html.escape(item['path'], quote=True)
                    + '">' + html.escape(label) + '</a>' for label, item in row.items() if isinstance(item, dict) and 'path' in item)

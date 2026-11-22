@@ -8,6 +8,7 @@ import urllib.request
 
 from official_baselines import save
 from official_image import digest
+from official_judge_runtime import judge_command
 from official_memory import admit_startup, memory_guard
 from official_suite import ROOT, clean_client_environment, load, monitor, run_client, service_cache
 
@@ -43,11 +44,13 @@ def run(config, dataset, output, tools, sdk, sources, leases, weights):
                '--physical-devices', ','.join(map(str, config['physical_devices'])), '--devices', '0,1',
                '--host', '127.0.0.1', '--port', '18390', '--served-model-name', 'qwen3.5-35b',
                '--cache', str(service_cache(config, output)), '--work-dir', str(runtime), '--lease-timeout', '0']
+    command = judge_command(command, config, output)
     owned = Owned(runtime)
     processes = []
     receipt = dict(schema='deeplinkengine-official-fixed-judge/v1', dataset=dataset,
                    status='starting', fixed_judge=installed['release'], started=time.time(), completed=False,
-                   solver_performance_includes_judge=False, original_judge_spec_sha256=digest(original_spec))
+                   client_started=False, solver_performance_includes_judge=False,
+                   original_judge_spec_sha256=digest(original_spec))
     try:
         from official_endpoint import available
         available()
@@ -77,6 +80,8 @@ def run(config, dataset, output, tools, sdk, sources, leases, weights):
             time.sleep(3)
         # The separately installed common judge is not a solver performance arm.
         # Existing clients retain every planned answer and every invalid grade.
+        receipt['client_started'] = True
+        save(output / 'receipt.json', receipt)
         client_process = run_client(config, client / 'plan.json', 'client', leases, timeout=14400)
         processes.append(client_process)
         owned.add(client_process.pid)

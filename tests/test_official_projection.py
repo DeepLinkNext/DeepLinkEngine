@@ -45,6 +45,21 @@ class PublicProjectionTests(unittest.TestCase):
         self.extra = {'mmlu/service/joint.json':self.metric_raw,'mmlu/receipt.json':self.receipt_raw}
         self.build()
 
+    def test_live_plot_error_still_seals_the_actual_measurement_report(self):
+        sys.path.insert(0, str(ROOT))
+        from official import enable_module_imports
+        enable_module_imports()
+        from official_report import report
+        self.campaign['fixed_five_denominators'] = self.report['planned_denominators']
+        self.build()
+        with patch('official_report.render_plots', return_value={'status':'failed','figures':[]}):
+            rendered = report(self.source, {})
+        self.assertEqual(rendered['plotting']['status'], 'failed')
+        self.assertEqual(rendered['metrics']['mmlu']['completed'], 200)
+        actual_seal = json.loads((self.source / 'checksums.json').read_bytes())
+        self.assertEqual(actual_seal['report.json'], pin((self.source / 'report.json').read_bytes()))
+        self.assertEqual(actual_seal['report.html'], pin((self.source / 'report.html').read_bytes()))
+
     def build(self):
         files={'campaign.json':raw(self.campaign),'report.json':raw(self.report),**self.extra}
         # Omitted raw payload deliberately does not exist; projection must not claim to verify it.

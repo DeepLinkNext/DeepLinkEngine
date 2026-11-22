@@ -19,13 +19,14 @@ COUNTS = {'mmlu': 200, 'hle': 200, 'frontier': 160, 'swe': 64, 'terminal': 48}
 LABELS = {'mmlu': 'MMLU200', 'hle': 'HLE200', 'frontier': 'Frontier160', 'swe': 'SWE trace64', 'terminal': 'Terminal trace48'}
 
 
-def plot_python(cache, record):
+def plot_python(cache, record, *, inherited=None):
     """Use a working CPU renderer or repair a private, cross-platform venv."""
     requirements = ROOT / 'benchmark/one-click-kit/scripts/requirements-report.txt'
     if requirements.read_text(encoding='utf-8').strip() != 'matplotlib==3.10.8':
         raise ValueError('The CPU plotting requirement must remain matplotlib==3.10.8')
     record.update(status='detecting', repair_status='not-needed', requirements_sha256=digest(requirements), cache=str(cache))
-    env = dict(os.environ, PYTHONPATH='', PYTHONDONTWRITEBYTECODE='1', PIP_DISABLE_PIP_VERSION_CHECK='1')
+    env = dict(os.environ if inherited is None else inherited, PYTHONPATH='',
+               PYTHONDONTWRITEBYTECODE='1', PIP_DISABLE_PIP_VERSION_CHECK='1')
     env.pop('PYTHONHOME', None)
     for variable, folder in (('MPLCONFIGDIR', 'matplotlib'), ('PIP_CACHE_DIR', 'pip-cache'), ('TMPDIR', 'tmp'), ('TMP', 'tmp'), ('TEMP', 'tmp')):
         directory = cache / folder
