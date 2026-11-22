@@ -8,12 +8,13 @@ import urllib.request
 
 from official_baselines import save
 from official_image import digest
+from official_memory import admit_startup, memory_guard
 from official_suite import ROOT, clean_client_environment, load, monitor, run_client, service_cache
 
 
 def run(config, dataset, output, tools, sdk, sources, leases, weights):
     from owned_processes import Owned
-    from run_b1_r4 import admit_startup_memory, check_memory, listener_owned
+    from run_b1_r4 import check_memory, listener_owned
     output.mkdir(exist_ok=False)
     client = output / 'service'
     client.mkdir()
@@ -32,8 +33,8 @@ def run(config, dataset, output, tools, sdk, sources, leases, weights):
                 original_spec_sha256=digest(original_spec), solver_version=str(output.parent.name),
                 performance_measurement=False)
     save(client / 'plan.json', plan)
-    guard = load(sdk / 'mods/packed-host/memory_guard.py', 'official_fixed_judge_memory_guard')
-    initial = admit_startup_memory(guard, Path(config['model']), weights, output)
+    guard = memory_guard(load(sdk / 'mods/packed-host/memory_guard.py', 'official_fixed_judge_memory_guard'))
+    initial = admit_startup(guard, Path(config['model']), weights, output)
     env = clean_client_environment()
     env.update(VLLMHUST_ENGINE_LOCKS=json.dumps(leases),
                VLLM_HUST_PHYSICAL_DEVICES=','.join(map(str, config['physical_devices'])))

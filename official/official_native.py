@@ -7,13 +7,14 @@ import time
 
 from official_baselines import save
 from official_image import digest, environment
+from official_memory import admit_startup, memory_guard
 from official import worker_pythonpath
 from official_suite import ROOT, clean_client_environment, load, public_arguments, service_cache, kernel_cache, runtime_environment
 
 
 def run(config, image, output, tools, sdk, sources, leases, continuous, *, native_source=None):
     from owned_processes import Owned
-    from run_b1_r4 import admit_startup_memory, check_memory
+    from run_b1_r4 import check_memory
     from checkpoint_cache import release_loaded_checkpoint_cache
     from reference_capture_profile import profile
     output.mkdir(exist_ok=False)
@@ -59,8 +60,8 @@ def run(config, image, output, tools, sdk, sources, leases, continuous, *, nativ
         plan['serve_arguments'][at + 1] = 'official_ft_worker.OfficialCompanionWorker'
         save(output / 'native-plan.json', plan)
     weights = json.loads((output.parent / 'model-weights.json').read_bytes())
-    guard = load(sdk / 'mods/packed-host/memory_guard.py', 'official_native_memory_guard')
-    initial = admit_startup_memory(guard, Path(config['model']), weights, output)
+    guard = memory_guard(load(sdk / 'mods/packed-host/memory_guard.py', 'official_native_memory_guard'))
+    initial = admit_startup(guard, Path(config['model']), weights, output)
     python, env = environment(image, service_cache(config, output), devices='0,1')
     env.update(TRITON_CACHE_DIR=str(kernel_cache(config, image)), VLLMHUST_OFFICIAL_SDK=str(image))
     inventory = tools / 'third-party-test-kit/proc_capture/m01_model_inventory.py'
