@@ -10,7 +10,7 @@ import re
 import sys
 from types import SimpleNamespace
 
-ROOT = Path(__file__).resolve().parent
+ROOT = Path(__file__).resolve().parents[1]
 KIT = ROOT / 'benchmark/one-click-kit'
 
 
@@ -409,7 +409,7 @@ def prefix_rejection(out, error, native, observed, domain, sdk=None, *, version_
         selected_native_evidence_sha256=dict(native.selected),
         selected_companion_evidence_sha256=dict(observed.selected),
         fixed_population_preflight_verified=sdk is None,
-        cpu_source_sha256={name: sha(ROOT / name) for name in ('official_ft_inputs.py', 'official_ft_audit.py')},
+        cpu_source_sha256={name: sha(ROOT / 'official' / name) for name in ('official_ft_inputs.py', 'official_ft_audit.py')},
         interpretation='Observed upstream lengths are retained. The selected-prefix arithmetic adapter cannot certify this call; no missing suffix producer is replaced by zero.',
         actual_kernel_memory_access_or_slot_values_observed=False,
         upstream_runtime_correctness_certified=False, source_runtime_applicability_certified=False,
@@ -537,7 +537,7 @@ def audit(native_root, companion_root, sdk, model_config, out, *, version, sourc
         if version == '0.30.0':
             from official_ft_arithmetic import adjust_fla
             adjustment = domain['backend_ledger_adjustments']['fla-npu']
-            if sha(ROOT / 'official_ft_arithmetic.py') != adjustment['adapter_sha256']:
+            if sha(ROOT / 'official/official_ft_arithmetic.py') != adjustment['adapter_sha256']:
                 raise ValueError('Reviewed source-specific FLA arithmetic adapter changed')
             work = adjust_fla(work, SimpleNamespace(**text), rebuilt, workers)
         work.update(necessary_work_certified=True, source_runtime_applicability_certified=True,

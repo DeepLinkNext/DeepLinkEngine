@@ -7,7 +7,7 @@ import sys
 import time
 import uuid
 
-ROOT=Path(__file__).resolve().parent
+ROOT=Path(__file__).resolve().parents[1]
 FIELDS=('protocol_run','protocol_deployment','protocol_python')
 VERSION='2026.11.17.8.post2'
 PHASES=['prepare-datasets','install-package','verify-engine','install-engine','prepare-fixed-five']

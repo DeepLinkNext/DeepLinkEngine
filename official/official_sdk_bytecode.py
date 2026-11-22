@@ -10,7 +10,7 @@ import tarfile
 import time
 import uuid
 
-ROOT = Path(__file__).resolve().parent
+ROOT = Path(__file__).resolve().parents[1]
 
 
 def save(path, value):

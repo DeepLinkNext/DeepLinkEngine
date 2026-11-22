@@ -60,6 +60,9 @@ def cann_environment(options, inherited=None):
     if options.get('official_sdk'):
         if options.get('cann_home'):
             raise ValueError('Choose official_sdk or cann_home, not both')
+        from official import enable_module_imports
+
+        enable_module_imports()
         from official_protocol_bootstrap import cann_environment as private_cann
         return private_cann(options['official_sdk'])
     env = dict(os.environ if inherited is None else inherited)

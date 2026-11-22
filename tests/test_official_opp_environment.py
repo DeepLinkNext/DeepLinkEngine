@@ -8,6 +8,9 @@ from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path[:0] = [str(ROOT), str(ROOT / 'benchmark/one-click-kit/scripts')]
+from official import enable_module_imports
+
+enable_module_imports()
 from official_image import configure_fla_opp, environment
 from startup_failure import inspect
 

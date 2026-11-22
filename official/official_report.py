@@ -86,7 +86,7 @@ def report(root, config=None):
         if existing.is_file():
             plan['report_python'] = str(existing)
         save(root / 'plotting-plan.json', plan)
-        result = subprocess.run([config['protocol_python'], '-B', str(ROOT / 'official_http.py'),
+        result = subprocess.run([config['protocol_python'], '-B', str(ROOT / 'official/official_http.py'),
                                  '--config', str(root / 'plotting-plan.json'), '--phase', 'plots'],
                                 env=env, capture_output=True, text=True, timeout=900)
         (root / 'plotting.log').write_text(result.stdout + result.stderr)

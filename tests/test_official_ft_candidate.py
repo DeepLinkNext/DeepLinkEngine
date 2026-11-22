@@ -17,6 +17,9 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path[:0] = [str(ROOT), str(ROOT / 'tests'), str(ROOT / 'benchmark/one-click-kit/scripts'),
     str(ROOT / 'benchmark/one-click-kit/third-party-test-kit'),
     str(ROOT / 'benchmark/one-click-kit/third-party-test-kit/proc_capture')]
+from official import enable_module_imports
+
+enable_module_imports()
 from official_ft_factory import capture, validate as factory_validate
 from official_ft_inventory import validate
 from official_ft_audit import runtime, candidate_backend_admission

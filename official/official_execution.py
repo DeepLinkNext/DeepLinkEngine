@@ -18,6 +18,9 @@ import tarfile
 import tempfile
 import time
 
+if __name__ == '__main__':
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
 BASE_DIGEST = '119d19e001bafa21919289095e1dbfac64f1e16d2469dd14c2d2a520039d26d9'
 MS_RDONLY, MS_REMOUNT, MS_BIND, MS_REC, MS_PRIVATE = 1, 32, 4096, 16384, 1 << 18
 CLONE_NEWNS = 0x00020000
@@ -180,7 +183,7 @@ def ensure_for_sdk(sdk):
             (quarantine / 'interrupted-recovery.json').write_text(json.dumps(
                 dict(original=str(output), preserved=str(quarantine), **stopped), indent=2) + '\n')
         from baseline_setup import fetch
-        lock = json.loads((Path(__file__).parent / 'engine/official-baselines/0.23.0.json').read_bytes())
+        lock = json.loads((Path(__file__).resolve().parents[1] / 'engine/official-baselines/0.23.0.json').read_bytes())
         layers = [item for item in lock['layers'] if item['digest'] == 'sha256:' + BASE_DIGEST]
         if len(layers) != 1:
             raise ValueError('Execution base is absent from the pinned official image')
@@ -415,14 +418,14 @@ def sdk_run(command, *, sdk, env, **kwargs):
     if not needed():
         return subprocess.run(command, env=env, **kwargs)
     root = ensure_for_sdk(sdk)
-    return run_in_context(command, root, env=env, extra_paths=(Path(sdk), Path(__file__).parent), **kwargs)
+    return run_in_context(command, root, env=env, extra_paths=(Path(sdk), Path(__file__).resolve().parents[1]), **kwargs)
 
 
 def sdk_popen(command, *, sdk, env, **kwargs):
     if not needed():
         return subprocess.Popen(command, env=env, **kwargs)
     root = ensure_for_sdk(sdk)
-    return popen_in_context(command, root, env=env, extra_paths=(Path(sdk), Path(__file__).parent), **kwargs)
+    return popen_in_context(command, root, env=env, extra_paths=(Path(sdk), Path(__file__).resolve().parents[1]), **kwargs)
 
 
 def enter_cli(sdk, script, arguments, *, cache=None, execution_root=None, extra_paths=()):
@@ -563,7 +566,7 @@ def prepare_anchor(config):
         version = '0.23.0'
     if not any(key in config for key in ('protocol_run', 'protocol_deployment', 'protocol_python')):
         version = '0.23.0'
-    lock = json.loads((Path(__file__).parent / 'engine/official-baselines' / (version + '.json')).read_bytes())
+    lock = json.loads((Path(__file__).resolve().parents[1] / 'engine/official-baselines' / (version + '.json')).read_bytes())
     sdk = cache / 'official-sdks' / (version + '-' + lock['manifest_digest'].split(':')[1][:16])
     # Even an existing complete SDK is admitted again by the public entry.
     bootstrap = cache / 'execution-bootstrap' / str(time.time_ns())
@@ -575,7 +578,7 @@ def prepare_anchor(config):
     path = bootstrap / 'evaluation.json'
     path.write_text(json.dumps(plan, indent=2) + '\n')
     with (bootstrap / 'prepare.log').open('xb') as stream:
-        process = subprocess.Popen([sys.executable, '-B', str(Path(__file__).parent / 'run_all.py'),
+        process = subprocess.Popen([sys.executable, '-B', str(Path(__file__).resolve().parents[1] / 'run_all.py'),
                                     '--official-baselines', '--config', str(path), '--prepare-environment'],
                                    env=_neutral_environment(), stdout=stream, stderr=subprocess.STDOUT,
                                    start_new_session=True)
@@ -632,7 +635,7 @@ def maybe_enter_official(config, arguments):
             from official_build_context import ensure
             root = ensure(sdk)
         paths = config_workspaces(config, argument_config(arguments))
-        enter_cli(sdk, Path(__file__).parent / 'run_all.py', ['--official-baselines', *arguments],
+        enter_cli(sdk, Path(__file__).resolve().parents[1] / 'run_all.py', ['--official-baselines', *arguments],
                   execution_root=root, extra_paths=paths)
 
 
@@ -646,7 +649,7 @@ def maybe_enter_config(path, arguments):
         sdk = Path(sdk)
         if not sdk.is_absolute():
             sdk = Path(path).resolve().parent / sdk
-        enter_cli(sdk, Path(__file__).parent / 'run_all.py', arguments,
+        enter_cli(sdk, Path(__file__).resolve().parents[1] / 'run_all.py', arguments,
                   extra_paths=config_workspaces(config, path))
 
 

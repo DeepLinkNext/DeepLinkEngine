@@ -8,7 +8,10 @@ import platform
 import sys
 import time
 
-ROOT = Path(__file__).resolve().parent
+if __name__ == '__main__':
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+ROOT = Path(__file__).resolve().parents[1]
 
 
 def save(path, value):
@@ -158,7 +161,7 @@ def main(arguments=None):
                   model_execution_authorized=not args.prepare_environment,
                   storage_selection=storage,
                   stages=[], source_files={p.name: hashlib.sha256(p.read_bytes()).hexdigest()
-                                          for p in [ROOT / 'run_all.py', ROOT / 'official_baselines.py', ROOT / 'official_image.py', ROOT / 'official_storage.py']})
+                                          for p in [ROOT / 'run_all.py', ROOT / 'official/official_baselines.py', ROOT / 'official/official_image.py', ROOT / 'official/official_storage.py']})
     from official_protocol_bootstrap import host_identity
     record['host_identity'] = host_identity()
     from native_sdk_controller import ENV as native_marker

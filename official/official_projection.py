@@ -11,7 +11,9 @@ import sys
 
 from official_rebuild import member, relative, write, digest
 
-ROOT = Path(__file__).resolve().parent
+from official import source_path
+
+ROOT = Path(__file__).resolve().parents[1]
 
 COUNTS = {'mmlu': 200, 'hle': 200, 'frontier': 160, 'swe': 64, 'terminal': 48}
 LABELS = {'mmlu': 'MMLU200', 'hle': 'HLE200', 'frontier': 'Frontier160', 'swe': 'SWE trace64', 'terminal': 'Terminal trace48'}
@@ -260,7 +262,7 @@ def run(configuration):
         model_requests_executed=0, raw_sse_recomputed=False, all_original_payloads_verified=False,
         selected_original_members_verified={name: hashlib.sha256(raw).hexdigest() for name, raw in sorted(selected.items())},
         unverified_omitted_original_members=len(set(seal) - set(selected)), original_sources=campaign.get('sources', {}),
-        original_reuse_sources=reuse, projection_sources={name: digest(ROOT / name) for name in
+        original_reuse_sources=reuse, projection_sources={name: digest(source_path(ROOT, name)) for name in
             ('run_all.py', 'official_baselines.py', 'official_rebuild.py', 'official_projection.py', 'official_plots.py',
              'benchmark/one-click-kit/scripts/requirements-report.txt')},
         publication_ready=False, plots_requested=config.get('plots', True), F=None, efficiency_percent=None,
@@ -284,7 +286,7 @@ def run(configuration):
         try:
             python, env = plot_python(cache, environment_record)
             environment_ready = True
-            result = subprocess.run([str(python), '-B', str(ROOT / 'official_plots.py'), str(out / 'report.json')],
+            result = subprocess.run([str(python), '-B', str(ROOT / 'official/official_plots.py'), str(out / 'report.json')],
                                     env=env, cwd=ROOT, capture_output=True, text=True, timeout=300)
             log = result.stdout + result.stderr
             plot_error = result.returncode != 0

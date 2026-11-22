@@ -469,7 +469,7 @@ def run(data, *, prepare_protocol_only=False, prepare_official_protocol_only=Fal
         config = out / "evaluation.json"
         config.write_text(json.dumps(evaluation, indent=2) + "\n")
         evaluate = [sys.executable, str(ROOT / "one_click.py")]
-        prepare_command = ([sys.executable, '-B', str(ROOT / 'official_protocol_data.py'), '--config', str(config),
+        prepare_command = ([sys.executable, '-B', str(ROOT / 'official/official_protocol_data.py'), '--config', str(config),
                             '--anchor-sdk', data['environment']['official_sdk']]
                            if prepare_official_protocol_only else [*evaluate, "prepare", "--config", str(config)])
         if data.get("rerun_b0", False) and not prepare_official_protocol_only:
@@ -629,6 +629,9 @@ def select_run_engine(data, *, recovery=False, reuse_completed_run=None):
 
 
 def main():
+    from official import enable_module_imports
+
+    enable_module_imports()
     sys.dont_write_bytecode = True
     os.environ["PYTHONDONTWRITEBYTECODE"] = "1"
     if '--official-baselines' in sys.argv[1:]:
