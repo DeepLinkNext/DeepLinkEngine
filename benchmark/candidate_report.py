@@ -25,6 +25,7 @@ ARM_NAMES = {"B0": "固定 B0 0.18", "r10_original": "原始 r10",
 FIXED_B0_V2 = "evidence/r10-fixed-b0-v2.json"
 ORIGINAL_AUDIT = "evidence/r10-original-evidence-audit-v1.json"
 CONTEXT_AUDIT = "evidence/r10-v2-context-supplement.json"
+COMPUTE_AUDIT = "evidence/r10-v2-compute-supplement.json"
 VERDICTS = {"met": "达成", "not_met": "未达成", "missing_evidence": "证据不足"}
 
 
@@ -97,11 +98,16 @@ def collect(version):
     context_binding = pins.get(CONTEXT_AUDIT)
     context_source = read_bound_json(context_binding, "evidence") if context_binding else {}
     context = context_source.get(binding["candidate"]["version"])
-    targets = assess(archive, binding["candidate"], baseline, priority, original, context)
+    compute_binding = pins.get(COMPUTE_AUDIT)
+    compute_source = read_bound_json(compute_binding, "evidence") if compute_binding else {}
+    compute = compute_source.get(binding["candidate"]["version"])
+    targets = assess(archive, binding["candidate"], baseline, priority, original, context, compute)
     assessment_sources = {"fixed_b0": {**source_identity(baseline_binding), "projection_inputs": baseline["sources"]}}
     assessment_sources["original_evidence_audit"] = source_identity(audit_binding)
     if context is not None:
         assessment_sources["context_audit"] = source_identity(context_binding)
+    if compute is not None:
+        assessment_sources["compute_audit"] = source_identity(compute_binding)
     if quality_binding:
         assessment_sources["priority_grades"] = source_identity(quality_binding)
     roles = tuple(archive["measurements"]["mmlu"])
@@ -206,7 +212,8 @@ def v2_html(data):
     labels = {"fixed_b0": "固定 B0 V2 封存", "matched_mmlu_utilization": "同封存 MMLU-Pro 双卡采样",
               "context_workloads": "真实上下文数据集来源", "priority_grades": "原生 RMS 同轮裁判分层对照",
               "original_evidence_audit": "固定五项与同窗 AI Core 原件复算",
-              "context_audit": "真实上下文及四租户的封存复算"}
+              "context_audit": "真实上下文及四租户的封存复算",
+              "compute_audit": "MMLU-Pro 200 / out256 原生计时及独立参考复算"}
     links = []
     for kind, source in data["assessment_sources"].items():
         origins = source.get("projection_inputs") or {kind: {"url": source["source"], "sha256": source["sha256"]}}
@@ -244,8 +251,23 @@ def v2_html(data):
         context_block = ("<h3>4.3 真实长上下文</h3>"
                          + f'<p>冻结任务 {html.escape(task_ids)}。输入 SHA-256 <code>{input_sha256}</code>。</p>'
                          + table(headers, rows))
+    compute = assessments["4.1"]
+    compute_block = ""
+    if "native" in compute:
+        rows = []
+        native = compute["native"]
+        for role in ("B0", "B1"):
+            arm = native["arms"][role]
+            card_ids = "、".join(map(str, native["physical_cards"][role]))
+            clocks = " / ".join(f'{float(row["T_seconds"]):.3f}' for row in arm["repetitions"])
+            rows.append((ARM_NAMES["B0" if role == "B0" else "candidate"], card_ids, clocks,
+                         f'{float(arm["reference_tflops_per_card_upper"]):.4f}',
+                         f'{float(arm["efficiency_lower_percent"]):.4f}%', native["native_seals"][role]))
+        compute_block = "<h3>4.1 MMLU-Pro 固定 200 题 / out256</h3>" + table(
+            ("运行臂", "物理卡", "三轮原生计时（秒）", "参考上界（TFLOP/s/卡）", "效率下界", "原生封存 SHA-256"), rows)
     return f"""<h2>送测 V2 按证据判定</h2>
 {table(("指标", "阶段", "状态", "已有证据", "判定依据或缺项"), targets)}
+{compute_block}
 <h3>4.2 逐数据集门槛核验</h3>
 <p>固定 0.18 B0 与所选修复候选直接比较。里程碑要求吞吐≥1.10×、平均 TTFT/TPOT 各≤0.95×，
 结题要求吞吐≥2×、平均 TTFT/TPOT 各≤0.80×。分数按固定计划分母，未决计非成功。</p>

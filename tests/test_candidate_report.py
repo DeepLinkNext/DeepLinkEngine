@@ -69,8 +69,15 @@ class CandidateReportTests(unittest.TestCase):
         for level in ("milestone", "final"):
             self.assertEqual(v2["4.2"][level]["status"], "met")
             self.assertIn("mmlu", v2["4.2"][level]["datasets"])
-            self.assertIsNone(v2["4.1"][level]["met"])
+            expected_compute = (level == "milestone") if fixed else None
+            self.assertIs(v2["4.1"][level]["met"], expected_compute)
             self.assertIs(v2["4.3"][level]["met"], not fixed)
+        if fixed:
+            compute = v2["4.1"]
+            self.assertAlmostEqual(float(compute["efficiency_lower_percent"]["B1"]), 89.14006, places=5)
+            self.assertEqual(compute["native"]["profile"]["max_tokens"], 256)
+            self.assertEqual(compute["native"]["profile"]["formal_repetitions"], 3)
+            self.assertIn("compute_audit", receipt["assessment_sources"])
         self.assertTrue(v2["4.4"]["milestone"]["met"])
         self.assertTrue(v2["4.4"]["final"]["met"])
         reviewed = v2["4.3"]
