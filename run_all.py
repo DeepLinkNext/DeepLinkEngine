@@ -648,30 +648,36 @@ def main():
     enable_module_imports()
     sys.dont_write_bytecode = True
     os.environ["PYTHONDONTWRITEBYTECODE"] = "1"
-    if '--official-baselines' in sys.argv[1:]:
+    argv = sys.argv[1:]
+    if '--official-baselines' in argv:
         from official_baselines import main as official_main
-        return official_main([value for value in sys.argv[1:] if value != '--official-baselines'])
+        return official_main([value for value in argv if value != '--official-baselines'])
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--config", type=Path)
-    parser.add_argument("--engine-version", help="Archived candidate version or release for --report-only")
-    parser.add_argument("--out", type=Path, help="New output directory for explicit candidate report selection")
-    parser.add_argument("--prepare-environment", action="store_true", help="Repair and verify the environment without starting model tests")
-    parser.add_argument('--prepare-protocol-only', action='store_true', help='Prepare datasets, SDK and fixed-five inputs; stop before any model service or evaluation client')
-    parser.add_argument('--prepare-official-protocol-only', action='store_true', help='Prepare original data and R8 judge for official solvers, without installing or claiming the legacy0.18 SDK')
-    parser.add_argument("--resume-bootstrap", action="store_true", help="Recover a failed preflight using its verified installation; refuses existing inference campaigns")
-    parser.add_argument("--resume-before-model", action="store_true", help="Recover a sealed first-stage failure only when no service or inference ever started")
-    parser.add_argument("--resume-before-inference", action="store_true", help="Recover a sealed failed model startup only if no formal client ever started; preserves startup originals")
+    parser.add_argument("--config", type=Path, help="Evaluation configuration (default: ./evaluation.json)")
     parser.add_argument("--report-only", action="store_true", help="Re-audit a completed run or replay a published candidate on CPU")
-    parser.add_argument("--actual-cost", type=Path, help="V2 actual card cost manifest for the full report")
-    parser.add_argument("--reuse-completed-run", type=Path, help="Continue in a NEW output directory; audit and reuse completed sealed stages from this prior run, retaining all failed originals")
-    parser.add_argument('--reuse-completed-campaign', type=Path, action='append', default=[], help='Additional explicitly selected sealed campaign; all scope, runtime, raw and provenance checks remain required')
-    parser.add_argument('--reuse-mmlu-baseline-arm', type=Path, help='Explicit sealed fixed-B0 original200 arm; retain its original answers, dates and identity')
-    parser.add_argument('--reuse-context-baseline-arm', type=Path, help='Explicit sealed fixed-B0 context/four-tenant arm; verify identical inputs, budgets, warmup, model, image, devices and reviewed controller sources')
-    parser.add_argument("--reuse-compute-baseline-arm", type=Path, help="Reuse sealed fixed-B0 native timing repetitions; retain original clocks and sources instead of starting B0")
-    parser.add_argument("--reuse-compute-observation", type=Path,
+    parser.add_argument("--help-all", action="help", help="Show advanced preparation, recovery and reuse options")
+
+    def advanced(flag, *, help, **options):
+        parser.add_argument(flag, help=help if "--help-all" in argv else argparse.SUPPRESS, **options)
+
+    advanced("--engine-version", help="Archived candidate version or release for --report-only")
+    advanced("--out", type=Path, help="New output directory for explicit candidate report selection")
+    advanced("--prepare-environment", action="store_true", help="Repair and verify the environment without starting model tests")
+    advanced('--prepare-protocol-only', action='store_true', help='Prepare datasets, SDK and fixed-five inputs; stop before any model service or evaluation client')
+    advanced('--prepare-official-protocol-only', action='store_true', help='Prepare original data and R8 judge for official solvers, without installing or claiming the legacy0.18 SDK')
+    advanced("--resume-bootstrap", action="store_true", help="Recover a failed preflight using its verified installation; refuses existing inference campaigns")
+    advanced("--resume-before-model", action="store_true", help="Recover a sealed first-stage failure only when no service or inference ever started")
+    advanced("--resume-before-inference", action="store_true", help="Recover a sealed failed model startup only if no formal client ever started; preserves startup originals")
+    advanced("--actual-cost", type=Path, help="V2 actual card cost manifest for the full report")
+    advanced("--reuse-completed-run", type=Path, help="Continue in a NEW output directory; audit and reuse completed sealed stages from this prior run, retaining all failed originals")
+    advanced('--reuse-completed-campaign', type=Path, action='append', default=[], help='Additional explicitly selected sealed campaign; all scope, runtime, raw and provenance checks remain required')
+    advanced('--reuse-mmlu-baseline-arm', type=Path, help='Explicit sealed fixed-B0 original200 arm; retain its original answers, dates and identity')
+    advanced('--reuse-context-baseline-arm', type=Path, help='Explicit sealed fixed-B0 context/four-tenant arm; verify identical inputs, budgets, warmup, model, image, devices and reviewed controller sources')
+    advanced("--reuse-compute-baseline-arm", type=Path, help="Reuse sealed fixed-B0 native timing repetitions; retain original clocks and sources instead of starting B0")
+    advanced("--reuse-compute-observation", type=Path,
         help="Reuse a complete sealed HTTP work observation with the same engine and devices")
-    parser.add_argument("--rerun-b0", action=argparse.BooleanOptionalAction, default=None, help="是否重跑固定 B0；默认否，复用已封存结果；首次测量显式开启")
-    args = parser.parse_args()
+    advanced("--rerun-b0", action=argparse.BooleanOptionalAction, default=None, help="是否重跑固定 B0；默认否，复用已封存结果；首次测量显式开启")
+    args = parser.parse_args(argv)
     if (args.prepare_protocol_only or args.prepare_official_protocol_only) and (args.prepare_environment or args.resume_bootstrap or args.resume_before_model or args.resume_before_inference or args.report_only or args.reuse_completed_run or args.reuse_completed_campaign or args.reuse_mmlu_baseline_arm or args.reuse_context_baseline_arm or args.reuse_compute_baseline_arm or args.reuse_compute_observation or (args.prepare_protocol_only and args.prepare_official_protocol_only)):
         parser.error('Protocol preparation requires a fresh run and cannot combine with execution/recovery modes')
     try:
@@ -682,7 +688,10 @@ def main():
             data = {"engine_version": args.engine_version, "out": args.out}
         else:
             if args.config is None:
-                raise ValueError("--config is required for local submission runs and reports")
+                args.config = Path("evaluation.json").resolve()
+                if not args.config.is_file():
+                    raise ValueError("Create evaluation.json from benchmark/run-all.example.json or pass --config FILE")
+                argv = ["--config", str(args.config), *argv]
             data = configuration(args.config,
                                  allow_existing=args.resume_bootstrap or args.resume_before_model or args.resume_before_inference or args.report_only,
                                  report_only=args.report_only)
@@ -718,11 +727,11 @@ def main():
                 if recovery:
                     os.environ['DEEPLINKENGINE_SDK_RECOVERY'] = json.dumps(recovery)
                 from engine.native_sdk_controller import maybe_enter as native_controller
-                native_controller(official_sdk, ROOT/'run_all.py', sys.argv[1:], cache=data['cache'])
+                native_controller(official_sdk, ROOT/'run_all.py', argv, cache=data['cache'])
             if needed():
                 from engine.transport_trust import configure
                 configure(data['cache'], official_sdk)
-            maybe_enter_config(args.config, sys.argv[1:])
+            maybe_enter_config(args.config, argv)
         if args.rerun_b0 is not None:
             data["rerun_b0"] = args.rerun_b0
         os.environ["XDG_CACHE_HOME"] = os.environ.get("XDG_CACHE_HOME") or str(Path(data["cache"]) / "xdg")
@@ -768,7 +777,7 @@ def main():
         else:
             prepared = ensure_environment(data)
         if prepared is not None:
-            os.execve(prepared["python"], [prepared["python"], str(Path(__file__).resolve()), *sys.argv[1:]], prepared["env"])
+            os.execve(prepared["python"], [prepared["python"], str(Path(__file__).resolve()), *argv], prepared["env"])
             raise ValueError("Could not hand off to the prepared Python environment")
         preflight()
     except (ValueError, OSError, subprocess.SubprocessError) as error:
