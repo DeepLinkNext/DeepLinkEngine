@@ -334,14 +334,16 @@ def run(config, image, output):
     tools = TOOLS
     sys.path.insert(0, str(tools / 'scripts'))
     sources = source_bindings(tools, sdk)
-    from resource_guard import acquire, release, verify_mapping
+    from official_resource_compat import acquire
+    from resource_guard import release, verify_mapping
     physical = ','.join(map(str, config['physical_devices']))
     os.environ['VLLM_HUST_PHYSICAL_DEVICES'] = physical
     mapping = verify_mapping('0,1')
     controller_sources = ('official_suite.py', 'official_http.py', 'official_serve.py', 'official_worker.py',
                           'official_judge.py', 'official_native.py', 'official_native_entry.py', 'official_report.py',
                           'official_plots.py', 'official_kernel_preparation.py', 'official_endpoint.py', 'official_reuse.py',
-                          'official_runtime_identity.py', 'official/__init__.py', 'service_logging.py', 'logging_entry.py',
+                          'official_runtime_identity.py', 'official_resource_compat.py',
+                          'official/__init__.py', 'service_logging.py', 'logging_entry.py',
                           'engine/service.py')
     for name in controller_sources:
         path = source_path(ROOT, name)
