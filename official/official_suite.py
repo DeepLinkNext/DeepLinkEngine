@@ -79,9 +79,11 @@ def load(path, name):
 
 
 def clean_client_environment():
+    # The controller's relocated image uses -S. The protocol venv needs site initialization.
     env = {k: v for k, v in os.environ.items()
            if not k.endswith(('_TOKEN', '_API_KEY', '_PASSWORD', '_SECRET'))
-           and k not in ('PYTHONPATH', 'PYTHONHOME', 'LD_PRELOAD', 'SSH_AUTH_SOCK', 'GIT_ASKPASS')}
+           and k not in ('PYTHONPATH', 'PYTHONHOME', 'LD_PRELOAD', 'SSH_AUTH_SOCK', 'GIT_ASKPASS',
+                         'VLLMHUST_NO_SITE')}
     if 'LD_LIBRARY_PATH' in env:
         # Protocol Python owns its Torch ABI. Retain the private loader and driver paths.
         env['LD_LIBRARY_PATH'] = os.pathsep.join(

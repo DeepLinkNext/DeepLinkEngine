@@ -112,10 +112,11 @@ class OfficialBaselines(unittest.TestCase):
         libraries = ['/image/site-packages/torch/lib', '/usr/local/Ascend/driver/lib64',
                      '/image/site-packages/torch_npu/lib/', '/lib/aarch64-linux-gnu']
         with patch.dict(os.environ, {'LD_LIBRARY_PATH': os.pathsep.join(libraries),
-                                     'PYTHONPATH': '/image/site-packages'}, clear=True):
+                                     'PYTHONPATH': '/image/site-packages', 'VLLMHUST_NO_SITE': '1'}, clear=True):
             env = clean_client_environment()
         self.assertEqual(env['LD_LIBRARY_PATH'].split(os.pathsep), [libraries[1], libraries[3]])
         self.assertNotIn('PYTHONPATH', env)
+        self.assertNotIn('VLLMHUST_NO_SITE', env)
 
     def config(self, **changes):
         model = self.root / 'model'
