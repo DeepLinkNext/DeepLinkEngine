@@ -6,6 +6,8 @@ import sys
 
 
 MODULES = Path(__file__).resolve().parent
+# The official worker adds this distribution's parent directory to PYTHONPATH.
+FT_PLUGIN_METADATA = Path('official/deeplinkengine_official_ft-1.0.dist-info')
 
 
 def enable_module_imports():
@@ -18,6 +20,8 @@ def enable_module_imports():
 def source_path(root, name):
     """Resolve a source label without changing its name in provenance records."""
     relative = Path(name)
+    if relative.parts[:1] == (FT_PLUGIN_METADATA.name,):
+        return root / FT_PLUGIN_METADATA.parent / relative
     if relative.parent == Path('.'):
         if relative.match('official_*.py'):
             return root / 'official' / relative

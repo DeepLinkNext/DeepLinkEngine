@@ -13,7 +13,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path[:0] = [str(ROOT), str(ROOT / 'benchmark/one-click-kit/scripts'),
                str(ROOT / 'benchmark/one-click-kit/third-party-test-kit'),
                str(ROOT / 'benchmark/one-click-kit/third-party-test-kit/proc_capture')]
-from official import enable_module_imports
+from official import FT_PLUGIN_METADATA, enable_module_imports
 
 enable_module_imports()
 from official_ft_inventory import validate
@@ -696,13 +696,17 @@ class CompletionTests(unittest.TestCase):
                 checked = verify_model(root, {shard.name: metadata}, root)
             self.assertFalse(checked[shard.name]['unchanged_original_verified_stat'])
 
-    def test_companion_plugin_is_discovered_but_inactive_in_ordinary_runs(self):
+    def test_companion_plugin_discovery_is_scoped_and_activation_is_opt_in(self):
         import importlib.metadata
         from official import official_ft_plugin
         import os
-        plugins = {entry.name for distribution in importlib.metadata.distributions(path=[str(ROOT)])
-                   for entry in distribution.entry_points if entry.group == 'vllm.general_plugins'}
-        self.assertIn('deeplinkengine_official_ft', plugins)
+
+        def plugins_at(path):
+            return {entry.name for distribution in importlib.metadata.distributions(path=[str(path)])
+                    for entry in distribution.entry_points if entry.group == 'vllm.general_plugins'}
+
+        self.assertNotIn('deeplinkengine_official_ft', plugins_at(ROOT))
+        self.assertIn('deeplinkengine_official_ft', plugins_at(ROOT / FT_PLUGIN_METADATA.parent))
         modules = set(sys.modules)
         with patch.dict(os.environ, {}, clear=True):
             self.assertIsNone(official_ft_plugin.install())

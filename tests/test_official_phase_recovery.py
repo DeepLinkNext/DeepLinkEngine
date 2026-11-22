@@ -8,7 +8,7 @@ import unittest
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from official import enable_module_imports
+from official import FT_PLUGIN_METADATA, enable_module_imports
 
 enable_module_imports()
 from official_endpoint import available
@@ -95,23 +95,34 @@ class PhaseRecovery(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.run_admission()
 
-    def test_missing_old_path_can_resolve_only_identical_relocated_source(self):
-        path = self.old / 'official_worker.py'
-        path.write_text('unchanged worker')
+    def assert_relocated_source_admitted(self, old_name, new_name, body):
+        path = self.old / old_name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(body)
         pin = sha(path)
         self.campaign['sources'][str(path)] = pin
         self.dump(self.previous / 'campaign.json', self.campaign)
         seal(self.previous)
-        (self.old / 'official').mkdir()
-        relocated = path.rename(self.old / 'official/official_worker.py')
-        active = self.current / 'official/official_worker.py'
+        relocated = self.old / new_name
+        relocated.parent.mkdir(parents=True, exist_ok=True)
+        path.rename(relocated)
+        active = self.current / new_name
+        active.parent.mkdir(parents=True, exist_ok=True)
         active.write_bytes(relocated.read_bytes())
         self.sources[str(active)] = pin
-        relocated.write_text('altered worker')
+        relocated.write_bytes(b'altered source')
         with self.assertRaisesRegex(ValueError, 'Original completed source changed'):
             self.run_admission()
         relocated.write_bytes(active.read_bytes())
         self.assertFalse(self.run_admission()['inference_repeated'])
+
+    def test_missing_old_path_can_resolve_only_identical_relocated_source(self):
+        self.assert_relocated_source_admitted('official_worker.py', 'official/official_worker.py', b'unchanged worker')
+
+    def test_relocated_plugin_metadata_preserves_its_original_source_pin(self):
+        metadata = FT_PLUGIN_METADATA / 'entry_points.txt'
+        root = Path(__file__).resolve().parents[1]
+        self.assert_relocated_source_admitted(metadata.relative_to('official'), metadata, (root / metadata).read_bytes())
 
     def test_resealed_missing_response_still_rejected(self):
         (self.source / 'service/service-3-lane0.json').unlink()

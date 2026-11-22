@@ -12,7 +12,7 @@ import time
 import urllib.error
 import urllib.request
 
-from official import source_path, worker_pythonpath
+from official import FT_PLUGIN_METADATA, source_path, worker_pythonpath
 from official_baselines import save
 from official_image import digest, environment
 from official_runtime_identity import runtime_identity
@@ -340,7 +340,7 @@ def run(config, image, output):
         path = source_path(ROOT, name)
         sources[str(path)] = digest(path)
     sources.update({str(p): digest(p) for p in (ROOT / 'official').glob('official_ft*.py')})
-    sources.update({str(p): digest(p) for p in (ROOT / 'deeplinkengine_official_ft-1.0.dist-info').iterdir()})
+    sources.update({str(p): digest(p) for p in (ROOT / FT_PLUGIN_METADATA).iterdir()})
     frozen = dict(schema='deeplinkengine-official-full-suite/v1', baseline_image=json.loads((image / 'image-lock.json').read_bytes()),
                   status='preparing', prepared_before_model_start=True, started=time.time(),
                   sources=sources, physical_mapping=mapping, runtime_identity=runtime_identity(image),

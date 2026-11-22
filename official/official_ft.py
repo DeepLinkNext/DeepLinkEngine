@@ -6,6 +6,7 @@ from pathlib import Path
 import re
 import time
 
+from official import FT_PLUGIN_METADATA
 from official_baselines import save
 from official_ft_audit import Evidence, sha
 ROOT = Path(__file__).resolve().parents[1]
@@ -275,7 +276,7 @@ def continue_closed(config, original, expected_seal, *, companion_source=None, c
     sdk = Path(config['protocol_deployment'])
     sources = source_bindings(TOOLS, sdk)
     sources.update({str(p): sha(p) for p in (ROOT / 'official').glob('official*.py')})
-    sources.update({str(p): sha(p) for p in (ROOT / 'deeplinkengine_official_ft-1.0.dist-info').iterdir()})
+    sources.update({str(p): sha(p) for p in (ROOT / FT_PLUGIN_METADATA).iterdir()})
     os.environ['VLLM_HUST_PHYSICAL_DEVICES'] = ','.join(map(str, config['physical_devices']))
     current_mapping = verify_mapping('0,1')
     record = dict(schema='deeplinkengine-closed-official-ft-continuation/v1', completed=False,
