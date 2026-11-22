@@ -1,0 +1,87 @@
+{
+  "schema": "deeplinkengine-fixed-b0-v2-projection/v1",
+  "baseline_id": "original018-cann8.5.1",
+  "sources": {
+    "fixed_b0": {
+      "url": "https://github.com/vLLM-HUST/vllm-hust-benchmark/blob/82f7cb195ac3076b485fad875ef3c6c72c5cf612/website-publication/data/fixed-b0-original018-v1.json",
+      "sha256": "8b5bbddb6ae681513f8476e02f27ec5333a486a51a45848ac01092b310f27d4d",
+      "bytes": 41783
+    },
+    "matched_mmlu_utilization": {
+      "url": "https://github.com/vLLM-HUST/vllm-hust-benchmark/blob/82f7cb195ac3076b485fad875ef3c6c72c5cf612/website-publication/data/r9-qwen-run29-20261121/summary.json",
+      "sha256": "2eb770dd960ba7419c72e6999cd89575966b83cab9e2dc44e747bd9d04ea8590",
+      "bytes": 30270
+    },
+    "context_workloads": {
+      "url": "https://github.com/vLLM-HUST/vllm-hust-benchmark/blob/82f7cb195ac3076b485fad875ef3c6c72c5cf612/website-publication/data/engine-release-history-v1.json",
+      "sha256": "f8e25230083b8d962d63f79fdb2130c37e581e9f110dfbe37360826441e9f416",
+      "bytes": 245105
+    }
+  },
+  "compute": {
+    "scope": "topic4_submission_v2_fixed200_max256_three_formal_runs",
+    "formal_repetitions": 3,
+    "native_checksums_sha256": "45943096b5e7116d0eaaf6f99f03d4e4542f1b04e587d094d3da538fce549f17",
+    "reference_statistics_sha256": "6611fee282b552092f8a807ad02ec517cbadaccde08423376acd7d6e8b439870"
+  },
+  "context": {
+    "input_sha256": "5156a6ae436c7e32364a5ecbb028b52f26da1808be883c02e8e230defd556559",
+    "seal_sha256": "ea79bc36280efbe3e7272bf2453c5589b186583e18f49f4f8857f24993439ba2",
+    "phases": [
+      "4096-formal",
+      "16384-formal",
+      "32768-formal",
+      "multi-tenant-formal"
+    ],
+    "workload": {
+      "datasets": [
+        "Terminal-Bench 2.1"
+      ],
+      "task_ids": [
+        "terminal:dna-insert",
+        "terminal:db-wal-recovery",
+        "terminal:winning-avg-corewars",
+        "terminal:rstan-to-pystan",
+        "terminal:mcmc-sampling-stan"
+      ]
+    }
+  },
+  "mmlu": {
+    "meter": {
+      "window_seconds": "1426.005969121994",
+      "successful_output_tokens": 721900,
+      "occupied_cards": 2,
+      "measurement_seal_sha256": "b879abd7204d5f719132000a54c87a066c11abf148fc0c056f7e33a7546d6659"
+    },
+    "utilization": {
+      "per_card_percent": {
+        "1": 33.00333538557099,
+        "6": 33.451083567727835
+      },
+      "mean_percent": 33.22720947664941,
+      "covered_seconds": 1426.005969121994,
+      "missing_seconds": 0.0,
+      "max_hold_age_seconds": 6.809675950964447,
+      "method": "Sampler clock midpoint; request interval clipped; left-hold, time weighted. A sample estimate, not continuous hardware truth."
+    }
+  },
+  "four_tenant": {
+    "meter": {
+      "window_seconds": "311.53741639497457",
+      "successful_output_tokens": 40192,
+      "occupied_cards": 2,
+      "measurement_seal_sha256": "ea79bc36280efbe3e7272bf2453c5589b186583e18f49f4f8857f24993439ba2"
+    },
+    "utilization": {
+      "per_card_percent": {
+        "1": 30.927905763274776,
+        "6": 30.384589131887108
+      },
+      "mean_percent": 30.65624744758094,
+      "covered_seconds": 311.53741639497457,
+      "missing_seconds": 0.0,
+      "max_hold_age_seconds": 6.8488598674885,
+      "method": "Sampler clock midpoint; request interval clipped; left-hold, time weighted. A sample estimate, not continuous hardware truth."
+    }
+  }
+}

@@ -20,6 +20,9 @@ ACTUAL_COST_SCHEMA = 'deeplinkengine-v2-actual-card-cost/v1'
 ACTUAL_COST_TEMPLATE = 'actual-cost.template.json'
 PUBLISHED_RENTAL_EVIDENCE = 'evidence/indicator-4.4-cost-estimate.json'
 COST_MONTH_DAYS = 30
+MMLU_UNIT_COST_REDUCTION_MIN = 10
+PERFORMANCE_LIMITS = {'milestone': ('1.10', '.95'), 'final': ('2', '.80')}
+QUALITY_TRACKS = {'hle': {'gold': 74, 'revision': 126}, 'frontier': {'olympiad': 100, 'research': 60}}
 DATASETS = ('mmlu', 'hle', 'frontier', 'swe', 'terminal')
 COUNTS = dict(mmlu=200, hle=200, frontier=160, swe=64, terminal=48)
 NAMES = dict(mmlu='MMLU-Pro', hle='HLE-Verified', frontier='FrontierScience',
@@ -55,7 +58,7 @@ def quality_gates(fixed):
             drop=Decimal(qa['correct']-qb['correct'])/2
             result['mmlu']=dict(decision(drop<=5,'固定200题正确率绝对下降≤5个百分点。'),drop_pp=str(drop))
     scores=fixed.get('current_dataset_quality') or {}
-    for name,denominators in [('hle',{'gold':74,'revision':126}),('frontier',{'olympiad':100,'research':60})]:
+    for name,denominators in QUALITY_TRACKS.items():
         views=[scores.get(name+'-'+r) or {} for r in ('B0','B1')]
         def valid(view):
             tracks=view.get('tracks',{})
@@ -187,15 +190,25 @@ def workload_pairs(fixed):
     return pairs
 
 
+def performance_ratios(arms):
+    a, b = arms['B0'], arms['B1']
+    return dict(throughput_ratio=ratio(b.get('output_tokens_per_second'), a.get('output_tokens_per_second')),
+                ttft_ratio=ratio(b.get('mean_ttft_ms'), a.get('mean_ttft_ms')),
+                tpot_ratio=ratio(b.get('mean_tpot_ms'), a.get('mean_tpot_ms')))
+
+
+def performance_clears(values, throughput, latency):
+    return (all(value is not None for value in values.values())
+            and values['throughput_ratio'] >= Decimal(throughput)
+            and values['ttft_ratio'] <= Decimal(latency)
+            and values['tpot_ratio'] <= Decimal(latency))
+
+
 def performance(pairs, throughput, latency):
     results = {}
     for name, pair in pairs.items():
-        a,b = pair['arms']['B0'],pair['arms']['B1']
-        values = dict(throughput_ratio=ratio(b.get('output_tokens_per_second'),a.get('output_tokens_per_second')),
-                      ttft_ratio=ratio(b.get('mean_ttft_ms'),a.get('mean_ttft_ms')),
-                      tpot_ratio=ratio(b.get('mean_tpot_ms'),a.get('mean_tpot_ms')))
-        passed = pair['complete'] and pair['quality']['met'] and all(v is not None for v in values.values())
-        passed = passed and values['throughput_ratio'] >= Decimal(throughput) and values['ttft_ratio'] <= Decimal(latency) and values['tpot_ratio'] <= Decimal(latency)
+        values = performance_ratios(pair['arms'])
+        passed = pair['complete'] and pair['quality']['met'] and performance_clears(values, throughput, latency)
         results[name] = dict(met=bool(passed), quality=pair['quality'], execution_complete=pair['complete'], **{k: str(v) if v is not None else None for k,v in values.items()})
     winners = [NAMES[n] for n in DATASETS if results.get(n, {}).get('met')]
     return decision(bool(winners), '同一数据集同时满足吞吐及两项平均时延：'+', '.join(winners) if winners else '没有数据集同时满足完整请求、质量及三项性能门槛。'), results
@@ -419,7 +432,7 @@ def cost_decisions(fixed, pairs, context, audits, actual_cost):
 
     unit_cost = '按公开月租折算的单位成本' if rental else '实际单位成本'
     return dict(
-        milestone=cost_gate('mmlu', cost is not None and gain is not None and cost >= 10 and gain >= 10,
+        milestone=cost_gate('mmlu', cost is not None and gain is not None and cost >= MMLU_UNIT_COST_REDUCTION_MIN and gain >= 10,
                             f'MMLU200 完整回答满足质量和服务要求，{unit_cost}下降≥10%，双卡 AI Core 提高≥10个百分点。'),
         final=cost_gate('four_tenant', multi_cost is not None and usage is not None and multi_cost >= 30 and usage >= 80,
                         f'4K 四租户{unit_cost}下降≥30%，B1 双卡 AI Core 均值≥80%，两臂各租户完整结束。'),
@@ -449,7 +462,8 @@ def targets(fixed, context, audits, actual_cost=None):
                  final=decision(value is not None and value>=90,'同一效率下界≥90%。'),
                  efficiency_lower_percent=str(value) if value is not None else None, certificate_kind=ref.get('certificate_kind'))
     pairs=workload_pairs(fixed)
-    milestone, details=performance(pairs,'1.10','.95'); final, final_details=performance(pairs,'2','.80')
+    milestone, details = performance(pairs, *PERFORMANCE_LIMITS['milestone'])
+    final, final_details = performance(pairs, *PERFORMANCE_LIMITS['final'])
     speed=dict(milestone=milestone,final=final,datasets=details,final_datasets=final_details)
     costs = cost_decisions(fixed, pairs, context, audits, actual_cost)
     return {'4.1':compute,'4.2':speed,'4.3':context_decisions(context, audits),'4.4':costs}

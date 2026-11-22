@@ -13,7 +13,7 @@ from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
-from benchmark import candidate_report
+from benchmark import candidate_report, candidate_v2
 from engine import release_selection
 
 
@@ -59,8 +59,41 @@ class CandidateReportTests(unittest.TestCase):
         self.assertEqual(receipt["mode"], "cpu-replay")
         self.assertEqual((receipt["model_requests"], receipt["npu_tasks_started"]), (0, 0))
         self.assertEqual(len(receipt["workloads"]), 7)
-        self.assertEqual(set(summary["submission_v2"]), {"4.1", "4.2", "4.3", "4.4"})
-        self.assertTrue(all(row["status"] == "not_assessed" for row in summary["submission_v2"].values()))
+        v2 = summary["submission_v2"]
+        self.assertEqual(set(v2), {"4.1", "4.2", "4.3", "4.4"})
+        self.assertEqual(v2["4.2"]["evidence_scope"], "sealed_summary")
+        self.assertEqual(v2["4.2"]["raw_reaudit"]["status"], "missing_evidence")
+        self.assertTrue(v2["4.2"]["raw_missing"])
+        for level in ("milestone", "final"):
+            self.assertEqual(v2["4.2"][level]["status"], "met")
+            self.assertIn("mmlu", v2["4.2"][level]["datasets"])
+            for indicator in ("4.1", "4.3", "4.4"):
+                self.assertEqual(v2[indicator][level]["status"], "missing_evidence")
+                self.assertIsNone(v2[indicator][level]["met"])
+        speed = v2["4.2"]["datasets"]
+        self.assertEqual(speed["hle"]["milestone"]["status"], "met")
+        self.assertEqual(speed["hle"]["final"]["status"], "not_met")
+        fixed = alias == "r10-native-rms"
+        expected_track_drop = {"olympiad": "1", "research": "0"} if fixed else {"olympiad": "6", "research": "-5"}
+        self.assertEqual(speed["frontier"]["quality"]["drop_pp"], expected_track_drop)
+        self.assertEqual(speed["frontier"]["final"]["met"], fixed)
+        self.assertEqual(speed["mmlu"]["quality"]["drop_pp"], "-2.5" if fixed else "2.5")
+        self.assertEqual(speed["hle"]["quality"]["source"], "paired_grade_transitions" if fixed else "candidate_summary")
+        self.assertEqual(("priority_grades" in summary["assessment_sources"]), fixed)
+        self.assertEqual(receipt["assessment_sources"], summary["assessment_sources"])
+        cost = v2["4.4"]
+        self.assertEqual(cost["cost_basis"], "published_rental")
+        self.assertEqual(cost["published_rental"]["monthly_cost_per_card_cny"], "1875")
+        self.assertEqual(receipt["published_rental_sha256"], cost["published_rental"]["evidence_sha256"])
+        mmlu = cost["mmlu_full_answers"]
+        self.assertTrue(mmlu["cost_gate"]["met"])
+        self.assertAlmostEqual(float(mmlu["unit_cost_reduction_percent"]), 66.03 if fixed else 66.01, places=2)
+        self.assertEqual(mmlu["arms"]["B0"]["measurement_seal_sha256"],
+                         summary["archived"]["measurements"]["mmlu"]["B0"]["source_seal_sha256"])
+        self.assertAlmostEqual(mmlu["utilization"]["B0"]["mean_percent"], 33.2272, places=4)
+        self.assertIsNone(mmlu["utilization"]["B1"])
+        self.assertAlmostEqual(float(cost["four_tenant"]["arms"]["B0"]["cost_per_million_output_tokens_cny"]), 11.2142, places=4)
+        self.assertIsNone(cost["four_tenant"]["arms"]["B1"])
         self.assertEqual(summary["archived"], json.loads((ROOT / binding["path"]).read_bytes()))
         self.assertEqual(summary["archived"]["measurements"]["mmlu"]["candidate"]["correct"], correct)
         for profile, row in summary["workloads"].items():
@@ -73,7 +106,10 @@ class CandidateReportTests(unittest.TestCase):
         document = (out / "report.html").read_text(encoding="utf-8")
         self.assertIn("Terminal-Bench 2.1", document)
         self.assertIn("合成闭环 4K / C8", document)
-        self.assertIn("未判定", document)
+        self.assertIn("达成（封存汇总）", document)
+        self.assertIn("4.2 逐数据集门槛核验", document)
+        self.assertIn("4.4 按公开租金折算", document)
+        self.assertIn("缺同窗采样", document)
         return summary
 
     def test_run_all_explicit_candidate_on_cpu(self):
@@ -134,6 +170,29 @@ class CandidateReportTests(unittest.TestCase):
         self.assertEqual(result.returncode, 2, result.stderr)
         self.assertIn("Unrecognized report engine version", result.stderr)
         self.assertFalse((self.temp / "report").exists())
+
+    def test_missing_candidate_track_grade_stays_unknown(self):
+        _, archive = candidate_report.load_archive("r10-contiguous-restore")
+        del archive["measurements"]["frontier"]["candidate"]["track_scores"]
+        quality, proof = candidate_v2.grade_details(archive, {})
+        result = candidate_v2.assess_speed(archive, quality, proof)
+        row = result["datasets"]["frontier"]
+        self.assertIsNone(row["quality"]["met"])
+        self.assertIn("缺项运行臂：B1", row["quality"]["reason"])
+        self.assertEqual(row["final"]["status"], "missing_evidence")
+        self.assertTrue(result["final"]["met"])
+
+    def test_priority_grades_reject_wrong_run(self):
+        binding, archive = candidate_report.load_archive("r10-native-rms")
+        priority = json.loads((ROOT / binding["quality_source"]).read_bytes())
+        priority["priority_pair"]["scope"]["frontier"]["r10_corrected"]["source_seal_sha256"] = "0" * 64
+        with self.assertRaisesRegex(ValueError, "different solver"):
+            candidate_v2.recover_priority_tracks(archive, priority)
+
+    def test_fixed_b0_sampling_rejects_mismatched_window(self):
+        evidence = json.loads((ROOT / candidate_report.FIXED_B0_V2).read_bytes())["mmlu"]
+        meter = {**evidence["meter"], "window_seconds": "1"}
+        self.assertIsNone(candidate_v2.matched_utilization(evidence, meter))
 
     def test_changed_archived_bytes_are_rejected_before_output(self):
         record = release_selection.archived_candidate("r10-native-rms")

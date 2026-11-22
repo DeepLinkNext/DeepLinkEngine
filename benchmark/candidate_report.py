@@ -7,7 +7,8 @@ import math
 from pathlib import Path
 import re
 
-from benchmark.full_report import COUNTS, NAMES
+from benchmark.candidate_v2 import assess
+from benchmark.full_report import COUNTS, LABELS, NAMES
 from engine.release_selection import archived_candidate, archived_candidates
 
 
@@ -21,12 +22,22 @@ PROFILES = {
 }
 ARM_NAMES = {"B0": "固定 B0 0.18", "r10_original": "原始 r10",
              "native_rms": "原生 RMS（封存对照）", "candidate": "所选候选"}
-OUT_OF_SCOPE = {
-    "4.1": "缺该候选的 V2 原生计时及有效算力认证。",
-    "4.2": "已复算固定五项的汇总指标，尚未完成 V2 原件与质量门槛核验。",
-    "4.3": "已有两档合成 C8。V2 需要真实数据长上下文和四租户证据。",
-    "4.4": "已有吞吐和耗时。V2 还需要相应工况、占卡计量和同窗利用率。",
-}
+FIXED_B0_V2 = "evidence/r10-fixed-b0-v2.json"
+VERDICTS = {"met": "达成", "not_met": "未达成", "missing_evidence": "证据不足"}
+
+
+def read_bound_json(binding, scope):
+    path = ROOT / binding["path"]
+    if path.is_symlink() or not path.resolve().is_relative_to((ROOT / scope).resolve()):
+        raise ValueError("Invalid archived candidate path")
+    raw = path.read_bytes()
+    if len(raw) != binding["bytes"] or hashlib.sha256(raw).hexdigest() != binding["sha256"]:
+        raise ValueError("Archived candidate size or SHA-256 mismatch")
+    return json.loads(raw)
+
+
+def source_identity(binding):
+    return {key: binding[key] for key in ("path", "source", "bytes", "sha256")}
 
 
 def load_archive(version):
@@ -34,13 +45,7 @@ def load_archive(version):
     if binding is None:
         choices = ", ".join(row["candidate"]["version"] for row in archived_candidates())
         raise ValueError(f"Unknown archived candidate {version!r}. Available versions: {choices}")
-    path = ROOT / binding["path"]
-    if path.is_symlink() or not path.resolve().is_relative_to((ROOT / "benchmark/reports").resolve()):
-        raise ValueError("Invalid archived candidate path")
-    raw = path.read_bytes()
-    if len(raw) != binding["bytes"] or hashlib.sha256(raw).hexdigest() != binding["sha256"]:
-        raise ValueError("Archived candidate size or SHA-256 mismatch")
-    archive = json.loads(raw)
+    archive = read_bound_json(binding, "benchmark/reports")
     identity = binding["candidate"]
     if (
         archive.get("schema") != "vllm-hust-r10-full-fixed-five-evidence/v1"
@@ -77,6 +82,15 @@ def recompute_arm(arm, count):
 
 def collect(version):
     binding, archive = load_archive(version)
+    pins = {record["path"]: record for record in json.loads((ROOT / "benchmark/provenance.json").read_bytes())["files"]}
+    baseline_binding = pins[FIXED_B0_V2]
+    baseline = read_bound_json(baseline_binding, "evidence")
+    quality_binding = pins[binding["quality_source"]] if "quality_source" in binding else None
+    priority = read_bound_json(quality_binding, "benchmark/reports") if quality_binding else None
+    targets = assess(archive, binding["candidate"], baseline, priority)
+    assessment_sources = {"fixed_b0": {**source_identity(baseline_binding), "projection_inputs": baseline["sources"]}}
+    if quality_binding:
+        assessment_sources["priority_grades"] = source_identity(quality_binding)
     roles = tuple(archive["measurements"]["mmlu"])
     if not {"B0", "r10_original", "candidate"} <= set(roles):
         raise ValueError("Missing fixed B0, original r10, or candidate arm")
@@ -103,11 +117,11 @@ def collect(version):
     return {
         "schema": "deeplinkengine-archived-candidate-report/v1",
         "selection": {**binding["candidate"], "status": "candidate", "baseline_id": BASELINE},
-        "source": {key: binding[key] for key in ("path", "source", "bytes", "sha256")},
+        "source": source_identity(binding),
+        "assessment_sources": assessment_sources,
         "workloads": workloads,
         "archived": archive,
-        "submission_v2": {key: {"status": "not_assessed", "reason": value}
-                          for key, value in OUT_OF_SCOPE.items()},
+        "submission_v2": targets,
     }
 
 
@@ -116,6 +130,76 @@ def table(headers, rows):
     body = "".join("<tr>" + "".join(f"<td>{html.escape(str(item))}</td>" for item in row) + "</tr>"
                    for row in rows)
     return f"<div class='table'><table><thead><tr>{head}</tr></thead><tbody>{body}</tbody></table></div>"
+
+
+def status_text(result):
+    return VERDICTS[result["status"]]
+
+
+def v2_html(data):
+    assessments = data["submission_v2"]
+    targets = []
+    for indicator, assessment in assessments.items():
+        for level, label in (("milestone", "里程碑"), ("final", "结题")):
+            result = assessment[level]
+            status = status_text(result) + ("（封存汇总）" if indicator == "4.2" else "")
+            targets.append((f"{indicator} {LABELS[indicator]}", label, status,
+                            assessment.get("available", "两臂固定五项的封存汇总及对应判分。"), result["reason"]))
+
+    speed = assessments["4.2"]
+    speed_rows = []
+    for name, row in speed["datasets"].items():
+        ratios = [f"{float(value):.3f}×" if value is not None else "—" for value in row["ratios"].values()]
+        grade = row["quality"]
+        drop = grade["drop_pp"]
+        if isinstance(drop, dict):
+            drop = "、".join(f"{key} {value} pp" for key, value in drop.items())
+        elif drop is not None:
+            drop += " pp"
+        quality = f"{status_text(grade)}（{drop}）" if drop is not None else grade["reason"]
+        speed_rows.append((data["workloads"][name]["dataset"], *ratios, quality,
+                           status_text(row["milestone"]), row["milestone"]["reason"],
+                           status_text(row["final"]), row["final"]["reason"]))
+
+    missing = "".join(f"<li>{html.escape(item)}</li>" for item in speed["raw_missing"])
+    costs = assessments["4.4"]
+    rent = costs["published_rental"]
+    cost_rows = []
+    for workload, scenario in (("MMLU-Pro 200 完整回答", costs["mmlu_full_answers"]),
+                               ("真实 4K 四租户 C24 · " + "、".join(assessments["4.3"]["baseline_context"]["workload"]["datasets"]),
+                                costs["four_tenant"])):
+        for role, arm in scenario["arms"].items():
+            util = scenario["utilization"][role]
+            cost_rows.append((
+                workload, "固定 B0 0.18" if role == "B0" else "所选候选",
+                f'{float(arm["cost_per_million_output_tokens_cny"]):.4f}' if arm else "缺运行原件",
+                f'{util["mean_percent"]:.2f}%' if util else "缺同窗采样",
+            ))
+    savings = float(costs["mmlu_full_answers"]["unit_cost_reduction_percent"])
+    cost_gate = status_text(costs["mmlu_full_answers"]["cost_gate"])
+    labels = {"fixed_b0": "固定 B0 V2 封存", "matched_mmlu_utilization": "同封存 MMLU-Pro 双卡采样",
+              "context_workloads": "真实上下文数据集来源", "priority_grades": "原生 RMS 同轮裁判分层对照"}
+    links = []
+    for kind, source in data["assessment_sources"].items():
+        origins = source.get("projection_inputs") or {kind: {"url": source["source"], "sha256": source["sha256"]}}
+        for name, origin in origins.items():
+            links.append(f'<li><a href="{html.escape(origin["url"], quote=True)}">{html.escape(labels.get(name, name))}</a> '
+                         f'<code>{html.escape(origin["sha256"])}</code></li>')
+    return f"""<h2>送测 V2 按证据判定</h2>
+{table(("指标", "阶段", "状态", "已有证据", "判定依据或缺项"), targets)}
+<h3>4.2 逐数据集门槛核验</h3>
+<p>固定 0.18 B0 与所选修复候选直接比较。里程碑要求吞吐≥1.10×、平均 TTFT/TPOT 各≤0.95×，
+结题要求吞吐≥2×、平均 TTFT/TPOT 各≤0.80×。分数按固定计划分母，未决计非成功。</p>
+{table(("数据集", "吞吐 B1/B0", "平均 TTFT B1/B0", "平均 TPOT B1/B0", "质量门槛及降幅",
+        "里程碑", "里程碑依据", "结题", "结题依据"), speed_rows)}
+<p>4.2 判定以已校验的封存汇总为依据。完整送测原件的独立复审仍缺</p><ul>{missing}</ul>
+<h3>4.4 按公开租金折算</h3>
+<p><a href="{html.escape(rent["source_url"], quote=True)}">{html.escape(rent["publisher"])}公开报价</a>
+ · {rent["server_monthly_price"]:,} 元/{rent["cards_per_server"]} 卡月，折 {float(rent["monthly_cost_per_card_cny"]):,.0f}
+ 元/卡月，按 {rent["days_per_month"]} 天。MMLU-Pro 200 单位成本下降 {savings:.2f}%，成本子项{cost_gate}。</p>
+{table(("工况", "运行臂", "元/百万输出词元", "同窗双卡 AI Core 均值"), cost_rows)}
+<h3>判定附件来源</h3><ul>{"".join(links)}</ul>
+"""
 
 
 def report_html(data):
@@ -141,7 +225,6 @@ def report_html(data):
     ]
     judges = [(role, judge["planned"], judge["recorded"], judge["unresolved_grades"])
               for role, judge in archive["judges"].items()]
-    targets = [(key, "未判定", item["reason"]) for key, item in data["submission_v2"].items()]
     source = data["source"]
     esc = html.escape
     return f"""<!doctype html><html lang="zh-CN"><head><meta charset="utf-8">
@@ -167,8 +250,7 @@ th,td{{padding:.65rem;text-align:left;border-bottom:1px solid #cbd5e1}} td:last-
 {table(("工况", "比较对象", "吞吐变化", "正确率变化（百分点）"), comparisons)}
 <h2>裁判记录</h2><p>裁判请求独立于求解器吞吐。各运行臂保留自己的判分和分母。</p>
 {table(("裁判阶段", "计划", "已记录", "未决"), judges)}
-<h2>送测 V2 判定范围</h2>
-{table(("指标", "判定", "证据范围"), targets)}
+{v2_html(data)}
 </body></html>
 """
 
@@ -184,6 +266,8 @@ def render(version, out):
         "mode": "cpu-replay",
         "selection": data["selection"],
         "source": data["source"],
+        "assessment_sources": data["assessment_sources"],
+        "published_rental_sha256": data["submission_v2"]["4.4"]["published_rental"]["evidence_sha256"],
         "workloads": list(data["workloads"]),
         "model_requests": 0,
         "npu_tasks_started": 0,
