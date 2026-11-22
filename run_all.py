@@ -1,4 +1,3 @@
-from engine.release_selection import kit_path, runtime_lock, profile as selected_profile
 """Install a selected stable engine and run fixed-five and context/tenant tests."""
 import argparse
 import json
@@ -11,6 +10,14 @@ import sys
 import sysconfig
 import subprocess
 import uuid
+
+if __name__ == "__main__":
+    sys.dont_write_bytecode = True
+
+from benchmark.run_progress import (
+    BootstrapProgress, RUN_ID_ENV, STATE_TEXT, announce, observe, record_config_error, timestamp,
+)
+from engine.release_selection import kit_path, runtime_lock, profile as selected_profile
 
 ROOT = Path(__file__).resolve().parent
 PATH_FIELDS = {"model", "cache", "out", "baseline_deployment", "dataset_assets", "env_file", "actual_cost"}
@@ -334,7 +341,7 @@ def completed_run_source(data, source):
 def run(data, *, prepare_protocol_only=False, prepare_official_protocol_only=False, resume_bootstrap=False, resume_before_model=False, resume_before_inference=False,
         reuse_completed_run=None, reuse_completed_campaigns=(), reuse_mmlu_baseline_arm=None, reuse_context_baseline_arm=None, reuse_compute_baseline_arm=None,
         reuse_compute_observation=None,
-        actual_cost=None):
+        actual_cost=None, progress=None):
     out = Path(data["out"])
     reused_run = completed_run_source(data, reuse_completed_run) if reuse_completed_run else None
     if reused_run and os.path.lexists(out):
@@ -365,6 +372,8 @@ def run(data, *, prepare_protocol_only=False, prepare_official_protocol_only=Fal
     cli = str(Path(sysconfig.get_path("scripts")) / "vllm-hust-engine")
     from benchmark.recovery_source import process_identity
     receipt = {"status": "running", "stages": [], "configuration": data, "automated_acceptance_complete": False, "baseline_policy": {"rerun_b0": data.get("rerun_b0", False)}, "controller_owner": process_identity()}
+    if progress is not None:
+        receipt.update(progress_id=progress.run_id, started_at=timestamp())
     if reused_run:
         receipt["reused_run"] = reused_run
         receipt["reuse_selection"] = reuse_selection
@@ -402,6 +411,8 @@ def run(data, *, prepare_protocol_only=False, prepare_official_protocol_only=Fal
     receipt["engine_selection"] = active_selection()
 
     def save():
+        if progress is not None:
+            receipt["updated_at"] = timestamp()
         temporary = out / (".results-" + uuid.uuid4().hex + ".tmp")
         with temporary.open("w") as stream:
             stream.write(json.dumps(receipt, ensure_ascii=False, indent=2) + "\n")
@@ -409,20 +420,36 @@ def run(data, *, prepare_protocol_only=False, prepare_official_protocol_only=Fal
             os.fsync(stream.fileno())
         temporary.replace(out / "results.json")
 
+    def activity(name):
+        if progress is not None:
+            receipt["activity"] = dict(name=name, status="running", started_at=timestamp())
+            save()
+            announce(name)
+
     def stage(name, args, *, mode="execute"):
+        receipt.pop("activity", None)
         record = {"name": name, "status": "running", "command": args, "mode": mode}
+        if progress is not None:
+            record["started_at"] = timestamp()
         receipt["stages"].append(record)
         save()
-        print(name, flush=True)
+        if progress is not None:
+            announce(name)
+        else:
+            print(name, flush=True)
         try:
             result = run_owned_stage(args)
         except BaseException as error:
             record.update(status="interrupted" if isinstance(error, KeyboardInterrupt) else "launch_failed",
                           error=type(error).__name__ + ": " + str(error))
+            if progress is not None:
+                record["ended_at"] = timestamp()
             save()
             raise
         record.update(returncode=result.returncode,
                       status="completed" if result.returncode == 0 else "failed")
+        if progress is not None:
+            record["ended_at"] = timestamp()
         save()
         if result.returncode > 0 and name == "run-context-tenant":
             from benchmark.full_report import completed_context_after_error
@@ -438,6 +465,9 @@ def run(data, *, prepare_protocol_only=False, prepare_official_protocol_only=Fal
             raise RuntimeError(name + " failed; original results retained, no automatic retry")
 
     try:
+        activity("verify-assessment-kit")
+        if progress is not None:
+            progress.finish("handed_off")
         from benchmark.one_click import verify_kit
         verify_kit()
         sys.path.insert(0, str(kit_path() / "scripts"))
@@ -463,6 +493,7 @@ def run(data, *, prepare_protocol_only=False, prepare_official_protocol_only=Fal
             save()
         from engine.python_storage import admitted, ensure as local_python
         if admitted(Path(sys.executable),data["cache"]):
+            activity("prepare-local-python")
             managed=local_python(Path(sys.executable).parent.parent,allow_current=True)
             from engine.python_storage import marker as python_storage_marker
             if python_storage_marker(managed).is_file():
@@ -525,6 +556,7 @@ def run(data, *, prepare_protocol_only=False, prepare_official_protocol_only=Fal
         if data.get("allow_device_change"):
             run_command += ["--allow-device-change"]
         stage("run-fixed-five", run_command)
+        activity("verify-reference")
         current = json.loads((out / "fixed-five/campaign.json").read_text())
         reference_target = qualified_reference(current)
         receipt.update(compute_reference=current["compute_reference"], compute_reference_target=reference_target)
@@ -548,9 +580,11 @@ def run(data, *, prepare_protocol_only=False, prepare_official_protocol_only=Fal
         if data.get("allow_device_change"):
             supplement += ["--allow-device-change"]
         stage("run-context-tenant", supplement)
+        activity("verify-evidence")
         campaign, reports, hashes = completed_evidence(out)
         reference_target = qualified_reference(campaign)
         stage("render-full-report", full_report_command(out, actual_cost=actual_cost))
+        activity("verify-report")
         summary_path = out / "full-report/summary.json"
         overview = json.loads(summary_path.read_bytes())
         if (overview.get("schema") != "deeplinkengine-full-acceptance-report/v1"
@@ -582,10 +616,18 @@ def run(data, *, prepare_protocol_only=False, prepare_official_protocol_only=Fal
         return 0
     except (Exception, KeyboardInterrupt) as error:
         receipt.update(status="failed", error=str(error) or type(error).__name__)
+        if current := receipt.get("activity"):
+            current["status"] = "interrupted" if isinstance(error, KeyboardInterrupt) else "failed"
         print(receipt["error"], file=sys.stderr)
         return 1
     finally:
+        if current := receipt.get("activity"):
+            if current["status"] == "running":
+                current["status"] = "completed"
+            current["ended_at"] = timestamp()
         save()
+        if progress is not None:
+            print("[PROGRESS] " + STATE_TEXT[receipt["status"]], flush=True)
         print("RESULTS", out / "results.json", flush=True)
 
 
@@ -655,6 +697,9 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--config", type=Path, help="Evaluation configuration (default: ./evaluation.json)")
     parser.add_argument("--report-only", action="store_true", help="Re-audit a completed run or replay a published candidate on CPU")
+    parser.add_argument("--status", action="store_true", help="Read the full-run progress without starting an evaluation")
+    parser.add_argument("--watch", action="store_true", help="Follow progress until the run ends (with --status)")
+    parser.add_argument("--json", dest="status_json", action="store_true", help="Output progress as JSON (with --status)")
     parser.add_argument("--help-all", action="help", help="Show advanced preparation, recovery and reuse options")
 
     def advanced(flag, *, help, **options):
@@ -678,8 +723,19 @@ def main():
         help="Reuse a complete sealed HTTP work observation with the same engine and devices")
     advanced("--rerun-b0", action=argparse.BooleanOptionalAction, default=None, help="是否重跑固定 B0；默认否，复用已封存结果；首次测量显式开启")
     args = parser.parse_args(argv)
+    if args.status:
+        observation_options = {"config", "status", "watch", "status_json"}
+        if args.rerun_b0 is not None or any(value for name, value in vars(args).items() if name not in observation_options):
+            parser.error("--status only accepts --config, --watch and --json")
+        return observe(args.config or Path("evaluation.json"), watch=args.watch, as_json=args.status_json)
+    if args.watch or args.status_json:
+        parser.error("--watch and --json require --status")
     if (args.prepare_protocol_only or args.prepare_official_protocol_only) and (args.prepare_environment or args.resume_bootstrap or args.resume_before_model or args.resume_before_inference or args.report_only or args.reuse_completed_run or args.reuse_completed_campaign or args.reuse_mmlu_baseline_arm or args.reuse_context_baseline_arm or args.reuse_compute_baseline_arm or args.reuse_compute_observation or (args.prepare_protocol_only and args.prepare_official_protocol_only)):
         parser.error('Protocol preparation requires a fresh run and cannot combine with execution/recovery modes')
+    progress = None
+    started_at = timestamp()
+    if not args.report_only and not os.environ.get(RUN_ID_ENV):
+        announce("read-config")
     try:
         explicit_candidate = args.engine_version is not None or args.out is not None
         if explicit_candidate:
@@ -692,9 +748,14 @@ def main():
                 if not args.config.is_file():
                     raise ValueError("Create evaluation.json from benchmark/run-all.example.json or pass --config FILE")
                 argv = ["--config", str(args.config), *argv]
-            data = configuration(args.config,
-                                 allow_existing=args.resume_bootstrap or args.resume_before_model or args.resume_before_inference or args.report_only,
-                                 report_only=args.report_only)
+            try:
+                data = configuration(args.config,
+                                     allow_existing=args.resume_bootstrap or args.resume_before_model or args.resume_before_inference or args.report_only,
+                                     report_only=args.report_only)
+            except (OSError, ValueError) as error:
+                if not args.report_only:
+                    record_config_error(args.config, started_at, error)
+                raise
         if args.report_only:
             if (args.resume_bootstrap or args.resume_before_model or args.resume_before_inference
                 or args.prepare_environment or args.reuse_completed_run or args.reuse_completed_campaign
@@ -707,6 +768,9 @@ def main():
                 from benchmark.full_report import main as report_main
 
                 return report_main(["--engine-version", data["engine_version"], "--out", str(data["out"])])
+        if not args.report_only:
+            rerun_b0 = args.rerun_b0 if args.rerun_b0 is not None else data.get("rerun_b0", False)
+            progress = BootstrapProgress(Path(data["out"]), started_at, rerun_b0)
         configured_cost = data.pop("actual_cost", None)
         cost_path = args.actual_cost or configured_cost
         actual_cost = Path(cost_path).expanduser().resolve() if cost_path is not None else None
@@ -720,6 +784,8 @@ def main():
         if args.prepare_official_protocol_only and not official_sdk:
             raise ValueError('Official input preparation requires the publicly prepared environment.official_sdk anchor')
         if official_sdk:
+            if progress is not None:
+                progress.advance("prepare-official-sdk")
             from official_execution import maybe_enter_config, needed
             if not args.report_only:
                 from official_sdk_bytecode import verify_or_repair
@@ -751,8 +817,10 @@ def main():
             args.reuse_context_baseline_arm, args.reuse_compute_baseline_arm = full_entry_policy(
                 data, prior=args.reuse_completed_run, context=args.reuse_context_baseline_arm,
                 compute=args.reuse_compute_baseline_arm, recovery=recovery)
+        progress.advance("select-engine")
         select_run_engine(data, recovery=recovery, reuse_completed_run=args.reuse_completed_run)
         if not args.prepare_environment:
+            progress.advance("prepare-assessment-tools")
             from engine.release_selection import ensure_metadata_client
             ensure_metadata_client(data['cache'])
         if sum((args.resume_bootstrap,args.resume_before_model,args.resume_before_inference))>1:
@@ -761,12 +829,15 @@ def main():
             raise ValueError("Completed-run reuse requires a new output, separate from in-place startup recovery")
         if data.get("allow_device_change") and (data.get("rerun_b0") or not (args.reuse_completed_run or recovery)):
             raise ValueError("Device-change admission requires a sealed continuation with fixed B0 reuse")
+        if args.reuse_completed_run or recovery:
+            progress.advance("verify-recovery")
         if args.reuse_completed_run:
             completed_run_source(data, args.reuse_completed_run)
         if args.resume_before_model or args.resume_before_inference:
             before_model_resume(data,allow_model_startup=args.resume_before_inference)
         if args.resume_bootstrap:
             bootstrap_resume(data)
+        progress.advance("prepare-environment")
         from engine.environment_setup import ensure_environment
         if args.reuse_completed_run:
             source = args.reuse_completed_run.resolve()
@@ -775,20 +846,42 @@ def main():
         elif recovery:
             prepared = recovery_environment(data)
         else:
-            prepared = ensure_environment(data)
+            prepared = ensure_environment(data, progress=progress)
         if prepared is not None:
+            progress.detail("python-handoff")
+            prepared["env"][RUN_ID_ENV] = progress.run_id
             os.execve(prepared["python"], [prepared["python"], str(Path(__file__).resolve()), *argv], prepared["env"])
             raise ValueError("Could not hand off to the prepared Python environment")
+        progress.advance("preflight")
         preflight()
     except (ValueError, OSError, subprocess.SubprocessError) as error:
+        if progress is not None:
+            progress.finish("failed", error)
         parser.error(str(error))
+    except (Exception, KeyboardInterrupt) as error:
+        if progress is not None:
+            progress.finish("interrupted" if isinstance(error, KeyboardInterrupt) else "failed", error)
+        raise
     if args.prepare_environment:
+        progress.finish("prepared")
         print("ENVIRONMENT verified; no model tests started", flush=True)
         return 0
-    return run(data, prepare_protocol_only=args.prepare_protocol_only, prepare_official_protocol_only=args.prepare_official_protocol_only, resume_bootstrap=args.resume_bootstrap, resume_before_model=args.resume_before_model, resume_before_inference=args.resume_before_inference,
-               reuse_completed_run=args.reuse_completed_run, reuse_completed_campaigns=args.reuse_completed_campaign,
-               reuse_mmlu_baseline_arm=args.reuse_mmlu_baseline_arm, reuse_context_baseline_arm=args.reuse_context_baseline_arm, reuse_compute_baseline_arm=args.reuse_compute_baseline_arm, actual_cost=actual_cost,
-               reuse_compute_observation=args.reuse_compute_observation)
+
+    progress.advance("initialize-run")
+    try:
+        return run(data, prepare_protocol_only=args.prepare_protocol_only,
+                   prepare_official_protocol_only=args.prepare_official_protocol_only,
+                   resume_bootstrap=args.resume_bootstrap, resume_before_model=args.resume_before_model,
+                   resume_before_inference=args.resume_before_inference, reuse_completed_run=args.reuse_completed_run,
+                   reuse_completed_campaigns=args.reuse_completed_campaign,
+                   reuse_mmlu_baseline_arm=args.reuse_mmlu_baseline_arm,
+                   reuse_context_baseline_arm=args.reuse_context_baseline_arm,
+                   reuse_compute_baseline_arm=args.reuse_compute_baseline_arm, actual_cost=actual_cost,
+                   reuse_compute_observation=args.reuse_compute_observation, progress=progress)
+    except (Exception, KeyboardInterrupt) as error:
+        if progress.data["state"] == "running":
+            progress.finish("interrupted" if isinstance(error, KeyboardInterrupt) else "failed", error)
+        raise
 
 
 if __name__ == "__main__":

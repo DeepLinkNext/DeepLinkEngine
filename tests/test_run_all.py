@@ -14,6 +14,7 @@ from unittest.mock import patch
 ROOT = Path(__file__).resolve().parents[1]
 sys.path[:0] = [str(ROOT), str(ROOT / "benchmark/one-click-kit/scripts")]
 sys.path.insert(0, str(ROOT / "tools"))
+from benchmark import run_progress
 from test_public_run_all import reference
 spec = importlib.util.spec_from_file_location("workflow", ROOT / "run_all.py")
 workflow = importlib.util.module_from_spec(spec)
@@ -156,6 +157,154 @@ class WorkflowTests(unittest.TestCase):
              patch.object(workflow, "preflight"), patch.object(workflow, "run", return_value=0) as run:
             self.assertEqual(workflow.main(), 0)
         self.assertEqual(run.call_args.args[0], workflow.configuration(config))
+
+    def test_full_progress_survives_python_handoff_and_reaches_report(self):
+        config = self.root / "evaluation.json"
+        config.write_text(json.dumps(self.data))
+        out = Path(self.data["out"])
+        environment_receipt = self.root / "environment.json"
+        argv = ["run_all.py", "--config", str(config)]
+
+        class ReplacedPython(BaseException):
+            pass
+
+        def prepare(data, *, progress):
+            progress.detail("prepare-python", receipt=environment_receipt)
+            environment_receipt.write_text(json.dumps({
+                "progress_id": progress.run_id,
+                "status": "checking", "steps": [{"name": "resolve-python-dependencies", "status": "running"}],
+            }))
+            pending = self.read_progress(config)
+            self.assertEqual(pending["stage"], "prepare-environment")
+            self.assertEqual(pending["detail"]["step"], "resolve-python-dependencies")
+            self.assertFalse(out.exists())
+            return {"python": sys.executable, "env": dict(workflow.os.environ)}
+
+        during = []
+
+        def execute(args, **kwargs):
+            status = self.read_progress(config)
+            during.append(status["stage"])
+            self.assertEqual(status["run_id"], handed_off["run_id"])
+            if status["stage"] == "run-fixed-five":
+                self.write("fixed-five/frozen-stages.json", [{"name": "continuous-B0"}, {"name": "continuous-B1"}])
+                self.write("fixed-five/execution-checklist.json", {"status": "running", "stages": [
+                    {"name": "continuous-B0", "status": "reused_verified"},
+                    {"name": "continuous-B1", "status": "running"},
+                ]})
+                detail = self.read_progress(config)["detail"]
+                self.assertEqual((detail["stage"], detail["stages_done"]), ("continuous-B1", 1))
+                self.assertEqual(detail["stages"][0]["status"], "reused_verified")
+            if status["stage"] == "run-context-tenant":
+                arm = out / "context-tenant/context-B0"
+                self.write("context-tenant/execution.json", {
+                    "schema": "vllm-hust-acceptance-supplement-execution/v1", "status": "running",
+                    "planned_roles": ["B0", "B1"], "stages": [{"role": "B0", "status": "running", "run": str(arm)}],
+                })
+                self.write("context-tenant/context-B0/receipt.json", {"status": "running-client"})
+                detail = self.read_progress(config)["detail"]
+                self.assertEqual((detail["stage"], detail["phase"]), ("B0", "running-client"))
+            return self.execute(args, **kwargs)
+
+        with patch.dict(workflow.os.environ), patch.object(workflow, "select_run_engine"),              patch("engine.release_selection.ensure_metadata_client"), patch.object(workflow, "preflight"),              patch("benchmark.one_click.verify_kit"), patch("child_runner.run_stage", side_effect=execute),              contextlib.redirect_stdout(io.StringIO()) as console:
+            with patch("engine.environment_setup.ensure_environment", side_effect=prepare),                  patch.object(sys, "argv", argv), patch.object(workflow.os, "execve", side_effect=ReplacedPython) as switch:
+                with self.assertRaises(ReplacedPython):
+                    workflow.main()
+
+            handed_off = self.read_progress(config)
+            self.assertEqual(handed_off["detail"]["step"], "python-handoff")
+            self.assertEqual(switch.call_args.args[2][run_progress.RUN_ID_ENV], handed_off["run_id"])
+            with patch.dict(workflow.os.environ, switch.call_args.args[2]), patch.object(sys, "argv", argv),                  patch("engine.environment_setup.ensure_environment", return_value=None):
+                self.assertEqual(workflow.main(), 0)
+
+        final = self.read_progress(config)
+        self.assertEqual(final["state"], "completed")
+        self.assertEqual(final["run_id"], handed_off["run_id"])
+        self.assertEqual(final["stage"], "verify-report")
+        self.assertEqual(Path(final["report_path"]), out / "full-report/report.html")
+        self.assertEqual([row["name"] for row in final["stages"]].count("prepare-environment"), 1)
+        self.assertEqual(during, ["prepare-datasets", "install-package", "verify-engine", "install-engine",
+                                  "prepare-fixed-five", "run-fixed-five", "verify-installed-tools",
+                                  "run-context-tenant", "render-full-report"])
+        self.assertIn("[PROGRESS]", console.getvalue())
+        self.assertEqual(console.getvalue().count("读取配置"), 1)
+
+    def read_progress(self, config):
+        with patch.object(sys, "argv", ["run_all.py", "--status", "--json", "--config", str(config)]),              contextlib.redirect_stdout(io.StringIO()) as output:
+            self.assertEqual(workflow.main(), 0)
+        return json.loads(output.getvalue())
+
+    def test_progress_records_failure_before_output_exists_and_watch_is_read_only(self):
+        config = self.root / "evaluation.json"
+        config.write_text(json.dumps(self.data))
+        out = Path(self.data["out"])
+        self.assertEqual(self.read_progress(config)["state"], "not_started")
+
+        with patch.object(sys, "argv", ["run_all.py", "--config", str(config)]),              patch("engine.release_selection.ensure_metadata_client"), patch.object(workflow, "select_run_engine"),              patch("engine.environment_setup.ensure_environment", side_effect=ValueError("missing fixture CANN")),              contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit) as error:
+            workflow.main()
+        self.assertEqual(error.exception.code, 2)
+        self.assertFalse(out.exists())
+        failure = self.read_progress(config)
+        self.assertEqual((failure["state"], failure["stage"], failure["failure"]),
+                         ("failed", "prepare-environment", "missing fixture CANN"))
+
+        path = run_progress.progress_path(out)
+        contents = path.read_bytes()
+        with patch.object(sys, "argv", ["run_all.py", "--status", "--watch", "--json", "--config", str(config)]),              patch.object(run_progress.time, "sleep", side_effect=AssertionError("watch must stop at failure")),              patch.object(workflow, "select_run_engine", side_effect=AssertionError("status must not run")),              contextlib.redirect_stdout(io.StringIO()) as output:
+            self.assertEqual(workflow.main(), 0)
+        self.assertEqual(json.loads(output.getvalue())["state"], "failed")
+        self.assertEqual(path.read_bytes(), contents)
+
+    def test_progress_distinguishes_recovery_from_old_results_and_controller_exit(self):
+        config = self.root / "evaluation.json"
+        config.write_text(json.dumps(self.data))
+        out = Path(self.data["out"])
+        self.write("results.json", {"status": "failed", "stages": [{"name": "run-fixed-five", "status": "failed"}]})
+        progress = run_progress.BootstrapProgress(out, run_progress.timestamp(), False)
+        progress.advance("verify-recovery")
+        with patch.object(run_progress, "owner_alive", return_value=False):
+            interrupted = self.read_progress(config)
+        self.assertEqual((interrupted["state"], interrupted["stage"]), ("interrupted", "verify-recovery"))
+        self.assertIsNone(interrupted["results_path"])
+        self.assertFalse(interrupted["rerun_b0"])
+        path = run_progress.progress_path(out)
+        before = path.read_bytes()
+        with patch.object(sys, "argv", ["run_all.py", "--status", "--watch", "--config", str(config)]),              patch.object(run_progress, "owner_alive", return_value=True),              patch.object(run_progress.time, "sleep", side_effect=KeyboardInterrupt),              contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(workflow.main(), 130)
+        self.assertEqual(path.read_bytes(), before)
+
+    def test_config_failure_is_visible_and_recovery_cannot_replace_an_active_run(self):
+        config = self.root / "evaluation.json"
+        config.write_text(json.dumps(dict(self.data, physical_devices=[0, 0])))
+        out = Path(self.data["out"])
+        with patch.object(sys, "argv", ["run_all.py", "--config", str(config)]),              contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
+            workflow.main()
+        failed = self.read_progress(config)
+        self.assertEqual((failed["state"], failed["stage"]), ("failed", "read-config"))
+        self.assertFalse(out.exists())
+
+        original = run_progress.BootstrapProgress(out, run_progress.timestamp(), True)
+        original.finish("handed_off")
+        self.write("results.json", {"status": "running", "controller_owner": original.data["owner"],
+                                   "progress_id": original.run_id,
+                                   "stages": [{"name": "run-fixed-five", "status": "running"}]})
+        with patch.object(run_progress, "owner_alive", return_value=True):
+            with self.assertRaisesRegex(ValueError, "already executing"):
+                run_progress.BootstrapProgress(out, run_progress.timestamp(), False)
+        self.assertEqual(self.read_progress(config)["run_id"], original.run_id)
+
+    def test_terminal_progress_is_available_with_a_partial_child_receipt(self):
+        config = self.root / "evaluation.json"
+        config.write_text(json.dumps(self.data))
+        self.write("results.json", {"status": "failed", "error": "controller stopped",
+                                   "stages": [{"name": "run-fixed-five", "status": "failed"}]})
+        child = Path(self.data["out"]) / "fixed-five"
+        child.mkdir()
+        (child / "campaign.json").write_text("{")
+        status = self.read_progress(config)
+        self.assertEqual((status["state"], status["stage"], status["failure"]),
+                         ("failed", "run-fixed-five", "controller stopped"))
+        self.assertIsNone(status["detail"])
 
     def test_advanced_flags_are_listed_in_full_help(self):
         for flag in ("--help", "--help-all"):
@@ -559,7 +708,7 @@ class WorkflowTests(unittest.TestCase):
                 expected=self.root/('explicit-cache' if explicit else 'cache/xdg')
                 if explicit:workflow.os.environ['XDG_CACHE_HOME']=str(expected)
                 selected=[]
-                def prepare(data):
+                def prepare(data, *, progress=None):
                     with patch.object(report_environment.Path,'home',return_value=self.root/'unused-home'), \
                          patch.object(report_environment.subprocess,'run',return_value=types.SimpleNamespace(returncode=0)):
                         selected.append(report_environment.report_python()[0])

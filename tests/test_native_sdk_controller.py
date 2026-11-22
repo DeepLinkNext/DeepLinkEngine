@@ -61,7 +61,7 @@ class Native(unittest.TestCase):
         model=self.root/'model';model.mkdir();config=self.root/'evaluation.json'
         config.write_text(json.dumps(dict(model=str(model),cache=str(self.root/'cache'),out=str(self.root/'out'),physical_devices=[0,1],environment=dict(official_sdk=str(self.root/'fake-sdk')))))
         calls=[]
-        def ensure(data):
+        def ensure(data, *, progress=None):
             observed=probe.inspect_sdk(python,{},receipt=self.root/'public-probe.json');calls.append(observed);return None
         with patch.object(sys,'argv',['run_all.py','--config',str(config),'--prepare-environment']),patch('official_sdk_bytecode.verify_or_repair',return_value=None),patch.dict(os.environ),patch.object(run_all,'select_run_engine'),patch('engine.environment_setup.ensure_environment',side_effect=ensure),patch.object(run_all,'preflight'):
             os.environ.pop('DEEPLINK_EXECUTION_CONTEXT',None)

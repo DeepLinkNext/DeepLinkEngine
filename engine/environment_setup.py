@@ -418,13 +418,15 @@ def triton_backend_smoke(python, required, env, data, options, directory, integr
     return dict(value, reused=False, receipt=str(receipt), receipt_sha256=wheel_digest(receipt))
 
 
-def ensure_environment(data):
+def ensure_environment(data, *, progress=None):
     """Return an exec handoff when repair/loading is needed; None in a verified child."""
     if platform.system() != "Linux" or platform.machine() != "aarch64":
         raise ValueError("The frozen engine requires Linux aarch64; an OS/architecture mismatch cannot be repaired with pip")
     options = data.get("environment", {})
     lock = runtime_lock(ROOT)
     required = lock["required_python_packages"]
+    if progress is not None:
+        progress.detail("check-cann")
     env, cann = cann_environment(options)
     selection = dict(options)
     if cann.get('bootstrap_python') and not selection.get('python'):
@@ -449,6 +451,8 @@ def ensure_environment(data):
         raise ValueError("Environment cache must not be a symlink: " + str(directory))
     directory.mkdir(exist_ok=True)
     report_path = directory / "environment.json"
+    if progress is not None:
+        progress.detail("prepare-python", receipt=report_path)
     tmp = directory / "tmp"
     tmp.mkdir(exist_ok=True)
     env["TMPDIR"] = str(tmp)
@@ -494,6 +498,8 @@ def ensure_environment(data):
         reusable = previous.get("status") == "ready" and previous.get("recipe_sha256") == key
         report = {"status": "checking", "recipe_sha256": key, "before": before,
                   "cann": cann, "steps": [], "shared_environment_modified": False}
+        if progress is not None:
+            report["progress_id"] = progress.run_id
         try:
             missing = differences(before, required)
             report["differences"] = missing
