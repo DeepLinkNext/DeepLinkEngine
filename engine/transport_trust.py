@@ -8,6 +8,13 @@ import time
 import uuid
 
 
+SYSTEM_CA_BUNDLES = (
+    '/etc/ssl/certs/ca-certificates.crt',
+    '/etc/pki/tls/certs/ca-bundle.crt',
+    '/etc/ssl/cert.pem',
+)
+
+
 def _public_bundle(path):
     path = Path(path).resolve(strict=True)
     before = path.stat()
@@ -52,10 +59,14 @@ def configure(cache, sdk=None, *, env=None):
                     break
     if source is None:
         source = ssl.get_default_verify_paths().cafile
+        kind = 'host-default-public-ca'
+        if not source:
+            # Standalone Python may be built with an OpenSSL prefix absent here.
+            source = next((path for path in SYSTEM_CA_BUNDLES if Path(path).is_file()), None)
+            kind = 'host-system-public-ca'
         if not source:
             raise ValueError('No verified public CA bundle is available before private execution')
         source, raw = _public_bundle(source)
-        kind = 'host-default-public-ca'
     digest = hashlib.sha256(raw).hexdigest()
     folder = Path(cache).resolve() / 'transport-trust'
     if folder.is_symlink():

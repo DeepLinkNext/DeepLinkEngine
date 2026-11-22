@@ -38,7 +38,7 @@ def install(args):
         folder.mkdir(parents=True, exist_ok=True)
         os.environ[name] = str(folder)
     from engine.release_selection import select
-    select(cache, version=getattr(args,"engine_version",None))
+    select(cache, version=getattr(args,"engine_version",None), wheelhouse=args.wheelhouse)
     options = {key: value for key, value in {"python": args.python, "wheelhouse": args.wheelhouse, "cann_home": args.cann_home}.items() if value}
     if args.use_environment:
         python = Path(args.use_environment).expanduser().absolute()

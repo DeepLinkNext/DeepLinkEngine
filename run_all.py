@@ -621,6 +621,7 @@ def historical_engine(source):
 def select_run_engine(data, *, recovery=False, reuse_completed_run=None):
     """Freeze a new target once; in-place recovery retains its original target."""
     from engine.release_selection import select, bind
+    wheelhouse = data.get("environment", {}).get("wheelhouse")
     saved = Path(data["out"]) / "engine-selection.json"
     if recovery or (reuse_completed_run and not data.get("engine_version")):
         if reuse_completed_run:
@@ -629,7 +630,7 @@ def select_run_engine(data, *, recovery=False, reuse_completed_run=None):
             record = bind(saved)
         else:
             version, release = historical_engine(saved.parent)
-            record = select(data["cache"], version=version)
+            record = select(data["cache"], version=version, wheelhouse=wheelhouse)
             if release is not None and record["release"] != release:
                 raise ValueError("Selected engine release differs from the preserved historical receipt")
         if data.get("engine_version") and record["version"] != data["engine_version"]:
@@ -638,7 +639,7 @@ def select_run_engine(data, *, recovery=False, reuse_completed_run=None):
     # With a fresh output an explicit target may reuse sealed B0 only. The
     # caller audits every completed stage before environment/model operations;
     # the campaign additionally checks B0 source, argv, weights and warmup.
-    return select(data["cache"], version=data.get("engine_version"))
+    return select(data["cache"], version=data.get("engine_version"), wheelhouse=wheelhouse)
 
 
 def main():
@@ -706,21 +707,22 @@ def main():
             if not args.report_only and not args.prepare_environment and not args.prepare_protocol_only and not args.prepare_official_protocol_only:
                 from benchmark.full_report import actual_cost_inputs
                 actual_cost_inputs(actual_cost)
-        if args.prepare_official_protocol_only and not data.get('environment',{}).get('official_sdk'):
+        official_sdk = data.get('environment', {}).get('official_sdk')
+        if args.prepare_official_protocol_only and not official_sdk:
             raise ValueError('Official input preparation requires the publicly prepared environment.official_sdk anchor')
-        from official_execution import maybe_enter_config, needed
-        if data.get('environment', {}).get('official_sdk') and not args.report_only:
-            from official_sdk_bytecode import verify_or_repair
-            recovery = verify_or_repair(data['environment']['official_sdk'], data['cache'])
-            if recovery:
-                os.environ['DEEPLINKENGINE_SDK_RECOVERY'] = json.dumps(recovery)
-        if data.get('environment', {}).get('official_sdk') and not args.report_only:
-            from engine.native_sdk_controller import maybe_enter as native_controller
-            native_controller(data['environment']['official_sdk'],ROOT/'run_all.py',sys.argv[1:],cache=data['cache'])
-        if data.get('environment', {}).get('official_sdk') and needed():
-            from engine.transport_trust import configure
-            configure(data['cache'], data['environment']['official_sdk'])
-        maybe_enter_config(args.config, sys.argv[1:])
+        if official_sdk:
+            from official_execution import maybe_enter_config, needed
+            if not args.report_only:
+                from official_sdk_bytecode import verify_or_repair
+                recovery = verify_or_repair(official_sdk, data['cache'])
+                if recovery:
+                    os.environ['DEEPLINKENGINE_SDK_RECOVERY'] = json.dumps(recovery)
+                from engine.native_sdk_controller import maybe_enter as native_controller
+                native_controller(official_sdk, ROOT/'run_all.py', sys.argv[1:], cache=data['cache'])
+            if needed():
+                from engine.transport_trust import configure
+                configure(data['cache'], official_sdk)
+            maybe_enter_config(args.config, sys.argv[1:])
         if args.rerun_b0 is not None:
             data["rerun_b0"] = args.rerun_b0
         os.environ["XDG_CACHE_HOME"] = os.environ.get("XDG_CACHE_HOME") or str(Path(data["cache"]) / "xdg")
