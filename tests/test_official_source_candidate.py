@@ -20,6 +20,59 @@ import official_storage
 
 
 class CandidateTests(unittest.TestCase):
+    def test_rust_recovery_requires_a_closed_git_failure_and_every_prior_stage(self):
+        import official_source_rust_recovery as recovery
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory).resolve()
+            prior, sdk, cache = (root / name for name in ('prior', 'sdk', 'cache'))
+            build = sdk / 'source-build'
+            prior.mkdir()
+            build.mkdir(parents=True)
+            cache.mkdir()
+            identity = candidate.identity()
+            old = str(prior)
+            error = 'RuntimeError: Source build failed: 09-upstream-rust'
+            public_entry.save(prior / 'results.json', dict(
+                schema='deeplinkengine-official-baseline-campaign/v1', status='incomplete',
+                model_execution_authorized=False, configuration=dict(cache=str(cache), out=old),
+                stages=[dict(baseline_id=candidate.ID, status='failed', error=error, model_started=False)],
+            ))
+            public_entry.save(sdk / 'source-preparation.json', dict(
+                schema='deeplinkengine-source-sdk-preparation/v1', candidate=identity,
+                destination=str(sdk), model_started=False,
+            ))
+            public_entry.save(sdk / 'source-candidate-lock.json', identity)
+            public_entry.save(sdk / 'image-lock.json', dict(
+                identity, manifest_digest='sha256:' + candidate.key(),
+                manifest_kind='source-build-derivation',
+            ))
+            base_files = sdk / 'base-installed-files.json'
+            public_entry.save(base_files, {})
+            base = sdk / 'base-installation.json'
+            public_entry.save(base, dict(installed_files_sha256=recovery.digest(base_files)))
+            context = dict(source_build_system_root=True, execution_root_receipt_sha256='original')
+            public_entry.save(build / 'receipt.json', dict(
+                schema='deeplinkengine-upstream-source-build/v1', status='failed', candidate=identity,
+                model_started=False, shared_environment_modified=False, build_execution_context=context,
+                base_installation_sha256=recovery.digest(base),
+            ))
+            core = sdk / 'rootfs/vllm-workspace/vllm'
+            for name in (*recovery.COMPLETED, recovery.RUST):
+                stage = dict(returncode=int(name == recovery.RUST), quiescent=True, model_started=False,
+                             cwd=str(core), command=['/usr/bin/bash', str(core / 'build_rust.sh')])
+                public_entry.save(build / (name + '.json'), stage)
+                (build / (name + '.log')).write_text('Updating git repository\nTimeout was reached\n')
+            with patch.object(recovery, 'context_identity', return_value=context), \
+                    patch.object(recovery, 'refuse_active_owner', return_value={'owner_stopped': True}):
+                self.assertIn(recovery.RUST, recovery.admit(prior, cache, sdk)[3])
+                (build / (recovery.RUST + '.log')).write_text('Compile failed\n')
+                with self.assertRaisesRegex(ValueError, 'Git transport failure'):
+                    recovery.admit(prior, cache, sdk)
+                public_entry.save(build / '03-ascend.json', dict(returncode=1))
+                with self.assertRaisesRegex(ValueError, '03-ascend'):
+                    recovery.admit(prior, cache, sdk)
+
     def test_isolated_stage_registry_keeps_core_and_ascend_torch_separate(self):
         rows=candidate.build_dependency_artifacts()
         core=rows['sha256:'+candidate.TORCH_BUILD_WHEEL['sha256']]
