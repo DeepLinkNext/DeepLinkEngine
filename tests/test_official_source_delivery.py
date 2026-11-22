@@ -21,6 +21,58 @@ sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 import official_source_delivery as delivery
 
 
+class ClosureNetworkRetryTests(unittest.TestCase):
+    def run_case(self,errors):
+        root=Path(tempfile.mkdtemp());self.addCleanup(shutil.rmtree,root);calls=[]
+        def prefetch(config,args):
+            self.assertEqual(config['versions'],['0.28.0rc1-source']);self.assertEqual(args,[])
+            folder=Path(config['out']);folder.mkdir(exist_ok=False);calls.append(folder)
+            error=errors[len(calls)-1] if len(calls)<=len(errors) else None
+            delivery.save(folder/'results.json',dict(status='failed' if error else 'completed'))
+            if error:raise error
+            return 0
+        return root,calls,prefetch
+
+    def test_transient_failure_preserves_first_attempt_and_returns_actual_second(self):
+        root,calls,prefetch=self.run_case([TimeoutError('HTTP metadata read timed out')])
+        actual=delivery.prefetch_closure(prefetch,root/'cache',root,'0.28.0rc1-source')
+        self.assertEqual(actual,calls[1]);self.assertEqual(len(calls),2)
+        self.assertEqual(json.loads((calls[0]/'results.json').read_text())['status'],'failed')
+        receipt=json.loads((root/'closure-attempts.json').read_text())
+        self.assertEqual([x['status'] for x in receipt['attempts']],['failed','completed'])
+        self.assertIn('TimeoutError',receipt['attempts'][0]['traceback'])
+        self.assertFalse(receipt['original_graph_timeouts_changed'])
+
+    def test_integrity_failure_and_interrupt_never_retry(self):
+        for error in (ValueError('Publisher hash differs'),KeyboardInterrupt()):
+            root,calls,prefetch=self.run_case([error])
+            with self.assertRaises(type(error)):delivery.prefetch_closure(prefetch,root/'cache',root,'0.28.0rc1-source')
+            self.assertEqual(len(calls),1)
+
+    def test_network_exhaustion_is_bounded_and_original_failure_is_raised(self):
+        first=TimeoutError('first');last=TimeoutError('last');root,calls,prefetch=self.run_case([first,last])
+        with self.assertRaises(TimeoutError) as caught:delivery.prefetch_closure(prefetch,root/'cache',root,'0.28.0rc1-source')
+        self.assertIs(caught.exception,last);self.assertEqual(len(calls),2)
+
+    def test_http_not_found_is_not_a_transient_publisher_failure(self):
+        from urllib.error import HTTPError
+        root,calls,prefetch=self.run_case([HTTPError('https://publisher.invalid/pin',404,'missing',{},None)])
+        with self.assertRaises(HTTPError):delivery.prefetch_closure(prefetch,root/'cache',root,'0.28.0rc1-source')
+        self.assertEqual(len(calls),1)
+
+    def test_native_reader_failure_records_redacted_request_without_replacing_reader(self):
+        import official_build_assets as assets
+        root=Path(tempfile.mkdtemp());self.addCleanup(shutil.rmtree,root)
+        def fetch(config,args):
+            folder=Path(config['out']);folder.mkdir(exist_ok=False)
+            assets._read('https://user:password@publisher.invalid/pin?token=secret')
+        with patch('urllib.request.urlopen',side_effect=TimeoutError('request timed out')):
+            with self.assertRaises(TimeoutError):delivery.prefetch_closure(fetch,root/'cache',root,'0.28.0rc1-source')
+        receipt=json.loads((root/'closure-attempts.json').read_text())
+        self.assertEqual([r['metadata_request_url'] for r in receipt['attempts']],['https://publisher.invalid/pin']*2)
+        self.assertNotIn('password',json.dumps(receipt))
+
+
 class CargoTransportTests(unittest.TestCase):
     def test_native_http1_default_retains_other_settings(self):
         env={'CARGO_NET_RETRY':'3','CARGO_HTTP_TIMEOUT':'30'}

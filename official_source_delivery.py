@@ -11,6 +11,9 @@ import tempfile
 import time
 from urllib.parse import urldefrag, urlsplit, unquote, urljoin, parse_qs
 import re
+import traceback
+import ssl
+from urllib.error import URLError, HTTPError
 
 PIP_VERSION = '26.2'
 
@@ -331,9 +334,7 @@ def prepare(cache,sdk,out):
         primary=primary_aliases(primary,out/'primary-alias-indices')
         record['primary_alias_attestation']=dict(path=str(out/'primary-alias-indices/results.json'),sha256=sha(out/'primary-alias-indices/results.json'))
         record['steps'].append(invoke(python,env,base,cache,primary,caches,out/'primary-delivery'));save(out/'results.json',record)
-        closure=out/'original-closure'
-        if prefetch_all(dict(cache=str(cache),out=str(closure),versions=[candidate.VERSION]),[])!=0:
-            raise ValueError('Original source-build closure preflight failed')
+        closure=prefetch_closure(prefetch_all,cache,out,candidate.VERSION)
         closed=json.loads((closure/'results.json').read_bytes())
         if closed['status']!='completed':raise ValueError('Original closure preflight is incomplete')
         wheels={}
@@ -356,6 +357,44 @@ def prepare(cache,sdk,out):
     finally:
         record['ended']=time.time();save(out/'results.json',record)
     return dict(path=str(out/'results.json'),sha256=sha(out/'results.json'))
+
+
+def prefetch_closure(prefetch,cache,out,version):
+    """Retry only a transient pre-install network failure, with fresh evidence."""
+    out=Path(out);attempts=[]
+    for number in (1,2):
+        folder=out/('original-closure' if number==1 else 'original-closure-retry-2')
+        row=dict(attempt=number,out=str(folder),started=time.time(),status='running')
+        attempts.append(row);save(out/'closure-attempts.json',dict(attempts=attempts,maximum_attempts=2,
+             original_graph_timeouts_changed=False,model_started=False,sdk_installation_performed=False))
+        try:
+            if prefetch(dict(cache=str(cache),out=str(folder),versions=[version]),[])!=0:
+                raise ValueError('Original source-build closure preflight failed')
+            result=folder/'results.json'
+            if json.loads(result.read_bytes()).get('status')!='completed':
+                raise ValueError('Original closure preflight is incomplete')
+            row.update(status='completed',result_sha256=sha(result))
+            return folder
+        except BaseException as error:
+            transient=isinstance(error,(TimeoutError,ConnectionError,URLError))
+            if isinstance(error,HTTPError):transient=error.code in (408,429,500,502,503,504)
+            if isinstance(error,URLError) and isinstance(error.reason,ssl.SSLCertVerificationError):transient=False
+            row.update(status='interrupted' if isinstance(error,(KeyboardInterrupt,SystemExit)) else 'failed',error=type(error).__name__+': '+str(error),
+                       traceback=type(error).__name__+'\n'+'\n'.join(
+                           f'{frame.filename}:{frame.lineno}:{frame.name}' for frame in traceback.extract_tb(error.__traceback__)),
+                       transient_network_failure=transient)
+            for frame,_ in traceback.walk_tb(error.__traceback__):
+                if Path(frame.f_code.co_filename).name=='official_build_assets.py' and frame.f_code.co_name=='_read':
+                    value=frame.f_locals.get('url')
+                    if isinstance(value,str):
+                        parsed=urlsplit(value)
+                        if parsed.scheme=='https' and parsed.hostname:
+                            host=parsed.hostname+(':'+str(parsed.port) if parsed.port else '')
+                            row['metadata_request_url']=parsed._replace(netloc=host,query='',fragment='').geturl()
+            if not transient or number==2:raise
+        finally:
+            row['ended']=time.time();save(out/'closure-attempts.json',dict(attempts=attempts,maximum_attempts=2,
+                original_graph_timeouts_changed=False,model_started=False,sdk_installation_performed=False))
 
 
 if __name__=='__main__':
