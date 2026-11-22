@@ -1,0 +1,245 @@
+{
+  "r10-native-rms": {
+    "schema": "deeplinkengine-r10-v2-compute-projection/v1",
+    "release": "full-answer-b1-20261120-r10-native-rms",
+    "baseline_id": "original018-cann8.5.1",
+    "dataset": "MMLU-Pro fixed200",
+    "profile": {
+      "id": "submission-v2",
+      "max_tokens": 256,
+      "formal_repetitions": 3,
+      "ignore_eos": false,
+      "requests_per_repetition": 200
+    },
+    "certificate_kind": "qualified_full_reference_denominator_reuse/v1",
+    "reference_source_sha256": "796e3ad47eca762cb71fda34264e63110434d244b24939d859f5efca814200a4",
+    "summary_sha256": "deb50b92a921cb37bbb1822669e266b90f0c0002587dee18ee6a464b11daa4e8",
+    "seal_sha256": "102ea4d4b9c6537054e831462d86af5430ec8982b71c09eb6e338dab24747243",
+    "capture_campaign_seal_sha256": "f212052d396b096b5e7411fdc388f64699800a35119e790cfeb7250f3267251e",
+    "pair_sha256": "f5b26bb116851a14c4172c71bad39fafb1777a580c49ecd3c364fa8fe509de4f",
+    "native_seals": {
+      "B0": "45943096b5e7116d0eaaf6f99f03d4e4542f1b04e587d094d3da538fce549f17",
+      "B1": "fcbc74e61ad762e4f8edb78ecc405c506faa5c8c39ca21605733d419d3c49187"
+    },
+    "native_receipts": {
+      "B0": "fb4a860a41787a6c7fef52916c927417c2d399953559ae8c0acc6895018c0634",
+      "B1": "220283c2047d482af2cb166cdb3bfcf8f326b28ff38f04e0001f36c0695ae192"
+    },
+    "physical_cards": {
+      "B0": [
+        1,
+        6
+      ],
+      "B1": [
+        0,
+        3
+      ]
+    },
+    "arms": {
+      "B0": {
+        "F_interval": [
+          5412318178236308,
+          5441387470064231
+        ],
+        "T_seconds": "453.985942159",
+        "formal_repetitions": 3,
+        "achieved_tflops_per_card_interval": [
+          "5.960887414814207839599889975235439105155",
+          "5.992903044736226470834068230106964746968"
+        ],
+        "reference_F_interval": [
+          5487388087149780,
+          5488258327989369
+        ],
+        "reference_seconds_lower": "102.3231709195348958960064",
+        "reference_seconds_exact": null,
+        "reference_tflops_per_card_upper": "26.81825767648090573566921216250915821371",
+        "efficiency_lower_percent": "22.22697494640671988678248116022501679767",
+        "efficiency_exact_percent": null,
+        "original_reference_repetitions": [
+          {
+            "name": "uninstrumented-1",
+            "F_interval": [
+              1829129362383260,
+              1829419442663123
+            ],
+            "Tref_lower_seconds": "34.1077236398449652986688",
+            "requests": 200,
+            "input_tokens": 282265,
+            "output_tokens": 51200,
+            "source_sha256": "0c51f8f42043eff8f82ec23888702cdd1583a9d68835135e32190c7514c8feff"
+          },
+          {
+            "name": "uninstrumented-2",
+            "F_interval": [
+              1829129362383260,
+              1829419442663123
+            ],
+            "Tref_lower_seconds": "34.1077236398449652986688",
+            "requests": 200,
+            "input_tokens": 282265,
+            "output_tokens": 51200,
+            "source_sha256": "6db7784be4bb652d1d0179e6673f7405314a2cb5077adf0321c765cb152ab30d"
+          },
+          {
+            "name": "uninstrumented-3",
+            "F_interval": [
+              1829129362383260,
+              1829419442663123
+            ],
+            "Tref_lower_seconds": "34.1077236398449652986688",
+            "requests": 200,
+            "input_tokens": 282265,
+            "output_tokens": 51200,
+            "source_sha256": "b91eb934d213473b74f2cc499f94b2c72d167682082a4e520254c9a6cb35eb82"
+          }
+        ],
+        "repetitions": [
+          {
+            "repetition": 1,
+            "F_interval": [
+              1804159232956559,
+              1813847989643210
+            ],
+            "T_seconds": "149.063354205",
+            "geometry_sha256": "8e14ce5f0298aefaa6a79efa64032c5da5179bab730903a4f5945f242ea2f4dc",
+            "timing_sha256": "d1e7eab183f3bbe14fa9ad043b4e0f1c45f8d45c4e012230d2ddc039ee91a16f",
+            "work_sha256": "e6926252048db122ee71f4b445e975e46891db3949e09837d0517df70e45121d",
+            "native_source_seal_sha256": "45943096b5e7116d0eaaf6f99f03d4e4542f1b04e587d094d3da538fce549f17"
+          },
+          {
+            "repetition": 2,
+            "F_interval": [
+              1804144929773416,
+              1813837266790113
+            ],
+            "T_seconds": "148.908074954",
+            "geometry_sha256": "c987cc58489af679241678c41fa873cb3bf2bd57d7c5149c4209a4d00208cbe8",
+            "timing_sha256": "5797030fd7d9b29974b4fe201c391567fd053c776f1b79207e937cc5124d0d61",
+            "work_sha256": "883765364ae5f6c2f53d59ede484923e3a5206d92dedc9f5315c5a4d084911c5",
+            "native_source_seal_sha256": "45943096b5e7116d0eaaf6f99f03d4e4542f1b04e587d094d3da538fce549f17"
+          },
+          {
+            "repetition": 3,
+            "F_interval": [
+              1804014015506333,
+              1813702213630908
+            ],
+            "T_seconds": "156.014513",
+            "geometry_sha256": "330b1aa3f76215d2961c9d6ee740bec8e9ee92e9b139589c2e9620b855d768e2",
+            "timing_sha256": "458767e1eb4f1bfe210b640c398deea6896bdc7842449f0c30cd2e82829f92dd",
+            "work_sha256": "9bd9790d92408ac8771c52fad0d314824fdafcb270185b5fe15d7d5efe3b094c",
+            "native_source_seal_sha256": "45943096b5e7116d0eaaf6f99f03d4e4542f1b04e587d094d3da538fce549f17"
+          }
+        ],
+        "shared_work_cancellation_used": false,
+        "hardware_peak_utilization_percent": null,
+        "source_and_timing_qualified": true,
+        "full_model_certificate": true,
+        "statistic": "100 * C_current_lower / C_reference_upper; original F_reference and T_reference retained; sum all current repetitions before division"
+      },
+      "B1": {
+        "F_interval": [
+          5412062992888734,
+          5441155772677461
+        ],
+        "T_seconds": "156.962125003",
+        "formal_repetitions": 3,
+        "achieved_tflops_per_card_interval": [
+          "17.24002842337058646937844553641118622337",
+          "17.33270294529162618793626246737033671402"
+        ],
+        "reference_F_interval": [
+          5438115361780845,
+          5438638334450385
+        ],
+        "reference_seconds_lower": "140.60316791316519",
+        "reference_seconds_exact": null,
+        "reference_tflops_per_card_upper": "19.34038334687175052309470403284461724716",
+        "efficiency_lower_percent": "89.14005536585762549052047572299863376434",
+        "efficiency_exact_percent": null,
+        "original_reference_repetitions": [
+          {
+            "name": "uninstrumented-1",
+            "F_interval": [
+              1812705120593615,
+              1812879444816795
+            ],
+            "Tref_lower_seconds": "46.86772263772173",
+            "requests": 200,
+            "input_tokens": 282265,
+            "output_tokens": 51200,
+            "source_sha256": "0407c570c288265d9b5038a7e2a87eb1e8ea87553551785c7f6695a073ab2a86"
+          },
+          {
+            "name": "uninstrumented-2",
+            "F_interval": [
+              1812705120593615,
+              1812879444816795
+            ],
+            "Tref_lower_seconds": "46.86772263772173",
+            "requests": 200,
+            "input_tokens": 282265,
+            "output_tokens": 51200,
+            "source_sha256": "c5bea9d69988f75e68fe6c141965a13e23d8a34533a11fb84a00bff465c12a10"
+          },
+          {
+            "name": "uninstrumented-3",
+            "F_interval": [
+              1812705120593615,
+              1812879444816795
+            ],
+            "Tref_lower_seconds": "46.86772263772173",
+            "requests": 200,
+            "input_tokens": 282265,
+            "output_tokens": 51200,
+            "source_sha256": "9a198f5dcb9e6a062b9caac2a69040508e82d4210c852fd8b007f1f671113746"
+          }
+        ],
+        "repetitions": [
+          {
+            "repetition": 1,
+            "F_interval": [
+              1804020997629578,
+              1813718590892487
+            ],
+            "T_seconds": "52.311814256",
+            "geometry_sha256": "44e679c8688495ec1c9d9b9dd7e596fffbc1dd31f358c235150e21604add218c",
+            "timing_sha256": "5392fb7a8458fe2c5b2ad7e2a8fbd608b302dce491350ff060317fd3cc48d090",
+            "work_sha256": "6eb492e4eb4b58537891a0ca75748b50737ced8afb155b97500ae025100dd39a",
+            "native_source_seal_sha256": "fcbc74e61ad762e4f8edb78ecc405c506faa5c8c39ca21605733d419d3c49187"
+          },
+          {
+            "repetition": 2,
+            "F_interval": [
+              1804020997629578,
+              1813718590892487
+            ],
+            "T_seconds": "52.312689434",
+            "geometry_sha256": "44e679c8688495ec1c9d9b9dd7e596fffbc1dd31f358c235150e21604add218c",
+            "timing_sha256": "74c2aa1dd4154d208ffdc519325f34365fb546732b00bbc813f3724b8b920e0f",
+            "work_sha256": "6eb492e4eb4b58537891a0ca75748b50737ced8afb155b97500ae025100dd39a",
+            "native_source_seal_sha256": "fcbc74e61ad762e4f8edb78ecc405c506faa5c8c39ca21605733d419d3c49187"
+          },
+          {
+            "repetition": 3,
+            "F_interval": [
+              1804020997629578,
+              1813718590892487
+            ],
+            "T_seconds": "52.337621313",
+            "geometry_sha256": "44e679c8688495ec1c9d9b9dd7e596fffbc1dd31f358c235150e21604add218c",
+            "timing_sha256": "4f1907bc18c4b3fbc5a6a41067405ada45f084d3a5dcb19e0afeeb1fece2ab47",
+            "work_sha256": "6eb492e4eb4b58537891a0ca75748b50737ced8afb155b97500ae025100dd39a",
+            "native_source_seal_sha256": "fcbc74e61ad762e4f8edb78ecc405c506faa5c8c39ca21605733d419d3c49187"
+          }
+        ],
+        "shared_work_cancellation_used": false,
+        "hardware_peak_utilization_percent": null,
+        "source_and_timing_qualified": true,
+        "full_model_certificate": true,
+        "statistic": "100 * C_current_lower / C_reference_upper; original F_reference and T_reference retained; sum all current repetitions before division"
+      }
+    }
+  }
+}

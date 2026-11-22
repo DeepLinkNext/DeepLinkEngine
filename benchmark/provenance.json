@@ -377,6 +377,12 @@
       "source": "https://github.com/DeepLinkNext/DeepLinkEngine/blob/main/evidence/r10-v2-context-supplement.json",
       "bytes": 122011,
       "sha256": "9134827483a62ca3e73e799ebaebdbebc5cb92d4beb1976ee9d4c424070843a6"
+    },
+    {
+      "path": "evidence/r10-v2-compute-supplement.json",
+      "sha256": "b603262947247c4fe3be9aa5c82ef0ed4a740fa3e644c8d7f6fc7976d6e2189d",
+      "bytes": 10007,
+      "source": "https://github.com/DeepLinkNext/DeepLinkEngine/blob/main/evidence/r10-v2-compute-supplement.json"
     }
   ]
 }

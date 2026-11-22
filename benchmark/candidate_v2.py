@@ -1,5 +1,6 @@
 """Evaluate the frozen V2 criteria at the level supported by candidate archives."""
 
+from decimal import Decimal, localcontext
 from math import isclose
 
 from benchmark.full_report import (
@@ -311,7 +312,40 @@ def attach_context(indicators, observed, archive, fixed_b0):
     )
 
 
-def assess(archive, selection, fixed_b0, priority_source=None, original=None, context=None):
+def assess_compute(observed, archive, fixed_b0):
+    if (observed.get("schema") != "deeplinkengine-r10-v2-compute-projection/v1"
+            or observed["release"] != archive["release"]
+            or observed["baseline_id"] != archive["baseline_id"]
+            or observed["native_seals"]["B0"] != fixed_b0["compute"]["native_checksums_sha256"]
+            or observed["certificate_kind"] != "qualified_full_reference_denominator_reuse/v1"
+            or observed["profile"] != {"id": "submission-v2", "max_tokens": 256, "formal_repetitions": 3,
+                                       "ignore_eos": False, "requests_per_repetition": 200}):
+        raise ValueError("Native compute evidence differs from the frozen V2 candidate or baseline")
+    values = {}
+    for role in ROLES:
+        arm = observed["arms"][role]
+        runs = arm["repetitions"]
+        with localcontext() as precision:
+            precision.prec = 40
+            work = sum(run["F_interval"][0] for run in runs)
+            elapsed = sum(Decimal(run["T_seconds"]) for run in runs)
+            reference = Decimal(arm["reference_tflops_per_card_upper"])
+            value = 100 * (Decimal(work) / (2 * elapsed * 10**12)) / reference
+        if ([run["repetition"] for run in runs] != [1, 2, 3]
+                or any(run["native_source_seal_sha256"] != observed["native_seals"][role] for run in runs)
+                or value != Decimal(arm["efficiency_lower_percent"])):
+            raise ValueError(f"Native compute arithmetic or timing seal differs for {role}")
+        values[role] = value
+    return {
+        "available": "MMLU-Pro 固定 200 题、out256 三轮原生双卡计时、必要算量和已认证的同工况独立参考分母。",
+        "milestone": verdict(values["B1"] >= 50, "所选候选的有效算力效率下界须达到 50%。"),
+        "final": verdict(values["B1"] >= 90, "所选候选的有效算力效率下界须达到 90%。"),
+        "efficiency_lower_percent": {role: decimal_text(value) for role, value in values.items()},
+        "native": observed,
+    }
+
+
+def assess(archive, selection, fixed_b0, priority_source=None, original=None, context=None, compute=None):
     recovered = recover_priority_tracks(archive, priority_source) if priority_source is not None else {}
     quality, proof = grade_details(archive, recovered)
     if original is not None:
@@ -339,6 +373,8 @@ def assess(archive, selection, fixed_b0, priority_source=None, original=None, co
     }
     if context is not None:
         attach_context(indicators, context, archive, fixed_b0)
+    if compute is not None:
+        indicators["4.1"] = assess_compute(compute, archive, fixed_b0)
     for row in indicators.values():
         milestone, final = row["milestone"], row["final"]
         states = {milestone["status"], final["status"]}
