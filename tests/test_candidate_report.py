@@ -61,15 +61,18 @@ class CandidateReportTests(unittest.TestCase):
         self.assertEqual(len(receipt["workloads"]), 7)
         v2 = summary["submission_v2"]
         self.assertEqual(set(v2), {"4.1", "4.2", "4.3", "4.4"})
-        self.assertEqual(v2["4.2"]["evidence_scope"], "sealed_summary")
-        self.assertEqual(v2["4.2"]["raw_reaudit"]["status"], "missing_evidence")
-        self.assertTrue(v2["4.2"]["raw_missing"])
+        self.assertEqual(v2["4.2"]["evidence_scope"], "cpu_audited_originals")
+        self.assertTrue(v2["4.2"]["raw_reaudit"]["met"])
+        self.assertFalse(v2["4.2"]["raw_missing"])
+        self.assertIn("original_evidence_audit", receipt["assessment_sources"])
         for level in ("milestone", "final"):
             self.assertEqual(v2["4.2"][level]["status"], "met")
             self.assertIn("mmlu", v2["4.2"][level]["datasets"])
-            for indicator in ("4.1", "4.3", "4.4"):
+            for indicator in ("4.1", "4.3"):
                 self.assertEqual(v2[indicator][level]["status"], "missing_evidence")
                 self.assertIsNone(v2[indicator][level]["met"])
+        self.assertTrue(v2["4.4"]["milestone"]["met"])
+        self.assertIsNone(v2["4.4"]["final"]["met"])
         speed = v2["4.2"]["datasets"]
         self.assertEqual(speed["hle"]["milestone"]["status"], "met")
         self.assertEqual(speed["hle"]["final"]["status"], "not_met")
@@ -91,7 +94,8 @@ class CandidateReportTests(unittest.TestCase):
         self.assertEqual(mmlu["arms"]["B0"]["measurement_seal_sha256"],
                          summary["archived"]["measurements"]["mmlu"]["B0"]["source_seal_sha256"])
         self.assertAlmostEqual(mmlu["utilization"]["B0"]["mean_percent"], 33.2272, places=4)
-        self.assertIsNone(mmlu["utilization"]["B1"])
+        self.assertAlmostEqual(mmlu["utilization"]["B1"]["mean_percent"], 79.0069 if fixed else 79.8770, places=4)
+        self.assertAlmostEqual(float(mmlu["same_window_utilization_gain_pp"]), 45.7797 if fixed else 46.6498, places=4)
         self.assertAlmostEqual(float(cost["four_tenant"]["arms"]["B0"]["cost_per_million_output_tokens_cny"]), 11.2142, places=4)
         self.assertIsNone(cost["four_tenant"]["arms"]["B1"])
         self.assertEqual(summary["archived"], json.loads((ROOT / binding["path"]).read_bytes()))
@@ -106,7 +110,7 @@ class CandidateReportTests(unittest.TestCase):
         document = (out / "report.html").read_text(encoding="utf-8")
         self.assertIn("Terminal-Bench 2.1", document)
         self.assertIn("合成闭环 4K / C8", document)
-        self.assertIn("达成（封存汇总）", document)
+        self.assertIn("已按原件封存复算", document)
         self.assertIn("4.2 逐数据集门槛核验", document)
         self.assertIn("4.4 按公开租金折算", document)
         self.assertIn("缺同窗采样", document)
@@ -193,6 +197,14 @@ class CandidateReportTests(unittest.TestCase):
         evidence = json.loads((ROOT / candidate_report.FIXED_B0_V2).read_bytes())["mmlu"]
         meter = {**evidence["meter"], "window_seconds": "1"}
         self.assertIsNone(candidate_v2.matched_utilization(evidence, meter))
+
+    def test_original_evidence_cannot_cross_candidate_boundaries(self):
+        _, archive = candidate_report.load_archive("r10-contiguous-restore")
+        document = json.loads((ROOT / candidate_report.ORIGINAL_AUDIT).read_bytes())
+        original = document["candidates"]["r10-native-rms"]
+        _, proof = candidate_v2.grade_details(archive, {})
+        with self.assertRaisesRegex(ValueError, "another candidate"):
+            candidate_v2.validate_original(archive, original, proof)
 
     def test_changed_archived_bytes_are_rejected_before_output(self):
         record = release_selection.archived_candidate("r10-native-rms")

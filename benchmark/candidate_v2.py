@@ -1,5 +1,7 @@
 """Evaluate the frozen V2 criteria at the level supported by candidate archives."""
 
+from math import isclose
+
 from benchmark.full_report import (
     COUNTS, MMLU_UNIT_COST_REDUCTION_MIN, PERFORMANCE_LIMITS, QUALITY_TRACKS,
     cost_per_million, coverage, decimal_text, number, performance_clears, performance_ratios,
@@ -110,7 +112,35 @@ def grade_details(archive, recovered):
     return quality_gates(inputs), proof
 
 
-def assess_speed(archive, quality, proof):
+def validate_original(archive, original, proof):
+    if (original["release"], original["baseline_id"]) != (archive["release"], archive["baseline_id"]):
+        raise ValueError("r10 original audit belongs to another candidate or baseline")
+    for name in COUNTS:
+        for role, arm in ROLES.items():
+            expected = archive["measurements"][name][arm]
+            row = original["performance"][name][role]
+            if (row["seal_sha256"] != expected["source_seal_sha256"]
+                    or row["verified_files"] <= 0
+                    or any(row[field] != expected[field] for field in ("requests", "failed", "output_tokens"))
+                    or any(not isclose(row[field], expected[field], rel_tol=1e-8)
+                           for field in ("duration_seconds", "output_tokens_per_second", "mean_ttft_ms", "mean_tpot_ms"))):
+                raise ValueError(f"r10 original performance audit differs for {name} {role}")
+    for role, arm in ROLES.items():
+        row = original["mmlu"][role]
+        expected = archive["measurements"]["mmlu"][arm]
+        if (row["seal_sha256"] != expected["source_seal_sha256"]
+                or row["requests"] != expected["requests"] or row["correct"] != expected["correct"]):
+            raise ValueError(f"r10 MMLU-Pro answer tally differs for {role}")
+        for name in QUALITY_TRACKS:
+            audited = original["quality"][name][role]["tracks"]
+            expected_tracks = proof[name]["arms"].get(role, {})
+            if (set(audited) != set(expected_tracks)
+                    or any(audited[track] != {key: expected_tracks[track][key] for key in ("total", "correct", "unresolved")}
+                           for track in audited)):
+                raise ValueError(f"r10 original grades differ for {name} {role}")
+
+
+def assess_speed(archive, quality, proof, original=None):
     datasets = {}
     for name, count in COUNTS.items():
         arms = {role: archive["measurements"][name][arm] for role, arm in ROLES.items()}
@@ -160,6 +190,14 @@ def assess_speed(archive, quality, proof):
         }
     stage = {"evidence_scope": "sealed_summary", "datasets": datasets,
              "raw_reaudit": verdict(None, "独立逐请求复核需要以下原件。"), "raw_missing": list(RAW_FIXED_FIVE)}
+    if original is not None:
+        stage.update(
+            evidence_scope="cpu_audited_originals",
+            raw_reaudit=verdict(True, "已按原件封存复算两臂固定五项的吞吐和平均 TTFT/TPOT、MMLU-Pro 逐题答案统计，以及 HLE-Verified 和 FrontierScience 的逐题裁判统计。"),
+            raw_missing=[],
+            available="两臂固定五项逐请求记录、运行回执、封存清单和对应判分已完成 CPU 复核。",
+            original_evidence=original,
+        )
     for level in PERFORMANCE_LIMITS:
         winners = [name for name, row in datasets.items() if row[level]["met"] is True]
         if winners:
@@ -180,7 +218,7 @@ def matched_utilization(observation, meter):
     return None
 
 
-def assess_cost(archive, accelerator_count, speed, fixed_b0):
+def assess_cost(archive, accelerator_count, speed, fixed_b0, original=None):
     rental = published_rental()
     rate = rental["monthly_cost_per_card_cny"]
     arms = {}
@@ -196,14 +234,24 @@ def assess_cost(archive, accelerator_count, speed, fixed_b0):
     cost_met = savings >= MMLU_UNIT_COST_REDUCTION_MIN
     mmlu = speed["datasets"]["mmlu"]
     baseline_util = matched_utilization(fixed_b0["mmlu"], arms["B0"])
+    candidate_util = matched_utilization(original["mmlu"]["B1"], arms["B1"]) if original is not None else None
+    gain = (number(candidate_util["mean_percent"]) - number(baseline_util["mean_percent"])
+            if baseline_util is not None and candidate_util is not None else None)
     if not cost_met:
         milestone = verdict(False, "按公开租金折算的 MMLU-Pro 200 单位成本下降未达到门槛。")
     elif mmlu["quality"]["met"] is False:
         milestone = verdict(False, "MMLU-Pro 200 的质量门槛未达成。")
+    elif gain is not None and mmlu["quality"]["met"] is True and mmlu["completed_in_summary"]:
+        milestone = verdict(gain >= 10, "MMLU-Pro 200 完整回答满足质量和服务要求。按公开月租折算的单位成本下降≥10%，双卡 AI Core 均值须提高≥10个百分点。")
     else:
-        baseline_reason = ("固定 B0 已核对同封存、同窗的双卡利用率。"
-                           if baseline_util else "缺与本轮固定 B0 封存一致的同窗利用率。")
-        milestone = verdict(None, baseline_reason + "缺所选候选 MMLU-Pro 200 正式窗口的逐卡 AI Core 采样，无法核验提高≥10个百分点。")
+        gaps = []
+        if baseline_util is None:
+            gaps.append("缺固定 B0 同窗逐卡 AI Core 采样。")
+        if candidate_util is None:
+            gaps.append("缺所选候选同窗逐卡 AI Core 采样。")
+        if mmlu["quality"]["met"] is not True or not mmlu["completed_in_summary"]:
+            gaps.append("缺 MMLU-Pro 200 完整回答的质量或服务完成证据。")
+        milestone = verdict(None, "".join(gaps))
     tenant = fixed_b0["four_tenant"]
     tenant_meter = tenant["meter"]
     baseline_tenant_cost = cost_per_million({"B0": tenant_meter}, {"B0": rate})["B0"]
@@ -214,8 +262,8 @@ def assess_cost(archive, accelerator_count, speed, fixed_b0):
                      for role, arm in arms.items()},
             "unit_cost_reduction_percent": decimal_text(savings),
             "cost_gate": verdict(cost_met, f"按公开月租折算，单位成本下降≥{MMLU_UNIT_COST_REDUCTION_MIN}%。"),
-            "utilization": {"B0": baseline_util, "B1": None},
-            "same_window_utilization_gain_pp": None,
+            "utilization": {"B0": baseline_util, "B1": candidate_util},
+            "same_window_utilization_gain_pp": decimal_text(gain),
         },
         "four_tenant": {
             "arms": {"B0": {**tenant_meter, "cost_per_million_output_tokens_cny": decimal_text(baseline_tenant_cost)},
@@ -223,16 +271,20 @@ def assess_cost(archive, accelerator_count, speed, fixed_b0):
             "utilization": {"B0": matched_utilization(tenant, tenant_meter), "B1": None},
             "unit_cost_reduction_percent": None,
         },
-        "available": "MMLU-Pro 200 完整回答的两臂占卡耗时、输出量和公开租金。固定 B0 已有真实 4K 四租户计量。",
+        "available": ("MMLU-Pro 200 完整回答的两臂占卡耗时、输出量和公开租金。"
+                      + ("两臂同窗逐卡 AI Core 采样已复算。" if gain is not None else "")
+                      + "固定 B0 已有真实 4K 四租户计量。"),
         "milestone": milestone,
         "final": verdict(None, "缺所选候选在相同真实输入集上的 4K 四租户 C24 运行、逐租户回执和同窗双卡采样。"),
     }
 
 
-def assess(archive, selection, fixed_b0, priority_source=None):
+def assess(archive, selection, fixed_b0, priority_source=None, original=None):
     recovered = recover_priority_tracks(archive, priority_source) if priority_source is not None else {}
     quality, proof = grade_details(archive, recovered)
-    speed = assess_speed(archive, quality, proof)
+    if original is not None:
+        validate_original(archive, original, proof)
+    speed = assess_speed(archive, quality, proof, original)
     ctx = fixed_b0["context"]
     if fixed_b0.get("schema") != "deeplinkengine-fixed-b0-v2-projection/v1" or fixed_b0.get("baseline_id") != archive["baseline_id"]:
         raise ValueError("Fixed B0 V2 evidence does not match the archived baseline")
@@ -251,7 +303,7 @@ def assess(archive, selection, fixed_b0, priority_source=None):
             "milestone": verdict(None, "缺所选候选在相同真实输入集上的 4K、16K 配对原件、完整日志和同窗采样。"),
             "final": verdict(None, "缺所选候选的真实 32K 原件、五个 60 秒窗口的吞吐与尾时延，以及日志与采样覆盖。"),
         },
-        "4.4": assess_cost(archive, selection["accelerator_count"], speed, fixed_b0),
+        "4.4": assess_cost(archive, selection["accelerator_count"], speed, fixed_b0, original),
     }
     for row in indicators.values():
         milestone, final = row["milestone"], row["final"]

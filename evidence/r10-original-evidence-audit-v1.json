@@ -1,0 +1,549 @@
+{
+  "schema": "deeplinkengine-r10-original-evidence-audit/v1",
+  "candidates": {
+    "r10-native-rms": {
+      "release": "full-answer-b1-20261120-r10-native-rms",
+      "baseline_id": "original018-cann8.5.1",
+      "performance": {
+        "mmlu": {
+          "B0": {
+            "seal_sha256": "b879abd7204d5f719132000a54c87a066c11abf148fc0c056f7e33a7546d6659",
+            "verified_files": 834,
+            "requests": 200,
+            "failed": 0,
+            "duration_seconds": 1426.005969121994,
+            "output_tokens": 721900,
+            "mean_ttft_ms": 516926.28600326163,
+            "mean_tpot_ms": 40.32025335120394,
+            "output_tokens_per_second": 506.23911514513577
+          },
+          "B1": {
+            "seal_sha256": "9c565a7326bad807c0e98ea09543a39b9499bf50d977b524f07cd3f9ba5fcfa3",
+            "verified_files": 842,
+            "requests": 200,
+            "failed": 0,
+            "duration_seconds": 460.03570990401204,
+            "output_tokens": 685604,
+            "mean_ttft_ms": 153715.0881254555,
+            "mean_tpot_ms": 21.253410393408505,
+            "output_tokens_per_second": 1490.3277837780322
+          }
+        },
+        "hle": {
+          "B0": {
+            "seal_sha256": "252b06216894a9631a59649e781ca20862788ae07b583245944fdc4e75368079",
+            "verified_files": 841,
+            "requests": 200,
+            "failed": 0,
+            "duration_seconds": 3885.0061199310003,
+            "output_tokens": 2175297,
+            "mean_ttft_ms": 572.1570441743825,
+            "mean_tpot_ms": 27.48568454179799,
+            "output_tokens_per_second": 559.9211256940399
+          },
+          "B1": {
+            "seal_sha256": "5dd410592cee2143fc86d243faaead977fa1caffe87e64f945757295781fb97b",
+            "verified_files": 852,
+            "requests": 200,
+            "failed": 0,
+            "duration_seconds": 2093.543977776979,
+            "output_tokens": 2167871,
+            "mean_ttft_ms": 312.6065717350866,
+            "mean_tpot_ms": 15.539740323445244,
+            "output_tokens_per_second": 1035.5029667453869
+          }
+        },
+        "frontier": {
+          "B0": {
+            "seal_sha256": "c5907da1ff3d4bd769acc6f432d99f0e43fe9bbdf8e71693320dedc410c4aaec",
+            "verified_files": 754,
+            "requests": 160,
+            "failed": 0,
+            "duration_seconds": 3033.7339827370015,
+            "output_tokens": 1178893,
+            "mean_ttft_ms": 819.7433263350831,
+            "mean_tpot_ms": 38.92342869990322,
+            "output_tokens_per_second": 388.5947175026914
+          },
+          "B1": {
+            "seal_sha256": "3f7d15e1f35a217ab0980290f045bc64ee1410dd566d176f7d955f2a780e10e2",
+            "verified_files": 762,
+            "requests": 160,
+            "failed": 0,
+            "duration_seconds": 1272.4437632920162,
+            "output_tokens": 1286403,
+            "mean_ttft_ms": 285.4863130065496,
+            "mean_tpot_ms": 14.990636121175834,
+            "output_tokens_per_second": 1010.9704154404977
+          }
+        },
+        "swe": {
+          "B0": {
+            "seal_sha256": "8fc75c65e91244737b10514552cac0d3c971c9ca7f6b1dc8ed82ede548c8d9a7",
+            "verified_files": 625,
+            "requests": 64,
+            "failed": 0,
+            "duration_seconds": 160.57507177302614,
+            "output_tokens": 8170,
+            "mean_ttft_ms": 3122.073883968369,
+            "mean_tpot_ms": 121.89023352741987,
+            "output_tokens_per_second": 50.879628511381554
+          },
+          "B1": {
+            "seal_sha256": "e4762c100bdff8299ee0eb30d54cc2db82ecd416e91db28a0cec621e3c6abcb2",
+            "verified_files": 633,
+            "requests": 64,
+            "failed": 0,
+            "duration_seconds": 56.06129656700068,
+            "output_tokens": 6292,
+            "mean_ttft_ms": 1937.450647782498,
+            "mean_tpot_ms": 48.33164189589764,
+            "output_tokens_per_second": 112.23429327004997
+          }
+        },
+        "terminal": {
+          "B0": {
+            "seal_sha256": "f01b880eebe70b83dfe69daa739c85be3ebd855b3bd784731556268bec41bc47",
+            "verified_files": 577,
+            "requests": 48,
+            "failed": 0,
+            "duration_seconds": 175.097352857003,
+            "output_tokens": 13530,
+            "mean_ttft_ms": 3965.2407299230013,
+            "mean_tpot_ms": 81.76412729078463,
+            "output_tokens_per_second": 77.27129953272089
+          },
+          "B1": {
+            "seal_sha256": "ae6f78f82f73a21c6d49acff37287f060350bca31d217658e7d71b97ebf2cd0e",
+            "verified_files": 585,
+            "requests": 48,
+            "failed": 0,
+            "duration_seconds": 64.31211588002043,
+            "output_tokens": 15699,
+            "mean_ttft_ms": 2006.7149480006872,
+            "mean_tpot_ms": 30.182569971342108,
+            "output_tokens_per_second": 244.10641424529996
+          }
+        }
+      },
+      "mmlu": {
+        "B0": {
+          "seal_sha256": "b879abd7204d5f719132000a54c87a066c11abf148fc0c056f7e33a7546d6659",
+          "verified_files": 834,
+          "meter": {
+            "occupied_cards": 2,
+            "window_seconds": "1426.005969121994",
+            "successful_output_tokens": 721900,
+            "measurement_seal_sha256": "b879abd7204d5f719132000a54c87a066c11abf148fc0c056f7e33a7546d6659"
+          },
+          "requests": 200,
+          "correct": 139,
+          "utilization": {
+            "per_card_percent": {
+              "1": 33.00333538557099,
+              "6": 33.451083567727835
+            },
+            "mean_percent": 33.22720947664941,
+            "covered_seconds": 1426.005969121994,
+            "missing_seconds": 0.0,
+            "max_hold_age_seconds": 6.809675950964447,
+            "method": "Sampler clock midpoint; request interval clipped; left-hold, time weighted. A sample estimate, not continuous hardware truth."
+          }
+        },
+        "B1": {
+          "seal_sha256": "9c565a7326bad807c0e98ea09543a39b9499bf50d977b524f07cd3f9ba5fcfa3",
+          "verified_files": 842,
+          "meter": {
+            "occupied_cards": 2,
+            "window_seconds": "460.03570990401204",
+            "successful_output_tokens": 685604,
+            "measurement_seal_sha256": "9c565a7326bad807c0e98ea09543a39b9499bf50d977b524f07cd3f9ba5fcfa3"
+          },
+          "requests": 200,
+          "correct": 144,
+          "utilization": {
+            "per_card_percent": {
+              "1": 79.08612574749667,
+              "6": 78.92759707189487
+            },
+            "mean_percent": 79.00686140969577,
+            "covered_seconds": 460.03570990401204,
+            "missing_seconds": 0.0,
+            "max_hold_age_seconds": 6.701174180983799,
+            "method": "Sampler clock midpoint; request interval clipped; left-hold, time weighted. A sample estimate, not continuous hardware truth."
+          }
+        },
+        "plan_sha256": "59ec4e14d915d54a493cf6232bcc9c42867b9f105390ecdcdac6c979817c690a"
+      },
+      "quality": {
+        "hle": {
+          "B0": {
+            "grade": {
+              "seal_sha256": "fcf195043550e4d8dbd19141bf4568699b2ea2b2e414537bae58764763966ad2",
+              "verified_files": 3
+            },
+            "judge": {
+              "seal_sha256": "3aeb64083a2303654301e3c0e05fd5796f8e913633195e36f0bf9853503482ad",
+              "verified_files": 844
+            },
+            "tracks": {
+              "gold": {
+                "total": 74,
+                "correct": 18,
+                "unresolved": 0
+              },
+              "revision": {
+                "total": 126,
+                "correct": 40,
+                "unresolved": 1
+              }
+            }
+          },
+          "B1": {
+            "grade": {
+              "seal_sha256": "d93184221e1ae99397dcdc351c5b4535f14715b8178f4e75c94952eb624a183b",
+              "verified_files": 3
+            },
+            "judge": {
+              "seal_sha256": "d21fb5a8c28d77f68e291761542ad72ed7a6ddeef7a6ed3591be9a50bc457c62",
+              "verified_files": 844
+            },
+            "tracks": {
+              "gold": {
+                "total": 74,
+                "correct": 24,
+                "unresolved": 0
+              },
+              "revision": {
+                "total": 126,
+                "correct": 41,
+                "unresolved": 0
+              }
+            }
+          }
+        },
+        "frontier": {
+          "B0": {
+            "grade": {
+              "seal_sha256": "a0f1a0f3291747057c2b0bd7514fc20553f2277c8774c4d139e4c8dc39493981",
+              "verified_files": 2
+            },
+            "judge": {
+              "seal_sha256": "93e6a57a2562f8c5e2ba369015bce8a52a6b1921e0e82c9210a2d6a92c340f07",
+              "verified_files": 762
+            },
+            "tracks": {
+              "olympiad": {
+                "total": 100,
+                "correct": 64,
+                "unresolved": 6
+              },
+              "research": {
+                "total": 60,
+                "correct": 3,
+                "unresolved": 4
+              }
+            }
+          },
+          "B1": {
+            "grade": {
+              "seal_sha256": "c3ab3e03c12e0c7291ab99acd0ee40c4bd3084f3131f736f8cf1f8d2521520e2",
+              "verified_files": 2
+            },
+            "judge": {
+              "seal_sha256": "c6d60f20e2eb3e391a154c0a422481e3cdb62ef8319c13b43cdeaadd3ccef4e5",
+              "verified_files": 762
+            },
+            "tracks": {
+              "olympiad": {
+                "total": 100,
+                "correct": 63,
+                "unresolved": 0
+              },
+              "research": {
+                "total": 60,
+                "correct": 3,
+                "unresolved": 2
+              }
+            }
+          }
+        }
+      }
+    },
+    "r10-contiguous-restore": {
+      "release": "full-answer-b1-20261121-r10-contiguous-restore",
+      "baseline_id": "original018-cann8.5.1",
+      "performance": {
+        "mmlu": {
+          "B0": {
+            "seal_sha256": "b879abd7204d5f719132000a54c87a066c11abf148fc0c056f7e33a7546d6659",
+            "verified_files": 834,
+            "requests": 200,
+            "failed": 0,
+            "duration_seconds": 1426.005969121994,
+            "output_tokens": 721900,
+            "mean_ttft_ms": 516926.28600326163,
+            "mean_tpot_ms": 40.32025335120394,
+            "output_tokens_per_second": 506.23911514513577
+          },
+          "B1": {
+            "seal_sha256": "c97010629eaec7b94e82c9f77ded8ecf0a0b160fc405ffb3ae8462f8ab47c090",
+            "verified_files": 842,
+            "requests": 200,
+            "failed": 0,
+            "duration_seconds": 471.2588938009867,
+            "output_tokens": 701887,
+            "mean_ttft_ms": 161355.7982005809,
+            "mean_tpot_ms": 21.124585370201657,
+            "output_tokens_per_second": 1489.3872757262125
+          }
+        },
+        "hle": {
+          "B0": {
+            "seal_sha256": "252b06216894a9631a59649e781ca20862788ae07b583245944fdc4e75368079",
+            "verified_files": 841,
+            "requests": 200,
+            "failed": 0,
+            "duration_seconds": 3885.0061199310003,
+            "output_tokens": 2175297,
+            "mean_ttft_ms": 572.1570441743825,
+            "mean_tpot_ms": 27.48568454179799,
+            "output_tokens_per_second": 559.9211256940399
+          },
+          "B1": {
+            "seal_sha256": "7a020316da6b83b1954100aaf21bcdbfce7772d49b3b2e6236b6bc79c8d58f94",
+            "verified_files": 852,
+            "requests": 200,
+            "failed": 0,
+            "duration_seconds": 2126.5310153249884,
+            "output_tokens": 2220996,
+            "mean_ttft_ms": 294.5861310295004,
+            "mean_tpot_ms": 15.361892784395344,
+            "output_tokens_per_second": 1044.422105294606
+          }
+        },
+        "frontier": {
+          "B0": {
+            "seal_sha256": "c5907da1ff3d4bd769acc6f432d99f0e43fe9bbdf8e71693320dedc410c4aaec",
+            "verified_files": 754,
+            "requests": 160,
+            "failed": 0,
+            "duration_seconds": 3033.7339827370015,
+            "output_tokens": 1178893,
+            "mean_ttft_ms": 819.7433263350831,
+            "mean_tpot_ms": 38.92342869990322,
+            "output_tokens_per_second": 388.5947175026914
+          },
+          "B1": {
+            "seal_sha256": "f894958bc04305cbc209d2358c25e70a46bcd2b5df3ef0570a7e8aa823b73d42",
+            "verified_files": 762,
+            "requests": 160,
+            "failed": 0,
+            "duration_seconds": 1187.660238201992,
+            "output_tokens": 1183147,
+            "mean_ttft_ms": 267.6376872048422,
+            "mean_tpot_ms": 15.055089032100037,
+            "output_tokens_per_second": 996.199891133154
+          }
+        },
+        "swe": {
+          "B0": {
+            "seal_sha256": "8fc75c65e91244737b10514552cac0d3c971c9ca7f6b1dc8ed82ede548c8d9a7",
+            "verified_files": 625,
+            "requests": 64,
+            "failed": 0,
+            "duration_seconds": 160.57507177302614,
+            "output_tokens": 8170,
+            "mean_ttft_ms": 3122.073883968369,
+            "mean_tpot_ms": 121.89023352741987,
+            "output_tokens_per_second": 50.879628511381554
+          },
+          "B1": {
+            "seal_sha256": "907c0379e60b986496e16dd9324da08adb6d7e595001e99374c2101bc65888c4",
+            "verified_files": 633,
+            "requests": 64,
+            "failed": 0,
+            "duration_seconds": 53.49862555300933,
+            "output_tokens": 6267,
+            "mean_ttft_ms": 1752.0940523595527,
+            "mean_tpot_ms": 44.52969997025118,
+            "output_tokens_per_second": 117.14319639464975
+          }
+        },
+        "terminal": {
+          "B0": {
+            "seal_sha256": "f01b880eebe70b83dfe69daa739c85be3ebd855b3bd784731556268bec41bc47",
+            "verified_files": 577,
+            "requests": 48,
+            "failed": 0,
+            "duration_seconds": 175.097352857003,
+            "output_tokens": 13530,
+            "mean_ttft_ms": 3965.2407299230013,
+            "mean_tpot_ms": 81.76412729078463,
+            "output_tokens_per_second": 77.27129953272089
+          },
+          "B1": {
+            "seal_sha256": "609e639c633f4e723aac1746a1e86b058484bc4b91faf9121ad51233ff192219",
+            "verified_files": 585,
+            "requests": 48,
+            "failed": 0,
+            "duration_seconds": 52.30335592001211,
+            "output_tokens": 12825,
+            "mean_ttft_ms": 1736.921162584622,
+            "mean_tpot_ms": 30.42566924218376,
+            "output_tokens_per_second": 245.20415132851824
+          }
+        }
+      },
+      "mmlu": {
+        "B0": {
+          "seal_sha256": "b879abd7204d5f719132000a54c87a066c11abf148fc0c056f7e33a7546d6659",
+          "verified_files": 834,
+          "meter": {
+            "occupied_cards": 2,
+            "window_seconds": "1426.005969121994",
+            "successful_output_tokens": 721900,
+            "measurement_seal_sha256": "b879abd7204d5f719132000a54c87a066c11abf148fc0c056f7e33a7546d6659"
+          },
+          "requests": 200,
+          "correct": 139,
+          "utilization": {
+            "per_card_percent": {
+              "1": 33.00333538557099,
+              "6": 33.451083567727835
+            },
+            "mean_percent": 33.22720947664941,
+            "covered_seconds": 1426.005969121994,
+            "missing_seconds": 0.0,
+            "max_hold_age_seconds": 6.809675950964447,
+            "method": "Sampler clock midpoint; request interval clipped; left-hold, time weighted. A sample estimate, not continuous hardware truth."
+          }
+        },
+        "B1": {
+          "seal_sha256": "c97010629eaec7b94e82c9f77ded8ecf0a0b160fc405ffb3ae8462f8ab47c090",
+          "verified_files": 842,
+          "meter": {
+            "occupied_cards": 2,
+            "window_seconds": "471.2588938009867",
+            "successful_output_tokens": 701887,
+            "measurement_seal_sha256": "c97010629eaec7b94e82c9f77ded8ecf0a0b160fc405ffb3ae8462f8ab47c090"
+          },
+          "requests": 200,
+          "correct": 134,
+          "utilization": {
+            "per_card_percent": {
+              "1": 79.7039674018295,
+              "6": 80.04998944656491
+            },
+            "mean_percent": 79.8769784241972,
+            "covered_seconds": 471.2588938009867,
+            "missing_seconds": 0.0,
+            "max_hold_age_seconds": 6.691904125997098,
+            "method": "Sampler clock midpoint; request interval clipped; left-hold, time weighted. A sample estimate, not continuous hardware truth."
+          }
+        },
+        "plan_sha256": "7e89002651c91013d9cc47f981f9bafc1104fe00b2732213fe4e8cc53d64f583"
+      },
+      "quality": {
+        "hle": {
+          "B0": {
+            "grade": {
+              "seal_sha256": "3ce2c8a0fa03046ec750a2ac1ec407c601e3492277e9a7367bb3236d1a224fb6",
+              "verified_files": 3
+            },
+            "judge": {
+              "seal_sha256": "77c1673362e76ad41c0a246b5e1aaf687affb2cc1887408dd2dde3e98af8c6f3",
+              "verified_files": 844
+            },
+            "tracks": {
+              "gold": {
+                "total": 74,
+                "correct": 18,
+                "unresolved": 0
+              },
+              "revision": {
+                "total": 126,
+                "correct": 39,
+                "unresolved": 1
+              }
+            }
+          },
+          "B1": {
+            "grade": {
+              "seal_sha256": "bd999fb97d76a86db3cecce36e15849e7678de536fab543aa0316204ce10d89a",
+              "verified_files": 3
+            },
+            "judge": {
+              "seal_sha256": "1847d43ce99b13f0ba5292ec98d669f5afb26112d926d5f32b0f652ac8c6ba02",
+              "verified_files": 844
+            },
+            "tracks": {
+              "gold": {
+                "total": 74,
+                "correct": 23,
+                "unresolved": 2
+              },
+              "revision": {
+                "total": 126,
+                "correct": 38,
+                "unresolved": 4
+              }
+            }
+          }
+        },
+        "frontier": {
+          "B0": {
+            "grade": {
+              "seal_sha256": "dc1a792e9d9e6e9a10ece864e41f8dc93f5065dedac01c425f7e54e73eed0fd0",
+              "verified_files": 2
+            },
+            "judge": {
+              "seal_sha256": "b173ac47ea60ce3638fed9a60ed049dddaa9650ee52e8a5b99281ab4947163c3",
+              "verified_files": 762
+            },
+            "tracks": {
+              "olympiad": {
+                "total": 100,
+                "correct": 64,
+                "unresolved": 5
+              },
+              "research": {
+                "total": 60,
+                "correct": 3,
+                "unresolved": 5
+              }
+            }
+          },
+          "B1": {
+            "grade": {
+              "seal_sha256": "844eb05f094ce64008b5e07b5622507011f07809a4e10a2407230396dfb0ec82",
+              "verified_files": 2
+            },
+            "judge": {
+              "seal_sha256": "ec4c5cbd244148f08272b0d285d5b6336f648194d118069d5f6dcc507781d41b",
+              "verified_files": 762
+            },
+            "tracks": {
+              "olympiad": {
+                "total": 100,
+                "correct": 58,
+                "unresolved": 2
+              },
+              "research": {
+                "total": 60,
+                "correct": 6,
+                "unresolved": 2
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "archive_inputs": {
+    "r10-native-rms-priority-20261121.tar.gz": "0e0026a361ba15e7ec9700add8bec0736c8372211b9115e7b627b51a9aad35dc",
+    "r10-native-rms-fixed-five-20261121.tar.gz": "ae2b79c1ae8651b71db4dce652c6c683fc45713c9409005de1cabb7c9d1cc56b",
+    "r10-contiguous-restore-fixed-five-20261121.tar.gz": "bef1aebd4650215eab28aa76cf05c6f156fe1e0f80788d730f6c12d9fc44e75a"
+  },
+  "unique_original_files_verified": 17423
+}
