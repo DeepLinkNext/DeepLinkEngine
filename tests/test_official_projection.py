@@ -142,7 +142,7 @@ class PublicProjectionTests(unittest.TestCase):
     def test_cpu_plot_failure_and_timeout_cannot_leave_a_completed_projection(self):
         sys.path.insert(0,str(ROOT))
         self.addCleanup(lambda:sys.path.remove(str(ROOT)))
-        spec=importlib.util.spec_from_file_location('projection_failure_checks',ROOT/'official_projection.py')
+        spec=importlib.util.spec_from_file_location('projection_failure_checks',ROOT / 'official/official_projection.py')
         module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
         for index,outcome in enumerate((subprocess.CompletedProcess([],1,'','fixture failure'),subprocess.TimeoutExpired('fixture plot',300))):
             self.config.update(plots=True,out='failed-plot-'+str(index));config=self.root/'projection.json';config.write_bytes(raw(self.config))
@@ -160,7 +160,7 @@ class PublicProjectionTests(unittest.TestCase):
 
     def test_healthy_current_renderer_does_not_install_dependencies(self):
         sys.path.insert(0,str(ROOT));self.addCleanup(lambda:sys.path.remove(str(ROOT)))
-        spec=importlib.util.spec_from_file_location('current_renderer_checks',ROOT/'official_projection.py')
+        spec=importlib.util.spec_from_file_location('current_renderer_checks',ROOT / 'official/official_projection.py')
         module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
         ready=json.dumps({'python':sys.executable,'matplotlib':'3.10.8'})
         record={}
@@ -171,7 +171,7 @@ class PublicProjectionTests(unittest.TestCase):
 
     def test_pinned_environment_install_failure_and_timeout_are_recorded(self):
         sys.path.insert(0,str(ROOT));self.addCleanup(lambda:sys.path.remove(str(ROOT)))
-        spec=importlib.util.spec_from_file_location('repair_failure_checks',ROOT/'official_projection.py')
+        spec=importlib.util.spec_from_file_location('repair_failure_checks',ROOT / 'official/official_projection.py')
         module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
         for index,timeout in enumerate((False,True)):
             cache=self.root/('repair-cache-'+str(index));record={}
@@ -190,7 +190,7 @@ class PublicProjectionTests(unittest.TestCase):
 
     def test_existing_one_click_report_environment_is_reused(self):
         sys.path.insert(0,str(ROOT));self.addCleanup(lambda:sys.path.remove(str(ROOT)))
-        spec=importlib.util.spec_from_file_location('existing_report_renderer_checks',ROOT/'official_projection.py')
+        spec=importlib.util.spec_from_file_location('existing_report_renderer_checks',ROOT / 'official/official_projection.py')
         module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
         existing=self.root/'existing-python';existing.write_bytes(b'fixture executable')
         responses=[subprocess.CompletedProcess([],1,'','Missing matplotlib'),subprocess.CompletedProcess([],0,json.dumps({'python':str(existing),'matplotlib':'3.10.8'}),'')]

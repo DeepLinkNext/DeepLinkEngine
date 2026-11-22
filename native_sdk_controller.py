@@ -7,6 +7,9 @@ import platform
 import subprocess
 import sys
 
+from official import enable_module_imports
+
+enable_module_imports()
 ROOT = Path(__file__).resolve().parent
 ENV = 'DEEPLINKENGINE_NATIVE_CONTROLLER'
 CAPABILITY = """import ctypes,json,os

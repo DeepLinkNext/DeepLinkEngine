@@ -12,11 +12,12 @@ import time
 import urllib.error
 import urllib.request
 
+from official import source_path, worker_pythonpath
 from official_baselines import save
 from official_image import digest, environment
 from official_runtime_identity import runtime_identity
 
-ROOT = Path(__file__).resolve().parent
+ROOT = Path(__file__).resolve().parents[1]
 TOOLS = ROOT / 'benchmark/one-click-kit'
 PHASES = ('continuous', 'mmlu', 'frontier', 'hle', 'swe', 'terminal', 'frontier-judge', 'hle-judge', 'context', 'native-timing', 'necessary-work')
 
@@ -110,7 +111,7 @@ def source_bindings(tools, sdk):
 
 
 def run_client(config, plan, phase, leases, *, timeout):
-    command = [config['protocol_python'], '-B', str(ROOT / 'official_http.py'), '--config',
+    command = [config['protocol_python'], '-B', str(ROOT / 'official/official_http.py'), '--config',
                str(plan), '--phase', phase]
     with (plan.parent / (phase + '.log')).open('xb') as log:
         process = subprocess.Popen(command, env=clean_client_environment(), stdout=log,
@@ -166,7 +167,7 @@ def derive_metrics(config, service_plan):
     plan = Path(service_plan)
     root = plan.parent.parent
     execution_seal = (root / 'checksums.json').read_bytes()
-    result = subprocess.run([config['protocol_python'], '-B', str(ROOT / 'official_http.py'),
+    result = subprocess.run([config['protocol_python'], '-B', str(ROOT / 'official/official_http.py'),
                              '--config', str(plan), '--phase', 'metrics'],
                             env=clean_client_environment(), capture_output=True, text=True, timeout=600)
     (root / 'execution-checksums.json').write_bytes(execution_seal)
@@ -208,10 +209,10 @@ def phase(config, image, phase_name, output, tools, sdk, sources, leases, contin
                 scorer=str(sdk / 'scorers/mmlu_pro_pyramidkv.py'),
                 serve_arguments=public_arguments(kind), engine_release=lock['id'],
                 original_baseline_018_relabelled=False, necessary_work_certified=False, runtime_identity=runtime)
-    plan['worker_sources'][str(ROOT / 'official_worker.py')] = sources[str(ROOT / 'official_worker.py')]
-    plan['worker_sources'][str(ROOT / 'official_kernel_preparation.py')] = sources[str(ROOT / 'official_kernel_preparation.py')]
+    plan['worker_sources'][str(ROOT / 'official/official_worker.py')] = sources[str(ROOT / 'official/official_worker.py')]
+    plan['worker_sources'][str(ROOT / 'official/official_kernel_preparation.py')] = sources[str(ROOT / 'official/official_kernel_preparation.py')]
     plan['worker_sources'][str(ROOT / 'service_logging.py')] = sources[str(ROOT / 'service_logging.py')]
-    plan['worker_sources'][str(ROOT / 'official_runtime_identity.py')] = sources[str(ROOT / 'official_runtime_identity.py')]
+    plan['worker_sources'][str(ROOT / 'official/official_runtime_identity.py')] = sources[str(ROOT / 'official/official_runtime_identity.py')]
     inventory = tools / 'third-party-test-kit/proc_capture/m01_model_inventory.py'
     plan['worker_sources'][str(inventory)] = sources[str(inventory)]
     if kind == 'dataset':
@@ -231,7 +232,7 @@ def phase(config, image, phase_name, output, tools, sdk, sources, leases, contin
     python, env = environment(image, cache, devices='0,1')
     env.update(TRITON_CACHE_DIR=str(kernel_cache(config, image)), VLLMHUST_OFFICIAL_SDK=str(image))
     env['VLLMHUST_OFFICIAL_INVENTORY'] = json.dumps(dict(path=str(inventory), sha256=sources[str(inventory)]))
-    env.update(PYTHONPATH=str(ROOT) + ':' + str(tools / 'scripts') + ':' + env['PYTHONPATH'],
+    env.update(PYTHONPATH=worker_pythonpath(ROOT, tools / 'scripts', env['PYTHONPATH']),
                VLLM_HUST_TEST_OUTPUT=str(service), VLLM_HUST_PHYSICAL_DEVICES=','.join(map(str, config['physical_devices'])),
                VLLMHUST_ENGINE_LOCKS=json.dumps(leases), VLLM_SERVER_DEV_MODE='1')
     from engine_entry import ipc_directory, temporary_directory
@@ -253,7 +254,7 @@ def phase(config, image, phase_name, output, tools, sdk, sources, leases, contin
     try:
         from official_endpoint import available
         available()
-        command = [str(python), '-S', str(ROOT / 'official_serve.py'), str(service / 'plan.json')]
+        command = [str(python), '-S', str(ROOT / 'official/official_serve.py'), str(service / 'plan.json')]
         with (output / 'service.log').open('xb') as log:
             server = subprocess.Popen(command, env=env, stdout=log, stderr=subprocess.STDOUT,
                                       pass_fds=tuple(v['fd'] for v in leases), start_new_session=True)
@@ -330,12 +331,15 @@ def run(config, image, output):
     physical = ','.join(map(str, config['physical_devices']))
     os.environ['VLLM_HUST_PHYSICAL_DEVICES'] = physical
     mapping = verify_mapping('0,1')
-    sources.update({str(ROOT / name): digest(ROOT / name) for name in
-                    ('official_suite.py', 'official_http.py', 'official_serve.py', 'official_worker.py',
-                     'official_judge.py', 'official_native.py', 'official_native_entry.py', 'official_report.py', 'official_plots.py',
-                     'official_kernel_preparation.py', 'official_endpoint.py', 'official_reuse.py', 'official_runtime_identity.py',
-                     'service_logging.py', 'logging_entry.py', 'engine/service.py')})
-    sources.update({str(p): digest(p) for p in ROOT.glob('official_ft*.py')})
+    controller_sources = ('official_suite.py', 'official_http.py', 'official_serve.py', 'official_worker.py',
+                          'official_judge.py', 'official_native.py', 'official_native_entry.py', 'official_report.py',
+                          'official_plots.py', 'official_kernel_preparation.py', 'official_endpoint.py', 'official_reuse.py',
+                          'official_runtime_identity.py', 'official/__init__.py', 'service_logging.py', 'logging_entry.py',
+                          'engine/service.py')
+    for name in controller_sources:
+        path = source_path(ROOT, name)
+        sources[str(path)] = digest(path)
+    sources.update({str(p): digest(p) for p in (ROOT / 'official').glob('official_ft*.py')})
     sources.update({str(p): digest(p) for p in (ROOT / 'deeplinkengine_official_ft-1.0.dist-info').iterdir()})
     frozen = dict(schema='deeplinkengine-official-full-suite/v1', baseline_image=json.loads((image / 'image-lock.json').read_bytes()),
                   status='preparing', prepared_before_model_start=True, started=time.time(),
@@ -380,7 +384,7 @@ def run(config, image, output):
                     context_output=str(output / 'context-inputs'))
         save(preparation / 'plan.json', plan)
         with (preparation / 'prepare-context.log').open('xb') as stream:
-            result = subprocess.run([config['protocol_python'], '-B', str(ROOT / 'official_http.py'),
+            result = subprocess.run([config['protocol_python'], '-B', str(ROOT / 'official/official_http.py'),
                                      '--config', str(preparation / 'plan.json'), '--phase', 'prepare-context'],
                                     env=clean_client_environment(), stdout=stream, stderr=subprocess.STDOUT, timeout=1800)
         if result.returncode:

@@ -10,6 +10,9 @@ from unittest.mock import patch
 import zipfile
 
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
+from official import enable_module_imports
+
+enable_module_imports()
 import official_source_build_graph as graph
 import official_build_assets as assets
 import official_source_candidate as candidate

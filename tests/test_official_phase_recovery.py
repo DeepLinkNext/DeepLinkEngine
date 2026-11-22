@@ -8,6 +8,9 @@ import unittest
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from official import enable_module_imports
+
+enable_module_imports()
 from official_endpoint import available
 from official_reuse import admit, sha
 
@@ -27,7 +30,9 @@ class PhaseRecovery(unittest.TestCase):
         for p in (self.old, self.current):
             p.mkdir()
             (p / 'client.py').write_text('unchanged client')
-            (p / 'official_suite.py').write_text('previous controller' if p == self.old else 'reviewed controller')
+        (self.old / 'official_suite.py').write_text('previous controller')
+        (self.current / 'official').mkdir()
+        (self.current / 'official/official_suite.py').write_text('reviewed controller')
         self.previous = self.root / 'previous'
         self.source = self.previous / 'continuous'
         (self.source / 'service').mkdir(parents=True)
@@ -40,7 +45,7 @@ class PhaseRecovery(unittest.TestCase):
         self.weights = {'shard': dict(bytes=3, sha256='checkpoint', inode=42, mtime_ns=123)}
         self.arguments = ['--port', '18390']
         self.old_sources = {str(p.resolve()): sha(p) for p in self.old.iterdir()}
-        self.sources = {str(p.resolve()): sha(p) for p in self.current.iterdir()}
+        self.sources = {str(p.resolve()): sha(p) for p in self.current.rglob('*') if p.is_file()}
         self.dump(self.source / 'receipt.json', dict(completed=True, quiescent=True, model_ready=True,
                   client_started=True, baseline_id=self.lock['id'], phase='continuous', cleanup_actions=[]))
         self.dump(self.source / 'service/plan.json', dict(model=self.config['model'],
@@ -63,7 +68,7 @@ class PhaseRecovery(unittest.TestCase):
         self.dump(self.previous / 'campaign.json', self.campaign)
         seal(self.previous)
         self.review = patch('official_reuse.REVIEWED_CONTROLLERS', {'official_suite.py': {
-            sha(self.old / 'official_suite.py'): sha(self.current / 'official_suite.py')}})
+            sha(self.old / 'official_suite.py'): sha(self.current / 'official/official_suite.py')}})
         self.review.start()
         self.addCleanup(self.review.stop)
 
@@ -89,6 +94,24 @@ class PhaseRecovery(unittest.TestCase):
         (self.source / 'service/service-0-lane0.json').write_text('{}')
         with self.assertRaises(ValueError):
             self.run_admission()
+
+    def test_missing_old_path_can_resolve_only_identical_relocated_source(self):
+        path = self.old / 'official_worker.py'
+        path.write_text('unchanged worker')
+        pin = sha(path)
+        self.campaign['sources'][str(path)] = pin
+        self.dump(self.previous / 'campaign.json', self.campaign)
+        seal(self.previous)
+        (self.old / 'official').mkdir()
+        relocated = path.rename(self.old / 'official/official_worker.py')
+        active = self.current / 'official/official_worker.py'
+        active.write_bytes(relocated.read_bytes())
+        self.sources[str(active)] = pin
+        relocated.write_text('altered worker')
+        with self.assertRaisesRegex(ValueError, 'Original completed source changed'):
+            self.run_admission()
+        relocated.write_bytes(active.read_bytes())
+        self.assertFalse(self.run_admission()['inference_repeated'])
 
     def test_resealed_missing_response_still_rejected(self):
         (self.source / 'service/service-3-lane0.json').unlink()

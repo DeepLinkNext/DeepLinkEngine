@@ -325,7 +325,7 @@ def prefetch_all(config,arguments):
     root=execution.verify_root(root_folder);python,env=environment(base,cache/'source-build-downloads/prefetch-runtime');env['ASCEND_RT_VISIBLE_DEVICES']='';configure(cache,base,env=env)
     identity=execution.context_identity()
     if not identity or not identity.get('source_build_system_root'):
-        request=execution.request_for([str(python),'-B',str(Path(__file__).parent/'run_all.py'),'--official-baselines',*arguments],root,env=env,extra_paths=(cache,Path(config['out']).parent,base,Path(__file__).parent))
+        request=execution.request_for([str(python),'-B',str(Path(__file__).resolve().parents[1]/'run_all.py'),'--official-baselines',*arguments],root,env=env,extra_paths=(cache,Path(config['out']).parent,base,Path(__file__).resolve().parents[1]))
         execution.execute_request(request);raise AssertionError('Build prefetch exec returned')
     out=Path(config['out']);out.mkdir(parents=True,exist_ok=False);record=dict(schema='deeplinkengine-source-build-closure-prefetch/v1',status='running',started=time.time(),model_execution_authorized=False,sdk_installation_performed=False,temporary_metadata_build_environments_possible=True,stages=[])
     try:

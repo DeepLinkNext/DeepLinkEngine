@@ -11,6 +11,9 @@ from unittest.mock import patch
 from types import SimpleNamespace
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] if Path(__file__).parent.name == 'tests' else Path(__file__).resolve().parent))
+from official import enable_module_imports
+
+enable_module_imports()
 import official_source_candidate as candidate
 import official_baselines as public_entry
 import official_storage
@@ -48,7 +51,7 @@ class CandidateTests(unittest.TestCase):
             item=dict(candidate.TORCH_BUILD_WHEEL,bytes=wheel.stat().st_size,sha256=hashlib.sha256(wheel.read_bytes()).hexdigest())
             (root/'engine/r8-lock.json').write_text(json.dumps(dict(environment_sources=dict(torch=item))))
             constraint=build/'01-core-metadata-root-constraints.txt'
-            with patch.object(candidate,'__file__',str(root/'controller.py')),patch.object(candidate,'TORCH_BUILD_WHEEL',item), \
+            with patch.object(candidate,'ROOT',root),patch.object(candidate,'TORCH_BUILD_WHEEL',item), \
                  patch.object(official_build_assets,'fetch',return_value=(wheel,dict(cpu_fixture=True))) as fetch:
                 path,proof=candidate.primary_build_constraint(Path(sys.executable),core,root/'cache',build,{},sdk=root/'sdk')
                 self.assertEqual(path,constraint);self.assertIn('torch @ '+wheel.as_uri(),path.read_text())
@@ -94,7 +97,7 @@ class CandidateTests(unittest.TestCase):
         self.addCleanup(storage.stop)
         # The local overlay need not copy the complete repository just for
         # controller fixtures. In CI this is the ordinary checkout root.
-        source = patch.object(public_entry, 'ROOT', Path(official_storage.__file__).parent)
+        source = patch.object(public_entry, 'ROOT', Path(official_storage.__file__).resolve().parents[1])
         source.start()
         self.addCleanup(source.stop)
         context = patch('official_execution.maybe_enter_official', return_value=None)

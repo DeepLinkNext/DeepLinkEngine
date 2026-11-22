@@ -8,7 +8,7 @@ import time
 
 from official_baselines import save
 from official_ft_audit import Evidence, sha
-ROOT = Path(__file__).resolve().parent
+ROOT = Path(__file__).resolve().parents[1]
 TOOLS = ROOT / 'benchmark/one-click-kit'
 
 
@@ -239,7 +239,7 @@ def continue_closed(config, original, expected_seal, *, companion_source=None, c
                 source_execution=campaigndata(campaign), sdk_and_model_admission_performed=False,
                 native_timing_repeated=False, dataset_solvers_repeated=False, companion_repeated=False,
                 new_F_T_qualification=False, necessary_work_certified=False, F_interval=None,
-                cpu_and_companion_source_sha256={p.name: sha(p) for p in ROOT.glob('official*.py')},
+                cpu_and_companion_source_sha256={p.name: sha(p) for p in (ROOT / 'official').glob('official*.py')},
                 independent_third_party=False, ended=time.time())
             finish(out, 'continuation.json', record)
             raise
@@ -274,7 +274,7 @@ def continue_closed(config, original, expected_seal, *, companion_source=None, c
     weights = source.read('model-weights.json')
     sdk = Path(config['protocol_deployment'])
     sources = source_bindings(TOOLS, sdk)
-    sources.update({str(p): sha(p) for p in ROOT.glob('official*.py')})
+    sources.update({str(p): sha(p) for p in (ROOT / 'official').glob('official*.py')})
     sources.update({str(p): sha(p) for p in (ROOT / 'deeplinkengine_official_ft-1.0.dist-info').iterdir()})
     os.environ['VLLM_HUST_PHYSICAL_DEVICES'] = ','.join(map(str, config['physical_devices']))
     current_mapping = verify_mapping('0,1')
@@ -282,7 +282,7 @@ def continue_closed(config, original, expected_seal, *, companion_source=None, c
         status='running', started=time.time(), original=str(original),
         original_version_seal_sha256=expected_seal, original_campaign_status=campaign['status'],
         original_results_modified=False, source_execution=campaigndata(campaign),
-        cpu_and_companion_source_sha256={p.name: sha(p) for p in ROOT.glob('official*.py')},
+        cpu_and_companion_source_sha256={p.name: sha(p) for p in (ROOT / 'official').glob('official*.py')},
         companion_physical_mapping=current_mapping, native_timing_repeated=False,
         dataset_solvers_repeated=False, independent_third_party=False,
         official_sdk_admission=admission)

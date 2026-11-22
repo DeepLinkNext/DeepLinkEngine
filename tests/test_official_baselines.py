@@ -3,6 +3,7 @@ import io
 import json
 import os
 from pathlib import Path
+import subprocess
 import sys
 import tarfile
 import tempfile
@@ -10,6 +11,9 @@ import unittest
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from official import enable_module_imports, worker_pythonpath
+
+enable_module_imports()
 from official_baselines import configuration
 from official_image import destination, extract, read_lock, environment, matches_version
 from official_storage import mounts, candidates
@@ -29,6 +33,28 @@ class OfficialBaselines(unittest.TestCase):
         path = self.root / 'evaluation.json'
         path.write_text(json.dumps(data))
         return path
+
+    def test_sdk_child_discovers_original_worker_and_plugin_names(self):
+        repo = Path(__file__).resolve().parents[1]
+        scripts = repo / 'benchmark/one-click-kit/scripts'
+        env = dict(os.environ, PYTHONPATH=worker_pythonpath(repo, scripts, ''))
+        code = '''
+from importlib.metadata import entry_points
+from pathlib import Path
+import sys
+from official_worker import OfficialWorker
+
+entries = entry_points(group='vllm.general_plugins', name='deeplinkengine_official_ft')
+plugin, = entries
+assert plugin.value == 'official.official_ft_plugin:install'
+assert plugin.load().__module__ == 'official.official_ft_plugin'
+assert OfficialWorker.__module__ == 'official_worker'
+official = Path(sys.argv[1])
+for name in ('official_worker', 'official.official_ft_plugin'):
+    assert Path(sys.modules[name].__file__).resolve().parent == official
+'''
+        subprocess.run([sys.executable, '-S', '-B', '-c', code, str(repo / 'official')],
+                       cwd=self.root, env=env, check=True, timeout=20)
 
     def test_explicit_version_and_paths(self):
         value = configuration(self.config())

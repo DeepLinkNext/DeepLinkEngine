@@ -13,6 +13,9 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path[:0] = [str(ROOT), str(ROOT / 'benchmark/one-click-kit/scripts'),
                str(ROOT / 'benchmark/one-click-kit/third-party-test-kit'),
                str(ROOT / 'benchmark/one-click-kit/third-party-test-kit/proc_capture')]
+from official import enable_module_imports
+
+enable_module_imports()
 from official_ft_inventory import validate
 from official_ft_capacity import envelope
 from official_ft_audit import Evidence, runtime
@@ -695,7 +698,7 @@ class CompletionTests(unittest.TestCase):
 
     def test_companion_plugin_is_discovered_but_inactive_in_ordinary_runs(self):
         import importlib.metadata
-        import official_ft_plugin
+        from official import official_ft_plugin
         import os
         plugins = {entry.name for distribution in importlib.metadata.distributions(path=[str(ROOT)])
                    for entry in distribution.entry_points if entry.group == 'vllm.general_plugins'}

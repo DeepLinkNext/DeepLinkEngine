@@ -84,6 +84,9 @@ if os.name == 'nt':
     sys.exit(0)
 
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
+from official import enable_module_imports
+
+enable_module_imports()
 import official_source_candidate as candidate
 import official_source_build_graph as graph
 graph_folder=j/'production-graph';graph_folder.mkdir();cache=graph_folder/'cache';approved_cache=cache/'wheels';approved_cache.mkdir(parents=True)

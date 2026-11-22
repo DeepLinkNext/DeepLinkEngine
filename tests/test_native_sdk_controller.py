@@ -3,6 +3,9 @@ import hashlib,json,os,sys,tempfile,unittest
 from pathlib import Path
 from unittest.mock import patch
 ROOT=Path(__file__).resolve().parents[1];sys.path.insert(0,str(ROOT))
+from official import enable_module_imports
+
+enable_module_imports()
 import native_sdk_controller as controller
 
 class Native(unittest.TestCase):

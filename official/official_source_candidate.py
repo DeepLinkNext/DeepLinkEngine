@@ -16,8 +16,10 @@ import tarfile
 import tempfile
 import time
 
+from official import source_path
 from official_baselines import save
 
+ROOT = Path(__file__).resolve().parents[1]
 VERSION = '0.28.0rc1-source'
 ID = 'upstream-vllm-0.28.0-ascend-0.28.0rc1-source'
 BASE_MANIFEST = 'sha256:4ee78def8f33d59d48f116d1dfa793332c23c99ecab4f0d7dd5cd62d0fb4e6c1'
@@ -60,7 +62,7 @@ NESTED_BUILD_ARTIFACTS = {
 
 
 def build_dependency_artifacts():
-    catalog=Path(__file__).parent/'engine/r8-lock.json'
+    catalog=ROOT/'engine/r8-lock.json'
     source=json.loads(catalog.read_bytes())['environment_sources']['torch']
     if any(source.get(k)!=v for k,v in TORCH_BUILD_WHEEL.items()):
         raise ValueError('Shared Torch artifact differs from the official isolated build wheel')
@@ -89,7 +91,7 @@ def identity():
                 version=VERSION, upstream_version='0.28.0', ascend_version='0.28.0rc1',
                 candidate=True, official_release_image=False, base_image_manifest=BASE_MANIFEST,
                 controller_sha256=hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
-                preparation_sources={name: hashlib.sha256(Path(__file__).with_name(name).read_bytes()).hexdigest()
+                preparation_sources={name: hashlib.sha256(source_path(ROOT, name).read_bytes()).hexdigest()
                                      for name in ('official_execution.py','official_build_context.py',
                                                   'official_build_assets.py','transport_trust.py',
                                                   'official_range_download.py','official_source_build_graph.py')},
