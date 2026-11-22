@@ -155,6 +155,33 @@ class Vector:
         return self.values
 
 
+class NativeIdentityTests(unittest.TestCase):
+    def test_candidate_validates_its_declared_unpatched_runtime(self):
+        from official_ft_audit import validate_native_identity
+        version = '0.28.0rc1-source'
+        planned_runtime = dict(runtime_kind='source-build-candidate', upstream_source_patched=False)
+        plan = dict(expected_versions={'vllm-ascend': '0.28.0rc1'}, baseline_id='upstream-source',
+                    runtime_identity=planned_runtime)
+        actual = dict(versions=plan['expected_versions'], baseline_id=plan['baseline_id'],
+                      runtime_identity=dict(planned_runtime), upstream_source_patched=False,
+                      no_optimized_mods=True, native_per_step_observer=False)
+        validate_native_identity(actual, plan, version)
+        for changed in (dict(upstream_source_patched=None),
+                        dict(official_sources_patched=True),
+                        dict(runtime_identity=dict(planned_runtime, upstream_source_patched=True))):
+            with self.subTest(changed=changed), self.assertRaises(ValueError):
+                validate_native_identity(dict(actual, **changed), plan, version)
+
+    def test_image_requires_the_original_explicit_unpatched_flag(self):
+        from official_ft_audit import validate_native_identity
+        plan = dict(expected_versions={'vllm': '0.23.0'}, baseline_id='official-vllm-0.23.0')
+        actual = dict(versions=plan['expected_versions'], baseline_id=plan['baseline_id'],
+                      no_optimized_mods=True, native_per_step_observer=False)
+        with self.assertRaisesRegex(ValueError, 'official image'):
+            validate_native_identity(dict(actual, upstream_source_patched=False), plan, '0.23.0')
+        validate_native_identity(dict(actual, official_sources_patched=False), plan, '0.23.0')
+
+
 class LengthPlaneTests(unittest.TestCase):
     def test_actual_official_kernel_fields_are_read(self):
         from types import SimpleNamespace

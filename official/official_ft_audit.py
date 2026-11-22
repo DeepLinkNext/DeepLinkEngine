@@ -431,6 +431,24 @@ def prefix_rejection(out, error, native, observed, domain, sdk=None, *, version_
     return report
 
 
+def validate_native_identity(actual, plan, version):
+    if (actual.get('versions') != plan['expected_versions'] or actual.get('baseline_id') != plan['baseline_id']
+            or actual.get('no_optimized_mods') is not True or actual.get('native_per_step_observer') is not False):
+        raise ValueError('Native actual source identity differs from its admitted plan')
+    if version == '0.28.0rc1-source':
+        runtime_identity = actual.get('runtime_identity')
+        if (not isinstance(runtime_identity, dict) or runtime_identity != plan.get('runtime_identity')
+                or runtime_identity.get('runtime_kind') != 'source-build-candidate'
+                or runtime_identity.get('upstream_source_patched') is not False
+                or actual.get('upstream_source_patched') is not False):
+            raise ValueError('Native source candidate identity differs from its admitted plan')
+    elif actual.get('official_sources_patched') is not False:
+        raise ValueError('Native official image source identity differs from its admitted plan')
+    if any(flag in actual and actual[flag] is not False
+           for flag in ('official_sources_patched', 'upstream_source_patched')):
+        raise ValueError('Native source patch flags disagree')
+
+
 def audit(native_root, companion_root, sdk, model_config, out, *, version, source_seal=None):
     sys.path[:0] = [str(KIT / 'scripts'), str(KIT / 'third-party-test-kit'),
                     str(KIT / 'third-party-test-kit/proc_capture')]
@@ -459,11 +477,7 @@ def audit(native_root, companion_root, sdk, model_config, out, *, version, sourc
         raise ValueError('Official native role/version/profile differs')
     from reference_capture_profile import validate_native_plan
     validate_native_plan(plan)
-    actual = native.read('client/actual-identity.json')
-    if (actual['versions'] != plan['expected_versions'] or actual['baseline_id'] != plan['baseline_id']
-            or actual['official_sources_patched'] is not False or actual['no_optimized_mods'] is not True
-            or actual['native_per_step_observer'] is not False):
-        raise ValueError('Native actual source identity differs from its admitted plan')
+    validate_native_identity(native.read('client/actual-identity.json'), plan, version)
     receipt = native.read('receipt.json')
     if receipt['completed'] is not True or receipt['quiescent'] is not True:
         raise ValueError('Native source is not closed')
