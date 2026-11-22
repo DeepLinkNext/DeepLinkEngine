@@ -22,9 +22,19 @@ def configuration(path, *, allow_existing=False, report_only=False):
     data = json.loads(path.read_bytes())
     if not isinstance(data, dict) or (not report_only and set(data) - FIELDS):
         raise ValueError("Use the fields in benchmark/run-all.example.json")
+    from engine.release_selection import archived_candidate, is_stable_version_name, reject_candidate_for_execution
+
+    version = data.get("engine_version")
     if report_only:
-        data = {k: data[k] for k in ("cache", "out", "actual_cost") if k in data}
-    required = ("cache", "out") if report_only else ("model", "physical_devices", "cache", "out")
+        candidate = archived_candidate(version)
+        if version is not None and candidate is None and not is_stable_version_name(version):
+            raise ValueError(f"Unrecognized report engine version: {version!r}")
+        fields = ("engine_version", "out", "actual_cost") if candidate else ("cache", "out", "actual_cost")
+        data = {name: data[name] for name in fields if name in data}
+        required = ("out",) if candidate else ("cache", "out")
+    else:
+        reject_candidate_for_execution(version)
+        required = ("model", "physical_devices", "cache", "out")
     for name in required:
         if name not in data:
             raise ValueError("Missing configuration field: " + name)
@@ -641,14 +651,16 @@ def main():
         from official_baselines import main as official_main
         return official_main([value for value in sys.argv[1:] if value != '--official-baselines'])
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--config", required=True, type=Path)
+    parser.add_argument("--config", type=Path)
+    parser.add_argument("--engine-version", help="Archived candidate version or release for --report-only")
+    parser.add_argument("--out", type=Path, help="New output directory for explicit candidate report selection")
     parser.add_argument("--prepare-environment", action="store_true", help="Repair and verify the environment without starting model tests")
     parser.add_argument('--prepare-protocol-only', action='store_true', help='Prepare datasets, SDK and fixed-five inputs; stop before any model service or evaluation client')
     parser.add_argument('--prepare-official-protocol-only', action='store_true', help='Prepare original data and R8 judge for official solvers, without installing or claiming the legacy0.18 SDK')
     parser.add_argument("--resume-bootstrap", action="store_true", help="Recover a failed preflight using its verified installation; refuses existing inference campaigns")
     parser.add_argument("--resume-before-model", action="store_true", help="Recover a sealed first-stage failure only when no service or inference ever started")
     parser.add_argument("--resume-before-inference", action="store_true", help="Recover a sealed failed model startup only if no formal client ever started; preserves startup originals")
-    parser.add_argument("--report-only", action="store_true", help="Re-audit completed originals and regenerate all four decisions without repeating inference")
+    parser.add_argument("--report-only", action="store_true", help="Re-audit a completed run or replay a published candidate on CPU")
     parser.add_argument("--actual-cost", type=Path, help="V2 actual card cost manifest for the full report")
     parser.add_argument("--reuse-completed-run", type=Path, help="Continue in a NEW output directory; audit and reuse completed sealed stages from this prior run, retaining all failed originals")
     parser.add_argument('--reuse-completed-campaign', type=Path, action='append', default=[], help='Additional explicitly selected sealed campaign; all scope, runtime, raw and provenance checks remain required')
@@ -662,9 +674,29 @@ def main():
     if (args.prepare_protocol_only or args.prepare_official_protocol_only) and (args.prepare_environment or args.resume_bootstrap or args.resume_before_model or args.resume_before_inference or args.report_only or args.reuse_completed_run or args.reuse_completed_campaign or args.reuse_mmlu_baseline_arm or args.reuse_context_baseline_arm or args.reuse_compute_baseline_arm or args.reuse_compute_observation or (args.prepare_protocol_only and args.prepare_official_protocol_only)):
         parser.error('Protocol preparation requires a fresh run and cannot combine with execution/recovery modes')
     try:
-        data = configuration(args.config,
-                             allow_existing=args.resume_bootstrap or args.resume_before_model or args.resume_before_inference or args.report_only,
-                             report_only=args.report_only)
+        explicit_candidate = args.engine_version is not None or args.out is not None
+        if explicit_candidate:
+            if not args.report_only or args.config or not args.engine_version or args.out is None:
+                raise ValueError("Use --report-only --engine-version VERSION --out DIRECTORY or a report-only configuration")
+            data = {"engine_version": args.engine_version, "out": args.out}
+        else:
+            if args.config is None:
+                raise ValueError("--config is required for local submission runs and reports")
+            data = configuration(args.config,
+                                 allow_existing=args.resume_bootstrap or args.resume_before_model or args.resume_before_inference or args.report_only,
+                                 report_only=args.report_only)
+        if args.report_only:
+            if (args.resume_bootstrap or args.resume_before_model or args.resume_before_inference
+                or args.prepare_environment or args.reuse_completed_run or args.reuse_completed_campaign
+                or args.reuse_mmlu_baseline_arm or args.reuse_context_baseline_arm or args.reuse_compute_baseline_arm
+                or args.reuse_compute_observation):
+                raise ValueError("Report-only cannot be combined with execution or recovery modes")
+            if "engine_version" in data:
+                if args.rerun_b0 is not None or args.actual_cost or data.get("actual_cost"):
+                    raise ValueError("Archived candidate reporting accepts only its version and output directory")
+                from benchmark.full_report import main as report_main
+
+                return report_main(["--engine-version", data["engine_version"], "--out", str(data["out"])])
         configured_cost = data.pop("actual_cost", None)
         cost_path = args.actual_cost or configured_cost
         actual_cost = Path(cost_path).expanduser().resolve() if cost_path is not None else None
@@ -694,8 +726,6 @@ def main():
         os.environ["XDG_CACHE_HOME"] = os.environ.get("XDG_CACHE_HOME") or str(Path(data["cache"]) / "xdg")
         os.environ["MPLCONFIGDIR"] = os.environ.get("MPLCONFIGDIR") or str(Path(os.environ["XDG_CACHE_HOME"]) / "matplotlib")
         if args.report_only:
-            if args.resume_bootstrap or args.resume_before_model or args.resume_before_inference or args.prepare_environment or args.reuse_completed_run or args.reuse_completed_campaign or args.reuse_mmlu_baseline_arm or args.reuse_context_baseline_arm or args.reuse_compute_baseline_arm or args.reuse_compute_observation:
-                raise ValueError("Report-only cannot be combined with execution or recovery modes")
             out = Path(data["out"])
             from engine.release_selection import bind
             if (out / 'engine-selection.json').is_file():

@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """Public r8 assessment entry; verify the kit and fetch pinned reference evidence."""
 
-import fcntl
 import hashlib
 import importlib.util
 import json
@@ -17,7 +16,7 @@ import urllib.error
 ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))
 from engine.release_selection import kit_path, runtime_lock, profile as selected_profile
-KIT = kit_path()
+KIT = ROOT / "benchmark/one-click-kit"
 LOCK = ROOT / "benchmark/one-click-lock.json"
 
 
@@ -82,6 +81,8 @@ def option(arguments, flag):
 
 
 def reference_evidence(lock):
+    import fcntl
+
     module = evidence_module()
     explicit = os.environ.get("VLLM_HUST_PROJECT_EVIDENCE")
     if explicit:
@@ -222,10 +223,17 @@ def prepare_baseline(arguments):
 
 def main(arguments=None):
     arguments = list(sys.argv[1:] if arguments is None else arguments)
+    if arguments[:1] == ["report"]:
+        from benchmark.full_report import main as report_main
+
+        return report_main(arguments[1:])
     read_only = not arguments or any(x in ('--help','-h') for x in arguments) or arguments[0] in ('verify','fetch-reference','status','dashboard')
     if not read_only:
         config_name=option(arguments,'--config')
         initial=json.loads(Path(config_name).read_bytes()) if config_name else {}
+        from engine.release_selection import reject_candidate_for_execution
+        reject_candidate_for_execution(option(arguments, "--engine-version") or initial.get("engine_version"))
+        reject_candidate_for_execution(option(arguments, "--engine-profile") or initial.get("engine_profile"))
         deployment=option(arguments,'--deployment') or initial.get('deployment')
         if deployment:
             from engine.native_sdk_controller import maybe_enter_deployment
@@ -287,6 +295,7 @@ def main(arguments=None):
         os.environ["VLLM_HUST_PROJECT_EVIDENCE"] = str(reference_evidence(lock))
         arguments = effective
     if help_only:
+        print("CPU report: one_click.py report --engine-version VERSION --out DIRECTORY", flush=True)
         print("B0 选项：--rerun-b0 显式重跑；--no-rerun-b0 默认复用旧记录。配置项 rerun_b0 默认 false。", flush=True)
     sys.dont_write_bytecode = True
     sys.argv = [str(KIT / "one_click.py"), *arguments]
