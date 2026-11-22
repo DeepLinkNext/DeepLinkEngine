@@ -24,7 +24,7 @@ def digest(path):
 
 
 def inventory():
-    from one_click import verify_kit
+    from benchmark.one_click import verify_kit
     verify_kit()
     sys.path.insert(0, str(kit_path() / "scripts"))
     from restore_b0_image import MANIFEST

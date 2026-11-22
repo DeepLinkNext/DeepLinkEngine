@@ -134,7 +134,7 @@ def complete_native(config, image, native, output, tools, sdk, sources, leases, 
         # Resolve the existing PUBLIC immutable mirror. The older nested
         # project_evidence default is private; never fall through to it.
         import importlib.util
-        public_spec = importlib.util.spec_from_file_location('deeplink_public_reference_restore', ROOT / 'one_click.py')
+        public_spec = importlib.util.spec_from_file_location('deeplink_public_reference_restore', ROOT / 'benchmark/one_click.py')
         one_click = importlib.util.module_from_spec(public_spec)
         public_spec.loader.exec_module(one_click)
         lock = json.loads((ROOT / 'benchmark/one-click-lock.json').read_bytes())

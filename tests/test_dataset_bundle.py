@@ -105,7 +105,7 @@ class DataBundleTests(unittest.TestCase):
         self.assertEqual((assets/self.file).read_bytes(),self.body)
 
     def test_public_full_and_quick_dispatch_use_local_data(self):
-        import one_click
+        from benchmark import one_click
         for mode, expected in [('mmlu',['mmlu']),('hle,frontier,swe,terminal',['hle','frontier','swe','terminal'])]:
             with patch.object(bundle,'prepare',return_value=self.root/'assets') as prepare, \
                  patch('benchmark.baseline_bundle.ensure_deployment', return_value=Path('/baseline')), patch.object(one_click, 'validate_deployment'), patch('engine.artifact_cache.release'):
@@ -151,7 +151,7 @@ class DataBundleTests(unittest.TestCase):
             self.assertEqual((self.cache/sources[0]['cache_key']).read_bytes(),b'corrupt original')
 
     def test_old_engine_release_is_rejected_before_any_large_input_download(self):
-        import one_click
+        from benchmark import one_click
         sdk = self.root / 'old-sdk'
         sdk.mkdir()
         (sdk / 'deployment.json').write_text(json.dumps({'release':'full-answer-b1-20261030-r4'}))

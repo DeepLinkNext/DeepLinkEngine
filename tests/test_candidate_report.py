@@ -148,7 +148,7 @@ class CandidateReportTests(unittest.TestCase):
     def test_one_click_direct_candidate_on_cpu(self):
         out = self.temp / "contiguous"
         release = "full-answer-b1-20261121-r10-contiguous-restore"
-        result = self.invoke("one_click.py", "report", "--engine-version", release, "--out", out)
+        result = self.invoke("benchmark/one_click.py", "report", "--engine-version", release, "--out", out)
         self.assertEqual(result.returncode, 0, result.stderr)
         data = self.check_report(out, "r10-contiguous-restore", 134)
         changes = data["workloads"]["16384-formal"]["candidate_change_vs"]
@@ -165,7 +165,7 @@ class CandidateReportTests(unittest.TestCase):
         config = self.temp / "r10.json"
         config.write_text(json.dumps({"engine_version": "r10-native-rms", "out": "never"}), encoding="utf-8")
         for program, args in (("run_all.py", ("--config", config)),
-                              ("one_click.py", ("run", "--config", config))):
+                              ("benchmark/one_click.py", ("run", "--config", config))):
             result = self.invoke(program, *args)
             self.assertEqual(result.returncode, 2, result.stderr)
             self.assertIn("archived candidate", result.stderr)

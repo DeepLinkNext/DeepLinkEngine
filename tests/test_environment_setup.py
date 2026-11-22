@@ -276,7 +276,7 @@ class EnvironmentTests(unittest.TestCase):
     def test_repairs_use_the_verified_owned_child_runner(self):
         report = {"steps": []}
         result = type("Result", (), {"returncode": 0})()
-        with patch("one_click.verify_kit") as verify, patch("child_runner.run_stage", return_value=result) as owned:
+        with patch("benchmark.one_click.verify_kit") as verify, patch("child_runner.run_stage", return_value=result) as owned:
             setup.command(["fixture-python", "-m", "pip"], {}, self.root, "fixture", report, self.root / "report.json")
         verify.assert_called_once()
         owned.assert_called_once()

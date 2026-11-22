@@ -5,7 +5,7 @@ from unittest.mock import patch
 ROOT=Path(__file__).resolve().parents[1]
 sys.path[:0]=[str(ROOT),str(ROOT/'benchmark/one-click-kit/scripts')]
 from benchmark import baseline_setup as baseline
-import one_click
+from benchmark import one_click
 class Response(io.BytesIO):
     def __init__(self,body,status=200,headers=None):
         super().__init__(body);self.status=status;self.headers=headers or {}

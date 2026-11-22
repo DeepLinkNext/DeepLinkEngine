@@ -16,7 +16,7 @@ import unittest
 from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
-spec = importlib.util.spec_from_file_location("public_entry", ROOT / "one_click.py")
+spec = importlib.util.spec_from_file_location("public_entry", ROOT / "benchmark/one_click.py")
 entry = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(entry)
 sys.path.insert(0, str(entry.KIT / "scripts"))

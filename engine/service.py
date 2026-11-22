@@ -142,7 +142,7 @@ def main():
     text = model_config.get("text_config", model_config)
     if (text.get("model_type"), text.get("num_hidden_layers"), text.get("hidden_size")) != ("qwen3_5_moe_text", 40, 2048):
         raise ValueError("The installed backend currently supports Qwen3.5-35B-A3B only")
-    from one_click import verify_kit
+    from benchmark.one_click import verify_kit
     verify_kit()
     sys.path.insert(0, str(ROOT / "benchmark/one-click-kit/scripts"))
     import engine_entry

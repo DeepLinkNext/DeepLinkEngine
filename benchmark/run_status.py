@@ -172,7 +172,7 @@ def emit(value, as_json, *, details):
 
 
 def main(argv):
-    parser = argparse.ArgumentParser(prog="one_click.py status", description="只读查看或持续观察评测进度。")
+    parser = argparse.ArgumentParser(prog="benchmark/one_click.py status", description="只读查看或持续观察评测进度。")
     parser.add_argument("--run", required=True, help="运行结果目录")
     parser.add_argument("--json", action="store_true", help="输出 JSON 快照")
     parser.add_argument("--watch", action="store_true", help="持续显示状态变化，直到运行结束")

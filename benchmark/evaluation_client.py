@@ -967,7 +967,7 @@ def bridge(client, provider):
 
 
 def prepare(cache, archive, frozen):
-    from one_click import verify_kit
+    from benchmark.one_click import verify_kit
     lock = verify_kit(legacy=True)
     legacy = ROOT / 'benchmark/one-click-kit'
     old = json.loads((legacy / 'DEPLOYMENT-TOOLS.json').read_bytes())
@@ -1031,7 +1031,7 @@ def metadata_client(cache, *, release, record=None):
         manifest = {k: v for k, v in prior.items() if k not in ('files', 'bridges')}
         old_bridges = prior.get('bridges', {})
     else:
-        from one_click import verify_kit
+        from benchmark.one_click import verify_kit
         lock = verify_kit(legacy=True)
         root = ROOT / 'benchmark/one-click-kit'
         originals = json.loads((root / 'DEPLOYMENT-TOOLS.json').read_bytes())

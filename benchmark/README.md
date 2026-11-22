@@ -26,7 +26,7 @@ python run_all.py
 
 ```bash
 python run_all.py --report-only --engine-version r10-native-rms --out ./reports/r10-native-rms
-python one_click.py report --engine-version r10-contiguous-restore --out ./reports/r10-contiguous-restore
+python benchmark/one_click.py report --engine-version r10-contiguous-restore --out ./reports/r10-contiguous-restore
 ```
 
 也可在仅含 `engine_version` 和新输出路径 `out` 的 JSON 配置中选择候选，执行
@@ -74,7 +74,7 @@ python benchmark/reports/r8-context-tenant-20261119/reproduce_publication.py \
 
 ## 昇腾实机配对测试
 
-使用仓库根目录 `one_click.py`。该入口校验仓库内 [one-click-kit](one-click-kit/one_click.py) 的全部工具源码，自动获取本仓库公开 Release 的固定参考证据。工具和证据的字节数、SHA-256 及来源版本见 [one-click-lock.json](one-click-lock.json)。冻结安装包和旧 `tools-r4.tar.gz` 保留原件，新的测试由修正版工具执行。
+从仓库根目录运行 `benchmark/one_click.py`。该入口校验仓库内 [one-click-kit](one-click-kit/one_click.py) 的全部工具源码，自动获取本仓库公开 Release 的固定参考证据。工具和证据的字节数、SHA-256 及来源版本见 [one-click-lock.json](one-click-lock.json)。冻结安装包和旧 `tools-r4.tar.gz` 保留原件，新的测试由修正版工具执行。
 
 B0 为固定的 `original018-cann8.5.1`，由工具核验上游镜像摘要并恢复，或指定已按该版本制备的 SDK。B1 使用[版本清单指定的引擎](../engine/README.md#版本与下载)。两臂使用同一套 Qwen3.5-35B-A3B 权重和同一对 910B2。物理卡号按实机分配填写。
 
@@ -83,8 +83,8 @@ B0 为固定的 `original018-cann8.5.1`，由工具核验上游镜像摘要并�
 3. 检查 `<out>-report/report.html`、`<out>/compute-reference/automatic-result.json`、`matched-reference-pair.json`、曲线和校验清单。可先用 `prepare` 检查环境并冻结计划；它不执行正式推理，写入 `<out>-prepare`。正式 `run` 使用配置中的 `<out>`。
 
 ```sh
-python one_click.py verify
-python one_click.py run --config /path/to/evaluation.json --rerun-b0
+python benchmark/one_click.py verify
+python benchmark/one_click.py run --config /path/to/evaluation.json --rerun-b0
 ```
 
 `test_mode: "full"` 运行固定五项，`"quick"` 仅运行 MMLU-Pro 200 题，两种模式都自动执行参考认证。默认 `reference_profile: "submission-v2"` 为固定 MMLU200/out256，每臂三轮；不能将该参考分母套到 out8192 完整回答。达成率使用本轮必要算量和全部三轮同步墙钟，除以重新核验的原完整参考每卡上界；保留两边各自的算量和参考时间，不直接复用历史达成率。工况或证据不匹配时返回非零，缺项单列。该认证明确标记为原完整参考分母的同工况复用，详见[参考认证说明](one-click-kit/third-party-test-kit/参考算力标定与复算.md)。

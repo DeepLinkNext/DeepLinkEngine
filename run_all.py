@@ -438,7 +438,7 @@ def run(data, *, prepare_protocol_only=False, prepare_official_protocol_only=Fal
             raise RuntimeError(name + " failed; original results retained, no automatic retry")
 
     try:
-        from one_click import verify_kit
+        from benchmark.one_click import verify_kit
         verify_kit()
         sys.path.insert(0, str(kit_path() / "scripts"))
         from child_runner import run_stage as run_owned_stage
@@ -446,7 +446,7 @@ def run(data, *, prepare_protocol_only=False, prepare_official_protocol_only=Fal
         if data.get("dataset_assets"):
             data_command += ["--assets", data["dataset_assets"]]
         stage("prepare-datasets", data_command)
-        install_command = [sys.executable, str(ROOT / "engine_install.py"), "--cache", data["cache"]]
+        install_command = [sys.executable, str(ROOT / "engine/engine_install.py"), "--cache", data["cache"]]
         if data.get("environment", {}).get("wheelhouse"):
             install_command += ["--wheelhouse", data["environment"]["wheelhouse"]]
         if reuse_installation:
@@ -481,7 +481,7 @@ def run(data, *, prepare_protocol_only=False, prepare_official_protocol_only=Fal
         evaluation = evaluation_configuration(data, installation)
         config = out / "evaluation.json"
         config.write_text(json.dumps(evaluation, indent=2) + "\n")
-        evaluate = [sys.executable, str(ROOT / "one_click.py")]
+        evaluate = [sys.executable, str(ROOT / "benchmark/one_click.py")]
         prepare_command = ([sys.executable, '-B', str(ROOT / 'official/official_protocol_data.py'), '--config', str(config),
                             '--anchor-sdk', data['environment']['official_sdk']]
                            if prepare_official_protocol_only else [*evaluate, "prepare", "--config", str(config)])
@@ -506,7 +506,7 @@ def run(data, *, prepare_protocol_only=False, prepare_official_protocol_only=Fal
         if reused_run:
             # Translate the public configuration before adding a controller-only
             # option. The frozen subcommand parser intentionally rejects extras.
-            from one_click import configuration_arguments
+            from benchmark.one_click import configuration_arguments
             run_command = [*evaluate, *configuration_arguments("run", ["--config", str(config)]),
                            "--reuse-completed-campaign", str(Path(reused_run["root"]) / "fixed-five")]
         if reused_run:

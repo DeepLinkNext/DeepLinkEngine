@@ -19,7 +19,7 @@ sha256:2467d259ff068ca4edd7b50b849152910f3c05e435f314639fc06bcc7a00f9fa
 仅准备原件：
 
 ```sh
-python baseline_bundle.py --cache /path/to/cache
+python benchmark/baseline_bundle.py --cache /path/to/cache
 ```
 
 若旧入口在安装完成后的准备阶段失败、尚未产生推理任务，可保留原配置恢复：

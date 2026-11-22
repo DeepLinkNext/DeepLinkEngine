@@ -14,7 +14,7 @@ HLE保留原始1811题分片，以便沿用原有来源哈希和分层抽样校�
 
 ## 一键使用
 
-`python run_all.py --config evaluation.json` 在安装引擎前准备数据。独立的 `one_click.py prepare/run` 同样自动准备所选范围；quick仅需MMLU包。下载只访问本仓库Release的固定资产API及下载直链，成功后逐包、逐文件核验并在配置的cache目录恢复。正常测试不再访问Hugging Face、其镜像或原始轨迹站点。
+`python run_all.py --config evaluation.json` 在安装引擎前准备数据。独立的 `benchmark/one_click.py` 的 `prepare` 与 `run` 同样自动准备所选范围；quick仅需MMLU包。下载只访问本仓库Release的固定资产API及下载直链，成功后逐包、逐文件核验并在配置的cache目录恢复。正常测试不再访问Hugging Face、其镜像或原始轨迹站点。
 
 仅准备数据：
 

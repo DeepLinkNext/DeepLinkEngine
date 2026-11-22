@@ -101,7 +101,7 @@ def save(path, value):
 
 
 def run_repair_stage(args, env, log):
-    from one_click import verify_kit
+    from benchmark.one_click import verify_kit
     verify_kit()
     sys.path.insert(0, str(kit_path() / "scripts"))
     from child_runner import run_stage
