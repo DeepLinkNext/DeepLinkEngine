@@ -5,6 +5,7 @@ is created: host PIDs, boot identity, NPU devices and cooperative lock inodes
 are retained. This is an ABI compatibility context, not a security sandbox.
 """
 import ctypes
+from contextlib import contextmanager
 import hashlib
 import json
 import os
@@ -143,15 +144,73 @@ def verify_root(output):
             or receipt.get('static_inventory_sha256') != sha(output / 'static-files.json')):
         raise ValueError('Private execution root identity changed')
     root = output / 'rootfs'
+    static_root = static_root_view(root)
     inventory = json.loads((output / 'static-files.json').read_bytes())
     for name, entry in inventory.items():
-        path = destination(root, name)
+        path = destination(static_root, name)
         if 'sha256' in entry:
             if not path.is_file() or path.is_symlink() or sha(path) != entry['sha256']:
                 raise ValueError('Private execution root file changed: ' + name)
         elif not path.is_symlink() or os.readlink(path) != entry['symlink']:
             raise ValueError('Private execution root link changed: ' + name)
     return root
+
+
+def _descriptor_mount_id(owner, descriptor):
+    values = Path('/proc', str(owner), 'fdinfo', str(descriptor)).read_text().splitlines()
+    matches = [line.split(':', 1)[1].strip() for line in values if line.startswith('mnt_id:')]
+    if len(matches) != 1 or not matches[0].isdecimal():
+        raise ValueError('Static root descriptor mount identity is unavailable')
+    return int(matches[0])
+
+
+def static_root_view(root):
+    """Read original bytes through the pre-unshare directory reference."""
+    root = Path(root)
+    context = context_identity()
+    if context is None:
+        return root
+    if [root.stat().st_dev, root.stat().st_ino] != context['root_dev_inode']:
+        receipt = context.get('execution_root_receipt')
+        if receipt and root.resolve() == (Path(receipt).parent / 'rootfs').resolve():
+            raise ValueError('Static execution-root path no longer matches the current root')
+        return root
+    reference = context.get('static_root_underlay')
+    if not isinstance(reference, dict):
+        raise ValueError('Static execution-root underlay requires a fresh context')
+    owner, descriptor = reference.get('owner_pid'), reference.get('descriptor')
+    if type(owner) is not int or owner <= 0 or type(descriptor) is not int or descriptor < 0:
+        raise ValueError('Static execution-root descriptor identity is invalid')
+    try:
+        fields = Path('/proc', str(owner), 'stat').read_text().rsplit(')', 1)[1].split()
+        view = Path('/proc', str(owner), 'fd', str(descriptor))
+        info = view.stat()
+        if (fields[0] == 'Z' or fields[19] != reference.get('owner_start_ticks')
+                or [info.st_dev, info.st_ino] != context['root_dev_inode']
+                or reference.get('root_dev_inode') != context['root_dev_inode']
+                or _descriptor_mount_id(owner, descriptor) != reference.get('mount_id')
+                or not view.is_dir()):
+            raise ValueError('Static execution-root descriptor identity changed')
+    except (OSError, IndexError) as error:
+        raise ValueError('Static execution-root underlay owner is unavailable') from error
+    return view
+
+
+@contextmanager
+def preserve_static_root_view(root, before):
+    """Keep a read-only directory reference across exec, outside new binds."""
+    source = static_root_view(root)
+    flags = getattr(os, 'O_PATH', os.O_RDONLY) | getattr(os, 'O_DIRECTORY', 0)
+    descriptor = os.open(source, flags)
+    try:
+        os.set_inheritable(descriptor, True)
+        info = os.fstat(descriptor)
+        yield dict(owner_pid=os.getpid(), owner_start_ticks=before['start_ticks'],
+                   descriptor=descriptor, root_dev_inode=[info.st_dev, info.st_ino],
+                   mount_id=_descriptor_mount_id(os.getpid(), descriptor),
+                   access='Directory reference for original static read/hash only')
+    finally:
+        os.close(descriptor)
 
 
 def ensure_for_sdk(sdk):
@@ -308,6 +367,12 @@ def execute_request(request):
     root_identity = [root.stat().st_dev, root.stat().st_ino]
     root_receipt = root.parent / 'receipt.json'
     root_receipt_sha256 = sha(root_receipt)
+    with preserve_static_root_view(root, before) as underlay:
+        _execute_private_request(request, root, before, root_identity, root_receipt_sha256, underlay)
+
+
+def _execute_private_request(request, root, before, root_identity, root_receipt_sha256, underlay):
+    root_receipt = root.parent / 'receipt.json'
     library = ctypes.CDLL(None, use_errno=True)
     _call(library.unshare, CLONE_NEWNS)
     _mount(None, '/', MS_REC | MS_PRIVATE)
@@ -336,6 +401,7 @@ def execute_request(request):
                    execution_os_release=Path('/etc/os-release').read_text(),
                    source_build_system_root=request.get('source_build_system_root', False),
                    execution_root_receipt=str(root_receipt), execution_root_receipt_sha256=root_receipt_sha256)
+    context['static_root_underlay'] = underlay
     environment = request['env']
     environment['DEEPLINK_EXECUTION_CONTEXT'] = json.dumps(context, separators=(',', ':'))
     os.execvpe(request['command'][0], request['command'], environment)
