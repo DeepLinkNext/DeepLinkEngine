@@ -23,8 +23,9 @@ def open_lease(path):
             return os.open(path, flags)
 
 
-def acquire(output, timeout):
-    import resource_guard as guard
+def acquire(output, timeout, *, guard=None):
+    if guard is None:
+        import resource_guard as guard
 
     try:
         return guard.acquire(output, timeout)
