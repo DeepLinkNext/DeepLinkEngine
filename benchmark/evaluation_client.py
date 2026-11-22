@@ -750,6 +750,57 @@ def managed_shutdown_bridge(result):
         '                or not matches_pre_shutdown_controller(path, pin))):').encode()
 
 
+NATIVE_SAMPLE_REPLACEMENTS = (
+    ('from owned_processes import Owned\n', 'from owned_processes import Owned, state\n'),
+    ('def run(args):\n', """def retired_sample_owner(pid, before):
+    if pid not in before:
+        return False
+    try:
+        current = state(pid)
+    except (FileNotFoundError, ProcessLookupError):
+        return True
+    return current["start_ticks"] == before[pid] and current["state"] == "Z"
+
+
+def run(args):
+"""),
+    ('                            sample = subprocess.run(["npu-smi", "info"],',
+     '                            before = {row["pid"]: row["start_ticks"] for row in owned.scan()}\n'
+     '                            sample = subprocess.run(["npu-smi", "info"],'),
+    ('                                    if pid not in known:\n',
+     '                                    if pid not in known and not retired_sample_owner(pid, before):\n'),
+)
+
+
+def native_owner_sampling_bridge(result):
+    """Allow a sampled owned PID to disappear while the device query returns."""
+    key = 'scripts/run_native_reference.py'
+    source = result[key].decode()
+    for old, new in NATIVE_SAMPLE_REPLACEMENTS:
+        source = once(source, old, new)
+    ast.parse(source)
+    result[key] = source.encode()
+
+    name = 'scripts/reference_model_reuse.py'
+    text = result[name].decode()
+    restore = ('def native_monitor_matches(path, expected):\n'
+               '    body = path.read_bytes().decode()\n'
+               '    for old, new in ' + repr(NATIVE_SAMPLE_REPLACEMENTS) + ':\n'
+               '        if body.count(new) != 1:\n'
+               '            return False\n'
+               '        body = body.replace(new, old, 1)\n'
+               '    from hashlib import sha256\n'
+               '    return sha256(body.encode()).hexdigest() == expected\n\n\n')
+    text = once(text, 'def load(source, expected_seal, current_plan, current_root, recovery_directory=None):',
+                restore + 'def load(source, expected_seal, current_plan, current_root, recovery_directory=None):')
+    failure = '            raise ValueError("Completed model-stage implementation/dependency differs: " + str(current))'
+    text = once(text, failure,
+        '            if (relative == "scripts/run_native_reference.py" and current_pin == sha(current)\n'
+        '                    and native_monitor_matches(current, pin)):\n'
+        '                continue\n' + failure)
+    result[name] = text.encode()
+
+
 def context_baseline_bridge(result):
     """Preserve completed fixed-B0 context phases across a B1-only change."""
     def scripts(files):
@@ -805,9 +856,15 @@ def context_baseline_bridge(result):
     previous = scripts(result)
     previous[key] = sha(CONTEXT_BASELINE_HELPER.replace('__CURRENT_SOURCES__', digest(previous)).encode())
     managed_shutdown_bridge(result)
-    current = digest(scripts(result))
+    managed = scripts(result)
     helper = once(CONTEXT_BASELINE_HELPER, 'digest(previous) != OLD_SOURCES',
                   'digest(previous) not in (OLD_SOURCES, ' + repr(digest(previous)) + ')')
+    # Preserve the exact controller inventory from before this native-only change.
+    managed[key] = sha(helper.replace('__CURRENT_SOURCES__', digest(managed)).encode())
+    native_owner_sampling_bridge(result)
+    current = digest(scripts(result))
+    helper = once(helper, 'digest(previous) not in (OLD_SOURCES, ',
+                  'digest(previous) not in (OLD_SOURCES, ' + repr(digest(managed)) + ', ')
     result[key] = helper.replace('__CURRENT_SOURCES__', current).encode()
 
 
