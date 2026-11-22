@@ -3,6 +3,7 @@
 import json
 import os
 from pathlib import Path
+import shlex
 import time
 
 import official_source_candidate as candidate
@@ -18,6 +19,7 @@ COMPLETED = (
     '07-rust-bootstrap-download', '08-rust-bootstrap',
 )
 RUST = '09-upstream-rust'
+CRATE_MIRRORS = {'rsproxy': 'sparse+https://rsproxy.cn/index/'}
 
 
 def read(path):
@@ -84,7 +86,7 @@ def admit(previous, cache, sdk):
     return marker, receipt, lock, evidence, stopped
 
 
-def retry(previous, cache, sdk, result):
+def retry(previous, cache, sdk, result, *, crate_mirror=None):
     marker, original, lock, evidence, stopped = admit(previous, cache, sdk)
     build = sdk / 'source-build'
     result.mkdir()
@@ -112,7 +114,7 @@ def retry(previous, cache, sdk, result):
     save(result / 'recovery.json', recovery)
     save(sdk / 'source-preparation.json', dict(marker, owner=owner_info()))
     try:
-        return _retry(cache, sdk, build, original, lock, result, recovery)
+        return _retry(cache, sdk, build, original, lock, result, recovery, crate_mirror)
     except BaseException as error:
         recovery.update(status='failed', error=type(error).__name__ + ': ' + str(error))
         raise
@@ -121,7 +123,27 @@ def retry(previous, cache, sdk, result):
         save(result / 'recovery.json', recovery)
 
 
-def _retry(cache, sdk, build, original, lock, result, recovery):
+def configure_crate_mirror(shared, result, env, mirror):
+    url = CRATE_MIRRORS[mirror]
+    config = result / 'cargo-mirror.toml'
+    config.write_text('[source.crates-io]\nreplace-with = "deeplink-crates-mirror"\n'
+                      '[source.deeplink-crates-mirror]\nregistry = ' + json.dumps(url) + '\n')
+    launch = result / 'cargo'
+    cargo = shlex.quote(str(shared / 'cargo/bin/cargo'))
+    options = ' --config ' + shlex.quote(str(config))
+    launch.write_text('#!/bin/sh\n'
+                      'case "$1" in\n'
+                      '    metadata|build|rustc) action="$1"; shift; '
+                      + 'exec ' + cargo + options + ' "$action" --locked "$@" ;;\n'
+                      '    *) exec ' + cargo + options + ' "$@" ;;\n'
+                      'esac\n')
+    launch.chmod(0o700)
+    env.update(CARGO=str(launch), PATH=str(result) + os.pathsep + env['PATH'])
+    return dict(index=url, config_sha256=digest(config), launcher_sha256=digest(launch),
+                lock_required=True)
+
+
+def _retry(cache, sdk, build, original, lock, result, recovery, crate_mirror):
     core = sdk / 'rootfs/vllm-workspace/vllm'
     ascend = sdk / 'rootfs/vllm-workspace/vllm-ascend'
     rust_lock = core / 'rust/Cargo.lock'
@@ -143,6 +165,9 @@ def _retry(cache, sdk, build, original, lock, result, recovery):
     entry = int(env.get('GIT_CONFIG_COUNT', '0'))
     env.update({'GIT_CONFIG_COUNT': str(entry + 1), f'GIT_CONFIG_KEY_{entry}': 'http.version',
                 f'GIT_CONFIG_VALUE_{entry}': 'HTTP/1.1'})
+    if crate_mirror:
+        recovery['cargo_crate_mirror'] = configure_crate_mirror(shared, result, env, crate_mirror)
+        save(result / 'recovery.json', recovery)
     name = '09-upstream-rust-recovery-' + result.parent.name
     candidate.command(['bash', str(core / 'build_rust.sh')], env, core, build, name)
     if digest(rust_lock) != lock_hash:

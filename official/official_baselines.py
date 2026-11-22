@@ -74,7 +74,11 @@ def main(arguments=None):
                         help='In a new output, retain sealed C8 after a later pre-model failure; preserve original clocks')
     parser.add_argument('--resume-source-rust-from', type=Path,
                         help='Resume a candidate CPU build after its final Rust Git transport failed')
+    parser.add_argument('--rust-crate-mirror', choices=('rsproxy',),
+                        help='Use a Cargo sparse mirror for the recovery, with the original locked crates')
     args = parser.parse_args(arguments)
+    if args.rust_crate_mirror and not args.resume_source_rust_from:
+        parser.error('A Rust crate mirror is only supported during source build recovery')
     if args.resume_source_rust_from and (not args.prepare_environment or args.download_only
             or args.report_only or args.complete_ft or args.reuse_completed_continuous):
         parser.error('Rust build recovery requires CPU-only source candidate environment preparation')
@@ -199,7 +203,8 @@ def main(arguments=None):
                             recovery = out / 'source-rust-recovery'
                             row['rust_recovery'] = str(recovery / 'recovery.json')
                             save(out / 'results.json', record)
-                            installed = retry(args.resume_source_rust_from.resolve(), cache, sdk, recovery)
+                            installed = retry(args.resume_source_rust_from.resolve(), cache, sdk, recovery,
+                                              crate_mirror=args.rust_crate_mirror)
                         else:
                             from official_source_candidate import quarantine_partial
                             recovered = quarantine_partial(sdk)

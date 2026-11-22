@@ -20,6 +20,28 @@ import official_storage
 
 
 class CandidateTests(unittest.TestCase):
+    @unittest.skipUnless(sys.platform == 'linux', 'The Cargo launcher uses a Linux shell')
+    def test_rust_recovery_mirror_launcher_is_private_and_keeps_cargo_locked(self):
+        import official_source_rust_recovery as recovery
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            shared, result = root / 'private cache', root / 'rust recovery'
+            cargo = shared / 'cargo/bin/cargo'
+            cargo.parent.mkdir(parents=True)
+            result.mkdir()
+            cargo.write_text('#!/bin/sh\nprintf "%s\\n" "$@"\n')
+            cargo.chmod(0o700)
+            env = {'PATH': '/usr/bin'}
+            proof = recovery.configure_crate_mirror(shared, result, env, 'rsproxy')
+            args = subprocess.check_output([env['CARGO'], 'metadata', '--format-version', '1'],
+                                           text=True).splitlines()
+            self.assertEqual(args, ['--config', str(result / 'cargo-mirror.toml'), 'metadata',
+                                    '--locked', '--format-version', '1'])
+            self.assertTrue(proof['lock_required'])
+            self.assertEqual(proof['index'], 'sparse+https://rsproxy.cn/index/')
+            self.assertFalse((cargo.parent.parent / 'config.toml').exists())
+
     def test_rust_recovery_requires_a_closed_git_failure_and_every_prior_stage(self):
         import official_source_rust_recovery as recovery
 
