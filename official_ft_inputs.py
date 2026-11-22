@@ -5,6 +5,10 @@ engine's special second-step length publication, these source families expose
 stable upstream seq_lens/seq_lens_list arguments for both merged MTP steps.
 """
 import copy
+from collections import Counter
+
+
+ENVELOPE_VERSIONS = frozenset({"0.23.0", "0.30.0"})
 
 
 class OfficialDraftPrefixMismatch(ValueError):
@@ -17,10 +21,25 @@ class OfficialDraftPrefixMismatch(ValueError):
                          f" observed={counterexample['observed_step1_kv_extent']})")
 
 
-def stable_lengths(record):
+class OfficialDraftEnvelopeUnresolved(OfficialDraftPrefixMismatch):
+    """A known source layout with a remaining dependency proof obligation."""
+
+    def __init__(self, audit):
+        self.envelope_audit = audit
+        super().__init__(audit["first_full_query_advance"])
+        self.args = (f"{self.args[0]}. Official MTP full-query advance requires "
+                     + audit["remaining_evidence"].replace("_", " "),)
+
+
+def length_rows(record):
     before, after = record["length_planes_before"], record["length_planes_after"]
     if before != after or [p["step"] for p in before] != [0, 1]:
         raise ValueError("Official MTP kernel length arguments changed or are incomplete")
+    batch = len(record["requests"])
+    if (len(record["sample_indices"]) != batch
+            or any(len(p["actual_kv_lengths"]) != batch or len(p["query_end_envelope"]) < batch
+                   for p in before)):
+        raise ValueError("Official MTP length arguments omit live request rows")
     begin = 0
     for row, request in enumerate(record['requests']):
         sample = record['sample_indices'][row]
@@ -33,26 +52,113 @@ def stable_lengths(record):
         selected = positions[sample]
         if type(selected) is not int or selected < 0:
             raise ValueError('Official draft selected position is invalid')
-        observed = before[1]['actual_kv_lengths'][row]
-        if observed != selected + 2:
-            raise OfficialDraftPrefixMismatch(dict(window=record['window'], call=record['call'],
+        yield dict(window=record['window'], call=record['call'],
                 wave=record['wave'], row=row, request=request, begin=begin,
                 sample_index=sample, query_stop=stop, selected_position=selected,
                 first_pass_query_positions=positions[begin:stop],
                 observed_step0_kv_extent=before[0]['actual_kv_lengths'][row],
-                observed_step1_kv_extent=observed, expected_selected_prefix_kv_extent=selected + 2,
+                observed_step1_kv_extent=before[1]['actual_kv_lengths'][row],
+                expected_selected_prefix_kv_extent=selected + 2,
                 observed_step0_query_end=stop,
                 observed_step1_query_end=before[1]['query_end_envelope'][row],
                 source_derived_second_step_write_position=selected + 1,
                 actual_slot_values_or_kernel_access_trace_observed=False,
-                raw_length_planes_modified=False))
+                raw_length_planes_modified=False)
         begin = stop
+    if begin != record["actual_input_tokens"]:
+        raise ValueError("Official draft query envelopes omit live tokens")
+
+
+def stable_lengths(record, *, logical_projection=False):
     result = copy.deepcopy(record)
+    for row in length_rows(record):
+        observed = row["observed_step1_kv_extent"]
+        expected = row["expected_selected_prefix_kv_extent"]
+        if observed == expected:
+            continue
+        if not logical_projection:
+            raise OfficialDraftPrefixMismatch(row)
+        # Only for reachability analysis after classify_envelopes. Never use
+        # a logical projection as physical metadata or in the numerical ledger.
+        for boundary in ("length_planes_before", "length_planes_after"):
+            plane = result[boundary][1]
+            plane["actual_kv_lengths"][row["row"]] = expected
+            plane["kv_length_envelope"][row["row"]] = expected
     result["first_pass_kv_extent_contract"] = "full_query_envelope"
     return result
 
 
-def resolve_records(scheduler, rank0, rank1, drafts0, drafts1):
+def classify_envelopes(records):
+    """Distinguish the official full-query advance from unsupported geometry."""
+    counts = Counter()
+    widened = {}
+    for record in records:
+        for row in length_rows(record):
+            positions = row["first_pass_query_positions"]
+            end = positions[-1]
+            selected = row["selected_position"]
+            first = row["observed_step0_kv_extent"]
+            second = row["observed_step1_kv_extent"]
+            query_end = row["observed_step1_query_end"]
+            if (any(type(p) is not int or p < 0 for p in positions)
+                    or positions != list(range(positions[0], end + 1))
+                    or type(first) is not int or first != end + 1
+                    or type(second) is not int or type(query_end) is not int or query_end != row["row"] + 1
+                    or not 0 <= end - selected <= 2):
+                raise ValueError("Unsupported official MTP query/KV geometry")
+            if second == selected + 2:
+                counts["selected_prefix"] += 1
+            elif second == first + 1:
+                counts["full_query_advance"] += 1
+                key = row["call"], row["request"]
+                if key in widened:
+                    raise ValueError("Repeated widened KV request in one draft call")
+                widened[key] = dict(
+                    row, extra_reported_positions=list(range(selected + 2, second)),
+                    final_position_without_current_call_writer=end + 1,
+                )
+            else:
+                raise OfficialDraftPrefixMismatch(row)
+    return counts, widened
+
+
+def envelope_dependencies(streams, widened):
+    """Find widened attention calls in the retained-output dependency graph."""
+    from draft_producer_geometry import bind_producers
+    from draft_state_closure import backward, versions_from_calls
+
+    projected, _ = resolve_records(*streams, logical_projection=True)
+    scheduler, _, _, rank0, rank1 = projected
+    bindings = bind_producers(rank0, rank1, scheduler)
+    versions, indices = versions_from_calls(rank0)
+    roots = {
+        indices[binding["producer_call"], binding["request"], step]
+        for binding in bindings["bindings"]
+        for step in range(binding["retained_drafts"])
+    }
+    closure = backward(versions, roots)
+    widened_full = []
+    for index in closure["full_versions"]:
+        version = versions[index]
+        key = version["call"], version["request"]
+        if version["step"] == 1 and key in widened:
+            widened_full.append(widened[key])
+    direct = sum(
+        versions[index]["step"] == 1
+        and (versions[index]["call"], versions[index]["request"]) in widened
+        for index in roots
+    )
+    return dict(
+        retained_logits=len(roots),
+        direct_widened_roots=direct,
+        widened_full_attention_calls=len(widened_full),
+        widened_calls_not_needed_for_retained_output=len(widened) - len(widened_full),
+        first_widened_full_attention_call=next(iter(widened_full), None),
+        scope="reachability_in_logical_projection_only",
+    )
+
+
+def resolve_records(scheduler, rank0, rank1, drafts0, drafts1, *, logical_projection=False):
     from draft_producer_geometry import canonical
 
     streams = (scheduler, rank0, rank1, drafts0, drafts1)
@@ -65,8 +171,8 @@ def resolve_records(scheduler, rank0, rank1, drafts0, drafts1):
                 or canonical(draft) != canonical(peer)
                 or draft["call"] != wave or peer["call"] != wave):
             raise ValueError("Async device producer ranks/window/order disagree")
-        derived[3][wave] = stable_lengths(draft)
-        derived[4][wave] = stable_lengths(peer)
+        derived[3][wave] = stable_lengths(draft, logical_projection=logical_projection)
+        derived[4][wave] = stable_lengths(peer, logical_projection=logical_projection)
         rows = [{r["request"]: r for r in stream["rows"]} for stream in (host, left, right)]
         if (any(len(m) != len(s["rows"]) for m, s in zip(rows, (host, left, right), strict=True))
                 or rows[0] != rows[1] or rows[0] != rows[2]

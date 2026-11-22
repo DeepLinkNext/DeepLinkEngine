@@ -17,7 +17,7 @@ from official_ft_inventory import validate
 from official_ft_capacity import envelope
 from official_ft_audit import Evidence, runtime
 from official_ft_draft import length_planes
-from official_ft_inputs import stable_lengths
+from official_ft_inputs import classify_envelopes, envelope_dependencies, stable_lengths
 
 
 def loaded():
@@ -171,6 +171,52 @@ class LengthPlaneTests(unittest.TestCase):
                    length_planes_after=[dict(step=0), dict(step=1, changed=True)])
         with self.assertRaisesRegex(ValueError, 'changed'):
             stable_lengths(row)
+
+    def test_full_query_advance_is_traced_only_to_retained_second_drafts(self):
+        request = 'a' * 64
+        for retained in (1, 3):
+            with self.subTest(retained=retained):
+                scheduler, drafts = [], []
+                for wave, start, tokens, offered, kept, produced in (
+                    (0, 0, [2, 3], 1, [3], [4, 5]),
+                    (1, 2, [6, 7, 8], 1, [6], [9, 10]),
+                    (2, 3, [9, 10, 11], 3, [9, 10, 11][:retained], [12, 13]),
+                ):
+                    size = len(tokens)
+                    planes = [
+                        dict(step=0, query_end_envelope=[size], actual_kv_lengths=[start + size]),
+                        dict(step=1, query_end_envelope=[1], actual_kv_lengths=[start + size + 1]),
+                    ]
+                    for plane in planes:
+                        plane["kv_length_envelope"] = list(plane["actual_kv_lengths"])
+                    drafts.append(dict(window='w', wave=wave, call=wave, capacity=size,
+                        actual_input_tokens=size, requests=[request],
+                        sample_indices=[size - 1 if wave == 0 else offered - 1],
+                        first_pass_positions=list(range(start, start + size)),
+                        first_pass_input_ids=tokens, draft_token_ids=[produced],
+                        length_planes_before=planes, length_planes_after=copy.deepcopy(planes)))
+                    scheduler.append(dict(window='w', wave=wave,
+                        rows=[dict(request=request, start=start, count=size, draft=0 if wave == 0 else 2,
+                                   draft_token_ids=[] if wave == 0 else [-1, -1])],
+                        retained=[dict(request=request, offered=offered, kept=len(kept),
+                                       kept_token_ids=kept, stale=False, stopped=wave == 2)]))
+                streams = [scheduler, copy.deepcopy(scheduler), copy.deepcopy(scheduler),
+                           drafts, copy.deepcopy(drafts)]
+                original = copy.deepcopy(streams)
+                counts, widened = classify_envelopes(drafts)
+                self.assertEqual(counts, dict(selected_prefix=2, full_query_advance=1))
+                self.assertEqual(widened[1, request]['final_position_without_current_call_writer'], 5)
+                dependency = envelope_dependencies(streams, widened)
+                self.assertEqual(dependency['widened_full_attention_calls'], int(retained == 3))
+                self.assertEqual(streams, original)
+                # The version-specific adaptation does not accept arbitrary
+                # lengths or silently accept the projected stream as physical.
+                with self.assertRaisesRegex(ValueError, 'selected-prefix'):
+                    stable_lengths(drafts[1])
+                for boundary in ('length_planes_before', 'length_planes_after'):
+                    drafts[1][boundary][1]['actual_kv_lengths'][0] += 1
+                with self.assertRaisesRegex(ValueError, 'selected-prefix'):
+                    classify_envelopes(drafts)
 
 
 class DeferredTensor:

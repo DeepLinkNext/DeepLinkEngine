@@ -221,6 +221,51 @@ def native_implementation(native, plan, workers, core, version, domain, sdk):
                 raise ValueError('Native actually loaded runner source is unreviewed')
 
 
+SCHEDULER_STREAMS = ('scheduler-waves.jsonl', 'rank-0-waves.jsonl', 'rank-1-waves.jsonl')
+DRAFT_STREAMS = ('rank-0-drafts.jsonl', 'rank-1-drafts.jsonl')
+
+
+def reviewed_envelopes(drafts, source, *, version, streams=None):
+    from official_ft_inputs import ENVELOPE_VERSIONS, classify_envelopes, envelope_dependencies
+
+    if version not in ENVELOPE_VERSIONS:
+        return None
+    counts, widened = classify_envelopes(drafts[0])
+    if not widened:
+        return None
+    first = next(iter(widened.values()))
+    reachability = None
+    if streams is None:
+        names = ['client/raw-work/' + name for name in SCHEDULER_STREAMS]
+        if all((source.root / name).is_file() for name in names):
+            streams = [source.lines(name) for name in names] + drafts
+    if streams is not None:
+        reachability = envelope_dependencies(streams, widened)
+    if reachability is None:
+        remaining = 'scheduler_and_both_worker_wave_streams'
+    elif reachability['widened_full_attention_calls']:
+        remaining = 'actual_second_step_read_mask_or_request_owned_tail_slot_provenance'
+    else:
+        remaining = 'native_repetition_applicability_for_full_query_advance'
+    return dict(
+        schema='deeplinkengine-official-draft-envelope-audit/v1',
+        version=version, calls_per_rank=len(drafts[0]), rank_count=2,
+        row_counts=dict(counts), first_full_query_advance=first,
+        retained_output_reachability=reachability,
+        remaining_evidence=remaining,
+        original_length_planes_modified=False,
+        physical_kernel_reads_observed=False,
+        source_runtime_applicability_certified=False,
+        necessary_work_certified=False,
+    )
+
+
+def reject_widened_envelope(report):
+    from official_ft_inputs import OfficialDraftEnvelopeUnresolved
+
+    raise OfficialDraftEnvelopeUnresolved(report)
+
+
 def companion(source, text, version):
     from official_ft_inventory import validate
     from official_ft_inputs import resolve_records
@@ -257,8 +302,7 @@ def companion(source, text, version):
     responses = validate_frames(raw, list(map(len, prompts)), 256)
     requests = [dict(request=key(identity), input_tokens=len(tokens), output_tokens=len(row['output_ids']))
         for identity, tokens, row in zip(raw['request_ids'], prompts, responses, strict=True)]
-    names = ['scheduler-waves.jsonl', 'rank-0-waves.jsonl', 'rank-1-waves.jsonl',
-             'rank-0-drafts.jsonl', 'rank-1-drafts.jsonl']
+    names = SCHEDULER_STREAMS + DRAFT_STREAMS
     streams = [source.lines('client/raw-work/' + name) for name in names]
     if (len(streams[0]) != core['waves'] or any(r['window'] != window for s in streams for r in s)
             or any(len(streams[rank + 1]) != workers[rank]['waves'] for rank in (0, 1))):
@@ -271,6 +315,14 @@ def companion(source, text, version):
                     or strategy['sampling_all_greedy'] is not True
                     or strategy['constant_draft_positions'] not in (None, False)):
                 raise ValueError('Unmapped actual companion MTP strategy')
+    from draft_producer_geometry import canonical
+    if (len(streams[3]) != len(streams[4])
+            or any(canonical(left) != canonical(right)
+                   for left, right in zip(streams[3], streams[4], strict=True))):
+        raise ValueError('Official TP draft streams disagree')
+    report = reviewed_envelopes(streams[3:], source, version=version, streams=streams)
+    if report is not None:
+        reject_widened_envelope(report)
     resolved, changes = resolve_records(*streams)
     proof = audit(requests, resolved[0], resolved[3], resolved[4])
     proof.update(loaded_inventory_audits=audits, async_placeholder_changes_count=len(changes),
@@ -282,7 +334,7 @@ def companion(source, text, version):
     return proof, inventories, source.read('client/resolved-core.json')
 
 
-def prefix_preflight(native, observed):
+def prefix_preflight(native, observed, *, version=None):
     """Fail early from externally sealed JSON only; never certify success."""
     from official_ft_inputs import stable_lengths
     sys.path.insert(0, str(KIT / 'third-party-test-kit'))
@@ -317,7 +369,7 @@ def prefix_preflight(native, observed):
             or {row['rank'] for row in workers} != {0, 1}
             or any(row['completed'] is not True or row['window'] != window for row in workers)):
         raise ValueError('Sealed JSON preflight observer closures differ')
-    streams = [observed.lines(f'client/raw-work/rank-{rank}-drafts.jsonl') for rank in (0, 1)]
+    streams = [observed.lines('client/raw-work/' + name) for name in DRAFT_STREAMS]
     if (len(streams[0]) != len(streams[1]) or not streams[0]
             or core['waves'] != len(streams[0])
             or any(row['draft_calls'] != len(streams[0]) or row['waves'] != len(streams[0]) for row in workers)):
@@ -326,6 +378,10 @@ def prefix_preflight(native, observed):
         if (left['window'] != window or left['call'] != call or left['wave'] != call
                 or canonical(left) != canonical(right)):
             raise ValueError('Sealed JSON preflight TP producer identity/order differs')
+    report = reviewed_envelopes(streams, observed, version=version)
+    if report is not None:
+        reject_widened_envelope(report)
+    for left in streams[0]:
         stable_lengths(left)
     return dict(status='no_prefix_mismatch_found', full_qualification_performed=False,
         native_seal_sha256=sha(native.seal_path), companion_seal_sha256=sha(observed.seal_path),
@@ -359,6 +415,18 @@ def prefix_rejection(out, error, native, observed, domain, sdk=None, *, version_
         upstream_runtime_correctness_certified=False, source_runtime_applicability_certified=False,
         necessary_work_certified=False, F_interval=None, efficiency_percent=None,
         original_native_timing_repeated=False, companion_repeated=False, original_evidence_modified=False)
+    envelope_audit = getattr(error, 'envelope_audit', None)
+    if envelope_audit is not None:
+        audit_file = Path(out) / 'draft-envelope-audit.json'
+        save(audit_file, dict(envelope_audit, companion_seal_sha256=sha(observed.seal_path),
+            source_family=domain['id'], source_identities=sources,
+            selected_companion_evidence_sha256=dict(observed.selected)))
+        report.update(draft_envelope_audit_sha256=sha(audit_file),
+            failure_kind=envelope_audit['remaining_evidence'],
+            interpretation='The official second step can advance the full query envelope. '
+                           'Retained-output reachability is checked when sealed scheduler streams '
+                           'are present. A physical tail read without verified provenance is '
+                           'not counted as selected-prefix arithmetic.')
     save(Path(out) / 'producer-prefix-rejection.json', report)
     return report
 
