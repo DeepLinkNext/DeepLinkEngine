@@ -25,6 +25,43 @@ class OfficialBaselines(unittest.TestCase):
         self.addCleanup(self.temporary.cleanup)
         self.root = Path(self.temporary.name)
 
+    @unittest.skipUnless(sys.platform == 'linux', 'Sticky device leases are a Linux host interface')
+    def test_official_leases_keep_the_existing_sticky_lock_and_check_idle(self):
+        import errno
+        from official_resource_compat import acquire
+
+        scripts = Path(__file__).resolve().parents[1] / 'benchmark/one-click-kit/scripts'
+        with patch.object(sys, 'path', [str(scripts), *sys.path]):
+            import resource_guard as guard
+        sticky = self.root / 'sticky'
+        sticky.mkdir()
+        sticky.chmod(0o1777)
+        lock = sticky / 'device.lock'
+        lock.write_bytes(b'original')
+        identity = lock.stat()
+        original_acquire = guard.acquire
+
+        def acquire_original(output, timeout):
+            if 'VLLMHUST_ENGINE_LOCKS' not in os.environ:
+                raise PermissionError(errno.EACCES, 'protected_regular', str(lock))
+            return original_acquire(output, timeout)
+
+        sample = ('| 0 910B2 | OK\n| 1 910B2 | OK\nNo running processes found in NPU 0\n'
+                  'No running processes found in NPU 1\n')
+        with patch.dict(os.environ, {'VLLM_HUST_PHYSICAL_DEVICES': '0,1'}, clear=True), \
+                patch.object(guard, 'paths', return_value=[str(lock)]), \
+                patch.object(guard, 'acquire', side_effect=acquire_original), \
+                patch('official_resource_compat.subprocess.run',
+                      return_value=subprocess.CompletedProcess(['npu-smi'], 0, stdout=sample)):
+            entries = acquire(self.root, 0)
+            try:
+                self.assertEqual(os.fstat(entries[0]['fd']).st_ino, identity.st_ino)
+                self.assertTrue(json.loads((self.root/'resource-compatibility.json').read_bytes())['admitted'])
+            finally:
+                guard.release(entries)
+        self.assertEqual(lock.read_bytes(), b'original')
+        self.assertEqual(lock.stat().st_ino, identity.st_ino)
+
     def test_protocol_clients_keep_driver_paths_and_use_their_own_torch(self):
         from official_suite import clean_client_environment
 
