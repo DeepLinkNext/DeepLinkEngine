@@ -1,5 +1,6 @@
 """Regression checks for the installed entry points, completion records and failures."""
 import contextlib
+from datetime import datetime, timezone
 import hashlib
 import importlib.util
 import io
@@ -253,6 +254,49 @@ class WorkflowTests(unittest.TestCase):
         with patch.object(sys, "argv", ["run_all.py", "--status", "--json", "--config", str(config)]),              contextlib.redirect_stdout(io.StringIO()) as output:
             self.assertEqual(workflow.main(), 0)
         return json.loads(output.getvalue())
+
+    def test_status_summarizes_current_workload_and_preserves_json(self):
+        config = self.root / "evaluation.json"
+        config.write_text(json.dumps(self.data))
+        self.write("results.json", {
+            "status": "running", "started_at": "2026-11-23T03:20:19+00:00",
+            "baseline_policy": {"rerun_b0": True},
+            "stages": [{"name": "run-fixed-five", "status": "running",
+                        "started_at": "2026-11-23T03:56:49+00:00"}],
+        })
+        self.write("fixed-five/execution-checklist.json", {"status": "running", "stages": [
+            {"name": "terminal-trace-B0", "status": "completed"},
+            {"name": "terminal-trace-B1", "status": "running"},
+        ]})
+        self.write("fixed-five/terminal-trace-B1/receipt.json", {"status": "starting-model"})
+        self.write("fixed-five/terminal-trace-B1/dataset-spec.json", {"case_ids": list(range(48))})
+        args = ["run_all.py", "--status", "--config", str(config)]
+        with patch.object(run_progress, "datetime", wraps=datetime) as clock:
+            clock.now.return_value = datetime(2026, 11, 23, 14, 54, 43, tzinfo=timezone.utc)
+            with patch.object(sys, "argv", args), contextlib.redirect_stdout(io.StringIO()) as output:
+                self.assertEqual(workflow.main(), 0)
+            human = output.getvalue()
+            self.assertIn("当前阶段  固定五项评测", human)
+            self.assertIn("执行进度  已完成 1/2 项", human)
+            self.assertIn("评测项目  第 2 项 · Terminal-Bench · B1 轨迹回放", human)
+            self.assertIn("当前动作  启动模型", human)
+            self.assertIn("请求进度  已记录 0/48 个请求", human)
+            self.assertIn("运行耗时  总计 11 小时 34 分 24 秒", human)
+            self.assertIn("阶段耗时  10 小时 57 分 54 秒", human)
+            self.assertNotIn("terminal-trace-B0", human)
+
+            with patch.object(sys, "argv", [*args, "--watch"]), \
+                 patch.object(run_progress.time, "sleep", side_effect=KeyboardInterrupt), \
+                 contextlib.redirect_stdout(io.StringIO()) as output:
+                self.assertEqual(workflow.main(), 130)
+            self.assertEqual(len(output.getvalue().splitlines()), 1)
+            self.assertIn("Terminal-Bench · B1 轨迹回放", output.getvalue())
+            self.assertIn("0/48 个请求", output.getvalue())
+
+            machine = self.read_progress(config)
+        self.assertEqual(machine["elapsed_seconds"], 39474)
+        self.assertEqual(machine["detail"]["stage"], "terminal-trace-B1")
+        self.assertEqual(machine["detail"]["phase"], "starting-model")
 
     def test_progress_records_failure_before_output_exists_and_watch_is_read_only(self):
         config = self.root / "evaluation.json"

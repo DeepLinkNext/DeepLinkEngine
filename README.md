@@ -40,7 +40,7 @@ python run_all.py
 
 R9 的书生单模型验证见[版本说明](engine/versions/2026.11.19.9.md)，不作为完整五项 B0/B1 或项目最终验收结果。
 
-入口自动完成环境准备、缓存回收、双臂预热、五项配对、有效算力参考、上下文与四租户测试，并生成 `full-report/report.html` 及 PNG/SVG 对比图。终端从读取配置起显示全流程阶段和原始日志。后台运行时，可用 `python run_all.py --status --json` 查询一次，或用 `python run_all.py --status --watch` 持续观察。启动时指定了 `--config` 的，查询时使用同一配置文件。
+入口自动完成环境准备、缓存回收、双臂预热、五项配对、有效算力参考、上下文与四租户测试，并生成 `full-report/report.html` 及 PNG/SVG 对比图。后台运行时，用 `python run_all.py --status` 查看当前项目、完成项数、请求进度和耗时，加 `--watch` 持续观察。程序读取状态时可加 `--json`，取得完整阶段记录。启动时指定了 `--config` 的，查询时使用同一配置文件。
 
 [固定数据包](data/README.md)和[B0 镜像原件](data/B0-README.md)均由测试入口从本仓库 Release 自动恢复并校验。[测试与复核指南](benchmark/README.md)包含固定五项、长上下文、四租户、报告生成和第三方验证；[现场测试说明](benchmark/docs/topic4-test-guide.pdf)提供见证流程。
 

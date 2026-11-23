@@ -51,6 +51,41 @@ STATE_TEXT = {
     "failed": "失败",
     "interrupted": "已中断",
 }
+ASSESSMENT_STAGES = {
+    "continuous": "连续压测 · {arm}",
+    "frontier-solver": "FrontierScience · {arm} 答题",
+    "frontier-judge": "FrontierScience · 评判 {arm} 答案",
+    "hle-solver": "HLE · {arm} 答题",
+    "hle-judge": "HLE · 评判 {arm} 答案",
+    "swe-trace": "SWE-bench-Pro · {arm} 轨迹回放",
+    "terminal-trace": "Terminal-Bench · {arm} 轨迹回放",
+}
+REFERENCE_STAGES = {
+    "gdn-decode-independent-reference": "校验 GDN 解码算子",
+    "gdn-prefill-independent-reference": "校验 GDN 预填充算子",
+    "raw-route-recorder-qualification": "校验路由记录",
+    "current-native-synchronized-timing": "B1 原生推理计时",
+    "baseline-native-synchronized-timing": "B0 原生推理计时",
+    "current-http-work-observation": "采集 B1 HTTP 工作量",
+    "complete-current-necessary-work": "核算本轮必要工作量",
+    "shape-matched-independent-reference-dag": "构建同形状的独立参考",
+    "independent-reference-dag-audit": "核验独立参考",
+    "matched-current-numerator-and-recomputation": "匹配并复算有效算力",
+}
+PHASES = {
+    "admitting": "核验运行条件",
+    "verifying-baseline": "校验 B0 安装",
+    "preparing": "准备中",
+    "starting-model": "启动模型",
+    "warming-service": "预热推理服务",
+    "running-client": "执行测试请求",
+    "verifying": "校验测试结果",
+    "reused_verified": "已复用校验通过的结果",
+    "4096-formal": "4K 正式测试",
+    "16384-formal": "16K 正式测试",
+    "32768-formal": "32K 正式测试",
+    "multi-tenant-formal": "四租户正式测试",
+}
 
 
 def timestamp():
@@ -295,41 +330,116 @@ def snapshot(out):
     )
 
 
-def emit(value, as_json):
+def duration_label(seconds):
+    hours, remainder = divmod(seconds, 3600)
+    minutes, seconds = divmod(remainder, 60)
+    parts = []
+    if hours:
+        parts.append(f"{hours} 小时")
+    if hours or minutes:
+        parts.append(f"{minutes} 分")
+    return " ".join([*parts, f"{seconds} 秒"])
+
+
+def assessment_stage_label(name):
+    if name == "prepare":
+        return "准备评测计划"
+    if name == "mmlu-pair" or name.startswith("mmlu-pair/"):
+        arm = name.partition("/")[2]
+        return f"MMLU-Pro 配对评测 · {arm}" if arm else "MMLU-Pro 配对评测"
+    if name.startswith("compute-reference/"):
+        return REFERENCE_STAGES.get(name.partition("/")[2], name)
+    if name in {"B0", "B1"}:
+        return f"{name} 上下文及四租户测试"
+    stage, _, arm = name.rpartition("-")
+    if stage in ASSESSMENT_STAGES and arm in {"B0", "B1"}:
+        return ASSESSMENT_STAGES[stage].format(arm=arm)
+    return name
+
+
+def status_fields(value):
+    state = value["state"]
+    stage = value["stage"]
+    detail = value["detail"] or {}
+    current = detail.get("stage", "")
+    computing_reference = current.partition("/")[0] == "compute-reference"
+    fields = [("验收状态", STATE_TEXT.get(state, state))]
+    title = value["stage_label"]
+    if computing_reference:
+        title = "有效算力参考"
+    elif stage == "run-fixed-five" and current:
+        title = "固定五项评测"
+    if title:
+        label = "最后阶段" if state in TERMINAL else "当前阶段"
+        fields.append((label, title))
+    if "step" in detail:
+        step = detail["step"]
+        fields.append(("当前动作", LABELS.get(step, step)))
+    elif current:
+        reference = detail.get("reference") or {}
+        if computing_reference:
+            if "stages_total" in reference:
+                fields.append(("参考进度", f"已完成 {reference['stages_done']}/{reference['stages_total']} 项"))
+        elif detail["stages_total"]:
+            fields.append(("执行进度", f"已完成 {detail['stages_done']}/{detail['stages_total']} 项"))
+        if current != "compute-reference":
+            stage_name = assessment_stage_label(current)
+            parent = current.partition("/")[0]
+            item = next((row for row in detail["stages"] if row["name"] == parent), None)
+            if item and state == "running":
+                stage_name = f"第 {item['index']} 项 · {stage_name}"
+            fields.append(("评测项目", stage_name))
+        if action := detail.get("phase"):
+            phase, separator, subphase = action.partition(":")
+            phase = PHASES.get(phase, STATE_TEXT.get(phase, phase))
+            if separator:
+                phase += " · " + PHASES.get(subphase, subphase)
+            fields.append(("当前动作", phase))
+        if detail["planned"] is not None:
+            fields.append(("请求进度", f"已记录 {detail['responses']}/{detail['planned']} 个请求"))
+        elif detail["responses"]:
+            fields.append(("请求进度", f"已记录 {detail['responses']} 个请求"))
+    end = value["updated_at"] if state in TERMINAL else None
+    total = elapsed(value["started_at"], end) if state not in TERMINAL or end else None
+    if total is not None:
+        label = "截至最后记录" if state == "interrupted" else "总计"
+        fields.append(("运行耗时", f"{label} {duration_label(total)}"))
+    if value["elapsed_seconds"] is not None:
+        fields.append(("阶段耗时", duration_label(value["elapsed_seconds"])))
+    if value["rerun_b0"] is True:
+        fields.append(("B0 策略", "强制重测 B0"))
+    elif value["rerun_b0"] is False:
+        fields.append(("B0 策略", "仅复用 B0"))
+    if value["failure"]:
+        fields.append(("异常", value["failure"]))
+    returncode = value["returncode"] if value["returncode"] is not None else detail.get("returncode")
+    if returncode not in (None, 0):
+        fields.append(("退出码", str(returncode)))
+    if value["report_path"]:
+        fields.append(("报告", value["report_path"]))
+    elif state in TERMINAL and value["results_path"]:
+        fields.append(("执行回执", value["results_path"]))
+    return fields
+
+
+def emit(value, as_json, *, watch=False):
     if as_json:
         _console_line(json.dumps(value, ensure_ascii=False), fallback=lambda: json.dumps(value))
         return
-    state = value["state"]
-    fields = [(state, STATE_TEXT.get(state, state))]
-    if value["stage_label"]:
-        fields.append((value["stage"], value["stage_label"]))
-    if detail := value["detail"]:
-        if "step" in detail:
-            step = detail["step"]
-            fields.append((step, LABELS.get(step, step)))
-        else:
-            current = f"{detail['stage']} {detail['phase']}"
-            fields.append((current, current))
-            count = f"{detail['stages_done']}/{detail['stages_total']}"
-            fields.append((f"evaluation stages {count}", f"评测阶段 {count}"))
-            if (reference := detail.get("reference")) and "stages_total" in reference:
-                count = f"{reference['stages_done']}/{reference['stages_total']}"
-                fields.append((f"compute reference {count}", f"参考认证 {count}"))
-            if detail["planned"] is not None:
-                count = f"{detail['responses']}/{detail['planned']}"
-                fields.append((f"requests {count}", f"请求 {count}"))
-    if value["rerun_b0"] is True:
-        fields.append(("B0 planned rerun", "B0 计划重跑"))
-    elif value["rerun_b0"] is False:
-        fields.append(("B0 planned reuse", "B0 计划复用"))
-    if value["elapsed_seconds"] is not None:
-        duration = f"{value['elapsed_seconds']}s"
-        fields.append((f"stage elapsed {duration}", f"本阶段 {duration}"))
-    if value["failure"]:
-        fields.append((value["failure"], value["failure"]))
-    if value["report_path"]:
-        fields.append((value["report_path"], value["report_path"]))
-    _progress_line(fields)
+    fields = status_fields(value)
+    if watch:
+        summary = []
+        notes = []
+        for label, body in fields:
+            if label in {"异常", "退出码", "报告", "执行回执"}:
+                notes.append(f"{label}  {body}")
+            elif label not in {"阶段耗时", "B0 策略"}:
+                summary.append(body)
+        lines = [" | ".join(summary), *notes]
+    else:
+        lines = [f"{label}  {body}" for label, body in fields]
+    fallback = [value["state"], value["stage"], value["failure"], value["report_path"]]
+    _console_line("\n".join(lines), fallback=lambda: "[PROGRESS] " + " | ".join(filter(None, fallback)))
 
 
 def observe(config, *, watch=False, as_json=False):
@@ -348,7 +458,7 @@ def observe(config, *, watch=False, as_json=False):
             change = {key: item for key, item in value.items() if key != "elapsed_seconds"}
             now = time.monotonic()
             if change != previous or now - last_emit >= 30:
-                emit(value, as_json)
+                emit(value, as_json, watch=watch)
                 previous = change
                 last_emit = now
             if not watch or value["state"] in TERMINAL:
