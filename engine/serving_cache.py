@@ -11,6 +11,7 @@ import platform
 import re
 import shutil
 import subprocess
+import sysconfig
 import tempfile
 import uuid
 
@@ -20,6 +21,8 @@ RECORD = "identity.json"
 LOCK = "writer.lock"
 VLLM = Path("on/vllm/torch_compile_cache")
 TRITON = Path("on/triton")
+MODEL_INFOS = Path("on/vllm/modelinfos")
+MODEL_INFO_NAME = re.compile(r"vllm-model_executor-models-([a-zA-Z_][a-zA-Z_0-9]*)-([a-zA-Z_][a-zA-Z_0-9]*)\.json")
 ENV_PREFIXES = ("VLLM_", "VLLMHUST_", "TORCH_", "PYTORCH_", "TORCHINDUCTOR_", "TRITON_",
                 "ASCEND_", "CANN_", "ATB_", "HCCL_", "BETTERSCALE_", "HUST_", "MTP_")
 # These locations and IDs describe the current process, not the compiled recipe.
@@ -202,43 +205,136 @@ def ascend_graphs(source, origin, staged, target):
     return graphs
 
 
-def select(pool, extra_pool, identity, location):
+def copy_new(path, content):
+    """Publish only complete entries, preserving any already present."""
+    if os.path.lexists(path):
+        return False
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(prefix=".seed-", dir=path.parent) as temp:
+        staged = Path(temp) / path.name
+        staged.write_bytes(content)
+        try:
+            os.link(staged, path)
+        except FileExistsError:
+            return False
+    return True
+
+
+def model_infos(source, target, models):
+    if models is None:
+        return 0
+    count = 0
+    for candidate in sorted((source / MODEL_INFOS).glob("*.json")):
+        match = MODEL_INFO_NAME.fullmatch(candidate.name)
+        output = target / MODEL_INFOS / candidate.name
+        if not match or not normal_file(candidate) or os.path.lexists(output):
+            continue
+        module, architecture = match.groups()
+        module_file = models / (module + ".py")
+        if not normal_file(module_file):
+            continue
+        try:
+            raw = candidate.read_bytes()
+            record = json.loads(raw)
+            content = module_file.name.encode() + b"\0" + module_file.read_bytes() + b"\0"
+            # Match the installed registry's safe_hash(..., usedforsecurity=False).
+            try:
+                native_hash = hashlib.md5(content, usedforsecurity=False).hexdigest()
+            except ValueError:
+                native_hash = hashlib.sha256(content).hexdigest()
+            if record["hash"] == native_hash and record["modelinfo"]["architecture"] == architecture:
+                count += copy_new(output, raw)
+        except (OSError, ValueError, KeyError, TypeError):
+            continue
+    return count
+
+
+def runtime_helpers(source, target):
+    count = 0
+    ext = sysconfig.get_config_var("EXT_SUFFIX")
+    names = {"npu_utils.so"}
+    if ext:
+        names.update("launcher_cxx11abi" + abi + ext for abi in ("0", "1"))
+    for folder in ordered_dirs(source / TRITON):
+        # Triton supplies the cache key. Keep it intact and copy only the
+        # known driver/launcher artifacts selected by that native key.
+        if not re.fullmatch(r"[A-Z2-7]+", folder.name):
+            continue
+        for name in names:
+            path = folder / name
+            output = target / TRITON / folder.name / name
+            if not normal_file(path) or os.path.lexists(output):
+                continue
+            try:
+                raw = path.read_bytes()
+                if raw.startswith(b"\x7fELF"):
+                    count += copy_new(output, raw)
+            except OSError:
+                continue
+    return count
+
+
+def compatible_sources(group, extra_group, target, identity):
+    candidates = ordered_dirs(group)
+    if extra_group is not None and extra_group != group:
+        candidates += ordered_dirs(extra_group)
+    for candidate in candidates:
+        if candidate == target:
+            continue
+        saved = read_record(candidate)
+        origin = saved.get("origin")
+        if saved.get("identity") == identity and isinstance(origin, str):
+            origin = Path(origin)
+            if origin.is_absolute():
+                yield candidate, origin
+
+
+def seed_startup(candidates, target, models, report):
+    for source, _ in candidates:
+        with cache_lease(source, writer=False) as available:
+            if available:
+                report["model_infos"] += model_infos(source, target, models)
+                report["runtime_helpers"] += runtime_helpers(source, target)
+
+
+def select(pool, extra_pool, identity, location, models=None):
     key = digest(identity)[:32]
     group = pool / POOL / key
+    extra_group = extra_pool / POOL / key if extra_pool is not None else None
     target = group / digest([str(pool), *location])[:24]
     record = {"identity": identity, "origin": str(target)}
     if os.path.lexists(target):
         if read_record(target) == record:
-            return target, {"mode": "existing"}
+            report = {"mode": "existing"}
+            candidates = list(compatible_sources(group, extra_group, target, identity))
+            if candidates:
+                with cache_lease(target, writer=True) as available:
+                    if available:
+                        startup = {"model_infos": 0, "runtime_helpers": 0}
+                        seed_startup(candidates, target, models, startup)
+                        report.update({name: count for name, count in startup.items() if count})
+            return target, report
         return group / ("unverified-" + uuid.uuid4().hex), {
             "mode": "isolated", "reason": "cached identity record is missing or inconsistent",
         }
     group.mkdir(parents=True, exist_ok=True)
-    report = {"mode": "cold", "triton_groups": 0, "ascend_graphs": 0}
+    report = {"mode": "cold", "triton_groups": 0, "ascend_graphs": 0,
+              "model_infos": 0, "runtime_helpers": 0}
     with tempfile.TemporaryDirectory(prefix=".prepare-", dir=group) as temp:
         staged = Path(temp) / "cache"
         staged.mkdir()
-        candidates = ordered_dirs(group)
-        if extra_pool is not None and extra_pool != pool:
-            candidates += ordered_dirs(extra_pool / POOL / key)
-        for candidate in candidates:
-            if candidate == target:
-                continue
-            saved = read_record(candidate)
-            origin = saved.get("origin")
-            if saved.get("identity") != identity or not isinstance(origin, str):
-                continue
-            origin = Path(origin)
-            if not origin.is_absolute():
-                continue
+        candidates = list(compatible_sources(group, extra_group, target, identity))
+        for candidate, origin in candidates:
             with cache_lease(candidate, writer=False) as available:
                 if not available:
                     continue
                 report["triton_groups"] += triton_groups(candidate, origin, staged, target)
                 report["ascend_graphs"] += ascend_graphs(candidate, origin, staged, target)
             if report["triton_groups"] or report["ascend_graphs"]:
-                report["mode"] = "relocated"
                 break
+        seed_startup(candidates, staged, models, report)
+        if any(count for name, count in report.items() if name != "mode"):
+            report["mode"] = "relocated"
         (staged / RECORD).write_text(json.dumps(record), encoding="utf-8")
         (staged / LOCK).touch()
         try:
@@ -267,4 +363,4 @@ def prepare(pool, extra_pool, installation, receipt, model, physical, environ):
         }
     return select(pool, extra_pool, identity, [
         str((installation / "sdk").resolve()), receipt["python"], str(model),
-    ])
+    ], models=installation / "sdk/runtime/engine-core/vllm/model_executor/models")

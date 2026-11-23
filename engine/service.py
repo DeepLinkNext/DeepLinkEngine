@@ -102,6 +102,21 @@ def build(root, profile, model, out, cache, logical, host, port, name):
     return command, env
 
 
+def verified_guard_path(tools, expected):
+    from engine.serving_cache import file_digest, normal_file
+
+    manifest = tools / "DEPLOYMENT-TOOLS.json"
+    if not normal_file(manifest) or file_digest(manifest) != expected:
+        raise ValueError("Installed tools manifest changed")
+    name = "scripts/resource_guard.py"
+    guard = tools / name
+    files = json.loads(manifest.read_bytes())["files"]
+    if (not guard.resolve().is_relative_to(tools.resolve()) or not normal_file(guard)
+            or file_digest(guard) != files.get(name)):
+        raise ValueError("Installed resource guard changed")
+    return guard
+
+
 def serve_packaged(args, installed, receipt):
     physical = pair(args.physical_devices)
     if not math.isfinite(args.lease_timeout) or args.lease_timeout < 0:
@@ -144,11 +159,13 @@ def serve_packaged(args, installed, receipt):
         if args.dry_run:
             forwarded.append('--dry-run')
         else:
-            from vllm_hust_engine.cli import module, verify_tools
+            from vllm_hust_engine.cli import info, module
             from official.official_resource_compat import acquire
             tools = installed / 'tools'
-            verify_tools(tools)
-            guard = module(tools / 'scripts/resource_guard.py', 'producer_resource_guard')
+            # Verify the only tool loaded here. The producer verifies the full
+            # tool bundle at the immediately following packaged entry point.
+            guard = module(verified_guard_path(tools, info()["tools_manifest_sha256"]),
+                           'producer_resource_guard')
             out.mkdir(parents=True, exist_ok=False)
             os.environ['VLLM_HUST_PHYSICAL_DEVICES'] = ','.join(map(str, physical))
             leases = acquire(out, args.lease_timeout, guard=guard)
