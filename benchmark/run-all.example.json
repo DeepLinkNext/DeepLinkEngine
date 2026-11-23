@@ -5,6 +5,5 @@
     1
   ],
   "cache": "/data/deeplinkengine/cache",
-  "out": "/data/deeplinkengine/new-run",
-  "rerun_b0": false
+  "out": "/data/deeplinkengine/new-run"
 }

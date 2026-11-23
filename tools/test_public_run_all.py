@@ -29,7 +29,7 @@ class FullSuiteEntryTests(unittest.TestCase):
         out = Path(temp) / "new-run"
         commands = []
 
-        def command(args):
+        def command(args, *, env=None):
             commands.append(args)
             if "install" in args or (len(args)>1 and Path(args[1]).name=="runtime_storage.py"):
                 record = out / "installation/installation.json"

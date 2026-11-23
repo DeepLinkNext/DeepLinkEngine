@@ -32,7 +32,9 @@ python examples/chat.py "你好，请介绍一下自己"
 python run_all.py
 ```
 
-首次全量实测在配置中设 `"rerun_b0": true`。已有匹配的 B0 结果时，按[恢复与复用说明](benchmark/README.md#恢复与结果复用)接续。运行 `python run_all.py --help-all` 可查看复用和恢复参数。
+若省略 `model`，脚本默认使用 `/models/Qwen3.5-35B-A3B`。模型存放在其他位置时，在配置中填写实际路径。
+
+完整入口默认检查输出目录的同级封存。匹配的 B0 阶段会复用，其余阶段自动测量。也可按[恢复与复用说明](benchmark/README.md#恢复与结果复用)接续。运行 `python run_all.py --help-all` 可查看复用和恢复参数。
 
 不填写 `engine_version` 时使用最新稳定版；指定版本可复现历史运行。恢复、复算及跨版本结果复用见[测试指南](benchmark/README.md#恢复与结果复用)。
 

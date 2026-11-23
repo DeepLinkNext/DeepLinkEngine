@@ -171,14 +171,16 @@ def configuration_arguments(subcommand, arguments):
     config_name = option(arguments, '--config')
     data = json.loads(Path(config_name).read_bytes()) if config_name else {}
     from benchmark.b0_run_policy import boolean
-    rerun = boolean(data.get('rerun_b0', False))
+    rerun = boolean(data['rerun_b0']) if 'rerun_b0' in data else None
     flags = [x for x in arguments if x in ('--rerun-b0', '--no-rerun-b0')]
     if len(flags) > 1:
         raise ValueError('只指定一次 --rerun-b0 或 --no-rerun-b0')
     if flags:
         rerun = flags == ['--rerun-b0']
     configured = module.configuration(subcommand, [x for x in arguments if x not in flags])
-    return configured + ['--rerun-b0'] if configured is not None and rerun else configured
+    if configured is None or rerun is None:
+        return configured
+    return configured + ['--rerun-b0' if rerun else '--no-rerun-b0']
 
 
 def prepare_data(arguments):
@@ -291,9 +293,9 @@ def main(arguments=None):
                 raise ValueError("The requested profile differs from the selected engine release")
         if option(effective, "--deployment") is None:
             raise ValueError("Provide deployment: /path/to/installation/sdk from the selected stable installation; see engine/README.md")
-        from benchmark.b0_run_policy import public_arguments, enabled
+        from benchmark.b0_run_policy import public_arguments, mode
         effective = public_arguments(effective, prepare_only=arguments[0] == 'prepare' or '--prepare-only' in effective)
-        print('是否重跑 B0：' + ('是' if enabled() else '否（复用已封存记录）'), flush=True)
+        print('B0 策略 ' + mode(), flush=True)
         effective = prepare_data(effective)
         effective = prepare_baseline(effective)
         os.environ["VLLM_HUST_PROJECT_EVIDENCE"] = str(reference_evidence(lock))
@@ -301,7 +303,7 @@ def main(arguments=None):
     if help_only:
         print("Native timing only: benchmark/one_click.py native-timing --help", flush=True)
         print("CPU report: benchmark/one_click.py report --engine-version VERSION --out DIRECTORY", flush=True)
-        print("B0 选项：--rerun-b0 显式重跑；--no-rerun-b0 默认复用旧记录。配置项 rerun_b0 默认 false。", flush=True)
+        print("B0 选项：--rerun-b0 强制重跑，--no-rerun-b0 仅复用。默认优先复用，未命中时按阶段补跑。", flush=True)
     sys.dont_write_bytecode = True
     sys.argv = [str(KIT / "one_click.py"), *arguments]
     runpy.run_path(str(KIT / "one_click.py"), run_name="__main__")

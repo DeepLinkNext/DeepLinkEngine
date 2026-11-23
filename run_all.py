@@ -20,6 +20,7 @@ from benchmark.run_progress import (
 from engine.release_selection import kit_path, runtime_lock, profile as selected_profile
 
 ROOT = Path(__file__).resolve().parent
+DEFAULT_MODEL = "/models/Qwen3.5-35B-A3B"
 PATH_FIELDS = {"model", "cache", "out", "baseline_deployment", "dataset_assets", "env_file", "actual_cost"}
 FIELDS = PATH_FIELDS | {"physical_devices", "devices", "environment", "engine_version", "rerun_b0", "allow_device_change"}
 
@@ -41,7 +42,8 @@ def configuration(path, *, allow_existing=False, report_only=False):
         required = ("out",) if candidate else ("cache", "out")
     else:
         reject_candidate_for_execution(version)
-        required = ("model", "physical_devices", "cache", "out")
+        data.setdefault("model", DEFAULT_MODEL)
+        required = ("physical_devices", "cache", "out")
     for name in required:
         if name not in data:
             raise ValueError("Missing configuration field: " + name)
@@ -343,6 +345,9 @@ def run(data, *, prepare_protocol_only=False, prepare_official_protocol_only=Fal
         reuse_compute_observation=None,
         actual_cost=None, progress=None):
     out = Path(data["out"])
+    from benchmark.b0_run_policy import DISCOVERY_ROOT, DISCOVERY_SOURCE
+    b0_flag = (["--rerun-b0" if data["rerun_b0"] else "--no-rerun-b0"]
+               if "rerun_b0" in data else [])
     reused_run = completed_run_source(data, reuse_completed_run) if reuse_completed_run else None
     if reused_run and os.path.lexists(out):
         raise ValueError("Completed-run reuse requires a new output directory")
@@ -371,7 +376,7 @@ def run(data, *, prepare_protocol_only=False, prepare_official_protocol_only=Fal
     installation = out / "installation"
     cli = str(Path(sysconfig.get_path("scripts")) / "vllm-hust-engine")
     from benchmark.recovery_source import process_identity
-    receipt = {"status": "running", "stages": [], "configuration": data, "automated_acceptance_complete": False, "baseline_policy": {"rerun_b0": data.get("rerun_b0", False)}, "controller_owner": process_identity()}
+    receipt = {"status": "running", "stages": [], "configuration": data, "automated_acceptance_complete": False, "baseline_policy": {"rerun_b0": data.get("rerun_b0"), "mode": "auto" if not b0_flag else ("force" if data["rerun_b0"] else "reuse_only")}, "controller_owner": process_identity()}
     if progress is not None:
         receipt.update(progress_id=progress.run_id, started_at=timestamp())
     if reused_run:
@@ -426,7 +431,7 @@ def run(data, *, prepare_protocol_only=False, prepare_official_protocol_only=Fal
             save()
             announce(name)
 
-    def stage(name, args, *, mode="execute"):
+    def stage(name, args, *, mode="execute", env=None):
         receipt.pop("activity", None)
         record = {"name": name, "status": "running", "command": args, "mode": mode}
         if progress is not None:
@@ -438,7 +443,7 @@ def run(data, *, prepare_protocol_only=False, prepare_official_protocol_only=Fal
         else:
             print(name, flush=True)
         try:
-            result = run_owned_stage(args)
+            result = run_owned_stage(args, env=env)
         except BaseException as error:
             record.update(status="interrupted" if isinstance(error, KeyboardInterrupt) else "launch_failed",
                           error=type(error).__name__ + ": " + str(error))
@@ -516,8 +521,8 @@ def run(data, *, prepare_protocol_only=False, prepare_official_protocol_only=Fal
         prepare_command = ([sys.executable, '-B', str(ROOT / 'official/official_protocol_data.py'), '--config', str(config),
                             '--anchor-sdk', data['environment']['official_sdk']]
                            if prepare_official_protocol_only else [*evaluate, "prepare", "--config", str(config)])
-        if data.get("rerun_b0", False) and not prepare_official_protocol_only:
-            prepare_command += ["--rerun-b0"]
+        if not prepare_official_protocol_only:
+            prepare_command += b0_flag
         if reuse_installation:
             prepare_command += ["--out", str(out / ("preflight-" + uuid.uuid4().hex))]
         if pre_inference:
@@ -551,11 +556,16 @@ def run(data, *, prepare_protocol_only=False, prepare_official_protocol_only=Fal
             run_command += ["--reference-resume-source", reused_run["compute_resume_source"]]
         if reuse_selection.get("compute_baseline_arm"):
             run_command += ["--reference-baseline-source", reuse_selection["compute_baseline_arm"]]
-        if data.get("rerun_b0", False):
-            run_command += ["--rerun-b0"]
+        run_command += b0_flag
         if data.get("allow_device_change"):
             run_command += ["--allow-device-change"]
-        stage("run-fixed-five", run_command)
+        discovery_env = dict(os.environ)
+        discovery_env[DISCOVERY_ROOT] = str(out.resolve().parent)
+        if reused_run:
+            discovery_env[DISCOVERY_SOURCE] = reused_run["root"]
+        else:
+            discovery_env.pop(DISCOVERY_SOURCE, None)
+        stage("run-fixed-five", run_command, env=discovery_env)
         activity("verify-reference")
         current = json.loads((out / "fixed-five/campaign.json").read_text())
         reference_target = qualified_reference(current)
@@ -575,11 +585,10 @@ def run(data, *, prepare_protocol_only=False, prepare_official_protocol_only=Fal
                       "--devices", plan["logical_devices"]]
         if reuse_selection.get("context_baseline_arm"):
             supplement += ["--reuse-b0", reuse_selection["context_baseline_arm"]]
-        if data.get("rerun_b0", False):
-            supplement += ["--rerun-b0"]
+        supplement += b0_flag
         if data.get("allow_device_change"):
             supplement += ["--allow-device-change"]
-        stage("run-context-tenant", supplement)
+        stage("run-context-tenant", supplement, env=discovery_env)
         activity("verify-evidence")
         campaign, reports, hashes = completed_evidence(out)
         reference_target = qualified_reference(campaign)
@@ -723,7 +732,7 @@ def main():
     advanced("--reuse-compute-baseline-arm", type=Path, help="Reuse sealed fixed-B0 native timing repetitions; retain original clocks and sources instead of starting B0")
     advanced("--reuse-compute-observation", type=Path,
         help="Reuse a complete sealed HTTP work observation with the same engine and devices")
-    advanced("--rerun-b0", action=argparse.BooleanOptionalAction, default=None, help="是否重跑固定 B0；默认否，复用已封存结果；首次测量显式开启")
+    advanced("--rerun-b0", action=argparse.BooleanOptionalAction, default=None, help="默认检测匹配封存，缺失时补跑；显式开启强制重跑，显式关闭仅复用")
     args = parser.parse_args(argv)
     if args.results is not None:
         result_options = {"config", "results", "status_json"}
@@ -783,7 +792,7 @@ def main():
 
                 return report_main(["--engine-version", data["engine_version"], "--out", str(data["out"])])
         if not args.report_only:
-            rerun_b0 = args.rerun_b0 if args.rerun_b0 is not None else data.get("rerun_b0", False)
+            rerun_b0 = args.rerun_b0 if args.rerun_b0 is not None else data.get("rerun_b0")
             progress = BootstrapProgress(Path(data["out"]), started_at, rerun_b0)
         configured_cost = data.pop("actual_cost", None)
         cost_path = args.actual_cost or configured_cost
