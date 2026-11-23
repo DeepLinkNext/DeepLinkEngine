@@ -42,6 +42,8 @@ R9 的书生单模型验证见[版本说明](engine/versions/2026.11.19.9.md)，
 
 [固定数据包](data/README.md)和[B0 镜像原件](data/B0-README.md)均由测试入口从本仓库 Release 自动恢复并校验。[测试与复核指南](benchmark/README.md)包含固定五项、长上下文、四租户、报告生成和第三方验证；[现场测试说明](benchmark/docs/topic4-test-guide.pdf)提供见证流程。
 
+已保存的 B0/B1 验收结果可用 `python run_all.py --results` 在终端查看，加 `--json` 可读取结构化结果。使用自定义配置时传入相同的 `--config`。
+
 ## 目录
 
 | 目录 | 内容 |

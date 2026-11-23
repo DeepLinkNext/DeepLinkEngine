@@ -20,6 +20,15 @@ python run_all.py
 
 模型启动后，入口在服务空闲、尚未预热时再次清理可回收缓存，并确认至少 24 GiB 原始内存余量后继续。临时页在预热前全部释放；模型配置、每卡 4 GiB 状态预算及原有内存保护保持不变。
 
+## 在终端读取验收结果
+
+```sh
+python run_all.py --results --config evaluation.json
+python run_all.py --results /path/to/run --json
+```
+
+也可指定运行的 `results.json` 或单独复制出来的 `full-report/summary.json`。终端概要显示 4.1–4.4 判定、固定五项双臂吞吐和时延，以及长上下文与四租户的对照数值。有运行回执及摘要哈希时会核对 SHA-256。尚无完整结果时会显示当前阶段和已记录的失败原因。
+
 ## R10 原生计时补测
 
 已安装正式版 `2026.11.21.10` 时，可单独采集三轮原生计时。`token-workload.json` 取自已封存的 0.23 或 0.30 MTP KV 补丁版原生计时目录。入口核对正式输入顺序和合成预热的 SHA-256，并为每轮保留 200 条请求的原始 token 输出、计时和设备回执。
