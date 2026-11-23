@@ -223,6 +223,10 @@ def prepare_baseline(arguments):
 
 def main(arguments=None):
     arguments = list(sys.argv[1:] if arguments is None else arguments)
+    if arguments[:1] == ["native-timing"]:
+        from benchmark.native_timing import main as timing_main
+
+        return timing_main(arguments[1:])
     if arguments[:1] == ["report"]:
         from benchmark.full_report import main as report_main
 
@@ -295,6 +299,7 @@ def main(arguments=None):
         os.environ["VLLM_HUST_PROJECT_EVIDENCE"] = str(reference_evidence(lock))
         arguments = effective
     if help_only:
+        print("Native timing only: benchmark/one_click.py native-timing --help", flush=True)
         print("CPU report: benchmark/one_click.py report --engine-version VERSION --out DIRECTORY", flush=True)
         print("B0 选项：--rerun-b0 显式重跑；--no-rerun-b0 默认复用旧记录。配置项 rerun_b0 默认 false。", flush=True)
     sys.dont_write_bytecode = True
