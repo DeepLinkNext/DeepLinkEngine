@@ -750,5 +750,101 @@ class WorkflowTests(unittest.TestCase):
 
 
 
+class TerminalResultsTests(unittest.TestCase):
+    def setUp(self):
+        scratch = tempfile.TemporaryDirectory()
+        self.addCleanup(scratch.cleanup)
+        self.root = Path(scratch.name).resolve()
+        self.out = self.root / "recorded-run"
+        self.config = self.root / "evaluation.json"
+        self.config.write_text(json.dumps({"out": self.out.name}), encoding="utf-8")
+        self.report = self.out / "full-report/summary.json"
+        self.report.parent.mkdir(parents=True)
+        self.summary = {
+            "schema": "deeplinkengine-full-acceptance-report/v1", "engine_release": "fixture-r10",
+            "execution_complete": True,
+            "targets": {
+                "4.1": {"milestone": {"met": True}, "final": {"met": False},
+                        "efficiency_lower_percent": "82.345"},
+                "4.4": {"milestone": {"met": False, "evidence_status": "missing"},
+                        "final": {"met": False, "evidence_status": "missing_measurement"},
+                        "cost_basis": "actual_expense"},
+            },
+            "workloads": {
+                "mmlu": {
+                    "complete": True, "quality": {"met": True},
+                    "arms": {"B0": {"output_tokens_per_second": 125, "mean_ttft_ms": 100},
+                             "B1": {"output_tokens_per_second": 250, "mean_ttft_ms": 75}},
+                },
+                "swe": {"complete": True, "arms": {}},
+            },
+            "context_results": [
+                {"phase": "4096-formal",
+                 "B0": {"metrics": {"ttft_ms": {"p95": 400}}},
+                 "B1": {"metrics": {"ttft_ms": {"p95": 350}}}},
+            ],
+        }
+        self.report.write_text(json.dumps(self.summary), encoding="utf-8")
+        self.report.with_name("report.html").write_text("rendered fixture", encoding="utf-8")
+        self.receipt = self.out / "results.json"
+
+    def query(self, *args):
+        with patch.object(sys, "argv", ["run_all.py", "--results", *map(str, args)]), \
+             patch.object(workflow, "select_run_engine", side_effect=AssertionError("results must not select an engine")), \
+             patch.object(workflow, "run", side_effect=AssertionError("results must not execute a run")), \
+             contextlib.redirect_stdout(io.StringIO()) as out, contextlib.redirect_stderr(io.StringIO()) as err:
+            code = workflow.main()
+        return code, out.getvalue(), err.getvalue()
+
+    def write_receipt(self, **extra):
+        value = {"status": "completed", "stages": [{"name": "render-full-report", "status": "completed"}],
+                 "evidence_sha256": {"full-report/summary.json": hashlib.sha256(self.report.read_bytes()).hexdigest()}}
+        value.update(extra)
+        self.receipt.write_text(json.dumps(value), encoding="utf-8")
+
+    def test_terminal_results_show_sealed_decisions_and_both_arms(self):
+        self.write_receipt(automated_acceptance_complete=False)
+        before = {p: p.read_bytes() for p in self.out.rglob("*") if p.is_file()}
+        code, text, errors = self.query("--config", self.config)
+        self.assertEqual((code, errors), (0, ""))
+        for fragment in ("fixture-r10", "4.1 Effective compute", "MISSING COST EVIDENCE",
+                         "MISSING MEASUREMENT", "125.00 -> 250.00", "400.00 -> 350.00", "trace only"):
+            self.assertIn(fragment, text)
+        code, text, errors = self.query(self.receipt, "--json")
+        self.assertEqual((code, errors), (0, ""))
+        result = json.loads(text)
+        self.assertEqual(result["summary"], self.summary)
+        self.assertIs(result["summary_digest_verified"], True)
+        self.assertIs(result["automated_acceptance_complete"], False)
+        self.assertEqual(before, {p: p.read_bytes() for p in self.out.rglob("*") if p.is_file()})
+
+    def test_changed_report_is_rejected_even_via_summary_path(self):
+        self.write_receipt()
+        self.report.write_bytes(self.report.read_bytes() + b" ")
+        code, output, errors = self.query(self.report, "--json")
+        self.assertEqual((code, output), (2, ""))
+        self.assertIn("differs from the result receipt", errors)
+
+    def test_failed_run_uses_its_receipt_instead_of_publishing_an_old_report(self):
+        self.write_receipt(status="failed", error="NPU fixture stopped",
+                           stages=[{"name": "run-fixed-five", "status": "failed", "returncode": 2}])
+        code, text, errors = self.query(self.out, "--json")
+        self.assertEqual((code, errors), (0, ""))
+        result = json.loads(text)
+        self.assertEqual((result["state"], result["stage"], result["returncode"]), ("failed", "run-fixed-five", 2))
+        self.assertEqual(result["failure"], "NPU fixture stopped")
+        self.assertNotIn("summary", result)
+
+    def test_copied_summary_is_read_without_a_run_environment(self):
+        copied = self.root / "copied-summary.json"
+        copied.write_bytes(self.report.read_bytes())
+        code, text, errors = self.query(copied, "--json")
+        self.assertEqual((code, errors), (0, ""))
+        result = json.loads(text)
+        self.assertEqual(result["state"], "summary_only")
+        self.assertEqual(result["summary"], self.summary)
+        self.assertIs(result["summary_digest_verified"], False)
+
+
 if __name__ == "__main__":
     unittest.main()

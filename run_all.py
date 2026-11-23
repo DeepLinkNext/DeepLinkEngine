@@ -698,8 +698,10 @@ def main():
     parser.add_argument("--config", type=Path, help="Evaluation configuration (default: ./evaluation.json)")
     parser.add_argument("--report-only", action="store_true", help="Re-audit a completed run or replay a published candidate on CPU")
     parser.add_argument("--status", action="store_true", help="Read the full-run progress without starting an evaluation")
+    parser.add_argument("--results", nargs="?", const=True, type=Path, metavar="RUN_OR_REPORT",
+                        help="Read a saved B0/B1 report or the current run's result state")
     parser.add_argument("--watch", action="store_true", help="Follow progress until the run ends (with --status)")
-    parser.add_argument("--json", dest="status_json", action="store_true", help="Output progress as JSON (with --status)")
+    parser.add_argument("--json", dest="status_json", action="store_true", help="Output JSON with --status or --results")
     parser.add_argument("--help-all", action="help", help="Show advanced preparation, recovery and reuse options")
 
     def advanced(flag, *, help, **options):
@@ -723,13 +725,25 @@ def main():
         help="Reuse a complete sealed HTTP work observation with the same engine and devices")
     advanced("--rerun-b0", action=argparse.BooleanOptionalAction, default=None, help="是否重跑固定 B0；默认否，复用已封存结果；首次测量显式开启")
     args = parser.parse_args(argv)
+    if args.results is not None:
+        result_options = {"config", "results", "status_json"}
+        if args.rerun_b0 is not None or any(value for name, value in vars(args).items() if name not in result_options):
+            parser.error("--results only accepts an optional path, --config and --json")
+        source = None if args.results is True else args.results
+        if source is not None and args.config is not None:
+            parser.error("Choose either an explicit result path or --config")
+        from benchmark.result_view import show_results
+
+        return show_results(source, config=args.config, as_json=args.status_json)
     if args.status:
         observation_options = {"config", "status", "watch", "status_json"}
         if args.rerun_b0 is not None or any(value for name, value in vars(args).items() if name not in observation_options):
             parser.error("--status only accepts --config, --watch and --json")
         return observe(args.config or Path("evaluation.json"), watch=args.watch, as_json=args.status_json)
-    if args.watch or args.status_json:
-        parser.error("--watch and --json require --status")
+    if args.watch:
+        parser.error("--watch requires --status")
+    if args.status_json:
+        parser.error("--json requires --status or --results")
     if (args.prepare_protocol_only or args.prepare_official_protocol_only) and (args.prepare_environment or args.resume_bootstrap or args.resume_before_model or args.resume_before_inference or args.report_only or args.reuse_completed_run or args.reuse_completed_campaign or args.reuse_mmlu_baseline_arm or args.reuse_context_baseline_arm or args.reuse_compute_baseline_arm or args.reuse_compute_observation or (args.prepare_protocol_only and args.prepare_official_protocol_only)):
         parser.error('Protocol preparation requires a fresh run and cannot combine with execution/recovery modes')
     progress = None
