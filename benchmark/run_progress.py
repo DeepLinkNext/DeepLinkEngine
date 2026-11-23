@@ -11,7 +11,7 @@ import time
 import uuid
 
 from benchmark.recovery_source import alive, process_identity
-from benchmark.run_status import SnapshotUpdating, read
+from benchmark.run_status import COMPLETED as ITEM_COMPLETED, SnapshotUpdating, read
 
 ROOT = Path(__file__).resolve().parents[1]
 RUN_ID_ENV = "DEEPLINKENGINE_RUN_PROGRESS_ID"
@@ -51,6 +51,7 @@ STATE_TEXT = {
     "failed": "失败",
     "interrupted": "已中断",
 }
+WORKFLOW = ("环境与输入准备", "固定五项评测", "有效算力参考", "长上下文和四租户", "总报告")
 ASSESSMENT_STAGES = {
     "continuous": "连续压测 · {arm}",
     "frontier-solver": "FrontierScience · {arm} 答题",
@@ -260,7 +261,7 @@ def environment_detail(detail, run_id):
     return current
 
 
-def evaluation_detail(out, stage):
+def evaluation_detail(out, stage, *, include_item=False):
     directory = {"run-fixed-five": "fixed-five", "run-context-tenant": "context-tenant"}.get(stage)
     if directory is None or not (out / directory).is_dir():
         return None
@@ -270,7 +271,7 @@ def evaluation_detail(out, stage):
     from benchmark.run_status import snapshot as assessment_snapshot
 
     try:
-        return assessment_snapshot(out / directory)
+        return assessment_snapshot(out / directory, include_item=include_item)
     except (OSError, ValueError):
         # A missing or partially written child receipt cannot hide the outer state.
         return None
@@ -288,7 +289,7 @@ def stage_summary(row):
     return {field: row[field] for field in fields if field in row}
 
 
-def snapshot(out):
+def snapshot(out, *, include_item=False):
     bootstrap = read(progress_path(out))
     results_path = out / "results.json"
     results = read(results_path)
@@ -311,7 +312,7 @@ def snapshot(out):
         failure = failure or "控制进程已退出，保留最后记录的阶段"
 
     stage = row.get("name")
-    detail = (evaluation_detail(out, stage) if results
+    detail = (evaluation_detail(out, stage, include_item=include_item) if results
               else environment_detail(bootstrap.get("detail"), bootstrap.get("run_id")))
     if results and detail and detail.get("failure"):
         failure = detail["failure"]
@@ -357,59 +358,87 @@ def assessment_stage_label(name):
     return name
 
 
-def status_fields(value):
-    state = value["state"]
+def workflow_step(value):
     stage = value["stage"]
     detail = value["detail"] or {}
-    current = detail.get("stage", "")
-    computing_reference = current.partition("/")[0] == "compute-reference"
-    fields = [("验收状态", STATE_TEXT.get(state, state))]
-    title = value["stage_label"]
-    if computing_reference:
-        title = "有效算力参考"
-    elif stage == "run-fixed-five" and current:
-        title = "固定五项评测"
-    if title:
-        label = "最后阶段" if state in TERMINAL else "当前阶段"
-        fields.append((label, title))
-    if "step" in detail:
-        step = detail["step"]
-        fields.append(("当前动作", LABELS.get(step, step)))
-    elif current:
-        reference = detail.get("reference") or {}
-        if computing_reference:
-            if "stages_total" in reference:
-                fields.append(("参考进度", f"已完成 {reference['stages_done']}/{reference['stages_total']} 项"))
-        elif detail["stages_total"]:
-            fields.append(("执行进度", f"已完成 {detail['stages_done']}/{detail['stages_total']} 项"))
-        if current != "compute-reference":
-            stage_name = assessment_stage_label(current)
-            parent = current.partition("/")[0]
-            item = next((row for row in detail["stages"] if row["name"] == parent), None)
-            if item and state == "running":
-                stage_name = f"第 {item['index']} 项 · {stage_name}"
-            fields.append(("评测项目", stage_name))
-        if action := detail.get("phase"):
-            phase, separator, subphase = action.partition(":")
-            phase = PHASES.get(phase, STATE_TEXT.get(phase, phase))
-            if separator:
-                phase += " · " + PHASES.get(subphase, subphase)
-            fields.append(("当前动作", phase))
-        if detail["planned"] is not None:
-            fields.append(("请求进度", f"已记录 {detail['responses']}/{detail['planned']} 个请求"))
-        elif detail["responses"]:
-            fields.append(("请求进度", f"已记录 {detail['responses']} 个请求"))
+    if stage == "run-fixed-five":
+        return 2 if detail.get("stage", "").partition("/")[0] == "compute-reference" else 1
+    if stage == "verify-reference":
+        return 2
+    if stage in {"verify-installed-tools", "run-context-tenant"}:
+        return 3
+    if stage in {"verify-evidence", "render-full-report", "verify-report"}:
+        return 4
+    return 0
+
+
+def workflow_rows(value, active):
+    detail = value["detail"] or {}
+    counts = {}
+    if value["stage"] == "run-fixed-five":
+        counts = {1: detail, 2: detail.get("reference") or {}}
+    elif value["stage"] == "run-context-tenant":
+        counts = {3: detail}
+    state = value["state"]
+    for index, title in enumerate(WORKFLOW):
+        if state == "completed" or index < active or (state == "prepared" and index == active):
+            status = "已完成"
+        elif index > active or state == "not_started":
+            status = "未开始"
+        else:
+            status = STATE_TEXT.get(state, state)
+        count = counts.get(index, {})
+        if count.get("stages_total"):
+            title += f" · {count['stages_done']}/{count['stages_total']} 项"
+            if status != "已完成":
+                title += "已完成"
+        yield status, title
+
+
+def status_fields(value):
+    state = value["state"]
+    detail = value["detail"] or {}
+    fields = []
+    task = value["stage_label"]
+    item = detail.get("item")
+    if current := detail.get("stage"):
+        task = assessment_stage_label(current) if current != "compute-reference" else None
+        if item and task:
+            task = f"第 {item['index']}/{item['total']} 项 · {task}"
+        phase, _, subphase = (detail.get("phase") or "").partition(":")
+        if phase and phase not in {"running", "completed", "failed"}:
+            action = PHASES.get(phase, STATE_TEXT.get(phase, phase))
+            task = f"{task} · {action}" if task else action
+        if subphase:
+            action = PHASES.get(subphase, subphase)
+            task = f"{task} · {action}" if task else action
+    elif step := detail.get("step"):
+        task = LABELS.get(step, step)
+    if task and state not in {"completed", "prepared"}:
+        label = "当前任务" if state == "running" else "最后任务"
+        if state == "running" and item and item["status"] in ITEM_COMPLETED:
+            label = "最近完成"
+        fields.append((label, task))
+    if detail.get("planned") is not None:
+        fields.append(("请求进度", f"已记录 {detail['responses']}/{detail['planned']} 个请求"))
+    elif detail.get("responses"):
+        fields.append(("请求进度", f"已记录 {detail['responses']} 个请求"))
+    if item and state == "running":
+        started = item.get("started")
+        first_sample = item.get("first_sample_at")
+        if type(started) in (int, float) and started > 0:
+            end = item.get("ended") or datetime.now(timezone.utc).timestamp()
+            fields.append(("本项耗时", duration_label(max(0, int(end - started)))))
+        elif type(first_sample) in (int, float) and first_sample > 0:
+            observed = max(0, int(datetime.now(timezone.utc).timestamp() - first_sample))
+            fields.append(("本项观测", "距首次设备采样 " + duration_label(observed)))
+        else:
+            fields.append(("本项耗时", "暂无开始时间记录"))
     end = value["updated_at"] if state in TERMINAL else None
     total = elapsed(value["started_at"], end) if state not in TERMINAL or end else None
     if total is not None:
         label = "截至最后记录" if state == "interrupted" else "总计"
         fields.append(("运行耗时", f"{label} {duration_label(total)}"))
-    if value["elapsed_seconds"] is not None:
-        fields.append(("阶段耗时", duration_label(value["elapsed_seconds"])))
-    if value["rerun_b0"] is True:
-        fields.append(("B0 策略", "强制重测 B0"))
-    elif value["rerun_b0"] is False:
-        fields.append(("B0 策略", "仅复用 B0"))
     if value["failure"]:
         fields.append(("异常", value["failure"]))
     returncode = value["returncode"] if value["returncode"] is not None else detail.get("returncode")
@@ -426,18 +455,25 @@ def emit(value, as_json, *, watch=False):
     if as_json:
         _console_line(json.dumps(value, ensure_ascii=False), fallback=lambda: json.dumps(value))
         return
+    state = value["state"]
+    headline = STATE_TEXT.get(state, state)
+    active = workflow_step(value)
+    workflow = list(workflow_rows(value, active))
     fields = status_fields(value)
     if watch:
-        summary = []
+        summary = [headline, workflow[active][1]]
         notes = []
         for label, body in fields:
             if label in {"异常", "退出码", "报告", "执行回执"}:
                 notes.append(f"{label}  {body}")
-            elif label not in {"阶段耗时", "B0 策略"}:
-                summary.append(body)
+            else:
+                summary.append(f"{label} {body}" if label == "本项耗时" else body)
         lines = [" | ".join(summary), *notes]
     else:
-        lines = [f"{label}  {body}" for label, body in fields]
+        lines = [f"验收状态  {headline}", "全流程"]
+        lines.extend(f"  {status}  {title}" for status, title in workflow)
+        if fields:
+            lines.extend(["", *(f"{label}  {body}" for label, body in fields)])
     fallback = [value["state"], value["stage"], value["failure"], value["report_path"]]
     _console_line("\n".join(lines), fallback=lambda: "[PROGRESS] " + " | ".join(filter(None, fallback)))
 
@@ -449,12 +485,12 @@ def observe(config, *, watch=False, as_json=False):
         last_emit = 0
         while True:
             try:
-                value = snapshot(out)
+                value = snapshot(out, include_item=not as_json)
             except SnapshotUpdating:
                 time.sleep(1 if watch else 0.1)
                 if watch:
                     continue
-                value = snapshot(out)
+                value = snapshot(out, include_item=not as_json)
             change = {key: item for key, item in value.items() if key != "elapsed_seconds"}
             now = time.monotonic()
             if change != previous or now - last_emit >= 30:
