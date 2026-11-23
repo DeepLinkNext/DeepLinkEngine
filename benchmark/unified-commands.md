@@ -53,3 +53,15 @@ python deeplink.py benchmark "${pool[@]}" --engine b1-r8 --route request_throttl
 ```
 
 本轮硬件验收范围为单实例 TP2。多实例站点和浦江的首次运行各自需要实际服务回执。夜间实验使用历史限流对照冻结的 R8 运行环境；上方站点制备示例使用公开 R8 安装包。两个现场的启动配置须分别留证。
+
+## 复核结果
+
+```bash
+python deeplink.py compare --deployment /workspace/deeplink-r8/sdk \
+  /workspace/results/b0-direct /workspace/results/b0-controller \
+  /workspace/results/b1-direct /workspace/results/b1-controller
+```
+
+把目录替换成四次实际输出路径。离线复核使用安装包的原始答案和提取器，逐题检查请求正文和响应流摘要。输出包含计划题数、完成数、答对数、达到长度上限数、整批用时、输出吞吐、首 token 及完整请求延迟的 P50/P95。验收 Controller 的实际放行与后端绑定还应检查 RIDE 回执和服务日志。
+
+复现已制备的 RIDE R8 program-cache 实验环境时，可以在站点 B1 的 `argv` 中指定 `bash benchmark/serve_frozen_r8.sh LAUNCHER RUNTIME {output}/worker DEADLINE`。四项分别为 RIDE 冻结启动包所在目录、已核验运行时目录、本次新目录和站点服务租约截止 Unix 秒数。适配器校验冻结清单的摘要，再调用 RIDE 原有的运行时复用、模型预检和前台启动逻辑。可共享的启动代码和校验值随本仓库交付，机器上的模型、已安装依赖及分配卡号由站点提供。

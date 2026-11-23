@@ -165,8 +165,15 @@ def main():
     run.add_argument("--dry-run", action="store_true", help="Build and verify the launch plan without loading a model or reserving NPUs")
     from benchmark import unified_run
     unified_run.arguments(sub.add_parser("benchmark", help="Run one frozen experiment group"))
+    review = sub.add_parser("compare", help="Compare sealed MMLU group outputs offline")
+    review.add_argument("--deployment", type=Path, required=True, help="SDK with original inputs and scorer")
+    review.add_argument("groups", type=Path, nargs="+")
     args = parser.parse_args()
     try:
+        if args.action == "compare":
+            from benchmark.compare_groups import compare
+            print(json.dumps(compare(args.groups, args.deployment), indent=2))
+            return 0
         return {"install": install, "serve": serve, "benchmark": unified_run.run}[args.action](args)
     except KeyboardInterrupt:
         return 130
