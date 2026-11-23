@@ -31,10 +31,10 @@ JSON
 
 ## 3. 一键运行
 
-`<PYTHON>` 填启动用的 Python 命令或解释器路径，`<REPO_DIR>` 填 DeepLinkEngine 仓库根目录。`--rerun-b0` 要求本轮实测 B0，与本轮 B1 配对。入口默认选择并记录最新稳定版 B1。
+`<PYTHON>` 填启动用的 Python 命令或解释器路径，`<REPO_DIR>` 填 DeepLinkEngine 仓库根目录。默认检查同级封存，匹配即复用 B0，缺失则补跑。入口默认选择并记录最新稳定版 B1。
 
 ```bash
-'<PYTHON>' '<REPO_DIR>/run_all.py' --config '<WORK_DIR>/evaluation.json' --rerun-b0
+'<PYTHON>' '<REPO_DIR>/run_all.py' --config '<WORK_DIR>/evaluation.json'
 ```
 
 | 自动阶段 | 做什么 |

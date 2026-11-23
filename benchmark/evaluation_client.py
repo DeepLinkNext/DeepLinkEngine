@@ -875,19 +875,192 @@ def context_baseline_bridge(result):
     http_state_drain_bridge(result)
     http_replay_bridge(result)
     key = 'scripts/context_baseline_reuse.py'
-    previous = scripts(result)
+    def previous_policy_sources():
+        pins = scripts(result)
+        pins['scripts/b0_run_policy.py'] = '6d0ffa5640db2e93f99bd6d31e32f5cab257425bbc85daeb62dd8a3b4dd7acb5'
+        return pins
+
+    previous = previous_policy_sources()
     previous[key] = sha(CONTEXT_BASELINE_HELPER.replace('__CURRENT_SOURCES__', digest(previous)).encode())
     managed_shutdown_bridge(result)
-    managed = scripts(result)
+    managed = previous_policy_sources()
     helper = once(CONTEXT_BASELINE_HELPER, 'digest(previous) != OLD_SOURCES',
                   'digest(previous) not in (OLD_SOURCES, ' + repr(digest(previous)) + ')')
     # Preserve the exact controller inventory from before this native-only change.
     managed[key] = sha(helper.replace('__CURRENT_SOURCES__', digest(managed)).encode())
     native_owner_sampling_bridge(result)
-    current = digest(scripts(result))
+    current = digest(previous_policy_sources())
     helper = once(helper, 'digest(previous) not in (OLD_SOURCES, ',
                   'digest(previous) not in (OLD_SOURCES, ' + repr(digest(managed)) + ', ')
     result[key] = helper.replace('__CURRENT_SOURCES__', current).encode()
+    # The previous controller was also emitted with the reviewed -B SDK probe.
+    from engine.sdk_dependency_probe import SOURCE, derive
+    legacy_pins = previous_policy_sources()
+    prior = digest(legacy_pins)
+    revised_probe, _ = derive(result[SOURCE])
+    legacy_pins[SOURCE] = sha(revised_probe)
+    del legacy_pins[key]
+    legacy_helper = once(helper, 'digest(previous) not in (OLD_SOURCES, ',
+                         'digest(previous) not in (OLD_SOURCES, ' + repr(prior) + ', ')
+    legacy_pins[key] = sha(legacy_helper.replace('__CURRENT_SOURCES__', digest(legacy_pins)).encode())
+    compatible = (prior, digest(legacy_pins))
+    automatic_b0_bridge(result)
+    helper = once(helper, 'digest(previous) not in (OLD_SOURCES, ',
+                  'digest(previous) not in (OLD_SOURCES, ' + ', '.join(map(repr, compatible)) + ', ')
+    pins = scripts(result)
+    del pins[key]
+    result[key] = helper.replace('__CURRENT_SOURCES__', digest(pins)).encode()
+
+
+def automatic_b0_bridge(result):
+    """Bind automatic B0 discovery at the three sealed admission boundaries."""
+    def edit(name, pairs):
+        key = "scripts/" + name + ".py"
+        text = result[key].decode()
+        for old, new in pairs:
+            text = once(text, old, new)
+        ast.parse(text)
+        result[key] = text.encode()
+
+    edit("third_party", [
+        ('        if getattr(args, "reuse_completed_campaign", []) and not args.prepare_only:',
+         '        from b0_run_policy import candidates as baseline_candidates\n'
+         '        auto_roots = baseline_candidates(out, "campaign") if not args.prepare_only else []\n'
+         '        if (getattr(args, "reuse_completed_campaign", []) or auto_roots) and not args.prepare_only:'),
+        ('            reused = prepare_reuse(args.reuse_completed_campaign, out, frozen, stages)',
+         '            reused = prepare_reuse(getattr(args, "reuse_completed_campaign", []), out, frozen, stages,\n'
+         '                                   automatic_roots=auto_roots)'),
+        ('            frozen["reuse_manifest_sha256"] = sha(out / "reused-stages.json")',
+         '            manifest = out / "reused-stages.json"\n'
+         '            if manifest.exists():\n'
+         '                frozen["reuse_manifest_sha256"] = sha(manifest)'),
+        ('                evidence_mode="composition_of_sealed_native_runs",',
+         '                evidence_mode=("composition_of_sealed_native_runs" if manifest.exists() else "new_native_execution"),'),
+    ])
+    edit("reuse_campaign", [
+        ('def prepare(roots, out, plan, stages):\n    if not roots:\n        return {}',
+         '''def prepare(roots, out, plan, stages, *, automatic_roots=()):
+    from b0_run_policy import probe, check_current_weights
+    roots = [Path(path).resolve() for path in roots]
+    automatic_roots = [path for path in dict.fromkeys(Path(p).resolve() for p in automatic_roots)
+                       if path not in roots]
+    if not roots and not automatic_roots:
+        return {}
+    rejected, checked_weights = [], {}'''),
+        ('    for index, path in enumerate(roots):\n        root, previous, receipt, bindings = source(path)',
+         '''    def sealed_candidate(path):
+        inspected = source(path)
+        _, previous, receipt, _ = inspected
+        if (receipt["status"] not in ("completed", "failed")
+                or not isinstance(receipt["stages"], list)
+                or not previous["baseline_deployment"]
+                or not previous["baseline_source_map_sha256"]):
+            raise ValueError("Prior campaign lacks a stopped and sealed B0 identity")
+        return inspected
+
+    for path in [*roots, *automatic_roots]:
+        automatic = path not in roots
+        inspected = probe(path, sealed_candidate, rejected) if automatic else source(path)
+        if inspected is None:
+            continue
+        index = len(origins)
+        root, previous, receipt, bindings = inspected'''),
+        ('            if name not in wanted or row["status"] != "completed":\n                continue',
+         '''            if name not in wanted or row["status"] != "completed":
+                continue
+            if automatic and (name in entries or "-judge-" in name or
+                    (name != "mmlu-pair" and not name.endswith("-B0"))):
+                continue'''),
+        ('            if different_runtime and name == "mmlu-pair":\n                compatible("mmlu-pair/B0", previous, plan, root)',
+         '''            if (different_runtime or automatic) and name == "mmlu-pair":
+                if automatic and "B0" in paired_arms:
+                    continue'''),
+        ('''                    arm = resolve_pair_arm(root / "mmlu-pair", "B0",
+                        read(root / "mmlu-pair/frozen-pair-plan.json"))
+                    conditions = expected_arm(plan["optimized_deployment"], plan["baseline_deployment"],
+                        plan["model"], plan["physical_cards"], plan["logical_devices"],
+                        read(arm / "model-weights.json"))
+                    binding = admit_arm(arm, "B0", conditions)''',
+         '''                    def verify_pair(pair):
+                        compatible("mmlu-pair/B0", previous, plan, root)
+                        arm = resolve_pair_arm(pair, "B0", read(pair / "frozen-pair-plan.json"))
+                        weights = read(arm / "model-weights.json")
+                        if automatic:
+                            weights = check_current_weights(plan["model"], weights, checked_weights)
+                        conditions = expected_arm(plan["optimized_deployment"], plan["baseline_deployment"],
+                            plan["model"], plan["physical_cards"], plan["logical_devices"], weights)
+                        return admit_arm(arm, "B0", conditions)
+                    pair = root / "mmlu-pair"
+                    binding = probe(pair, verify_pair, rejected) if automatic else verify_pair(pair)
+                    if binding is None:
+                        continue'''),
+        ('            compatible(name, previous, plan, root)\n            audit_stage(root, name)',
+         '''            def verify_stage(path):
+                compatible(name, previous, plan, root)
+                audit_stage(root, name)
+                if automatic:
+                    check_current_weights(plan["model"], read(path / "model-weights.json"), checked_weights)
+                return True
+            if automatic:
+                if probe(root / name, verify_stage, rejected) is None:
+                    continue
+            else:
+                verify_stage(root / name)'''),
+        ('    if not entries and not paired_arms and not explicitly_selected_arms:',
+         '''    if automatic_roots:
+        plan["automatic_b0_campaign"] = {
+            "candidates": [str(path) for path in automatic_roots], "rejected": rejected,
+            "reused": [name for name in entries if name.endswith("-B0") or name == "mmlu-pair"]
+                      + (["mmlu-pair/B0"] if "B0" in paired_arms else []),
+        }
+    if not entries and not paired_arms and not explicitly_selected_arms and not roots:
+        return {}
+    if not entries and not paired_arms and not explicitly_selected_arms:'''),
+    ])
+    edit("automatic_reference", [
+        ('''        baseline_source = getattr(args, "reference_baseline_source", None)
+        if baseline_source:''',
+         '''        baseline_source = getattr(args, "reference_baseline_source", None)
+        from b0_run_policy import decision, mode, select
+        if baseline_source:
+            plan["baseline_execution_policy"] = decision("reference", baseline_source, [])
+        elif not getattr(args, "reference_resume_source", None):
+            def verify_candidate(candidate):
+                from reference_baseline_reuse import inspect as inspect_candidate
+                identity = dict(source=str(candidate), checksums_sha256=sha(candidate / "checksums.json"))
+                inspect_candidate(identity["source"], identity["checksums_sha256"], plan)
+                return identity
+
+            if mode() == "auto" and not getattr(args, "prepare_only", False):
+                _, identity, proof = select(out, "reference", verify_candidate)
+                plan["baseline_execution_policy"] = proof
+                if identity:
+                    plan["baseline_reuse"] = identity
+            else:
+                plan["baseline_execution_policy"] = decision("reference", None, [])
+        if baseline_source:'''),
+    ])
+    edit("acceptance_suite", [
+        ('''            if prior:
+                root, _, _ = admit_reuse(prior, role, args, contract)
+                stage = dict(role=role, run=str(root), reused=True, returncode=0)''',
+         '''            accepted = None
+            if role == "B0":
+                from b0_run_policy import decision, select
+
+                if prior:
+                    proof = decision("context", prior, [])
+                else:
+                    prior, accepted, proof = select(
+                        output, "context", lambda source: admit_reuse(source, "B0", args, contract))
+                state["baseline_execution_policy"] = proof
+                save(output / "execution.json", state)
+            if prior:
+                root, _, _ = accepted if accepted is not None else admit_reuse(prior, role, args, contract)
+                stage = dict(role=role, run=str(root), reused=True, returncode=0)'''),
+    ])
+
+
 
 
 def bridge(client, provider):
