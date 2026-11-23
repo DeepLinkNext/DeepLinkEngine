@@ -126,6 +126,7 @@ jobs:
       - run: python -B tests/test_environment_setup.py
       - run: python -B tests/test_dependency_resume.py
       - run: python -B tests/test_standalone.py
+      - run: python -B tests/test_serving_cache.py
       - name: Verify early API logging against the pinned real upstream logger
         run: python -B tests/test_service_logging.py
       - name: Verify stable selection, runtime admission and preserved assessment fixes

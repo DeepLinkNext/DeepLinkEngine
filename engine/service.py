@@ -1,5 +1,6 @@
 """Version-bound service adapter; launches only inference, with no evaluation campaign."""
 import argparse
+from contextlib import ExitStack
 import json
 import math
 import os
@@ -39,6 +40,7 @@ def parser():
     p.add_argument("--port", type=int, default=8000)
     p.add_argument("--served-model-name", default="deeplink")
     p.add_argument("--cache", type=Path, required=True)
+    p.add_argument("--cache-from", type=Path)
     p.add_argument("--work-dir", type=Path)
     p.add_argument("--lease-timeout", type=float, default=0)
     p.add_argument("--dry-run", action="store_true")
@@ -100,32 +102,41 @@ def build(root, profile, model, out, cache, logical, host, port, name):
     return command, env
 
 
-def main():
-    args = parser().parse_args()
-    from deeplink import installation
-    installed, receipt = installation(args.installation)
-    if receipt['release'] != 'full-answer-b1-20261117-r8':
-        # The installed producer owns model admission, worker selection and
-        # geometry. Keep the original adapter for explicit historical R8 SDKs.
-        physical = pair(args.physical_devices)
-        if not math.isfinite(args.lease_timeout) or args.lease_timeout < 0:
-            raise ValueError('Invalid device lease timeout')
-        if args.devices:
-            logical = ','.join(map(str, pair(args.devices)))
-        else:
-            sample = subprocess.run(['npu-smi', 'info', '-m'], capture_output=True,
-                                    text=True, check=True, timeout=20).stdout
-            mapping = {}
-            for line in sample.splitlines():
-                words = line.split()
-                if len(words) >= 3 and words[0].isdigit() and words[1] == '0' and words[2].isdigit():
-                    mapping[int(words[0])] = int(words[2])
-            logical = ','.join(str(mapping[x]) for x in physical)
-        out = args.work_dir or args.cache / ('service-' + uuid.uuid4().hex)
-        if os.path.lexists(out):
-            raise ValueError('Choose a new service work directory')
-        forwarded = ['--model', str(args.model.resolve()), '--out', str(out.absolute()),
-                     '--cache', str(args.cache.resolve()), '--devices', logical,
+def serve_packaged(args, installed, receipt):
+    physical = pair(args.physical_devices)
+    if not math.isfinite(args.lease_timeout) or args.lease_timeout < 0:
+        raise ValueError('Invalid device lease timeout')
+    if args.devices:
+        logical = ','.join(map(str, pair(args.devices)))
+    else:
+        sample = subprocess.run(['npu-smi', 'info', '-m'], capture_output=True,
+                                text=True, check=True, timeout=20).stdout
+        mapping = {}
+        for line in sample.splitlines():
+            words = line.split()
+            if len(words) >= 3 and words[0].isdigit() and words[1] == '0' and words[2].isdigit():
+                mapping[int(words[0])] = int(words[2])
+        logical = ','.join(str(mapping[x]) for x in physical)
+    from engine.serving_cache import POOL, cache_lease, prepare
+    pool = args.cache.resolve()
+    model = args.model.resolve()
+    extra_pool = args.cache_from.resolve() if args.cache_from else None
+    out = args.work_dir or pool.parent / (pool.name + '-runs') / ('service-' + uuid.uuid4().hex)
+    if os.path.lexists(out):
+        raise ValueError('Choose a new service work directory')
+    cache, cache_report = prepare(pool, extra_pool, installed, receipt, model, physical, os.environ)
+
+    with ExitStack() as cache_lock:
+        if not args.dry_run and cache_report["mode"] != "isolated":
+            if not cache_lock.enter_context(cache_lease(cache, writer=True)):
+                cache = pool / POOL / ("busy-" + uuid.uuid4().hex)
+                cache_report = {"mode": "isolated", "reason": "compatible cache is in use"}
+        out = out.resolve()
+        if out == cache or out in cache.parents or cache in out.parents:
+            raise ValueError('Serving cache and work directory must be independent')
+        print('SERVICE_CACHE', json.dumps({"path": str(cache), **cache_report}), flush=True)
+        forwarded = ['--model', str(model), '--out', str(out),
+                     '--cache', str(cache), '--devices', logical,
                      '--physical-devices', args.physical_devices, '--host', args.host,
                      '--port', str(args.port), '--served-model-name', args.served_model_name,
                      '--lease-timeout', str(args.lease_timeout)]
@@ -151,6 +162,17 @@ def main():
                 guard.release(leases)
                 os.environ.pop('VLLMHUST_ENGINE_LOCKS', None)
         raise RuntimeError('Producer service handoff returned unexpectedly')
+
+
+def main():
+    args = parser().parse_args()
+    from deeplink import installation
+    installed, receipt = installation(args.installation)
+    if receipt['release'] != 'full-answer-b1-20261117-r8':
+        # The installed producer owns model admission, worker selection and geometry.
+        return serve_packaged(args, installed, receipt)
+    if args.cache_from is not None:
+        raise ValueError('Cross-container cache reuse requires the packaged serving adapter')
     root = installed / "sdk"
     model = args.model.resolve()
     if not 1 <= args.port <= 65535 or not args.host or not args.served_model_name or not math.isfinite(args.lease_timeout) or args.lease_timeout < 0:

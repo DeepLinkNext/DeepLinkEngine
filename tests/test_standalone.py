@@ -214,7 +214,7 @@ class Standalone(unittest.TestCase):
         from engine import environment_setup as setup
         with tempfile.TemporaryDirectory() as folder:
             installed=Path(folder)/'large-volume/install'
-            args=argparse.Namespace(installation=str(installed),model='/models/example',physical_devices='0,7',host='127.0.0.1',port=8000,served_model_name='deeplink',cache=None,aot_cache_format=None,lease_timeout=0,work_dir=None,devices=None,dry_run=True)
+            args=argparse.Namespace(installation=str(installed),model='/models/example',physical_devices='0,7',host='127.0.0.1',port=8000,served_model_name='deeplink',cache=None,cache_from=None,aot_cache_format=None,lease_timeout=0,work_dir=None,devices=None,dry_run=True)
             with patch.object(deeplink,'installation',return_value=(installed,{'python':'/private/bin/python'})),patch.object(setup,'cann_environment',return_value=({},{})),patch.object(deeplink.os,'execve',side_effect=SystemExit) as execute:
                 with self.assertRaises(SystemExit):deeplink.serve(args)
             command=execute.call_args.args[1]
