@@ -94,8 +94,11 @@ def normal_file(path):
 
 
 def ordered_dirs(path):
-    if path.is_dir() and not path.is_symlink():
-        return sorted(child for child in path.iterdir() if child.is_dir() and not child.is_symlink())
+    try:
+        if path.is_dir() and not path.is_symlink():
+            return sorted(child for child in path.iterdir() if child.is_dir() and not child.is_symlink())
+    except OSError:
+        pass
     return []
 
 
@@ -124,7 +127,7 @@ def cache_lease(path, *, writer):
         try:
             mode = fcntl.LOCK_EX if writer else fcntl.LOCK_SH
             fcntl.flock(stream, mode | fcntl.LOCK_NB)
-        except BlockingIOError:
+        except OSError:
             yield False
         else:
             if writer:
