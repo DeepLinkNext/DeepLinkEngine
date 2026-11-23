@@ -163,9 +163,11 @@ def main():
     run.add_argument("--work-dir", help="New per-service directory for logs and runtime state")
     run.add_argument("--lease-timeout", type=float, default=0)
     run.add_argument("--dry-run", action="store_true", help="Build and verify the launch plan without loading a model or reserving NPUs")
+    from benchmark import unified_run
+    unified_run.arguments(sub.add_parser("benchmark", help="Run one frozen experiment group"))
     args = parser.parse_args()
     try:
-        return install(args) if args.action == "install" else serve(args)
+        return {"install": install, "serve": serve, "benchmark": unified_run.run}[args.action](args)
     except KeyboardInterrupt:
         return 130
     except (ValueError, OSError, KeyError, subprocess.SubprocessError) as error:

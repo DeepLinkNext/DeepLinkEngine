@@ -1,0 +1,7 @@
+{
+  "dataset": "mmlu-pro",
+  "requests": 200,
+  "request_sha256": "a70d8ada1c34676d52fb2a619cf4983cd5a0c5c21f25213978e1ee406c0a45da",
+  "max_tokens": 256,
+  "concurrency": 200
+}

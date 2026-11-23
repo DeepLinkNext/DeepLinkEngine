@@ -26,6 +26,8 @@ python examples/chat.py "你好，请介绍一下自己"
 
 ## 测试与报告
 
+要分别运行 B0、B1 并切换直连或 Request Throttling Controller，使用 [单组实验命令与站点配置](benchmark/unified-commands.md)。
+
 将[示例配置](benchmark/run-all.example.json)另存为仓库根目录的 `evaluation.json`，填好后运行下面的命令。
 
 ```sh

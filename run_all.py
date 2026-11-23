@@ -700,10 +700,18 @@ def main():
     sys.dont_write_bytecode = True
     os.environ["PYTHONDONTWRITEBYTECODE"] = "1"
     argv = sys.argv[1:]
+    if any(value == "--engine" or value.startswith("--engine=") for value in argv) and "--official-baselines" not in argv:
+        from benchmark import unified_run
+        single = argparse.ArgumentParser(description="Run one unified benchmark group")
+        unified_run.arguments(single)
+        try:
+            return unified_run.run(single.parse_args(argv))
+        except (ValueError, OSError, KeyError, subprocess.SubprocessError) as error:
+            single.exit(2, "DEEPLINK_ERROR: " + str(error) + "\n")
     if '--official-baselines' in argv:
         from official_baselines import main as official_main
         return official_main([value for value in argv if value != '--official-baselines'])
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = argparse.ArgumentParser(description=__doc__, epilog="For one route, see: python deeplink.py benchmark --help")
     parser.add_argument("--config", type=Path, help="Evaluation configuration (default: ./evaluation.json)")
     parser.add_argument("--report-only", action="store_true", help="Re-audit a completed run or replay a published candidate on CPU")
     parser.add_argument("--status", action="store_true", help="Read the full-run progress without starting an evaluation")
