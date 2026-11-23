@@ -81,7 +81,23 @@ class WorkflowTests(unittest.TestCase):
         return result, receipt
 
     def test_full_flow_routes_supplement_without_package_profile_injection(self):
-        result, receipt = self.invoke()
+        from benchmark.b0_run_policy import DISCOVERY_ROOT, DISCOVERY_SOURCE
+
+        environments = []
+
+        def execute(args, **kwargs):
+            if "run" in args or "--context-tenant-only" in args:
+                environments.append(kwargs["env"])
+            return self.execute(args, **kwargs)
+
+        inherited = {DISCOVERY_ROOT: "/another-run", DISCOVERY_SOURCE: "/another-source"}
+        with patch.dict(workflow.os.environ, inherited):
+            result, receipt = self.invoke(execute)
+            self.assertEqual({key: workflow.os.environ[key] for key in inherited}, inherited)
+        self.assertEqual(len(environments), 2)
+        for env in environments:
+            self.assertEqual(env[DISCOVERY_ROOT], str(self.root.resolve()))
+            self.assertNotIn(DISCOVERY_SOURCE, env)
         self.assertEqual(result, 0)
         self.assertEqual(receipt["status"], "completed")
         self.assertEqual(receipt["automated_acceptance_complete"], True)

@@ -346,7 +346,6 @@ def run(data, *, prepare_protocol_only=False, prepare_official_protocol_only=Fal
         actual_cost=None, progress=None):
     out = Path(data["out"])
     from benchmark.b0_run_policy import DISCOVERY_ROOT, DISCOVERY_SOURCE
-    os.environ[DISCOVERY_ROOT] = str(out.resolve().parent)
     b0_flag = (["--rerun-b0" if data["rerun_b0"] else "--no-rerun-b0"]
                if "rerun_b0" in data else [])
     reused_run = completed_run_source(data, reuse_completed_run) if reuse_completed_run else None
@@ -357,10 +356,6 @@ def run(data, *, prepare_protocol_only=False, prepare_official_protocol_only=Fal
     if reused_run is None and prior and prior.get("reused_run"):
         # A failed preflight must not discard the explicit no-repeat choice.
         reused_run = completed_run_source(data, prior["reused_run"]["root"])
-    if reused_run:
-        os.environ[DISCOVERY_SOURCE] = reused_run["root"]
-    else:
-        os.environ.pop(DISCOVERY_SOURCE, None)
     reuse_selection = dict(campaigns=[str(Path(p).resolve()) for p in reuse_completed_campaigns],
                            mmlu_baseline_arm=str(Path(reuse_mmlu_baseline_arm).resolve()) if reuse_mmlu_baseline_arm else None,
                            context_baseline_arm=str(Path(reuse_context_baseline_arm).resolve()) if reuse_context_baseline_arm else None,
@@ -436,7 +431,7 @@ def run(data, *, prepare_protocol_only=False, prepare_official_protocol_only=Fal
             save()
             announce(name)
 
-    def stage(name, args, *, mode="execute"):
+    def stage(name, args, *, mode="execute", env=None):
         receipt.pop("activity", None)
         record = {"name": name, "status": "running", "command": args, "mode": mode}
         if progress is not None:
@@ -448,7 +443,7 @@ def run(data, *, prepare_protocol_only=False, prepare_official_protocol_only=Fal
         else:
             print(name, flush=True)
         try:
-            result = run_owned_stage(args)
+            result = run_owned_stage(args, env=env)
         except BaseException as error:
             record.update(status="interrupted" if isinstance(error, KeyboardInterrupt) else "launch_failed",
                           error=type(error).__name__ + ": " + str(error))
@@ -564,7 +559,13 @@ def run(data, *, prepare_protocol_only=False, prepare_official_protocol_only=Fal
         run_command += b0_flag
         if data.get("allow_device_change"):
             run_command += ["--allow-device-change"]
-        stage("run-fixed-five", run_command)
+        discovery_env = dict(os.environ)
+        discovery_env[DISCOVERY_ROOT] = str(out.resolve().parent)
+        if reused_run:
+            discovery_env[DISCOVERY_SOURCE] = reused_run["root"]
+        else:
+            discovery_env.pop(DISCOVERY_SOURCE, None)
+        stage("run-fixed-five", run_command, env=discovery_env)
         activity("verify-reference")
         current = json.loads((out / "fixed-five/campaign.json").read_text())
         reference_target = qualified_reference(current)
@@ -587,7 +588,7 @@ def run(data, *, prepare_protocol_only=False, prepare_official_protocol_only=Fal
         supplement += b0_flag
         if data.get("allow_device_change"):
             supplement += ["--allow-device-change"]
-        stage("run-context-tenant", supplement)
+        stage("run-context-tenant", supplement, env=discovery_env)
         activity("verify-evidence")
         campaign, reports, hashes = completed_evidence(out)
         reference_target = qualified_reference(campaign)
