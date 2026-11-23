@@ -147,16 +147,20 @@ class WorkflowTests(unittest.TestCase):
             self.assertEqual(args[-2:], ['--actual-cost', str(selected)])
             self.assertIn('full-report-', args[-3])
 
-    def test_default_configuration_starts_the_full_workflow(self):
+    def test_default_configuration_starts_the_full_workflow_with_35b(self):
+        example = json.loads((ROOT / "benchmark/run-all.example.json").read_bytes())
+        self.assertEqual(workflow.DEFAULT_MODEL, "/models/Qwen3.5-35B-A3B")
+        self.assertEqual(example["model"], workflow.DEFAULT_MODEL)
         config = self.root / "evaluation.json"
-        config.write_text(json.dumps(self.data))
+        config.write_text(json.dumps({k: v for k, v in self.data.items() if k != "model"}))
         with contextlib.chdir(self.root), patch.object(sys, "argv", ["run_all.py"]), \
              patch.dict(workflow.os.environ, {}), patch.object(workflow, "select_run_engine"), \
              patch("engine.release_selection.ensure_metadata_client"), \
              patch("engine.environment_setup.ensure_environment", return_value=None), \
+             patch.object(workflow, "DEFAULT_MODEL", self.data["model"]), \
              patch.object(workflow, "preflight"), patch.object(workflow, "run", return_value=0) as run:
             self.assertEqual(workflow.main(), 0)
-        self.assertEqual(run.call_args.args[0], workflow.configuration(config))
+        self.assertEqual(run.call_args.args[0], self.data)
 
     def test_full_progress_survives_python_handoff_and_reaches_report(self):
         config = self.root / "evaluation.json"

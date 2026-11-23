@@ -20,6 +20,7 @@ from benchmark.run_progress import (
 from engine.release_selection import kit_path, runtime_lock, profile as selected_profile
 
 ROOT = Path(__file__).resolve().parent
+DEFAULT_MODEL = "/models/Qwen3.5-35B-A3B"
 PATH_FIELDS = {"model", "cache", "out", "baseline_deployment", "dataset_assets", "env_file", "actual_cost"}
 FIELDS = PATH_FIELDS | {"physical_devices", "devices", "environment", "engine_version", "rerun_b0", "allow_device_change"}
 
@@ -41,7 +42,8 @@ def configuration(path, *, allow_existing=False, report_only=False):
         required = ("out",) if candidate else ("cache", "out")
     else:
         reject_candidate_for_execution(version)
-        required = ("model", "physical_devices", "cache", "out")
+        data.setdefault("model", DEFAULT_MODEL)
+        required = ("physical_devices", "cache", "out")
     for name in required:
         if name not in data:
             raise ValueError("Missing configuration field: " + name)
