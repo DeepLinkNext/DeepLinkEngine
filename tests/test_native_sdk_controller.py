@@ -63,7 +63,18 @@ class Native(unittest.TestCase):
         calls=[]
         def ensure(data, *, progress=None):
             observed=probe.inspect_sdk(python,{},receipt=self.root/'public-probe.json');calls.append(observed);return None
-        with patch.object(sys,'argv',['run_all.py','--config',str(config),'--prepare-environment']),patch('official_sdk_bytecode.verify_or_repair',return_value=None),patch.dict(os.environ),patch.object(run_all,'select_run_engine'),patch('engine.environment_setup.ensure_environment',side_effect=ensure),patch.object(run_all,'preflight'):
+        # The fake SDK exercises the no-handoff path. Context handoffs have
+        # dedicated tests and need an admitted image on hosts with older glibc.
+        with (
+            patch.object(sys, 'argv', ['run_all.py', '--config', str(config), '--prepare-environment']),
+            patch('official_execution.libc_version', return_value='2.38'),
+            patch.object(controller, 'runtime_version', return_value=(3, 12)),
+            patch('official_sdk_bytecode.verify_or_repair', return_value=None),
+            patch.dict(os.environ),
+            patch.object(run_all, 'select_run_engine'),
+            patch('engine.environment_setup.ensure_environment', side_effect=ensure),
+            patch.object(run_all, 'preflight'),
+        ):
             os.environ.pop('DEEPLINK_EXECUTION_CONTEXT',None)
             self.assertEqual(run_all.main(),0)
         self.assertEqual(len(calls),1);self.assertFalse(calls[0]['native_packages_imported']);self.assertFalse((self.root/'out').exists())
