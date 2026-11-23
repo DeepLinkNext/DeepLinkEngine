@@ -15,8 +15,10 @@ class Handler(BaseHTTPRequestHandler):
         assert self.path == "/v1/chat/completions"
         assert body["max_tokens"] == 256 and body["stream"]
         assert self.headers["x-session-id"] == self.headers["x-delivery-request-id"] == body["cache_salt"]
+        reasoning_only = body["cache_salt"].endswith("-1")
+        delta = {"reasoning": "working out the choice"} if reasoning_only else {"content": "Answer: A"}
         event = {"usage": {"prompt_tokens": 1, "completion_tokens": 1},
-                 "choices": [{"delta": {"content": "Answer: A"}, "finish_reason": "stop"}]}
+                 "choices": [{"delta": delta, "finish_reason": "length" if reasoning_only else "stop"}]}
         self.send_response(200)
         self.end_headers()
         self.wfile.write(("data: " + json.dumps(event) + "\n\ndata: [DONE]\n\n").encode())

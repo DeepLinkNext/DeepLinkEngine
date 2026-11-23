@@ -71,5 +71,10 @@ class BenchmarkRoutes(unittest.TestCase):
             self.assertEqual(json.loads((base/"run/measurement.json").read_bytes())["successful"], 4)
             self.assertFalse((base/"run/controller-start").exists())
             results = [json.loads(p.read_bytes()) for p in (base/"run").glob("*/result.json")]
+            reasoning_only = next(r for r in results if r["case_id"] == "1")
+            self.assertEqual(reasoning_only["content"], "")
+            self.assertTrue(reasoning_only["reasoning"])
+            self.assertIsNone(reasoning_only["first_token"])
+            self.assertIsNotNone(reasoning_only["first_output_token"])
             self.assertEqual({r["case_id"]:r["endpoint"] for r in results},
                              {str(i):nodes[i%2]["endpoint"] for i in range(4)})
