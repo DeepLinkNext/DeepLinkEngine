@@ -56,7 +56,49 @@ def stage_rows(plan, records, state, current, failure):
     return rows
 
 
-def snapshot(run):
+def current_item(run, current, rows, reference):
+    from live_console import active
+
+    name = current["stage"]
+    parent, _, child = name.partition("/")
+    if parent == "compute-reference":
+        plan = read(run / "compute-reference/automatic-plan.json") or read(run / "plans/compute-reference/automatic-plan.json")
+        recorded = reference.get("stages", [])
+        declared = plan.get("stages", recorded)
+        position = next((index for index, item in enumerate(declared, 1) if item["id"] == child), None)
+        row = next((item for item in recorded if item["id"] == child), {})
+        total = len(declared)
+    else:
+        row = next((item for item in rows if item["name"] == parent), {})
+        position = row.get("index")
+        total = len(rows)
+    if position is None:
+        return None
+
+    _, leaf, active_name, _ = active(run)
+    receipt = {}
+    first_sample_at = None
+    if leaf and active_name == name:
+        try:
+            receipt = read(leaf / "receipt.json")
+        except SnapshotUpdating:
+            pass
+        if parent == "compute-reference" and child in {"baseline-native-synchronized-timing", "current-native-synchronized-timing"}:
+            try:
+                with (leaf / "device-samples.jsonl").open("rb") as stream:
+                    sample = json.loads(stream.readline(65536))
+                first_sample_at = sample.get("wall") if isinstance(sample, dict) else None
+            except (OSError, ValueError):
+                # Device sampling can start after the reference task is selected.
+                pass
+    # The parent MMLU timer covers both arms, so it cannot time the active arm.
+    timing = {} if parent == "mmlu-pair" and child else row
+    return dict(index=position, total=total, status=row.get("status"),
+                started=timing.get("started", receipt.get("started")),
+                ended=timing.get("ended", receipt.get("ended")), first_sample_at=first_sample_at)
+
+
+def snapshot(run, *, include_item=False):
     from compute_reference import target as reference_target
     from live_console import progress
 
@@ -141,6 +183,8 @@ def snapshot(run):
                    stages=rows, reference=reference_progress)
     if rows:
         summary.update(stages_done=sum(row["status"] in COMPLETED for row in rows), stages_total=len(rows))
+    if include_item:
+        summary["item"] = current_item(run, current, rows, reference)
     return summary
 
 

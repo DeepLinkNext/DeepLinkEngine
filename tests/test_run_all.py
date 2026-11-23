@@ -268,7 +268,10 @@ class WorkflowTests(unittest.TestCase):
             {"name": "terminal-trace-B0", "status": "completed"},
             {"name": "terminal-trace-B1", "status": "running"},
         ]})
-        self.write("fixed-five/terminal-trace-B1/receipt.json", {"status": "starting-model"})
+        self.write("fixed-five/terminal-trace-B1/receipt.json", {
+            "status": "starting-model",
+            "started": datetime(2026, 11, 23, 14, 50, tzinfo=timezone.utc).timestamp(),
+        })
         self.write("fixed-five/terminal-trace-B1/dataset-spec.json", {"case_ids": list(range(48))})
         args = ["run_all.py", "--status", "--config", str(config)]
         with patch.object(run_progress, "datetime", wraps=datetime) as clock:
@@ -276,13 +279,12 @@ class WorkflowTests(unittest.TestCase):
             with patch.object(sys, "argv", args), contextlib.redirect_stdout(io.StringIO()) as output:
                 self.assertEqual(workflow.main(), 0)
             human = output.getvalue()
-            self.assertIn("当前阶段  固定五项评测", human)
-            self.assertIn("执行进度  已完成 1/2 项", human)
-            self.assertIn("评测项目  第 2 项 · Terminal-Bench · B1 轨迹回放", human)
-            self.assertIn("当前动作  启动模型", human)
+            self.assertIn("运行中  固定五项评测 · 1/2 项已完成", human)
+            self.assertIn("未开始  有效算力参考", human)
+            self.assertIn("当前任务  第 2/2 项 · Terminal-Bench · B1 轨迹回放 · 启动模型", human)
             self.assertIn("请求进度  已记录 0/48 个请求", human)
             self.assertIn("运行耗时  总计 11 小时 34 分 24 秒", human)
-            self.assertIn("阶段耗时  10 小时 57 分 54 秒", human)
+            self.assertIn("本项耗时  4 分 43 秒", human)
             self.assertNotIn("terminal-trace-B0", human)
 
             with patch.object(sys, "argv", [*args, "--watch"]), \
@@ -297,6 +299,49 @@ class WorkflowTests(unittest.TestCase):
         self.assertEqual(machine["elapsed_seconds"], 39474)
         self.assertEqual(machine["detail"]["stage"], "terminal-trace-B1")
         self.assertEqual(machine["detail"]["phase"], "starting-model")
+        self.assertNotIn("item", machine["detail"])
+
+    def test_reference_status_names_current_task_without_using_outer_stage_as_its_clock(self):
+        config = self.root / "evaluation.json"
+        config.write_text(json.dumps(self.data))
+        self.write("results.json", {"status": "running", "started_at": "2026-11-23T03:20:19+00:00",
+                   "stages": [{"name": "run-fixed-five", "status": "running",
+                               "started_at": "2026-11-23T03:56:49+00:00"}]})
+        self.write("fixed-five/execution-checklist.json", {"status": "running", "stages": [
+            {"name": "continuous-B0", "status": "completed"},
+            {"name": "continuous-B1", "status": "completed"},
+        ]})
+        protocol = ROOT / "benchmark/one-click-kit/protocols/automatic-compute-reference-v1.json"
+        stages = json.loads(protocol.read_bytes())["stages"]
+        calibration = next(row for row in stages if row["id"] == "shape-matched-independent-reference-dag")
+        stages.remove(calibration)
+        stages.insert(3, calibration)
+        running = next(row for row in stages if row["id"] == "baseline-native-synchronized-timing")
+        self.write("fixed-five/compute-reference/automatic-plan.json", {"stages": stages})
+        self.write("fixed-five/compute-reference/status.json", {"status": "running", "stages": [
+            *[dict(row, status="completed") for row in stages[:5]], dict(running, status="running"),
+        ]})
+        args = ["run_all.py", "--status", "--config", str(config)]
+        with patch.object(run_progress, "datetime", wraps=datetime) as clock, patch.object(sys, "argv", args):
+            clock.now.return_value = datetime(2026, 11, 23, 15, 54, 37, tzinfo=timezone.utc)
+            with contextlib.redirect_stdout(io.StringIO()) as output:
+                self.assertEqual(workflow.main(), 0)
+            human = output.getvalue()
+            self.assertIn("已完成  固定五项评测 · 2/2 项", human)
+            self.assertIn("运行中  有效算力参考 · 5/10 项已完成", human)
+            self.assertIn("未开始  长上下文和四租户", human)
+            self.assertIn("未开始  总报告", human)
+            self.assertIn("当前任务  第 6/10 项 · B0 原生推理计时\n", human)
+            self.assertIn("本项耗时  暂无开始时间记录", human)
+            self.assertIn("运行耗时  总计 12 小时 34 分 18 秒", human)
+            self.assertNotIn("11 小时 57 分 48 秒", human)
+
+            leaf = "fixed-five/compute-reference/native-baseline-timing"
+            sampled = datetime(2026, 11, 23, 15, 40, 7, tzinfo=timezone.utc).timestamp()
+            self.write(leaf + "/device-samples.jsonl", {"wall": sampled})
+            with contextlib.redirect_stdout(io.StringIO()) as output:
+                self.assertEqual(workflow.main(), 0)
+            self.assertIn("本项观测  距首次设备采样 14 分 30 秒", output.getvalue())
 
     def test_progress_records_failure_before_output_exists_and_watch_is_read_only(self):
         config = self.root / "evaluation.json"
