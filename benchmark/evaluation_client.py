@@ -327,6 +327,10 @@ def native_baseline_bridge(result):
     # reviewed implementation from its fully admitted, byte-identical copy.
     key = 'third-party-test-kit/qualify_baseline_capacity.py'
     text = result[key].decode()
+    # The sealed B0 native plan may be paired with any reviewed B1 reference
+    # release; the permission set tracks the pinned reference releases.
+    text = once(text, '            or plan["paired_engine_release"] != "full-answer-b1-20261117-r8"\n',
+        '            or plan["paired_engine_release"] not in ' + native_reference_releases(result) + '\n')
     text = once(text, '    arguments = read("service/client/effective-engine-args.json")',
         '    observed_root = Path(plan["baseline_deployment"]).resolve()\n'
         '    arguments = read("service/client/effective-engine-args.json")')
