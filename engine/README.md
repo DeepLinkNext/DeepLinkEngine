@@ -25,7 +25,9 @@ python deeplink.py serve --installation /workspace/deeplink-install \
   --host 127.0.0.1 --port 8000 --served-model-name deeplink
 ```
 
-物理卡号按实际分配填写，逻辑卡号由 `npu-smi` 探测；也可用 `--devices 0,1` 显式指定并核对映射。启动前校验源码和依赖并申请共享设备锁，所选卡有其他作业时退出；`--lease-timeout 300` 可等待。每次服务使用独立缓存和工作目录，路径在启动时输出。使用 Ctrl+C 关闭服务并释放设备锁。
+物理卡号按实际分配填写，逻辑卡号由 `npu-smi` 探测；也可用 `--devices 0,1` 显式指定并核对映射。启动前校验源码和依赖并申请共享设备锁，所选卡有其他作业时退出；`--lease-timeout 300` 可等待。每次服务使用独立工作目录。R9 及以后可在重启时沿用同一个 `--cache` 目录来复用已落盘的编译产物。使用 Ctrl+C 关闭服务并释放设备锁。
+
+R10 的 Ascend 后端遇到 AOT 打包报错 `'NoneType' object is not callable` 时，可在启动命令加 `--aot-cache-format graph`。此模式保留 vLLM AOT 图缓存，跳过后端独立产物的打包。首次切换使用新的 vLLM 编译缓存键，后续重启保持相同选项和缓存目录。需要在当前进程注册的 Triton 图仍会重新构建。
 
 加 `--dry-run` 可生成启动计划，不加载模型、不占设备。当前后端的模型与并行配置由版本适配器管理。
 

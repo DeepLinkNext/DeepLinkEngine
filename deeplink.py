@@ -85,6 +85,9 @@ def serve(args):
     root, receipt = installation(args.installation)
     python = receipt["python"]
     env, _ = cann_environment({})
+    if args.aot_cache_format == "graph":
+        env["VLLM_USE_AOT_COMPILE"] = "1"
+        env["VLLM_USE_MEGA_AOT_ARTIFACT"] = "0"
     command = [python, str(ROOT / "engine/service.py"), "--installation", str(root),
                "--model", str(Path(args.model).expanduser().resolve()), "--physical-devices", args.physical_devices,
                "--host", args.host, "--port", str(args.port), "--served-model-name", args.served_model_name,
@@ -119,6 +122,8 @@ def main():
     run.add_argument("--port", type=int, default=8000)
     run.add_argument("--served-model-name", default="deeplink")
     run.add_argument("--cache", help="Service state and caches; defaults beside the installation")
+    run.add_argument("--aot-cache-format", choices=("graph",),
+                     help="Save the vLLM AOT graph without bundling standalone backend artifacts")
     run.add_argument("--work-dir", help="New per-service directory for logs and runtime state")
     run.add_argument("--lease-timeout", type=float, default=0)
     run.add_argument("--dry-run", action="store_true", help="Build and verify the launch plan without loading a model or reserving NPUs")
