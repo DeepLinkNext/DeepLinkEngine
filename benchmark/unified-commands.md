@@ -65,3 +65,5 @@ python deeplink.py compare --deployment /workspace/deeplink-r8/sdk \
 把目录替换成四次实际输出路径。离线复核使用安装包的原始答案和提取器，逐题检查请求正文和响应流摘要。输出包含计划题数、完成数、答对数、达到长度上限数、整批用时、输出吞吐、首 token 及完整请求延迟的 P50/P95。验收 Controller 的实际放行与后端绑定还应检查 RIDE 回执和服务日志。
 
 复现已制备的 RIDE R8 program-cache 实验环境时，可以在站点 B1 的 `argv` 中指定 `bash benchmark/serve_frozen_r8.sh LAUNCHER RUNTIME {output}/worker DEADLINE`。四项分别为 RIDE 冻结启动包所在目录、已核验运行时目录、本次新目录和站点服务租约截止 Unix 秒数。适配器校验冻结清单的摘要，再调用 RIDE 原有的运行时复用、模型预检和前台启动逻辑。可共享的启动代码和校验值随本仓库交付，机器上的模型、已安装依赖及分配卡号由站点提供。
+
+MMLU 客户端沿用 Controller 仓冻结的 [MMLU 流式读取实现](https://github.com/vLLM-HUST/request-throttling-controller/blob/3bf91fbb2b5cdd8fd0bd5de94774c26ca651eb35/experiments/vllm_hust_benchmark/website/profile_streaming_transport.py)，增加用于两端关联请求的跟踪头。流须包含 HTTP 200、结束原因、有效 token 用量及终止事件。首个输出 token 包含引擎返回的 `reasoning` 或最终文本，首个最终文本时间单独保存。评分只读 `content`。到达长度上限而仅返回 `reasoning` 时，单独统计为完整响应、零最终答案，保留原始流。

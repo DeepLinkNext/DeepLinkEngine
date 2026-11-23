@@ -42,7 +42,8 @@ def summarize(folder, expected, gold, score, digest):
         raise ValueError("Run uses different inputs: " + str(folder))
     seen, complete, correct, released = set(), 0, 0, 0
     output_tokens, length_stops, unparsed = 0, 0, 0
-    first_token, latency = [], []
+    first_token, final_text_token, latency = [], [], []
+    final_answers = reasoning_only = cached_tokens = 0
     for path in folder.glob("*/result.json"):
         row = load(path)
         case = row["case_id"]
@@ -73,7 +74,13 @@ def summarize(folder, expected, gold, score, digest):
         unparsed += answer is None
         length_stops += row["finish_reason"] == "length"
         output_tokens += row["usage"]["completion_tokens"]
-        first_token.append(row["first_token"]["monotonic"] - row["start"]["monotonic"])
+        final_answers += bool(row["content"].strip())
+        reasoning_only += bool(row.get("reasoning", "").strip()) and not row["content"].strip()
+        cached_tokens += (row["usage"].get("prompt_tokens_details") or {}).get("cached_tokens", 0)
+        generated = row.get("first_output_token") or row["first_token"]
+        first_token.append(generated["monotonic"] - row["start"]["monotonic"])
+        if row["first_token"] is not None:
+            final_text_token.append(row["first_token"]["monotonic"] - row["start"]["monotonic"])
         latency.append(row["elapsed_s"])
     measured = folder / "measurement.json"
     seconds = load(measured)["elapsed_seconds"] if measured.is_file() else None
@@ -81,7 +88,8 @@ def summarize(folder, expected, gold, score, digest):
     return dict(group=folder.name, engine=plan["engine"], release=plan["release"], route=plan["route"],
                 status=status, requested=workload["requests"], recorded=len(seen), completed=complete,
                 correct=correct, unparsed=unparsed, length_stops=length_stops, released=released,
-                output_tokens=output_tokens, seconds=seconds, output_tokens_per_second=output_tokens/seconds if seconds else None,
+                final_answers=final_answers, reasoning_only=reasoning_only, cached_tokens=cached_tokens,
+                first_final_text_p50_seconds=percentile(final_text_token,.5), output_tokens=output_tokens, seconds=seconds, output_tokens_per_second=output_tokens/seconds if seconds else None,
                 ttft_p50_seconds=percentile(first_token, .5), ttft_p95_seconds=percentile(first_token, .95),
                 latency_p50_seconds=percentile(latency, .5), latency_p95_seconds=percentile(latency, .95))
 

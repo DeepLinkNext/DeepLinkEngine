@@ -44,7 +44,7 @@ def call(config, body, directory):
         "last_token": None,
         "response_reconstructed_from_stream": True,
     }
-    headers = {"Content-Type": "application/json"}
+    headers = {"Content-Type": "application/json", **config.get("trace_headers", {})}
     if config.get("api_key_env"):
         token = os.environ.get(config["api_key_env"])
         if not token:

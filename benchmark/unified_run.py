@@ -2,7 +2,6 @@
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import ExitStack, contextmanager
 import hashlib
-import types
 import json
 import os
 from pathlib import Path
@@ -14,7 +13,7 @@ import urllib.request
 from urllib.parse import urlsplit
 import uuid
 
-from benchmark import one_click
+from benchmark import one_click, profile_streaming_transport as transport
 
 
 def load(path):
@@ -190,20 +189,11 @@ def run(args):
     if len(cases) != config["requests"] or len({c["case_id"] for c in cases}) != len(cases):
         raise ValueError("Input population differs")
     lock = one_click.verify_kit()
-    source = one_click.KIT / "scripts/streaming_transport.py"
-    # Extend the verified transport only at its request-header binding. The
-    # run records both digests so reviewers can reproduce the executing source.
-    original = source.read_bytes()
-    marker = '    headers = {"Content-Type": "application/json"}'
-    reviewed = original.decode()
-    if reviewed.count(marker) != 1:
-        raise ValueError("Selected client needs review for trace-header binding")
-    bound = reviewed.replace(marker, marker + '\n    headers.update(config["trace_headers"])')
-    transport = types.ModuleType("frozen_stream")
-    exec(compile(bound, str(source), "exec"), transport.__dict__)
+    # The MMLU profile records reasoning-only, length-capped streams separately from final answers.
+    client_sha = hashlib.sha256(Path(transport.__file__).read_bytes()).hexdigest()
     folder = (args.out or Path(site["results"]) / str(uuid.uuid4())).resolve()
     folder.mkdir(parents=True, exist_ok=False)
-    save(folder / "plan.json", dict(plan, kit=lock["tools"]["manifest_sha256"], source_sha256=hashlib.sha256(original).hexdigest(), execution_sha256=hashlib.sha256(bound.encode()).hexdigest()))
+    save(folder / "plan.json", dict(plan, kit=lock["tools"]["manifest_sha256"], source_sha256="c00dd6cbf94e220ea666bc8a85ce47213cf09597c94506a349112a2afddd25e9", execution_sha256=client_sha))
     print("BENCHMARK_OUTPUT", folder, flush=True)
     try:
         with ExitStack() as stack:
