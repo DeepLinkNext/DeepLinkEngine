@@ -20,6 +20,19 @@ python run_all.py
 
 模型启动后，入口在服务空闲、尚未预热时再次清理可回收缓存，并确认至少 24 GiB 原始内存余量后继续。临时页在预热前全部释放；模型配置、每卡 4 GiB 状态预算及原有内存保护保持不变。
 
+## R10 原生计时补测
+
+已安装正式版 `2026.11.21.10` 时，可单独采集三轮原生计时。`token-workload.json` 取自已封存的 0.23 或 0.30 MTP KV 补丁版原生计时目录。入口核对正式输入顺序和合成预热的 SHA-256，并为每轮保留 200 条请求的原始 token 输出、计时和设备回执。
+
+```bash
+python benchmark/one_click.py native-timing \
+  --installation ./r10 --model ./Qwen3.5-35B-A3B \
+  --fixed-workload ./token-workload.json --out ./r10-native --cache ./cache \
+  --devices 0,1 --physical-devices 0,1
+```
+
+设备号按机器分配填写。该入口只运行 B1 原生计时。F 随后按每轮的真实输出和算量适用性证据独立复算。
+
 ## r10 候选封存 CPU 复算
 
 从仓库根目录选择一个已封存候选。版本名可用 `r10-native-rms`、`r10-contiguous-restore` 或报告中完整的运行时身份。
