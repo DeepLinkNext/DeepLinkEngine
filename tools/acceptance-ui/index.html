@@ -1,0 +1,705 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<link rel="icon" href="data:,">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>推理引擎 · 验收实验台</title>
+<style>
+:root {
+  color-scheme:dark;
+  --bg:#0b1220; --panel:#121c2e; --panel-bottom:#16223a; --line:#263650;
+  --ink:#e8eefc; --muted:#9aaecb; --faint:#839abb; --inset:#0f1b2e; --deep:#08101d;
+  --blue:#4a8cff; --cyan:#2fd4c4; --gold:#f2b544; --violet:#a879ff;
+  --ok:#2ecc8f; --danger:#ffb0b0; --chart-grid:#253653;
+  --radius:14px; --page-gutter:clamp(18px,3vw,44px);
+  --panel-fill:linear-gradient(180deg,var(--panel),var(--panel-bottom));
+  --panel-shadow:0 12px 30px #050a145c;
+  --mono:"Cascadia Mono",Consolas,monospace;
+  font-family:"Segoe UI","Microsoft YaHei",system-ui,sans-serif;
+}
+* { box-sizing:border-box }
+[hidden] { display:none !important }
+body {
+  margin:0; min-height:100vh; color:var(--ink); font-size:14px; line-height:1.5;
+  background:radial-gradient(1200px 600px at 15% -10%,#16233d 0%,transparent 60%),
+             radial-gradient(900px 500px at 110% 10%,#1a2b3f 0%,transparent 55%),var(--bg);
+}
+button, select { font:inherit }
+button, select, a { -webkit-tap-highlight-color:transparent }
+:focus-visible { outline:2px solid var(--cyan); outline-offset:3px }
+a { color:#9dc2ff }
+button { cursor:pointer }
+button:disabled { opacity:.5; cursor:not-allowed }
+h1, h2, h3, p { margin:0 }
+header.top {
+  display:flex; align-items:center; justify-content:space-between; gap:12px 16px; flex-wrap:wrap;
+  width:calc(100% - 2 * var(--page-gutter)); max-width:calc(1700px - 2 * var(--page-gutter));
+  margin:18px auto 0; padding:13px 18px; min-height:64px;
+  background:var(--panel-fill); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--panel-shadow);
+}
+.brand { display:flex; align-items:center; gap:11px; font-size:17px; font-weight:700; letter-spacing:.025em }
+.brand-mark {
+  display:grid; place-items:center; width:34px; height:34px; flex:none; border-radius:10px;
+  background:linear-gradient(135deg,var(--blue),var(--cyan)); color:#04121f; font-size:13px; font-weight:800; letter-spacing:.06em;
+}
+.top-info { display:flex; flex-wrap:wrap; align-items:center; gap:8px; font-size:12px; color:var(--muted) }
+.top-info > span { padding:4px 10px; border-radius:999px; border:1px solid var(--line); background:#0e1a2c }
+#engine { font-family:var(--mono) }
+#engine:empty { display:none }
+.connection { display:inline-flex; align-items:center; gap:7px }
+.connection::before { content:""; width:8px; height:8px; border-radius:50%; background:var(--gold); flex:none }
+.connection[data-status="online"]::before { background:var(--ok); box-shadow:0 0 8px #2ecc8f64 }
+.connection[data-status="offline"]::before { background:#ff777f }
+.shell {
+  max-width:1700px; margin:auto; display:grid; grid-template-columns:240px minmax(0,1fr); gap:24px;
+  padding:24px var(--page-gutter) 40px;
+}
+aside, .panel {
+  background:var(--panel-fill); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--panel-shadow);
+}
+aside { align-self:start; overflow:hidden; min-width:0 }
+nav { padding:18px 12px 12px }
+.side-title { padding:0 10px; font-size:14px }
+.module-group { margin-top:16px }
+.module-group h3 { padding:0 10px; margin-bottom:5px; color:var(--muted); font-size:11px; font-weight:700; letter-spacing:.055em }
+.nav-button {
+  display:flex; width:100%; align-items:center; gap:8px; padding:8px 10px; border:1px solid transparent;
+  border-radius:9px; text-align:left; background:transparent; color:inherit; overflow-wrap:anywhere;
+}
+.module-group .nav-button { background:var(--inset); border-color:#243550 }
+.module-group .nav-button + .nav-button { margin-top:4px }
+.module-group .nav-button[data-task="full"] { background:linear-gradient(135deg,#172c4d,#12203a); border-color:#37588f }
+.nav-button:hover { background:#152740; border-color:#355887 }
+.module-group .nav-button:hover { background:#152740; border-color:#355887 }
+.nav-button[aria-current="page"], .module-group .nav-button[aria-current="page"] {
+  background:#162947; border-color:#4167a4; color:#e2eeff; box-shadow:inset 3px 0 var(--blue); font-weight:650;
+}
+.nav-label { flex:1; min-width:0 }
+.run-dot { width:7px; height:7px; flex:none; background:var(--cyan); border-radius:50%; box-shadow:0 0 8px #2fd4c480 }
+.history { border-top:1px solid var(--line); padding:12px }
+.history summary { padding:4px 10px; cursor:pointer; color:var(--ink); font-weight:650 }
+.history summary::marker { color:var(--faint) }
+.history .nav-button { font-size:12px }
+.history .meta { color:var(--faint); font-size:11px }
+.archived { display:flex; gap:8px; padding:6px 8px; font-size:12px; color:var(--muted); align-items:center }
+.archived input { accent-color:var(--blue) }
+#runs { margin-top:6px; max-height:360px; overflow:auto; scrollbar-color:#3d5377 #111c2e }
+#runs .empty { padding:8px }
+main { min-width:0; display:grid; align-content:start; gap:18px }
+.panel { min-width:0 }
+.monitor { position:sticky; top:8px; z-index:2; padding:12px 14px 14px }
+.monitor-head { display:flex; gap:8px 16px; justify-content:space-between; align-items:center; flex-wrap:wrap; margin:0 2px 8px }
+.monitor-head h2 { font-size:15px }
+.monitor-head span { color:var(--faint); font-size:12px }
+.charts { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px }
+.chart { background:var(--deep); border:1px solid var(--line); border-radius:10px; padding:9px 11px 8px; min-width:0 }
+.chart-title { display:flex; align-items:baseline; justify-content:space-between; flex-wrap:wrap; gap:3px 8px }
+.chart h3 { font-size:13px }
+.chart-state { font-size:11px; color:var(--muted) }
+.legend { display:flex; gap:4px 16px; flex-wrap:wrap; font-size:11px; color:var(--muted); margin:4px 0 }
+.legend span { display:inline-flex; gap:5px; align-items:center }
+.legend b { color:var(--ink); font:650 13px var(--mono); font-variant-numeric:tabular-nums }
+.legend i { display:inline-block; width:8px; height:8px; border-radius:2px }
+canvas { display:block; width:100%; height:62px }
+.workspace { display:grid; gap:14px; min-width:0 }
+.home {
+  display:grid; place-items:center; min-height:180px; padding:24px; text-align:center;
+  background:radial-gradient(ellipse at top,#203351 0%,transparent 73%),var(--panel-fill);
+}
+.home h1 { color:var(--muted); font-size:16px; line-height:1.5; letter-spacing:0 }
+.task-top { padding:20px; display:grid; gap:14px }
+.task-title { display:flex; align-items:flex-start; gap:12px; justify-content:space-between; flex-wrap:wrap }
+h1 { font-size:clamp(23px,2vw,32px); line-height:1.2; letter-spacing:-.015em }
+.task-desc { color:var(--muted); margin-top:5px }
+.task-status { flex:none }
+.badge {
+  display:inline-flex; white-space:nowrap; border-radius:999px; padding:2px 8px;
+  border:1px solid var(--line); font-size:11px; background:#0d1a2b; color:var(--muted); font-weight:650;
+}
+.badge.running,.badge.starting,.badge.planned,.badge.skipPlanned { background:#10233d; color:#a9c9ff; border-color:#34548a }
+.badge.completed,.badge.prepared,.badge.reused { background:#102b26; color:#7cf0c0; border-color:#25634e }
+.badge.failed { background:#371c29; color:var(--danger); border-color:#774051 }
+.actions { display:flex; flex-wrap:wrap; align-items:end; gap:9px 12px }
+.primary,.secondary {
+  display:inline-flex; align-items:center; justify-content:center; min-height:38px; padding:7px 13px;
+  font-weight:650; border:1px solid transparent; border-radius:9px; text-decoration:none;
+}
+.primary { background:linear-gradient(135deg,#3569be,#1d538c); border-color:#5587cc; color:#f4f8ff; box-shadow:0 4px 12px #03091155 }
+.primary:hover:not(:disabled) { background:linear-gradient(135deg,#467ed3,#225d9c); border-color:#76a1e0 }
+.secondary { background:var(--inset); border-color:#354b6e; color:var(--ink) }
+.secondary:hover:not(:disabled) { background:#172842; border-color:#4a71a8 }
+.option { display:grid; gap:4px; color:var(--muted); font-size:12px; min-width:0; max-width:100% }
+.option select { width:100%; min-height:38px; padding:5px 9px; border:1px solid #354b6e; border-radius:9px; background:var(--inset); color:var(--ink) }
+.run-meta,.action-note,#notice { font-size:12px; color:var(--muted); overflow-wrap:anywhere }
+#notice { color:var(--danger) }
+.active-run { padding:8px 11px; display:flex; flex-wrap:wrap; align-items:center; gap:7px 12px; background:#112541; border:1px solid #2b4673; border-radius:9px; font-size:12px }
+.active-run button { color:#a9c9ff; padding:0; border:0; background:none; text-decoration:underline; text-underline-offset:2px; text-align:left; overflow-wrap:anywhere }
+.progress { display:grid; gap:5px; color:var(--muted); font-size:12px }
+.progress-info { display:flex; flex-wrap:wrap; gap:7px 12px; justify-content:space-between }
+progress { width:100%; height:7px; display:block; border:0; border-radius:8px; overflow:hidden; accent-color:var(--cyan); color:var(--cyan); background:#0a1424 }
+progress::-webkit-progress-bar { background:#0a1424 }
+progress::-webkit-progress-value { background:linear-gradient(90deg,var(--blue),var(--cyan)) }
+progress::-moz-progress-bar { background:linear-gradient(90deg,var(--blue),var(--cyan)) }
+.detail-grid { display:grid; grid-template-columns:minmax(290px,1fr) minmax(0,1.1fr); gap:14px; align-items:start }
+.section-head { display:flex; justify-content:space-between; align-items:baseline; gap:8px; padding:15px 17px 11px }
+.section-head h2 { font-size:16px }
+.section-head span { font:12px var(--mono); color:var(--muted); white-space:nowrap }
+#flows { padding:0 16px 15px }
+.phase { margin-top:4px; border-top:1px solid var(--line); padding:9px 0 4px }
+.phase h3 { font-size:13px; margin-bottom:4px; color:#cfe0ff }
+.phase ol { margin:0; padding:0; list-style:none }
+.step { display:flex; align-items:center; gap:7px; min-height:32px; padding:4px 5px; border-radius:7px; font-size:12px }
+.step + .step { border-top:1px dashed #2a3953 }
+.step.running { background:#152b49 }
+.step.failed { background:#321d2d }
+.index {
+  display:inline-grid; place-items:center; width:21px; height:21px; flex:0 0 21px; border:1px solid var(--line);
+  border-radius:50%; background:#0d1829; color:var(--muted); font:10px var(--mono); font-variant-numeric:tabular-nums;
+}
+.step.running .index { border-color:var(--blue); color:#c5dbff }
+.step.completed .index, .step.reused .index { border-color:#25634e; color:#7cf0c0 }
+.step.failed .index { border-color:#774051; color:var(--danger) }
+.step-name { flex:1; min-width:0; overflow-wrap:anywhere }
+.step time { font:11px var(--mono); color:var(--muted); white-space:nowrap; font-variant-numeric:tabular-nums }
+.table-wrap { overflow:auto; padding:0 16px 12px }
+table { border-collapse:collapse; width:100%; font-size:12px; font-variant-numeric:tabular-nums }
+th,td { padding:7px 5px; border-top:1px solid var(--line); text-align:right; white-space:nowrap }
+th { color:var(--muted); font-weight:650; background:#0e1a2c }
+td { color:#c4d4ed }
+td:nth-child(n+3) { font-family:var(--mono) }
+th:first-child,td:first-child { text-align:left; min-width:115px; white-space:normal }
+td:first-child small { color:var(--muted); display:block; margin-top:2px; line-height:1.35 }
+td:nth-child(2),th:nth-child(2) { text-align:center }
+td:first-child,.run-meta { overflow-wrap:anywhere }
+.empty { color:var(--muted) }
+.history .empty { color:var(--muted) }
+.console { overflow:hidden }
+.console summary { padding:13px 17px; cursor:pointer; font-weight:650 }
+.console summary::marker { color:var(--faint) }
+.console pre { margin:0; padding:12px 17px; max-height:340px; overflow:auto; background:var(--deep); color:#b4c8e6; white-space:pre-wrap; overflow-wrap:anywhere; font:12px/1.55 var(--mono) }
+@media (max-width:1250px) { .detail-grid { grid-template-columns:minmax(0,1fr) } }
+@media (max-width:850px) {
+  .shell { grid-template-columns:1fr; gap:14px; padding-top:14px }
+  nav { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px 8px }
+  .side-title { grid-column:1/-1 }
+  .module-group { margin-top:2px }
+  .monitor { position:static }
+}
+@media (max-width:540px) {
+  .charts { grid-template-columns:1fr }
+  .task-top { padding:15px }
+  .actions .option { width:100% }
+}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="brand"><span class="brand-mark" aria-hidden="true">DL</span>推理引擎 · 验收实验台</div>
+  <div class="top-info"><span id="engine"></span><span id="connection" class="connection" role="status">正在连接</span></div>
+</header>
+<div class="shell">
+  <aside>
+    <nav id="modules" aria-label="测试模块"><h2 class="side-title">测试模块</h2></nav>
+    <details class="history" id="history">
+      <summary>运行记录 <span class="meta" id="run-count"></span></summary>
+      <label class="archived"><input id="archived" type="checkbox">显示归档轮次</label>
+      <div id="runs"></div>
+    </details>
+  </aside>
+  <main>
+    <section class="panel monitor" aria-labelledby="monitor-title">
+      <div class="monitor-head">
+        <h2 id="monitor-title">服务器实时监控</h2>
+        <span id="monitor-window">采样间隔约 10 秒</span>
+      </div>
+      <div class="charts">
+        <article class="chart">
+          <div class="chart-title"><h3 id="device-title">NPU 设备</h3><span class="chart-state" id="device-state">等待采样</span></div>
+          <div class="legend">
+            <span><i style="background:var(--blue)"></i>AICore <b id="aicore">—</b> %</span>
+            <span><i style="background:var(--gold)"></i>HBM 占用 <b id="mem">—</b><span id="mem-total"></span> GiB</span>
+          </div>
+          <canvas id="device" role="img" aria-label="NPU 利用率和显存占用趋势"></canvas>
+        </article>
+        <article class="chart">
+          <div class="chart-title"><h3>推理服务</h3><span class="chart-state" id="service-state">等待采样</span></div>
+          <div class="legend">
+            <span><i style="background:var(--cyan)"></i>生成吞吐 <b id="gen">—</b> tok/s</span>
+            <span><i style="background:var(--violet)"></i>并发请求 <b id="running">—</b></span>
+          </div>
+          <canvas id="service" role="img" aria-label="推理生成吞吐和并发请求趋势"></canvas>
+        </article>
+      </div>
+    </section>
+
+    <section class="panel home" id="home" aria-labelledby="home-title">
+      <h1 id="home-title">请选择实验或运行记录</h1>
+    </section>
+
+    <section class="workspace" id="workspace" aria-labelledby="task-title" hidden>
+      <div class="panel task-top">
+        <div id="busy" class="active-run" hidden></div>
+        <div class="task-title">
+          <div><h1 id="task-title"></h1><p class="task-desc" id="task-desc"></p></div>
+          <span id="task-status" class="task-status badge" hidden></span>
+        </div>
+        <p class="run-meta" id="run-meta" hidden></p>
+        <div class="actions" id="actions"></div>
+        <p class="action-note" id="action-note" hidden></p>
+        <p id="notice" role="status" hidden></p>
+        <div class="progress" id="progress-box" hidden>
+          <div class="progress-info"><span id="progress-text"></span><span id="elapsed"></span></div>
+          <progress id="progress" aria-label="执行步骤进度" value="0" max="1"></progress>
+        </div>
+      </div>
+      <div class="detail-grid">
+        <section class="panel">
+          <div class="section-head"><h2>执行流程</h2><span id="step-count"></span></div>
+          <div id="flows"></div>
+        </section>
+        <section class="panel">
+          <div class="section-head"><h2>结果</h2><span id="result-count"></span></div>
+          <div id="results" class="table-wrap"></div>
+        </section>
+      </div>
+      <details class="panel console" id="logs" hidden>
+        <summary>执行日志</summary>
+        <pre id="log"></pre>
+      </details>
+    </section>
+  </main>
+</div>
+<script>
+
+const byId = id => document.getElementById(id);
+const escapeHtml = value => String(value ?? "").replace(/[&<>"]/g, char =>
+  ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;" })[char]);
+const STATUS = {
+  pending:"待执行", planned:"计划复用", skipPlanned:"计划跳过", skipped:"已跳过", reused:"已复用", starting:"启动中",
+  running:"运行中", completed:"已完成", failed:"失败", prepared:"预检完成", unknown:"状态未知"
+};
+const DONE = new Set(["completed", "reused", "skipped"]);
+const elapsedFormat = seconds => {
+  if (seconds == null) return "—";
+  seconds = Math.floor(Math.max(0, seconds));
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor(seconds / 60) % 60;
+  return [hours, minutes, seconds % 60].map(value => String(value).padStart(2, "0")).join(":");
+};
+const fmt = (value, digits=0) => Number.isFinite(value) ? value.toFixed(digits) : "—";
+const badge = status => '<span class="badge ' + escapeHtml(status) + '">' + (STATUS[status] || STATUS.unknown) + '</span>';
+const renderCache = new Map();
+
+let selected = { task:null, run:null };
+let inventory = null;
+let viewedRun = null;
+let online = false;
+let inAction = false;
+let archive = false;
+let evidence = "";
+let source = "";
+let stateRequest = null;
+let elapsedSince = null;
+let elapsedValue = null;
+
+function patch(id, html) {
+  if (renderCache.get(id) === html) return;
+  renderCache.set(id, html);
+  byId(id).innerHTML = html;
+}
+
+function text(id, value) {
+  const element = byId(id);
+  if (element.textContent !== value) element.textContent = value;
+}
+
+function note(message = "") {
+  text("notice", message);
+  byId("notice").hidden = !message;
+}
+
+function selectView(next) {
+  selected = next;
+  viewedRun = null;
+  elapsedSince = null;
+  elapsedValue = null;
+  byId("logs").open = false;
+  note();
+  render();
+  refreshState(true);
+}
+
+function renderNav() {
+  const groups = new Map();
+  for (const task of inventory.tasks) {
+    if (!groups.has(task.group)) groups.set(task.group, []);
+    groups.get(task.group).push(task);
+  }
+  const activeTasks = new Set(inventory.runs.filter(run => run.active).map(run => run.task));
+  const groupsHtml = Array.from(groups, ([group, tasks]) => {
+    const buttons = tasks.map(task => {
+      const active = selected.task === task.key && !selected.run;
+      return '<button type="button" class="nav-button" data-task="' + task.key + '"' +
+        (active ? ' aria-current="page"' : "") + '><span class="nav-label">' + escapeHtml(task.label) +
+        '</span>' + (activeTasks.has(task.key) ? '<span class="run-dot" title="有轮次正在运行"></span>' : "") + '</button>';
+    }).join("");
+    return '<section class="module-group"><h3>' + escapeHtml(group) + '</h3>' + buttons + '</section>';
+  }).join("");
+  patch("modules", '<h2 class="side-title">测试模块</h2>' + groupsHtml);
+  const history = inventory.runs.filter(run => archive || !run.archived || run.name === selected.run);
+  text("run-count", "(" + history.length + ")");
+  patch("runs", history.map(run =>
+    '<button type="button" class="nav-button" data-run="' + escapeHtml(run.name) + '"' +
+    (run.name === selected.run ? ' aria-current="page"' : "") + '><span class="nav-label">' + escapeHtml(run.name) +
+    '</span>' + badge(run.status) + '</button>').join("") || '<p class="empty">暂无运行记录</p>');
+}
+
+function actionOptions(task, run) {
+  if (run) {
+    const report = run.report ? '<a class="primary" target="_blank" rel="noopener" href="/api/report?run=' +
+      encodeURIComponent(run.name) + '">查看报告</a>' : "";
+    const stop = inventory.active.includes(run.name) ?
+      '<button type="button" class="secondary" id="stop"' + (!online || inAction ? " disabled" : "") + '>停止本轮</button>' : "";
+    return report + stop + '<button type="button" class="secondary" id="show-plan">返回任务计划</button>';
+  }
+  if (selected.run) return "";
+  const disabled = !online || inAction || !task.available || inventory.active.length ||
+    (task.key === "compute" && !source);
+  const start = '<button type="button" class="primary" id="start"' + (disabled ? " disabled" : "") + '>启动测试</button>';
+  if (task.reusable && inventory.evidence.length) {
+    const options = inventory.evidence.map(row => '<option value="' + escapeHtml(row.path) +
+      '"' + (evidence === row.path ? " selected" : "") + '>复用 ' + escapeHtml(row.run) + '</option>').join("");
+    return '<label class="option">连续吞吐凭证<select id="evidence"><option value="">重新测量 B0 / B1</option>' +
+      options + '</select></label>' + start;
+  }
+  if (task.key === "compute" && task.sources.length) {
+    const options = task.sources.map(name => '<option value="' + escapeHtml(name) + '"' +
+      (source === name ? " selected" : "") + '>' + escapeHtml(name) + '</option>').join("");
+    return '<label class="option">已封存性能批次<select id="source"><option value="">选择批次</option>' +
+      options + '</select></label>' + start;
+  }
+  return start;
+}
+
+function renderFlows(plan, reuse) {
+  let index = 0;
+  const statusFor = item => {
+    if (reuse && item.name === "continuous-B0") return "skipPlanned";
+    if (reuse && item.name === "continuous-B1") return "planned";
+    return item.status;
+  };
+  const steps = plan.groups.flatMap(group => group.steps);
+  text("step-count", steps.filter(step => DONE.has(step.status)).length + " / " + steps.length + " 步");
+  patch("flows", plan.groups.map(group => '<section class="phase"><h3>' + escapeHtml(group.label) + '</h3><ol>' +
+    group.steps.map(step => {
+      const status = statusFor(step);
+      return '<li class="step ' + escapeHtml(status) + '"' + (status === "running" ? ' aria-current="step"' : "") +
+        '><span class="index">' + String(++index).padStart(2, "0") +
+        '</span><span class="step-name">' + escapeHtml(step.label) + '</span>' +
+        (step.duration_s == null ? "" : '<time>' + elapsedFormat(step.duration_s) + '</time>') + badge(status) + '</li>';
+    }).join("") + '</ol></section>').join(""));
+
+  const fullMetrics = !["preflight","compute"].includes(selected.task);
+  const heading = fullMetrics ? '<th scope="col">吞吐 tok/s</th><th scope="col">TTFT ms</th><th scope="col">TPOT ms</th>' : "";
+  text("result-count", plan.results.filter(row => DONE.has(row.status)).length + " / " + plan.results.length + " 项");
+  patch("results", '<table><thead><tr><th scope="col">结果项</th><th scope="col">状态</th><th scope="col">耗时</th>' +
+    heading + '</tr></thead><tbody>' + plan.results.map(row => '<tr><td>' + escapeHtml(row.label) +
+    (row.note ? '<small>' + escapeHtml(row.note) + '</small>' : "") + '</td><td>' + badge(statusFor(row)) +
+    '</td><td>' + elapsedFormat(row.duration_s) + '</td>' + (fullMetrics ?
+      '<td>' + fmt(row.throughput, 1) + '</td><td>' + fmt(row.ttft_ms, 1) + '</td><td>' + fmt(row.tpot_ms, 1) + '</td>' : "") +
+    '</tr>').join("") + '</tbody></table>');
+}
+
+function render() {
+  if (!inventory) return;
+  const task = inventory.tasks.find(item => item.key === selected.task);
+  const run = viewedRun;
+  const {version, profile} = inventory.engine;
+  text("engine", version ? "B1 " + version + (profile ? " · " + profile.toUpperCase() : "") : "");
+  renderNav();
+  byId("home").hidden = Boolean(task);
+  byId("workspace").hidden = !task;
+  if (!task) return;
+  const active = inventory.active[0];
+  const busy = byId("busy");
+  busy.hidden = !active || active === selected.run;
+  patch("busy", active ? '<span>服务器正在执行</span><button type="button" data-run="' +
+    escapeHtml(active) + '">' + escapeHtml(active) + '</button>' : "");
+
+  text("task-title", task.label);
+  text("task-desc", task.hint);
+  const currentStatus = byId("task-status");
+  currentStatus.hidden = !run;
+  if (run) {
+    currentStatus.className = "task-status badge " + run.status;
+    text("task-status", STATUS[run.status] || STATUS.unknown);
+  }
+  const selectedMeta = run?.name || selected.run || "";
+  byId("run-meta").hidden = !selectedMeta;
+  const runVersion = run?.engine?.version ? "B1 " + run.engine.version : "";
+  text("run-meta", [selectedMeta, runVersion, run?.error].filter(Boolean).join(" · "));
+
+  if (evidence && !inventory.evidence.some(item => item.path === evidence)) evidence = "";
+  if (!task.sources.includes(source)) source = "";
+  patch("actions", actionOptions(task, run));
+  const actionNote = selected.run ? "" : [task.reason, task.eta, task.needs_npu ?
+    "使用 NPU " + inventory.cards.join(" / ") + " · B0 / B1 配对" : "准备环境与输入"].filter(Boolean).join(" · ");
+  text("action-note", actionNote);
+  byId("action-note").hidden = !actionNote;
+  const plan = run?.plan || task.plan;
+  renderFlows(plan, !selected.run && task.reusable && Boolean(evidence));
+  byId("progress-box").hidden = !run;
+  byId("logs").hidden = !run;
+  if (run) {
+    const steps = plan.groups.flatMap(group => group.steps);
+    const completed = steps.filter(step => DONE.has(step.status)).length;
+    byId("progress").max = steps.length || 1;
+    byId("progress").value = completed;
+    text("progress-text", run.step ? "当前步骤 · " + run.step : (STATUS[run.status] || STATUS.unknown));
+    const log = byId("log");
+    const follow = log.scrollHeight - log.scrollTop - log.clientHeight < 32;
+    text("log", run.log_tail.join("\n") || "暂无日志");
+    if (follow) log.scrollTop = log.scrollHeight;
+  }
+  updateElapsed();
+}
+
+function updateElapsed() {
+  const elapsed = elapsedValue == null ? null :
+    elapsedValue + (elapsedSince == null ? 0 : (Date.now() - elapsedSince) / 1000);
+  text("elapsed", elapsed == null ? "" : "耗时 " + elapsedFormat(elapsed));
+}
+
+function setConnection(ok) {
+  online = ok;
+  byId("connection").dataset.status = ok ? "online" : "offline";
+  text("connection", ok ? "已连接" : "连接中断，正在重试");
+}
+
+async function refreshState(immediate = false) {
+  if (stateRequest && !immediate) return;
+  if (stateRequest) stateRequest.abort();
+  const controller = new AbortController();
+  stateRequest = controller;
+  const current = selected;
+  const timer = setTimeout(() => controller.abort(), 9000);
+  try {
+    const response = await fetch("/api/state" + (current.run ? "?run=" + encodeURIComponent(current.run) : ""),
+      { cache:"no-store", signal:controller.signal });
+    const data = await response.json();
+    if (stateRequest !== controller) return;
+    if (!response.ok) throw new Error(data.error || "请求状态失败");
+    inventory = data;
+    viewedRun = data.run;
+    elapsedValue = viewedRun?.elapsed ?? null;
+    elapsedSince = viewedRun && ["starting","running"].includes(viewedRun.status) ? Date.now() : null;
+    const restored = !online;
+    setConnection(true);
+    if (restored && !viewedRun && !inAction) note();
+    render();
+  } catch (error) {
+    if (stateRequest !== controller) return;
+    setConnection(false);
+    render();
+    if (!inventory) note("暂时无法连接服务器，请检查 SSH 隧道和验收服务。");
+  } finally {
+    clearTimeout(timer);
+    if (stateRequest === controller) stateRequest = null;
+  }
+}
+
+function openRun(name, taskKey) {
+  const run = inventory.runs.find(item => item.name === name);
+  const task = run?.task || taskKey;
+  if (!task) return;
+  byId("history").open = true;
+  selectView({ task, run:name });
+}
+
+async function act(path, payload, success) {
+  inAction = true;
+  note();
+  render();
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 15000);
+  try {
+    const response = await fetch(path, {
+      method:"POST", headers:{ "Content-Type":"application/json" },
+      body:JSON.stringify(payload), signal:controller.signal
+    });
+    const data = await response.json();
+    if (!response.ok || !data.ok) throw new Error(data.error || "请求失败");
+    success(data.result);
+  } catch (error) {
+    note(error.name === "AbortError" ? "请求超时，请先核对运行记录和当前任务再重试。" : error.message);
+  } finally {
+    clearTimeout(timer);
+    inAction = false;
+    render();
+    refreshState(true);
+  }
+}
+
+document.addEventListener("click", event => {
+  const button = event.target.closest("button");
+  if (!button || !inventory) return;
+  if (button.dataset.task) {
+    selectView({ task:button.dataset.task, run:null });
+  } else if (button.dataset.run) {
+    openRun(button.dataset.run);
+  } else if (button.id === "show-plan") {
+    selectView({ task:selected.task, run:null });
+  } else if (button.id === "start" && !inAction) {
+    const task = inventory.tasks.find(item => item.key === selected.task);
+    const lines = ["启动「" + task.label + "」？"];
+    if (task.needs_npu) lines.push("占用 NPU " + inventory.cards.join(" / ") + "。");
+    if (task.reusable) lines.push(evidence ? "使用选定的连续吞吐凭证。" : "本轮重新测量 B0 / B1 连续吞吐。");
+    if (task.key === "compute") lines.push("来源批次 · " + source);
+    if (confirm(lines.join("\n"))) {
+      act("/api/start", { task:task.key, evidence:task.reusable ? evidence || null : null,
+        source:task.key === "compute" ? source : null }, result => openRun(result.run, task.key));
+    }
+  } else if (button.id === "stop" && viewedRun && !inAction) {
+    const name = viewedRun.name;
+    if (confirm("停止「" + name + "」？\n本轮可能只保留部分结果。")) {
+      act("/api/stop", { run:name }, () => note("已发送停止信号，正在等待进程退出。"));
+    }
+  }
+});
+
+document.addEventListener("change", event => {
+  if (event.target.id === "archived") archive = event.target.checked;
+  if (event.target.id === "evidence") evidence = event.target.value;
+  if (event.target.id === "source") source = event.target.value;
+  render();
+});
+
+setInterval(updateElapsed, 1000);
+setInterval(refreshState, 2500);
+refreshState();
+
+
+const CHARTS = {
+  device: [{ key:"aicore", color:"--blue", max:100, digits:0 },
+           { key:"mem", color:"--gold", scale:"mem_total", digits:2 }],
+  service: [{ key:"gen", color:"--cyan", digits:1 },
+            { key:"running", color:"--violet", digits:0 }]
+};
+let latestMonitor = null;
+let monitorRequest = false;
+
+function drawChart(id, points, scheme) {
+  const canvas = byId(id);
+  const width = canvas.clientWidth;
+  const height = canvas.clientHeight;
+  if (!width || !height) return;
+  const ratio = window.devicePixelRatio || 1;
+  canvas.width = Math.round(width * ratio);
+  canvas.height = Math.round(height * ratio);
+  const context = canvas.getContext("2d");
+  context.scale(ratio, ratio);
+  const pad = 4;
+  const palette = getComputedStyle(canvas);
+  context.strokeStyle = palette.getPropertyValue("--chart-grid").trim();
+  context.beginPath();
+  for (const part of [0, 0.33, 0.67, 1]) {
+    const y = pad + (height - 2 * pad) * part;
+    context.moveTo(pad, y);
+    context.lineTo(width - pad, y);
+  }
+  context.stroke();
+  const end = points.at(-1)?.at;
+  if (!end) return;
+  const span = Math.max(60, end - points[0].at);
+  for (const series of scheme) {
+    const values = points.map(point => point[series.key]).filter(Number.isFinite);
+    if (!values.length) continue;
+    const capacity = series.scale ? Math.max(0, ...points.map(point => point[series.scale] || 0)) : 0;
+    const maximum = series.max || capacity || Math.max(1, ...values) * 1.05;
+    context.beginPath();
+    const color = palette.getPropertyValue(series.color).trim();
+    context.strokeStyle = color;
+    context.fillStyle = color;
+    context.lineWidth = 1.6;
+    context.lineJoin = "round";
+    let previous = null;
+    let last = null;
+    for (const point of points) {
+      const value = point[series.key];
+      if (!Number.isFinite(value)) {
+        previous = null;
+        last = null;
+        continue;
+      }
+      const x = width - pad - (width - 2 * pad) * (end - point.at) / span;
+      const y = height - pad - (height - 2 * pad) * (Math.min(maximum, Math.max(0, value)) / maximum);
+      if (previous !== null && point.at - previous <= 24) context.lineTo(x, y);
+      else context.moveTo(x, y);
+      previous = point.at;
+      last = [x, y];
+    }
+    context.stroke();
+    if (last) {
+      context.beginPath();
+      context.save();
+      context.shadowColor = color;
+      context.shadowBlur = 8;
+      context.arc(last[0], last[1], 2.5, 0, Math.PI * 2);
+      context.fill();
+      context.restore();
+    }
+  }
+}
+
+function renderMonitor(data, connected) {
+  if (!data) data = {cards:[], device:{points:[]}, service:{points:[]}};
+  const now = Date.now() / 1000;
+  const cards = data.cards.length ? " · " + data.cards.join(" / ") + " 平均" : "";
+  text("device-title", "NPU 设备" + cards);
+  const states = {
+    live:"实时", idle:"无运行中的推理服务", waiting:"等待实时统计", unavailable:"采样暂不可用"
+  };
+  for (const [id, scheme] of Object.entries(CHARTS)) {
+    const dataset = data[id];
+    const point = dataset.points.at(-1);
+    const fresh = point && now - (point.source_at || point.at) <= 45;
+    const show = connected && fresh && dataset.state === "live";
+    const state = !connected ? "监控连接中断" :
+      dataset.state === "live" && !fresh ? "等待新样本" : (states[dataset.state] || "等待采样");
+    text(id + "-state", state);
+    for (const series of scheme) text(series.key, fmt(show ? point[series.key] : null, series.digits));
+    if (id === "device") text("mem-total", show && point.mem_total ? "/ " + fmt(point.mem_total) : "");
+    drawChart(id, dataset.points, scheme);
+  }
+}
+
+async function refreshMonitor() {
+  if (monitorRequest) return;
+  monitorRequest = true;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 7000);
+  try {
+    const response = await fetch("/api/live", { cache:"no-store", signal:controller.signal });
+    if (!response.ok) throw new Error("监控连接中断");
+    latestMonitor = await response.json();
+    renderMonitor(latestMonitor, true);
+  } catch {
+    renderMonitor(latestMonitor, false);
+  } finally {
+    clearTimeout(timer);
+    monitorRequest = false;
+  }
+}
+
+new ResizeObserver(() => {
+  if (latestMonitor) {
+    for (const [id, scheme] of Object.entries(CHARTS)) drawChart(id, latestMonitor[id].points, scheme);
+  }
+}).observe(byId("device").parentElement);
+setInterval(refreshMonitor, 4000);
+refreshMonitor();
+
+</script>
+</body>
+</html>
