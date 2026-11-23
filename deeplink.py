@@ -26,12 +26,44 @@ def installation(path):
     return path, receipt
 
 
+def reuse_installation(args, target, cache):
+    from engine.environment_setup import cann_environment, run_repair_stage
+    from engine.runtime_storage import marker
+
+    source = Path(os.path.abspath(Path(args.reuse_runtime_from).expanduser()))
+    saved = json.loads(marker(source).read_bytes())
+    receipt = json.loads((source / "installation.json").read_bytes())
+    if (saved.get("schema") != "deeplinkengine-runtime-storage/v1" or saved.get("verified") is not True
+            or saved.get("logical") != str(source) or saved.get("physical") != str(source.resolve())
+            or any(saved.get(key) != receipt.get(key) for key in ("package_version", "release", "python"))):
+        raise ValueError("Runtime reuse requires a verified managed installation")
+    python = Path(receipt["python"])
+    if args.engine_version and args.engine_version != receipt["package_version"]:
+        raise ValueError("Requested version differs from the installation to reuse")
+    for override in (args.python, args.use_environment):
+        if override and Path(override).expanduser().absolute() != python:
+            raise ValueError("Runtime reuse requires the original Python environment")
+    if not python.is_absolute() or not (python.parent.parent / "pyvenv.cfg").is_file():
+        raise ValueError("Runtime reuse requires an available private Python environment")
+    options = {"cann_home": args.cann_home} if args.cann_home else {}
+    env, _ = cann_environment(options)
+    env["XDG_CACHE_HOME"] = str(cache)
+    command = [str(python), "-B", str(ROOT / "engine/runtime_storage.py"),
+               "--out", str(target), "--reuse-from", str(source)]
+    result = run_repair_stage(command, env, None)
+    if result.returncode == 0:
+        print("INSTALLED", target, flush=True)
+    return result.returncode
+
+
 def install(args):
     from engine.environment_setup import ensure_environment, cann_environment, probe, differences, compatible_python, vendor_integrity
     target = Path(os.path.abspath(Path(args.out).expanduser()))
     cache = Path(args.cache or target.parent / ".cache/deeplinkengine").expanduser().resolve()
     if os.path.lexists(target):
         raise ValueError("Choose a new installation directory: " + str(target))
+    if getattr(args, "reuse_runtime_from", None):
+        return reuse_installation(args, target, cache)
     for name, folder in {"TMPDIR": cache / "tmp", "PIP_CACHE_DIR": cache / "pip"}.items():
         folder.mkdir(parents=True, exist_ok=True)
         os.environ[name] = str(folder)
@@ -115,6 +147,7 @@ def main():
     setup.add_argument("--wheelhouse")
     setup.add_argument("--cann-home")
     setup.add_argument("--use-environment", help="Reuse an explicitly selected qualified private venv")
+    setup.add_argument("--reuse-runtime-from", help="Audit and reuse an existing installation at its original SDK and Python paths")
     run = sub.add_parser("serve", help="Start an OpenAI-compatible inference service")
     run.add_argument("--installation", required=True)
     run.add_argument("--model", required=True)

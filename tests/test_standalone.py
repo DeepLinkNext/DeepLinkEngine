@@ -220,6 +220,45 @@ class Standalone(unittest.TestCase):
             command=execute.call_args.args[1]
             self.assertEqual(command[command.index('--cache')+1],str(installed.parent/'.cache/deeplinkengine/serving'))
 
+    @unittest.skipUnless(os.name == "posix", "Runtime storage uses Linux file locks")
+    def test_install_reuses_verified_runtime_path_without_installing_dependencies(self):
+        from engine import environment_setup as setup
+        from engine.runtime_storage import marker
+
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            src = root / "original"
+            src.mkdir()
+            runtime = root / "venv"
+            runtime.mkdir()
+            (runtime / "pyvenv.cfg").touch()
+            python = runtime / "bin/python"
+            identity = {"python": str(python), "release": "r10", "package_version": "2026.11.21.10"}
+            (src / "installation.json").write_text(json.dumps(identity))
+            marker(src).write_text(json.dumps({
+                **identity, "schema": "deeplinkengine-runtime-storage/v1",
+                "logical": str(src), "physical": str(src), "verified": True,
+            }))
+            target = root / "alias"
+            args = argparse.Namespace(
+                out=str(target), cache=None, reuse_runtime_from=str(src),
+                engine_version=None, python=None, use_environment=None, cann_home=None,
+            )
+            with (
+                patch.object(setup, "cann_environment", return_value=({}, {})),
+                patch.object(setup, "run_repair_stage", return_value=types.SimpleNamespace(returncode=0)) as run,
+                patch.object(setup, "ensure_environment") as install_dependencies,
+            ):
+                self.assertEqual(deeplink.install(args), 0)
+                install_dependencies.assert_not_called()
+                cmd = run.call_args.args[0]
+                self.assertEqual(Path(cmd[0]), python)
+                self.assertEqual(cmd[-4:], ["--out", str(target), "--reuse-from", str(src)])
+                args.engine_version = "2026.11.21.10.post1"
+                with self.assertRaisesRegex(ValueError, "version differs"):
+                    deeplink.install(args)
+                run.assert_called_once()
+
     def test_serving_selects_graph_aot_without_changing_the_default_environment(self):
         from engine import environment_setup as setup
 

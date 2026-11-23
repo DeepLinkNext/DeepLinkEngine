@@ -98,6 +98,39 @@ class ServingCacheTest(unittest.TestCase):
             cache.parse_device_identity(sample, [0, 4])
 
     @unittest.skipUnless(os.name == "posix", "The serving runtime uses Linux file locks")
+    def test_seeds_native_draft_keys_from_all_compatible_locations(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            identity = {"release": "r10"}
+            first, _ = cache.select(root / "sources", None, identity, ["/first/sdk"])
+            second, _ = cache.select(root / "sources", None, identity, ["/second/sdk"])
+            # Build the second source independently as it would be after a
+            # successful compilation under a different native key.
+            for source, key in ((first, "ab12"), (second, "de34")):
+                graph = source / cache.VLLM / key / "rank_0_0" / "eagle_head" / "artifact_1"
+                graph.parent.mkdir(parents=True)
+                graph.write_text("def kernel(): return 7\n")
+                index = graph.with_name("vllm_compile_cache.py")
+                index.write_text(repr({((1, 4), 0, "AscendCompiler"): {
+                    "cache_key": None, "graph_handle": (graph.name, str(graph)),
+                }}))
+            triton = first / cache.TRITON / "abc"
+            triton.mkdir(parents=True)
+            (triton / "test.bin").write_bytes(b"compiled")
+            (triton / "__grp__test.json").write_text(json.dumps({"child_paths": {"test.bin": str(triton / "test.bin")}}))
+            target, status = cache.select(root / "dest", root / "sources", identity, ["/second/sdk"])
+            self.assertEqual(status["triton_groups"], 1)
+            self.assertEqual(status["ascend_graphs"], 2)
+            for key in ("ab12", "de34"):
+                graph = target / cache.VLLM / key / "rank_0_0" / "eagle_head" / "artifact_1"
+                self.assertEqual(graph.read_text(), "def kernel(): return 7\n")
+                index = ast.literal_eval(graph.with_name("vllm_compile_cache.py").read_text())
+                self.assertEqual(index[((1, 4), 0, "AscendCompiler")]["graph_handle"][1], str(graph))
+            self.assertFalse((target / cache.VLLM / "ff99").exists())
+            self.assertEqual(cache.select(root / "dest", root / "sources", identity, ["/second/sdk"])[1],
+                             {"mode": "existing"})
+
+    @unittest.skipUnless(os.name == "posix", "The serving runtime uses Linux file locks")
     def test_startup_parts_backfill_an_existing_pool_and_reject_stale_records(self):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)

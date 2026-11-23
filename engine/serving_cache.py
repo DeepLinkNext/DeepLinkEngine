@@ -176,6 +176,9 @@ def ascend_graphs(source, origin, staged, target):
                 if not normal_file(index):
                     continue
                 prefix = model.relative_to(source)
+                output_index = staged / prefix / index.name
+                if os.path.lexists(output_index):
+                    continue
                 try:
                     entries = ast.literal_eval(index.read_text(encoding="utf-8"))
                     if not isinstance(entries, dict):
@@ -193,12 +196,13 @@ def ascend_graphs(source, origin, staged, target):
                         code = graph.read_bytes()
                         if not code or b"triton_kernel_wrapper" in code:
                             continue
-                        out = staged / prefix
-                        out.mkdir(parents=True, exist_ok=True)
-                        (out / name).write_bytes(code)
+                        artifact = staged / prefix / name
+                        if not copy_new(artifact, code) and (
+                            not normal_file(artifact) or artifact.read_bytes() != code
+                        ):
+                            continue
                         admitted[key] = dict(entry, graph_handle=(name, str(target / prefix / name)))
-                    if admitted:
-                        (staged / prefix / index.name).write_text(repr(admitted), encoding="utf-8")
+                    if admitted and copy_new(output_index, repr(admitted).encode("utf-8")):
                         graphs += len(admitted)
                 except (OSError, SyntaxError, ValueError, KeyError, TypeError):
                     continue
@@ -289,12 +293,15 @@ def compatible_sources(group, extra_group, target, identity):
                 yield candidate, origin
 
 
-def seed_startup(candidates, target, models, report):
-    for source, _ in candidates:
+def seed_startup(candidates, staged, target, models, report):
+    for source, origin in candidates:
         with cache_lease(source, writer=False) as available:
             if available:
-                report["model_infos"] += model_infos(source, target, models)
-                report["runtime_helpers"] += runtime_helpers(source, target)
+                report["model_infos"] += model_infos(source, staged, models)
+                report["runtime_helpers"] += runtime_helpers(source, staged)
+                # One cache pool may hold native keys for several SDK paths.
+                # Preserve every available key, including during backfill.
+                report["ascend_graphs"] += ascend_graphs(source, origin, staged, target)
 
 
 def select(pool, extra_pool, identity, location, models=None):
@@ -310,8 +317,8 @@ def select(pool, extra_pool, identity, location, models=None):
             if candidates:
                 with cache_lease(target, writer=True) as available:
                     if available:
-                        startup = {"model_infos": 0, "runtime_helpers": 0}
-                        seed_startup(candidates, target, models, startup)
+                        startup = {"model_infos": 0, "runtime_helpers": 0, "ascend_graphs": 0}
+                        seed_startup(candidates, target, target, models, startup)
                         report.update({name: count for name, count in startup.items() if count})
             return target, report
         return group / ("unverified-" + uuid.uuid4().hex), {
@@ -329,10 +336,9 @@ def select(pool, extra_pool, identity, location, models=None):
                 if not available:
                     continue
                 report["triton_groups"] += triton_groups(candidate, origin, staged, target)
-                report["ascend_graphs"] += ascend_graphs(candidate, origin, staged, target)
-            if report["triton_groups"] or report["ascend_graphs"]:
+            if report["triton_groups"]:
                 break
-        seed_startup(candidates, staged, models, report)
+        seed_startup(candidates, staged, target, models, report)
         if any(count for name, count in report.items() if name != "mode"):
             report["mode"] = "relocated"
         (staged / RECORD).write_text(json.dumps(record), encoding="utf-8")

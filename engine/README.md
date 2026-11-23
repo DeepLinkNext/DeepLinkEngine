@@ -29,7 +29,9 @@ python deeplink.py serve --installation /workspace/deeplink-install \
 
 R9 及以后可把 `--cache` 指向由部署方管理的持久目录。启动器按发行版本、已安装源码清单、模型配置、运行时配置、编译环境、CANN 和实际设备类型挑选缓存。多个容器挂载同一缓存目录时会自动查找兼容产物，挂载路径不同也可以迁移。缓存放在另一块持久卷时，用 `--cache-from /path/to/pool` 加入该目录。启动日志的 `SERVICE_CACHE` 记录选择情况。
 
-跨路径迁移会重建 Triton 分组索引和受支持的 Ascend 图索引，并补齐兼容的模型注册记录及 Triton 驱动、启动器辅助库。模型注册记录按本地模型实现文件的哈希校验，辅助库保留 Triton 原生缓存键。引擎仍按原有哈希检查是否命中。AOT 二进制和进程内图捕获走各自环境的原有流程。旧版一键命令直接生成的缓存可在原目录继续用，自动跨路径迁移只选带版本和配置记录的缓存。
+跨路径迁移会重建 Triton 分组索引和受支持的 Ascend 图索引，并补齐兼容的模型注册记录及 Triton 驱动、启动器辅助库。模型注册记录按本地模型实现文件的哈希校验。启动器保留各兼容来源已有的 Ascend 原生键，引擎按实际源码路径和其它编译因素选键。首次使用的新 SDK 路径可能需要生成专用编译图。
+
+如果只需要换一键部署的安装入口，可用 `python deeplink.py install --out NEW --reuse-runtime-from EXISTING`。它重新核验一键安装的现有版本和文件，在新目录创建安装别名，继续使用原 SDK 和 Python 的绝对路径。原安装需要保持可达。AOT 二进制和进程内图捕获走各自环境的原有流程；旧版直接生成的缓存可在原缓存目录继续使用。
 
 R10 的 Ascend 后端遇到 AOT 打包报错 `'NoneType' object is not callable` 时，可在启动命令加 `--aot-cache-format graph`。此模式保留 vLLM AOT 图缓存，跳过后端独立产物的打包。首次切换使用新的 vLLM 编译缓存键，后续重启保持相同选项和缓存目录。需要在当前进程注册的 Triton 图仍会重新构建。
 
