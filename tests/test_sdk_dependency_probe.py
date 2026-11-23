@@ -48,14 +48,14 @@ class Admission(unittest.TestCase):
         code, binding = probe.binding(self.root)
         self.assertEqual(code, probe.probe(probe.original()))
         self.assertEqual(binding['executed_source_sha256'], probe.sha(fixed))
-        self.assertEqual(binding['tools_manifest'], str(producer))
+        self.assertEqual(binding['tools_manifest'], str(producer.resolve()))
         client = self.root / 'CLIENT-MANIFEST.json'
         client.write_text(json.dumps(manifest))
         with self.assertRaisesRegex(ValueError, 'declared adapter binding'):
             probe.binding(self.root)
         manifest['cpu_metadata_admission'] = {'derived_source_sha256': probe.sha(fixed)}
         client.write_text(json.dumps(manifest))
-        self.assertEqual(probe.binding(self.root)[1]['tools_manifest'], str(client))
+        self.assertEqual(probe.binding(self.root)[1]['tools_manifest'], str(client.resolve()))
     @unittest.skipUnless(sys.platform=='linux','The public client uses Linux fcntl')
     def test_real_selected_r8_kit_recursive_import_and_selection_unchanged(self):
         from engine import release_selection as selection
