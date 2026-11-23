@@ -29,7 +29,11 @@ def derive(source):
         '        _, request_identity = workload(args.fixed_workload)\n'
         '        runtime_identity = runtime(profile, deployment, bindings)\n'
         '        qualification = dict(weights=model_weights(model, args.model_lock))\n'
-        '        save(root / "fixed-input-admission.json", dict(runtime=runtime_identity, workload=request_identity))\n'
+        '        manifest = Path(__file__).resolve().parents[1] / "CLIENT-MANIFEST.json"\n'
+        '        selection = deployment.parent / "engine-selection.json"\n'
+        '        save(root / "fixed-input-admission.json", dict(runtime=runtime_identity, workload=request_identity,\n'
+        '             client_manifest_sha256=sha(manifest), engine_selection_sha256=sha(selection),\n'
+        '             model_lock_sha256=sha(args.model_lock)))\n'
     ) + controller[end:]
     controller = once(controller, '            spec.loader.exec_module(memory_guard)\n',
         '            spec.loader.exec_module(memory_guard)\n'
@@ -59,18 +63,27 @@ def derive(source):
         '    model_adapter = select_model(profile, args.model, command, env, event_dir=out / "mod-events")\n')
     launch = once(launch, '    prepare_inputs(root, args.model, args.qualified_continuous, workload_path)',
         '    fixed, fixed_identity = admit_workload(args.fixed_workload)\n'
+        '    input_sources = [args.fixed_workload.resolve(), *(root / "inputs/mmlu-quality018-r2" / name\n'
+        '                     for name in ("quality-request-plan.json", "quality-tokenize-preflight.json"))]\n'
         '    save(workload_path, dict(request_token_ids=fixed["request_token_ids"], warmup_cohorts=fixed["warmup_cohorts"],\n'
-        '                             formal_questions_used_for_warmup=False, admission=fixed_identity))')
+        '                             formal_questions_used_for_warmup=False, admission=fixed_identity,\n'
+        '                             source_files={str(path): sha(path) for path in input_sources}))')
     launch = once(launch, '                workload=str(workload_path), files=files, observer_sources=observer_sources,',
         '                workload=str(workload_path), files=files, observer_sources=observer_sources,\n'
         '                model_adapter=model_adapter, fixed_workload_identity=fixed_identity,')
+    launch = once(launch, '"reference_capture_profile.py", "native_plan_values.py",',
+                  '"reference_capture_profile.py", "native_timing_contract.py", "native_plan_values.py",')
     return {'scripts/run_native_reference.py': controller.encode(),
             'scripts/native_timing_prepare.py': launch.encode(),
             'scripts/native_timing_contract.py': Path(__file__).with_name('native_timing_contract.py').read_bytes()}
 
 
-def prepare(cache, record):
+def prepare(cache, record, frozen):
     parent = evaluation_client.verify(record)
+    lock = json.loads((ROOT / 'benchmark/one-click-lock.json').read_bytes())
+    if (parent['producer_manifest_sha256'] != frozen['tools_manifest_sha256']
+            or parent['assessment_manifest_sha256'] != lock['tools']['manifest_sha256']):
+        raise ValueError('Installed timing client does not match the producer and assessment locks')
     source = Path(record['path'])
     inputs = {name: (source / name).read_bytes() for name in parent['files']}
     updates = derive(inputs)
@@ -134,7 +147,7 @@ def main(arguments=None):
     verify_tools(installed / 'tools')
     workload(args.fixed_workload)
     deployment = installed / 'sdk'
-    client = prepare(args.cache.resolve(), record['client'])
+    client = prepare(args.cache.resolve(), record['client'], record['frozen'])
     scripts = Path(client['path']) / 'scripts'
     source_identity = dict(engine_selection_sha256=evaluation_client.sha((installed / 'engine-selection.json').read_bytes()),
                            client=client, issuer=RELEASE)
