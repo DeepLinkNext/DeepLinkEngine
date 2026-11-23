@@ -37,6 +37,25 @@ class Admission(unittest.TestCase):
         (tools/'DEPLOYMENT-TOOLS.json').write_text(json.dumps({'files':{probe.SOURCE:'0'*64}}))
         with patch.object(probe.subprocess,'run',side_effect=AssertionError('must not spawn')),self.assertRaisesRegex(ValueError,'actual tools inventory'):
             probe.inspect_sdk(sys.executable,{},tools=tools,receipt=self.root/'bad-source.json')
+    def test_published_bytecode_fix_uses_producer_inventory(self):
+        source = self.root / probe.SOURCE
+        source.parent.mkdir()
+        fixed, _ = probe.derive(probe.original())
+        source.write_bytes(fixed)
+        manifest = {'files': {probe.SOURCE: probe.sha(fixed)}}
+        producer = self.root / 'DEPLOYMENT-TOOLS.json'
+        producer.write_text(json.dumps(manifest))
+        code, binding = probe.binding(self.root)
+        self.assertEqual(code, probe.probe(probe.original()))
+        self.assertEqual(binding['executed_source_sha256'], probe.sha(fixed))
+        self.assertEqual(binding['tools_manifest'], str(producer.resolve()))
+        client = self.root / 'CLIENT-MANIFEST.json'
+        client.write_text(json.dumps(manifest))
+        with self.assertRaisesRegex(ValueError, 'declared adapter binding'):
+            probe.binding(self.root)
+        manifest['cpu_metadata_admission'] = {'derived_source_sha256': probe.sha(fixed)}
+        client.write_text(json.dumps(manifest))
+        self.assertEqual(probe.binding(self.root)[1]['tools_manifest'], str(client.resolve()))
     @unittest.skipUnless(sys.platform=='linux','The public client uses Linux fcntl')
     def test_real_selected_r8_kit_recursive_import_and_selection_unchanged(self):
         from engine import release_selection as selection

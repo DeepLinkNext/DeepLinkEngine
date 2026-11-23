@@ -74,7 +74,8 @@ def binding(tools):
     value = json.loads(manifest.read_bytes())
     if value.get('files', {}).get(SOURCE) != sha(raw):
         raise ValueError('Metadata source differs from its actual tools inventory')
-    if raw == derived and value.get('cpu_metadata_admission', {}).get('derived_source_sha256') != sha(raw):
+    if (raw == derived and manifest.name == 'CLIENT-MANIFEST.json'
+            and value.get('cpu_metadata_admission', {}).get('derived_source_sha256') != sha(raw)):
         raise ValueError('Derived metadata admission requires its declared adapter binding')
     return probe(raw), dict(record, executed_source=str(path), executed_source_sha256=sha(raw),
         tools_manifest=str(manifest), tools_manifest_sha256=sha(manifest.read_bytes()),
