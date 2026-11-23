@@ -94,6 +94,8 @@ def serve(args):
                "--cache", str(Path(args.cache or root.parent / ".cache/deeplinkengine/serving").expanduser().resolve()), "--lease-timeout", str(args.lease_timeout)]
     if args.work_dir:
         command += ["--work-dir", os.path.abspath(Path(args.work_dir).expanduser())]
+    if args.cache_from:
+        command += ["--cache-from", str(Path(args.cache_from).expanduser().resolve())]
     if args.devices:
         command += ["--devices", args.devices]
     if args.dry_run:
@@ -122,6 +124,7 @@ def main():
     run.add_argument("--port", type=int, default=8000)
     run.add_argument("--served-model-name", default="deeplink")
     run.add_argument("--cache", help="Service state and caches; defaults beside the installation")
+    run.add_argument("--cache-from", help="Also look for compatible compiled artifacts in this trusted serving cache pool")
     run.add_argument("--aot-cache-format", choices=("graph",),
                      help="Save the vLLM AOT graph without bundling standalone backend artifacts")
     run.add_argument("--work-dir", help="New per-service directory for logs and runtime state")
