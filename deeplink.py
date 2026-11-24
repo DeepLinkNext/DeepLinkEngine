@@ -136,9 +136,28 @@ def serve(args):
     raise RuntimeError("Service handoff returned unexpectedly")
 
 
+def controller_campaign(args, parser):
+    checkout = os.environ.get("VLLM_HUST_CONTROLLER_ROOT")
+    if not checkout:
+        if not args or args == ["--help"] or args == ["-h"]:
+            print("Usage: python deeplink.py control-plane MODE [OPTIONS]")
+            print("Set VLLM_HUST_CONTROLLER_ROOT to the request-throttling-controller checkout.")
+            print("Run control-plane --help with the checkout selected to see all campaign options.")
+            return 0
+        parser.error("Set VLLM_HUST_CONTROLLER_ROOT to the request-throttling-controller checkout")
+    entry = (Path(checkout).expanduser().resolve()
+             / "experiments/vllm_hust_benchmark/run_vllm_hust_benchmark.py")
+    if not entry.is_file():
+        parser.error(f"Controller one-click entry not found: {entry}")
+    return subprocess.run([sys.executable, str(entry), *args]).returncode
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest="action", required=True)
+    sub.add_parser("control-plane", add_help=False, help="Run the shared Controller campaign, including native §4.1")
+    if sys.argv[1:2] == ["control-plane"]:
+        return controller_campaign(sys.argv[2:], parser)
     setup = sub.add_parser("install", help="Prepare dependencies and install the runtime; no model or dataset required")
     setup.add_argument("--out", required=True)
     setup.add_argument("--engine-version", help="Pin an explicit stable version; otherwise use latest stable")
@@ -163,9 +182,18 @@ def main():
     run.add_argument("--work-dir", help="New per-service directory for logs and runtime state")
     run.add_argument("--lease-timeout", type=float, default=0)
     run.add_argument("--dry-run", action="store_true", help="Build and verify the launch plan without loading a model or reserving NPUs")
+    from benchmark import unified_run
+    unified_run.arguments(sub.add_parser("benchmark", help="Run one frozen experiment group"))
+    review = sub.add_parser("compare", help="Compare sealed MMLU group outputs offline")
+    review.add_argument("--deployment", type=Path, required=True, help="SDK with original inputs and scorer")
+    review.add_argument("groups", type=Path, nargs="+")
     args = parser.parse_args()
     try:
-        return install(args) if args.action == "install" else serve(args)
+        if args.action == "compare":
+            from benchmark.compare_groups import compare
+            print(json.dumps(compare(args.groups, args.deployment), indent=2))
+            return 0
+        return {"install": install, "serve": serve, "benchmark": unified_run.run}[args.action](args)
     except KeyboardInterrupt:
         return 130
     except (ValueError, OSError, KeyError, subprocess.SubprocessError) as error:

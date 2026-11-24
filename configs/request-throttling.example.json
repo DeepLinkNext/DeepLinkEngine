@@ -1,0 +1,23 @@
+{
+  "python": "python3.12",
+  "runner": "/workspace/request-throttling-controller/scripts/run_ride_controller.py",
+  "installation": "/workspace/ride-local",
+  "management_endpoint": "http://127.0.0.1:19101",
+  "controller": {
+    "id": "request-throttling",
+    "type": "request-throttling",
+    "executor": "local",
+    "endpoint": "http://127.0.0.1:19001",
+    "listen": "127.0.0.1:19001",
+    "scheduling_enabled": true,
+    "scheduler_interval_seconds": 0.5,
+    "transport": "no-keepalive",
+    "runtime_env": {
+      "env_vars": {
+        "THUNDERAGENT_TRANSPORT_TIMEOUT_SECONDS": "-1",
+        "THUNDERAGENT_RESUME_TIMEOUT_SECONDS": "-1",
+        "EXPERIMENT_DELIVERY_TRACE": "1"
+      }
+    }
+  }
+}
