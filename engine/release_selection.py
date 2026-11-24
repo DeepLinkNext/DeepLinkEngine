@@ -285,5 +285,7 @@ def ensure_metadata_client(cache):
         return None
     from benchmark.evaluation_client import metadata_client
     client = metadata_client(cache, release=record['release'], record=selected_client())
+    from benchmark.host_memory_client import prepare as host_memory_client
+    client = host_memory_client(cache, record, client)
     os.environ[METADATA_CLIENT] = json.dumps(dict(selection_sha256=os.environ[SELECTION_SHA], client=client), sort_keys=True)
     return client
