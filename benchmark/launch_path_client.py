@@ -25,6 +25,7 @@ import os
 from pathlib import Path
 
 
+DIRECTORIES = {"BETTERSCALE_QWEN35_RUNTIME": "runtime/ascend"}
 LIBRARIES = {
     "BETTERSCALE_GDN_LIBRARY": "runtime/betterscale-distribution/betterscale/patches/qwen_gdn/libbs_gdn.so",
     "BETTERSCALE_GDN_HOST_LIBRARY": "native-libs/libbs_gdn_host_cann91.so",
@@ -46,6 +47,9 @@ def verify(environment, deployment, client_scripts):
                 if key == "PYTHONPATH" and resolved.is_dir() and (
                         resolved.is_relative_to(deployment) or resolved == client_scripts):
                     continue
+                if key in DIRECTORIES and resolved.is_dir() and resolved.is_relative_to(deployment):
+                    if resolved == (deployment / DIRECTORIES[key]).resolve(strict=True):
+                        continue
                 if key in LIBRARIES and resolved.is_file() and resolved.is_relative_to(deployment):
                     if resolved == (deployment / LIBRARIES[key]).resolve(strict=True):
                         continue
@@ -67,8 +71,11 @@ def prepare(cache, selection, record):
             or selection.get("sdist", {}).get("sha256") != SDIST_SHA256):
         return record
     parent = client.verify(record)
-    if parent.get("launch_path_admission"):
-        return record
+    if admission := parent.get("launch_path_admission"):
+        if admission["adapted_sources_sha256"].get(PATH_CHECK) == client.sha(PATH_CHECK_SOURCE):
+            return record
+        record = admission["parent_client"]
+        parent = client.verify(record)
     source = Path(record["path"])
     files = {name: (source / name).read_bytes() for name in parent["files"]}
     updated = derive(files[ENGINE_ENTRY])

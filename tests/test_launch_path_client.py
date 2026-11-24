@@ -16,6 +16,9 @@ def bound_paths(tmp_path):
     for folder in (scripts, unrelated, modules):
         folder.mkdir(parents=True)
     env = {"PYTHONPATH": os.pathsep.join((str(scripts), str(modules)))}
+    runtime = sdk / module["DIRECTORIES"]["BETTERSCALE_QWEN35_RUNTIME"]
+    runtime.mkdir(parents=True)
+    env["BETTERSCALE_QWEN35_RUNTIME"] = str(runtime)
     for key, name in module["LIBRARIES"].items():
         library = sdk / name
         library.parent.mkdir(parents=True, exist_ok=True)
@@ -34,6 +37,8 @@ def test_rejects_legacy_project_path_or_unexpected_library(bound_paths):
     pythonpath = env["PYTHONPATH"] + os.pathsep + str(unrelated)
     with pytest.raises(ValueError, match="PYTHONPATH"):
         verify(dict(env, PYTHONPATH=pythonpath), sdk, scripts)
+    with pytest.raises(ValueError, match="BETTERSCALE_QWEN35_RUNTIME"):
+        verify(dict(env, BETTERSCALE_QWEN35_RUNTIME=str(sdk / "modules")), sdk, scripts)
     with pytest.raises(ValueError, match="BETTERSCALE_UNKNOWN"):
         verify(dict(env, BETTERSCALE_UNKNOWN=str(unrelated)), sdk, scripts)
     with pytest.raises(ValueError, match="BETTERSCALE_GDN_HOST_LIBRARY"):
