@@ -46,6 +46,86 @@ def test_stable_release_order_respects_numeric_builds_and_post_releases():
     assert selection.release_name('2026.11.21.10.post11') == 'full-answer-b1-20261121-r10'
 
 
+def test_stable_r10_bridge_pins_qualified_sources(monkeypatch):
+    kit = ROOT / 'benchmark/one-click-kit'
+    proofs = {
+        'qualify_dense_source': 'canonical-dense-tail-source-domain-v1',
+        'qualify_necessary_work': 'necessary-arithmetic-source-domain-v1',
+    }
+    originals = {}
+    for qualifier, proof in proofs.items():
+        for name in (f'protocols/{proof}.json', f'third-party-test-kit/{qualifier}.py'):
+            originals[name] = (kit / name).read_bytes()
+    overlay = 'engines/b1-r10-contiguous-restore-overlay.json'
+    release = client.R10_REFERENCE_RELEASE
+    result = dict(originals)
+    result.update({
+        'scripts/runtime_overlay.py': f'R10_STABLE_RELEASE = "{release}"'.encode(),
+        'engines/b1-r10-stable.json': json.dumps(dict(
+            release=release, runtime_overlay=overlay,
+            model_adapters={'qwen35': {'restore_gated_rms': False}})).encode(),
+        overlay: b'reviewed native RMS overlay',
+    })
+    pins = {}
+    for name, (directory, _) in client.R10_REFERENCE_SOURCES.items():
+        content = name.encode()
+        result[f'overlays/{directory}/{name}'] = content
+        pins[name] = (directory, client.sha(content))
+    monkeypatch.setattr(client, 'R10_REFERENCE_SOURCES', pins)
+    monkeypatch.setattr(client, 'R10_REFERENCE_OVERLAY_SHA256', client.sha(result[overlay]))
+    tampered = {**result, 'overlays/b1-r10/runtime/ascend/vllm_ascend/ops/gdn.py': b'unreviewed'}
+    with pytest.raises(ValueError, match='reference implementation requires source review'):
+        client.r10_reference_source_bridge(tampered)
+
+    client.r10_reference_source_bridge(result)
+    for qualifier, proof in proofs.items():
+        key = f'protocols/{proof}.json'
+        protocol = json.loads(result[key])
+        previous = json.loads(originals[key])
+        adaptation = protocol.pop('stable_r10_source_domain')
+        assert protocol == previous
+        assert adaptation['sources'] == {name: pin for name, (_, pin) in pins.items()
+                                         if name in previous['sources']['B1']}
+        code = result[f'third-party-test-kit/{qualifier}.py']
+        assert b'sources = admitted_sources(' in code
+        assert f'PROTOCOL_SHA256 = "{client.sha(result[key])}"'.encode() in code
+        ast.parse(code)
+
+
+def test_stable_r10_source_admission_requires_sealed_native_rms(tmp_path):
+    from benchmark.reference_source_domains import admitted_sources, verify_http_adapter
+
+    release = client.R10_REFERENCE_RELEASE
+    profile_path = tmp_path / 'deployment.json'
+    overlay = tmp_path / 'provenance/runtime-overlay.json'
+    overlay.parent.mkdir()
+    overlay.write_bytes(b'native RMS, contiguous restore')
+    overlay_pin = client.sha(overlay.read_bytes())
+    profile_path.write_text(json.dumps(dict(release=release,
+        measured_runtime={'runtime_overlay_sha256': overlay_pin})))
+    protocol = dict(sources={'B0': {'gdn.py': 'b0'}, 'B1': {'gdn.py': 'r8', 'other.py': 'unchanged'}},
+        stable_r10_source_domain=dict(release=release, overlay_sha256=overlay_pin,
+                                     sources={'gdn.py': 'r10'}))
+    native = {'service/native-plan.json': dict(engine_release=release, deployment=str(tmp_path),
+                  files={str(profile_path): client.sha(profile_path.read_bytes())}),
+              'service/launch-command.json': {'environment': {}}}
+    assert admitted_sources(protocol, 'B0', tmp_path, {}.__getitem__) == {'gdn.py': 'b0'}
+    assert admitted_sources(protocol, 'B1', tmp_path, native.__getitem__) == {
+        'gdn.py': 'r10', 'other.py': 'unchanged'}
+    http = dict(engine_release=release, model_adapter=dict(id='qwen35', gated_rms_mode='native',
+                                                           restore_gated_rms=False))
+    verify_http_adapter(http, release)
+    http['model_adapter']['restore_gated_rms'] = True
+    with pytest.raises(ValueError, match='native RMS HTTP companion'):
+        verify_http_adapter(http, release)
+    native['service/launch-command.json']['environment']['HUST_RESTORE_GATED_RMS'] = '1'
+    with pytest.raises(ValueError, match='sealed native RMS launch'):
+        admitted_sources(protocol, 'B1', tmp_path, native.__getitem__)
+    overlay.write_bytes(b'different overlay')
+    with pytest.raises(ValueError, match='sealed native deployment'):
+        admitted_sources(protocol, 'B1', tmp_path, native.__getitem__)
+
+
 def test_selected_version_survives_changed_feed_and_rejects_tampering(tmp_path):
     record=dict(schema='deeplinkengine-stable-selection/v1',version='2026.11.19.9')
     path=tmp_path/'selection.json';path.write_text(json.dumps(record))

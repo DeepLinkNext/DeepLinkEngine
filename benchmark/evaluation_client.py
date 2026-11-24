@@ -705,6 +705,69 @@ def native_reference_releases(files):
     return json.dumps(names).replace('[', '(').replace(']', ')')
 
 
+R10_REFERENCE_RELEASE = 'full-answer-b1-20261121-r10'
+R10_REFERENCE_OVERLAY_SHA256 = '96ecd0418ada8f8f7ea6a91af875676f2249c34a5559efcaf707496cf5ecb749'
+R10_REFERENCE_SOURCES = {
+    'runtime/ascend/vllm_ascend/ops/gdn.py': (
+        'b1-r10', 'eaba7292690dd75dfbdb58616aedbe73a004dbad8a98021ef77f23e41bc04a73'),
+    'mods/betterscale/betterscale/models/qwen35/service_metadata.py': (
+        'b1-r10', '42de8c1014fcdefa0ce61c1965db1c1956f552766c4c2be23949b9af4ff3ec92'),
+    'mods/betterscale/betterscale/models/qwen35/mixed_core.py': (
+        'b1-r10-contiguous-restore', 'a9981e438e52702be1f3ad6b03a8e0f4c1d2e8b38161140c11a5b7896c10829b'),
+}
+
+
+def r10_reference_source_bridge(result):
+    """Bind the stable native-RMS variant to the reviewed arithmetic proofs."""
+    if not stable_r10_provider(result):
+        return
+    profile = json.loads(result['engines/b1-r10-stable.json'])
+    overlay = 'engines/b1-r10-contiguous-restore-overlay.json'
+    if (profile['release'] != R10_REFERENCE_RELEASE or profile['runtime_overlay'] != overlay
+            or profile['model_adapters']['qwen35']['restore_gated_rms'] is not False
+            or sha(result[overlay]) != R10_REFERENCE_OVERLAY_SHA256):
+        raise ValueError('Stable R10 reference runtime profile requires source review')
+    for relative, (directory, pin) in R10_REFERENCE_SOURCES.items():
+        if sha(result['overlays/' + directory + '/' + relative]) != pin:
+            raise ValueError('Stable R10 reference implementation requires source review: ' + relative)
+
+    helper = 'reference_source_domains.py'
+    result['third-party-test-kit/' + helper] = Path(__file__).with_name(helper).read_bytes()
+    for script, proof, read_native, output_field in (
+        ('qualify_dense_source', 'canonical-dense-tail-source-domain-v1', 'read', 'retained_source_sha256'),
+        ('qualify_necessary_work', 'necessary-arithmetic-source-domain-v1',
+         'lambda name: sealed_read(native, name)', 'source_sha256'),
+    ):
+        protocol_path = 'protocols/' + proof + '.json'
+        original = result[protocol_path]
+        protocol = json.loads(original)
+        protocol['stable_r10_source_domain'] = dict(
+            release=R10_REFERENCE_RELEASE, overlay_sha256=R10_REFERENCE_OVERLAY_SHA256,
+            sources={name: pin for name, (_, pin) in R10_REFERENCE_SOURCES.items()
+                     if name in protocol['sources']['B1']},
+            scope='Native RMS uses the reviewed convolution, recurrence and projections. '
+                  'Contiguous restore copies the same values without changing the reference arithmetic.')
+        result[protocol_path] = (json.dumps(protocol, indent=2) + '\n').encode()
+
+        key = 'third-party-test-kit/' + script + '.py'
+        imports = 'admitted_sources, verify_http_adapter' if script == 'qualify_necessary_work' else 'admitted_sources'
+        text = once(result[key].decode(), '\n\nPROTOCOL =',
+                    f'\nfrom reference_source_domains import {imports}\n\n\nPROTOCOL =')
+        text = once(text, f'PROTOCOL_SHA256 = "{sha(original)}"',
+                    f'PROTOCOL_SHA256 = "{sha(result[protocol_path])}"')
+        text = once(text, '    for name, pin in protocol["sources"][role].items():',
+                    f'    sources = admitted_sources(protocol, role, deployment, {read_native})\n'
+                    '    for name, pin in sources.items():')
+        text = once(text, f'{output_field}=protocol["sources"][role]', f'{output_field}=sources')
+        if script == 'qualify_necessary_work':
+            text = once(text, '    if sealed_read(original, "installed-files.json") != installed:',
+                        '    deployment_release = json.loads((deployment / "deployment.json").read_bytes())["release"]\n'
+                        '    if deployment_release == protocol["stable_r10_source_domain"]["release"]:\n'
+                        '        verify_http_adapter(sealed_read(original, "service/plan.json"), deployment_release)\n'
+                        '    if sealed_read(original, "installed-files.json") != installed:')
+        result[key] = text.encode()
+
+
 def http_replay_bridge(result):
     """Reuse an independently sealed HTTP observation with prior native clocks."""
     key = 'third-party-test-kit/public_output_binding.py'
@@ -1138,6 +1201,7 @@ def bridge(client, provider):
     result[key] = (json.dumps(compat, indent=2) + '\n').encode()
     baseline_location_bridge(result)
     context_baseline_bridge(result)
+    r10_reference_source_bridge(result)
     from engine.sdk_dependency_probe import client_bridge
     client_bridge(result)
     return result
