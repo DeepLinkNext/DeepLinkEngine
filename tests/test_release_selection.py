@@ -96,6 +96,25 @@ def test_stable_r10_bridge_pins_qualified_sources(monkeypatch):
         ast.parse(code)
 
 
+def test_revised_r10_reference_rejects_changed_microflow(monkeypatch):
+    overlay = json.dumps(dict(
+        release=client.R10_3072_REFERENCE_RELEASE,
+        base_manifest_sha256=client.R10_REFERENCE_OVERLAY_SHA256,
+        measurement={'installed_files_canonical_sha256': client.R10_3072_RUNTIME_SHA256},
+    )).encode()
+    microflow = 'overlays/b1-r10-3072/' + client.R10_3072_MICROFLOW
+    files = {'scripts/runtime_overlay.py':
+             f'R10_STABLE_RELEASE = "{client.R10_REFERENCE_RELEASE}"'.encode(),
+             client.R10_3072_OVERLAY: overlay, microflow: b'reviewed three-chunk partition'}
+    monkeypatch.setattr(client, 'R10_3072_OVERLAY_SHA256', client.sha(overlay))
+    monkeypatch.setattr(client, 'R10_3072_MICROFLOW_SHA256', client.sha(files[microflow]))
+    assert client.R10_3072_REFERENCE_RELEASE in client.native_reference_releases(files)
+    assert client.R10_REFERENCE_RELEASE in client.native_reference_releases(files)
+    files[microflow] += b' tampered'
+    with pytest.raises(ValueError, match='Revised R10 reference implementation'):
+        client.native_reference_releases(files)
+
+
 def test_stable_r10_source_admission_requires_sealed_native_rms(tmp_path):
     from benchmark.reference_source_domains import admitted_sources, verify_http_adapter
 

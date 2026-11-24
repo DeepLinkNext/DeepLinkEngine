@@ -702,6 +702,8 @@ def native_reference_releases(files):
     names = ('full-answer-b1-20261117-r8', 'full-answer-b1-20261119-r9')
     if stable_r10_provider(files):
         names += ('full-answer-b1-20261121-r10',)
+    if reviewed_r10_3072_provider(files):
+        names += (R10_3072_REFERENCE_RELEASE,)
     return json.dumps(names).replace('[', '(').replace(']', ')')
 
 
@@ -715,6 +717,30 @@ R10_REFERENCE_SOURCES = {
     'mods/betterscale/betterscale/models/qwen35/mixed_core.py': (
         'b1-r10-contiguous-restore', 'a9981e438e52702be1f3ad6b03a8e0f4c1d2e8b38161140c11a5b7896c10829b'),
 }
+
+
+R10_3072_REFERENCE_RELEASE = 'full-answer-b1-20261124-r10'
+R10_3072_OVERLAY = 'engines/b1-r10-3072-overlay.json'
+R10_3072_OVERLAY_SHA256 = 'eebe8d188e7a82527335a2bd40a7b00e7ab915be4b43e47251c2565bf1040c3c'
+R10_3072_RUNTIME_SHA256 = '7d0bc533e0106b9c5d7ea19f9c2cb9a3a6242dfbf6cc73ead63513f6bb53a5fa'
+R10_3072_MICROFLOW = 'mods/microflow/hust_prefill_microflow/runtime/microflow.py'
+R10_3072_MICROFLOW_SHA256 = 'ea2fd1c91daf88df47bab95d2b21050311bbd5a13058f56688f9a01f09b04d23'
+
+
+def reviewed_r10_3072_provider(files):
+    if R10_3072_OVERLAY not in files:
+        return False
+    raw = files[R10_3072_OVERLAY]
+    microflow = 'overlays/b1-r10-3072/' + R10_3072_MICROFLOW
+    if (sha(raw) != R10_3072_OVERLAY_SHA256
+            or sha(files.get(microflow, b'')) != R10_3072_MICROFLOW_SHA256):
+        raise ValueError('Revised R10 reference implementation requires source review')
+    overlay = json.loads(raw)
+    if (overlay['release'] != R10_3072_REFERENCE_RELEASE
+            or overlay['base_manifest_sha256'] != R10_REFERENCE_OVERLAY_SHA256
+            or overlay['measurement']['installed_files_canonical_sha256'] != R10_3072_RUNTIME_SHA256):
+        raise ValueError('Revised R10 reference runtime profile requires source review')
+    return True
 
 
 def r10_reference_source_bridge(result):
@@ -731,6 +757,7 @@ def r10_reference_source_bridge(result):
         if sha(result['overlays/' + directory + '/' + relative]) != pin:
             raise ValueError('Stable R10 reference implementation requires source review: ' + relative)
 
+    revised = reviewed_r10_3072_provider(result)
     helper = 'reference_source_domains.py'
     result['third-party-test-kit/' + helper] = Path(__file__).with_name(helper).read_bytes()
     for script, proof, read_native, output_field in (
@@ -747,10 +774,21 @@ def r10_reference_source_bridge(result):
                      if name in protocol['sources']['B1']},
             scope='Native RMS uses the reviewed convolution, recurrence and projections. '
                   'Contiguous restore copies the same values without changing the reference arithmetic.')
+        if revised:
+            source_pins = dict(protocol['stable_r10_source_domain']['sources'])
+            if R10_3072_MICROFLOW in protocol['sources']['B1']:
+                source_pins[R10_3072_MICROFLOW] = R10_3072_MICROFLOW_SHA256
+            protocol['r10_3072_source_domain'] = dict(
+                release=R10_3072_REFERENCE_RELEASE, overlay_sha256=R10_3072_OVERLAY_SHA256,
+                installed_files_canonical_sha256=R10_3072_RUNTIME_SHA256, sources=source_pins,
+                scope='3072-token capture adds a bitwise-qualified three-chunk partition. '
+                      'The reviewed tensor arithmetic and fresh timing requirements are unchanged.')
         result[protocol_path] = (json.dumps(protocol, indent=2) + '\n').encode()
 
         key = 'third-party-test-kit/' + script + '.py'
-        imports = 'admitted_sources, verify_http_adapter' if script == 'qualify_necessary_work' else 'admitted_sources'
+        imports = 'admitted_sources'
+        if script == 'qualify_necessary_work':
+            imports += ', source_domain_for_release, verify_http_adapter'
         text = once(result[key].decode(), '\n\nPROTOCOL =',
                     f'\nfrom reference_source_domains import {imports}\n\n\nPROTOCOL =')
         text = once(text, f'PROTOCOL_SHA256 = "{sha(original)}"',
@@ -762,7 +800,7 @@ def r10_reference_source_bridge(result):
         if script == 'qualify_necessary_work':
             text = once(text, '    if sealed_read(original, "installed-files.json") != installed:',
                         '    deployment_release = json.loads((deployment / "deployment.json").read_bytes())["release"]\n'
-                        '    if deployment_release == protocol["stable_r10_source_domain"]["release"]:\n'
+                        '    if source_domain_for_release(protocol, deployment_release) is not None:\n'
                         '        verify_http_adapter(sealed_read(original, "service/plan.json"), deployment_release)\n'
                         '    if sealed_read(original, "installed-files.json") != installed:')
         result[key] = text.encode()
@@ -903,7 +941,7 @@ def context_baseline_bridge(result):
         'dfd6b42f2fc1bf076f89ac71a0745d94f7dd57fe0d49615e334ab9c04fce2083',
         # R10 3072 changes only B1 capture, model adapter, geometry and overlay
         # source in this producer inventory. B0 input and clocks remain pinned.
-        '90430407503a1bd70e7fc1d9841630a58d8d39e6c5f83a48e5e8c24ad3484fc4',
+        '4f45f7cd53fc93a14eb28b8b647093a13420285d192b07ff14ee664f6d608e74',
     }
     if digest(scripts(result)) not in reviewed_sources:
         raise ValueError('B0 context assessment-source compatibility requires review')
