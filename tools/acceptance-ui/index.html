@@ -132,6 +132,10 @@ h1 { font-size:clamp(23px,2vw,32px); line-height:1.2; letter-spacing:-.015em }
 .option { display:grid; gap:4px; color:var(--muted); font-size:12px; min-width:0; max-width:100% }
 .option select { width:100%; min-height:38px; padding:5px 9px; border:1px solid #354b6e; border-radius:9px; background:var(--inset); color:var(--ink) }
 .run-meta,.action-note,#notice { font-size:12px; color:var(--muted); overflow-wrap:anywhere }
+.related-runs { color:var(--muted); font-size:12px }
+.related-runs summary { width:fit-content; cursor:pointer }
+.related-runs div { display:flex; flex-wrap:wrap; gap:4px 12px; margin-top:4px }
+.related-runs button { text-align:left; color:#a9c9ff; background:none; border:0; padding:4px 0; text-decoration:underline; overflow-wrap:anywhere }
 #notice { color:var(--danger) }
 .active-run { padding:8px 11px; display:flex; flex-wrap:wrap; align-items:center; gap:7px 12px; background:#112541; border:1px solid #2b4673; border-radius:9px; font-size:12px }
 .active-run button { color:#a9c9ff; padding:0; border:0; background:none; text-decoration:underline; text-underline-offset:2px; text-align:left; overflow-wrap:anywhere }
@@ -245,6 +249,10 @@ td:first-child,.run-meta { overflow-wrap:anywhere }
           <span id="task-status" class="task-status badge" hidden></span>
         </div>
         <p class="run-meta" id="run-meta" hidden></p>
+        <details class="related-runs" id="related-runs" hidden>
+          <summary id="related-title">关联记录</summary>
+          <div id="related-links"></div>
+        </details>
         <div class="actions" id="actions"></div>
         <p class="action-note" id="action-note" hidden></p>
         <p id="notice" role="status" hidden></p>
@@ -347,12 +355,26 @@ function renderNav() {
     return '<section class="module-group"><h3>' + escapeHtml(group) + '</h3>' + buttons + '</section>';
   }).join("");
   patch("modules", '<h2 class="side-title">测试模块</h2>' + groupsHtml);
-  const history = inventory.runs.filter(run => archive || !run.archived || run.name === selected.run);
+  const history = inventory.runs.filter(run => run.name === selected.run ||
+    (!run.merged_into && (archive || !run.archived)));
   text("run-count", "(" + history.length + ")");
   patch("runs", history.map(run =>
     '<button type="button" class="nav-button" data-run="' + escapeHtml(run.name) + '"' +
     (run.name === selected.run ? ' aria-current="page"' : "") + '><span class="nav-label">' + escapeHtml(run.name) +
     '</span>' + badge(run.status) + '</button>').join("") || '<p class="empty">暂无运行记录</p>');
+}
+
+function renderRelatedRuns() {
+  const parent = inventory.runs.find(run => run.name === selected.run)?.merged_into;
+  const related = parent
+    ? inventory.runs.filter(run => run.name === parent)
+    : inventory.runs.filter(run => run.merged_into === selected.run);
+  const section = byId("related-runs");
+  section.hidden = related.length === 0;
+  if (!related.length) section.open = false;
+  text("related-title", parent ? "完整验收记录" : "关联记录（" + related.length + "）");
+  patch("related-links", related.map(run => '<button type="button" data-run="' +
+    escapeHtml(run.name) + '">' + escapeHtml(run.name) + '</button>').join(""));
 }
 
 function actionOptions(task, run) {
@@ -375,7 +397,7 @@ function actionOptions(task, run) {
   }
   if (task.key === "compute" && task.sources.length) {
     const options = task.sources.map(name => '<option value="' + escapeHtml(name) + '"' +
-      (source === name ? " selected" : "") + '>' + escapeHtml(name) + '</option>').join("");
+      (source === name ? " selected" : "") + '>' + escapeHtml([name, task.source_versions?.[name]].filter(Boolean).join(" · ")) + '</option>').join("");
     return '<label class="option">已封存性能批次<select id="source"><option value="">选择批次</option>' +
       options + '</select></label>' + start;
   }
@@ -439,6 +461,7 @@ function render() {
   byId("run-meta").hidden = !selectedMeta;
   const runVersion = run?.engine?.version ? "B1 " + run.engine.version : "";
   text("run-meta", [selectedMeta, runVersion, run?.error].filter(Boolean).join(" · "));
+  renderRelatedRuns();
 
   if (evidence && !inventory.evidence.some(item => item.path === evidence)) evidence = "";
   if (!task.sources.includes(source)) source = "";
@@ -555,7 +578,7 @@ document.addEventListener("click", event => {
     const lines = ["启动「" + task.label + "」？"];
     if (task.needs_npu) lines.push("占用 NPU " + inventory.cards.join(" / ") + "。");
     if (task.reusable) lines.push(evidence ? "使用选定的连续吞吐凭证。" : "本轮重新测量 B0 / B1 连续吞吐。");
-    if (task.key === "compute") lines.push("来源批次 · " + source);
+    if (task.key === "compute") lines.push("来源批次 · " + source, "B1 · " + task.source_versions[source]);
     if (confirm(lines.join("\n"))) {
       act("/api/start", { task:task.key, evidence:task.reusable ? evidence || null : null,
         source:task.key === "compute" ? source : null }, result => openRun(result.run, task.key));

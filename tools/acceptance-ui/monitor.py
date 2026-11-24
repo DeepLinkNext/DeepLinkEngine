@@ -19,7 +19,7 @@ SERVICE_STATS = re.compile(
     rb",\s*Running:\s*(\d+)"
 )
 SERVICE_ENTRY = re.compile(
-    rb"(?:^|[/\x00])(?:serve_b[01][\w-]*\.py|corrected_service_entry\.py|vllm(?:\x00|\.entrypoints\.)|"
+    rb"(?:^|[/\x00])(?:serve_b[01][\w-]*\.py|baseline_serve\.py(?=\x00|$)|corrected_service_entry\.py|vllm(?:\x00|\.entrypoints\.)|"
     rb"[Aa][Pp][Ii][Ss]erver\b)"
 )
 

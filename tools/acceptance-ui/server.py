@@ -7,6 +7,7 @@
 不改动任何评测逻辑，UI 只是外壳。
 """
 import glob
+from hashlib import sha256
 import json
 import mimetypes
 import os
@@ -51,6 +52,8 @@ MODEL = CFG.get("model") or ""
 PYTHON = CFG.get("python") or sys.executable
 ENGINE_VERSION = CFG.get("engine_version") or ""
 ENGINE_PROFILE = CFG.get("engine_profile") or "r10"
+SELECTION_ENV = "DEEPLINKENGINE_RELEASE_SELECTION"
+METADATA_CLIENT_ENV = "DEEPLINKENGINE_METADATA_ASSESSMENT_CLIENT"
 PHYSICAL = CFG.get("physical_devices") or "6,7"
 DEVICES = CFG.get("devices") or "0,1"
 
@@ -123,6 +126,20 @@ def read_json(path, default=None):
             return json.load(fh)
     except Exception:
         return default
+
+
+def bound_json(path, expected):
+    """Read a JSON object only when it matches the hash in the run record."""
+    if not expected:
+        return {}
+    try:
+        raw = Path(path).read_bytes()
+        if sha256(raw).hexdigest() == expected:
+            document = json.loads(raw)
+            return document if isinstance(document, dict) else {}
+    except (OSError, ValueError):
+        pass
+    return {}
 
 
 _CACHE = {}
@@ -348,19 +365,52 @@ def stage_results(out_dir, current=""):
     return _ttl(("stages", out_dir, current), 3.0, lambda: _stage_results_uncached(out_dir, current))
 
 
+def reused_stage_roots(root):
+    root = Path(root).resolve()
+    frozen = read_json(root / "frozen-execution-plan.json") or {}
+    manifest = bound_json(root / "reused-stages.json", frozen.get("reuse_manifest_sha256"))
+    stages = manifest.get("stages")
+    if not isinstance(stages, dict):
+        return {}
+    runs_root = Path(RUNS).resolve()
+    if root == runs_root or not root.is_relative_to(runs_root):
+        return {}
+    current_name = root.relative_to(runs_root).parts[0]
+    sources = {}
+    for name in SUB_STAGE_ORDER:
+        entry = stages.get(name)
+        if not isinstance(entry, dict) or entry.get("stage") != name:
+            continue
+        location = entry.get("source_root")
+        if not isinstance(location, str) or not os.path.isabs(location):
+            continue
+        try:
+            source = Path(location).resolve(strict=True)
+            relative = source.relative_to(runs_root)
+        except (OSError, RuntimeError, ValueError):
+            continue
+        if (relative.parts and RUN_NAME.fullmatch(relative.parts[0])
+                and relative.parts[0] != current_name
+                and source == Path(campaign_root(runs_root / relative.parts[0])).resolve()):
+            sources[name] = source
+    return sources
+
+
 def _stage_results_uncached(out_dir, current=""):
     """三种报告结构统一成一张表：continuous(groups) / solver-trace(flat) / mmlu-pair(arms)。"""
     rows = []
     root = campaign_root(out_dir)
-    names = [n for n in SUB_STAGE_ORDER if os.path.isdir(os.path.join(root, n))]
+    reused = reused_stage_roots(root)
+    names = [n for n in SUB_STAGE_ORDER if n in reused or os.path.isdir(os.path.join(root, n))]
     for path in glob.glob(os.path.join(root, "*-report", "summary.json")):
         inferred = os.path.basename(os.path.dirname(path))[:-len("-report")]
         if inferred and inferred not in names:
             names.append(inferred)
     for name in names:
-        base = os.path.join(root, name)
+        source = reused.get(name, root)
+        base = os.path.join(source, name)
         receipt = read_json(os.path.join(base, "receipt.json")) or {}
-        report = read_json(os.path.join(root, name + "-report", "summary.json")) or {}
+        report = read_json(os.path.join(source, name + "-report", "summary.json")) or {}
         if isinstance(report.get("arms"), dict) and not isinstance(report["arms"].get("B1"), dict):
             continue   # 指针型汇总报告，不是测量行
 
@@ -705,8 +755,12 @@ def summarize_run(name, process=None):
         measurements.update({row["name"]: row for row in stage_results(out, raw_step)})
     if key in ("context-tenant", "full") and os.path.isdir(context_dir):
         measurements.update({row["name"]: row for row in stage_results(context_dir) if row["name"] in ("B0", "B1")})
-    if reference.get("efficiency_exact_percent") is not None:
-        measurements.setdefault("compute-reference", {})["note"] = "有效算力效率 %s%%" % reference["efficiency_exact_percent"]
+    efficiency = reference.get("efficiency_exact_percent")
+    lower_bound = reference.get("efficiency_lower_observed_percent")
+    if isinstance(efficiency, (int, float)):
+        measurements.setdefault("compute-reference", {})["note"] = "有效算力效率 %.2f%%" % efficiency
+    elif isinstance(lower_bound, (int, float)):
+        measurements.setdefault("compute-reference", {})["note"] = "有效算力效率下界 %.2f%%" % lower_bound
     plan = make_plan(key, states, measurements)
     started = primary_time(job, outer, campaign, context, "started")
     ended = primary_time(job, outer, campaign, context, "ended")
@@ -910,18 +964,43 @@ def list_runs(active):
                     and any(os.path.isfile(os.path.join(entry.path, marker)) for marker in RUN_MARKERS)):
                 names.add(entry.name)
     rows = []
+    recovery_sources = {}
+    runs_root = Path(RUNS).resolve()
     for name in names:
         if not RUN_NAME.fullmatch(name):
             continue
         out, _, docs = run_documents(name)
         key = identify_task(name, out, docs)
+        reuse = docs["outer"].get("reused_run")
+        if key == "full" and isinstance(reuse, dict) and isinstance(reuse.get("root"), str):
+            try:
+                original = Path(reuse["root"]).resolve(strict=True)
+            except (OSError, RuntimeError):
+                original = None
+            if (original is not None and original.parent == runs_root
+                    and original.name != name and RUN_NAME.fullmatch(original.name)
+                    and bound_json(original / "results.json", reuse.get("results_sha256"))):
+                recovery_sources[name] = original.name
         job = docs["job"]
         mtime = job.get("started") or (os.path.getmtime(out) if os.path.isdir(out) else 0)
         rows.append({
             "name": name, "task": key, "status": run_status(docs, key, name in active_names),
             "mtime": mtime, "archived": "FAILED" in name, "active": name in active_names,
         })
-    return sorted(rows, key=lambda row: (row["active"], row["mtime"], row["name"]), reverse=True)
+    rows.sort(key=lambda row: (row["active"], row["mtime"], row["name"]), reverse=True)
+    merged = {}
+    for row in rows:
+        name = row["name"]
+        original = recovery_sources.get(name)
+        if (original and not row["active"] and row["status"] == "completed"
+                and os.path.isfile(os.path.join(RUNS, name, "full-report", "report.html"))):
+            merged.setdefault(original, name)
+    for row in rows:
+        if not row["active"] and row["status"] == "failed":
+            parent = merged.get(recovery_sources.get(row["name"], row["name"]))
+            if parent:
+                row["merged_into"] = parent
+    return rows
 
 
 def write_config(name):
@@ -936,19 +1015,24 @@ def write_config(name):
     }
     if ENGINE_VERSION:
         cfg["engine_version"] = ENGINE_VERSION
+    if CFG.get("wheelhouse"):
+        cfg["environment"]["wheelhouse"] = CFG["wheelhouse"]
     path = JOBS / (name + ".config")
     JOBS.mkdir(exist_ok=True)
     path.write_text(json.dumps(cfg, ensure_ascii=False, indent=2), encoding="utf-8")
     return str(path)
 
 
-def selection_matches(record):
+def selection_matches(record, version=None):
+    saved_version = record.get("version")
     return (record.get("schema") == "deeplinkengine-stable-selection/v1"
-            and (not ENGINE_VERSION or record.get("version") == ENGINE_VERSION)
-            and record.get("engine_profile") == ENGINE_PROFILE)
+            and isinstance(saved_version, str) and re.fullmatch(r"\d{4}\.\d{1,2}\.\d{1,2}\.\d+(?:\.post\d+)?", saved_version)
+            and (not version or saved_version == version)
+            and record.get("engine_profile") == ENGINE_PROFILE
+            and bool(record.get("release")))
 
 
-def sdk_python(deployment):
+def sdk_python(deployment, selection):
     if not deployment:
         return None
     sdk = Path(deployment)
@@ -957,33 +1041,35 @@ def sdk_python(deployment):
     release = installed.get("release") or ""
     python = profile.get("python")
     if (not python or not os.path.isfile(python) or installed.get("python") != python
-            or profile.get("release") != release or release.rsplit("-", 1)[-1] != ENGINE_PROFILE
-            or (ENGINE_VERSION and installed.get("package_version") != ENGINE_VERSION)):
+            or release != selection.get("release") or profile.get("release") != release
+            or installed.get("package_version") != selection.get("version")):
         return None
     return python
 
 
 def find_sdk():
     for path in (os.environ.get("DEEPLINKENGINE_UI_SDK"), CFG.get("sdk_dir")):
-        if sdk_python(path):
+        if path:
             sdk = Path(path).resolve()
-            selected = read_json(sdk.parent / "engine-selection.json") or {}
-            if selection_matches(selected):
-                return str(sdk)
+            receipt = sdk.parent / "engine-selection.json"
+            selected = read_json(receipt) or {}
+            if selection_matches(selected, ENGINE_VERSION) and sdk_python(sdk, selected):
+                return str(sdk), receipt
     if not os.path.isdir(RUNS):
         return None
     candidates = []
     for entry in os.scandir(RUNS):
         path = os.path.join(entry.path, "installation", "sdk")
-        selected = read_json(os.path.join(entry.path, "engine-selection.json")) or {}
-        if not selection_matches(selected) or not sdk_python(path):
+        receipt = Path(entry.path) / "engine-selection.json"
+        selected = read_json(receipt) or {}
+        if not selection_matches(selected, ENGINE_VERSION) or not sdk_python(path, selected):
             continue
         run = read_json(os.path.join(entry.path, "results.json")) or {}
         installed = any(row.get("name") == "install-engine" and row.get("status") == "completed"
                         for row in run.get("stages", []))
         if installed:
-            candidates.append((os.path.getmtime(path), path))
-    return max(candidates)[1] if candidates else None
+            candidates.append((os.path.getmtime(path), path, receipt))
+    return max(candidates)[1:] if candidates else None
 
 
 EVIDENCE_FILES = ("checksums.json", "receipt.json", "deployment.json",
@@ -999,8 +1085,6 @@ def continuous_sources():
     for name in os.listdir(RUNS):
         base = os.path.join(RUNS, name, "fixed-five", "continuous-B1")
         sdk = os.path.join(RUNS, name, "installation", "sdk")
-        if not sdk_python(sdk):
-            continue
         if not all(os.path.isfile(os.path.join(base, rel)) for rel in EVIDENCE_FILES):
             continue
         selection = read_json(os.path.join(RUNS, name, "engine-selection.json")) or {}
@@ -1008,7 +1092,7 @@ def continuous_sources():
         cards = admission.get("physical_cards") or []
         if sorted(str(card) for card in cards) != expected_cards:
             continue
-        if not selection_matches(selection):
+        if not selection_matches(selection, ENGINE_VERSION) or not sdk_python(sdk, selection):
             continue
         sources.append({"run": name, "path": base, "sdk": sdk, "version": selection.get("version"),
                         "mtime": os.path.getmtime(base)})
@@ -1017,7 +1101,11 @@ def continuous_sources():
 
 def resume_targets(name):
     run = Path(RUNS) / name
-    if not selection_matches(read_json(run / "engine-selection.json") or {}):
+    if not run.resolve().is_relative_to(Path(RUNS).resolve()):
+        return None
+    receipt = run / "engine-selection.json"
+    selection = read_json(receipt) or {}
+    if receipt.is_symlink() or not selection_matches(selection):
         return None
     campaign = str(run / "fixed-five")
     required = ("campaign.json", "campaign-checksums.json", "frozen-execution-plan.json")
@@ -1031,7 +1119,8 @@ def resume_targets(name):
     if not (ledger.get("stages") and all(status_for(row.get("status")) in FINISHED for row in ledger["stages"])):
         return None
     if (reference.get("status") in ("measured", "completed")
-            or not sdk_python(plan.get("optimized_deployment"))
+            or plan.get("engine_release") != selection["release"]
+            or not sdk_python(plan.get("optimized_deployment"), selection)
             or not os.path.isdir(plan.get("baseline_deployment") or "")):
         return None
     physical = plan.get("physical_devices") or plan.get("physical_cards")
@@ -1039,26 +1128,31 @@ def resume_targets(name):
         physical = physical.split(",")
     if physical and sorted(map(str, physical)) != sorted(PHYSICAL.split(",")):
         return None
-    return {"run": name, "campaign": campaign, "plan": plan}
+    return {"campaign": campaign, "plan": plan, "receipt": receipt, "version": selection["version"]}
 
 
 def task_list(runs):
     sdk = find_sdk()
-    sources = [row["name"] for row in runs if row["task"] == "full" and row["status"] == "failed"
-               and not row["active"] and resume_targets(row["name"])]
-    missing = "没有可用的对应版本 SDK，请先完成预检。"
+    sources = {}
+    for row in runs:
+        if row["task"] == "full" and row["status"] == "failed" and not row["active"]:
+            target = resume_targets(row["name"])
+            if target:
+                sources[row["name"]] = target["version"]
+    missing = f"没有可用的 {ENGINE_VERSION or ENGINE_PROFILE.upper()} SDK，请先完成预检。"
     tasks = []
     for key, spec in TASKS.items():
         reason = ""
         if spec["kind"] in ("dataset", "context") and not sdk:
             reason = missing
         if key == "compute" and not sources:
-            reason = f"需要一轮同版本 ({ENGINE_VERSION or ENGINE_PROFILE.upper()}) 且含 MMLU 的已封存性能批次，4.1 须尚未完成。"
+            reason = f"需要含 MMLU 的 {ENGINE_PROFILE.upper()} 已封存性能批次及其对应 SDK，4.1 须尚未完成。"
         tasks.append({
             "key": key, "group": spec["group"], "label": spec["label"], "hint": spec["hint"],
             "eta": spec.get("eta"), "needs_npu": key != "preflight",
             "available": not reason, "reason": reason, "reusable": spec["kind"] == "dataset",
-            "plan": make_plan(key), "sources": sources if key == "compute" else [],
+            "plan": make_plan(key), "sources": list(sources) if key == "compute" else [],
+            "source_versions": sources if key == "compute" else {},
         })
     return tasks
 
@@ -1073,14 +1167,18 @@ def build_command(task, name, evidence=None, source=None):
         cmd = [PYTHON, os.path.join(ROOT, "run_all.py"), "--config", write_config(name)]
         if task == "preflight":
             cmd.append("--prepare-protocol-only")
-        return cmd
+        return cmd, None
 
+    cache = CACHE
     selected_evidence = None
     if task == "compute":
         target = resume_targets(source) if source and RUN_NAME.fullmatch(source) else None
         if not target:
             raise ValueError("请选择满足准入条件的已封存性能批次")
         deployment = target["plan"]["optimized_deployment"]
+        receipt = target["receipt"]
+        if ENGINE_VERSION and target["version"] != ENGINE_VERSION:
+            cache = str(Path(UI_DIR) / ".runtime-cache" / f"{ENGINE_PROFILE}-{target['version']}")
     elif evidence:
         if spec["kind"] != "dataset":
             raise ValueError("该任务不接受连续吞吐凭证")
@@ -1088,17 +1186,20 @@ def build_command(task, name, evidence=None, source=None):
         if not selected_evidence:
             raise ValueError("连续吞吐凭证或其对应部署不可用")
         deployment = selected_evidence["sdk"]
+        receipt = Path(RUNS) / selected_evidence["run"] / "engine-selection.json"
     else:
-        deployment = find_sdk()
-        if not deployment:
+        sdk = find_sdk()
+        if not sdk:
             raise ValueError("找不到可复用的已安装 SDK，请先完成预检")
-    b1_python = sdk_python(deployment)
+        deployment, receipt = sdk
+    b1_python = sdk_python(deployment, read_json(receipt) or {})
     if not b1_python:
-        raise ValueError("B1 SDK 或原安装的 Python 与当前交付版本不匹配")
-    cmd = [PYTHON, one_click_entry(), "--model", MODEL, "--out", os.path.join(RUNS, name),
-           "--cache", CACHE, "--physical-devices", PHYSICAL, "--devices", DEVICES,
+        raise ValueError("B1 SDK 或原安装的 Python 与所选轮次的版本不匹配")
+    cmd = [PYTHON, "-B", one_click_entry(), "--model", MODEL, "--out", os.path.join(RUNS, name),
+           "--cache", cache, "--physical-devices", PHYSICAL, "--devices", DEVICES,
            "--deployment", deployment, "--rerun-b0"]
     if task == "compute":
+        cmd.insert(2, os.path.join(UI_DIR, "compute_one_click.py"))
         cmd += ["--compute-reference-only", "--reference-campaign", target["campaign"],
                 "--baseline-deployment", target["plan"]["baseline_deployment"]]
     elif task == "context-tenant":
@@ -1112,7 +1213,7 @@ def build_command(task, name, evidence=None, source=None):
         cmd += ["--datasets", spec["datasets"], "--performance-only"]
         if selected_evidence:
             cmd += ["--continuous-evidence", selected_evidence["path"]]
-    return cmd
+    return cmd, receipt
 
 
 def record_exit(name, process, job):
@@ -1126,13 +1227,25 @@ def record_exit(name, process, job):
 def start_run(task, evidence=None, source=None):
     stamp = datetime.now().strftime("%Y%m%dT%H%M%S%f")
     name = "ui-%s-%s" % (task, stamp)
-    cmd = build_command(task, name, evidence, source)
+    cmd, receipt = build_command(task, name, evidence, source)
     env = dict(os.environ, DEEPLINKENGINE_RUNTIME_CACHE=B1_CACHE,
                DEEPLINKENGINE_B0_RUNTIME_CACHE=B0_CACHE, PYTHONDONTWRITEBYTECODE="1", PYTHONUNBUFFERED="1")
+    selection_hash = SELECTION_ENV + "_SHA256"
+    for key in (SELECTION_ENV, selection_hash, METADATA_CLIENT_ENV):
+        env.pop(key, None)
+    version = ENGINE_VERSION
+    if receipt:
+        raw = receipt.read_bytes()
+        selection = json.loads(raw)
+        if receipt.is_symlink() or not selection_matches(selection, None if task == "compute" else ENGINE_VERSION):
+            raise ValueError("找不到对应的引擎版本记录")
+        env[SELECTION_ENV] = str(receipt.absolute())
+        env[selection_hash] = sha256(raw).hexdigest()
+        version = selection["version"]
     os.makedirs(LOGS, exist_ok=True)
     log_path = os.path.join(LOGS, name + ".log")
     job = {"task": task, "evidence": evidence, "source": source, "started": time.time(),
-           "engine": {"version": ENGINE_VERSION, "profile": ENGINE_PROFILE}}
+           "engine": {"version": version, "profile": ENGINE_PROFILE}}
     save_job(name, job)
     with open(log_path, "ab", buffering=0) as log:
         try:

@@ -2,15 +2,16 @@
   "repo_root": "/path/to/DeepLinkEngine",
   "runs_dir": "/path/to/acceptance-runs",
   "logs_dir": "/path/to/acceptance-logs",
-  "cache_dir": "/path/to/cache",
+  "cache_dir": "/path/to/cache/r10",
   "b1_cache": "/path/to/runtime/b1",
   "b0_cache": "/path/to/runtime/b0",
   "model": "/path/to/model",
   "python": "/usr/bin/python3.12",
   "python_name": "python3.12",
-  "engine_version": "2026.11.21.10",
+  "engine_version": "2026.11.24.10",
   "engine_profile": "r10",
   "physical_devices": "6,7",
   "devices": "0,1",
-  "sdk_dir": ""
+  "sdk_dir": "",
+  "wheelhouse": ""
 }

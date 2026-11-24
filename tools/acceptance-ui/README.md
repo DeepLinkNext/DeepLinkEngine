@@ -32,6 +32,8 @@ ssh -NT -o ExitOnForwardFailure=yes -o ServerAliveInterval=15 -p 22 -L 127.0.0.1
 
 ## 服务配置
 
-首次部署时，将本目录的 `config.example.json` 复制为 `config.json`，再填写现场路径。可用 `ACCEPTANCE_UI_CONFIG` 指定其他配置路径。主要配置包括模型目录、测试输出与日志目录、运行时缓存、B1 版本和 NPU 卡号。UI 服务日志为本目录下的 server.log。测试产物由各正式入口写入配置指定的位置。交付配置固定为 R10（2026.11.21.10）。已有正式安装时，可将 sdk_dir 指向该安装的 SDK，单项与专项会核对发行版本和原安装 Python。连续吞吐凭证与 4.1 补跑批次须与当前 B1 版本匹配。历史轮次的报告可继续查看。
+首次部署时，将本目录的 `config.example.json` 复制为 `config.json`，再填写现场路径。可用 `ACCEPTANCE_UI_CONFIG` 指定其他配置路径。主要配置包括模型目录、测试输出与日志目录、运行时缓存、B1 版本和 NPU 卡号。UI 服务日志为本目录下的 server.log。测试产物由各正式入口写入配置指定的位置。本环境的新测试使用 R10 3072（2026.11.24.10，Qwen3.5-35B-A3B BF16）。已有正式安装时，可将 sdk_dir 指向该安装的 SDK，单项与专项会核对发行版本和原安装 Python。连续吞吐凭证须与当前 B1 版本匹配。4.1 补跑沿用来源批次的发行版本和 SDK，选择框会显示该版本。历史轮次的报告可继续查看。
+
+不同 B1 发行版各用一个 cache_dir。可设置 wheelhouse 来复用符合该发行版哈希的安装包。评测准备阶段也会核对 cache_dir 中已有的文件，因此切换发行版时要为新版本使用独立目录。
 
 服务依赖 Python 3 和服务器上的 npu-smi。前端无需安装依赖或构建。可选的 Windows 快捷入口随服务器代码放在 launcher 目录，详见 [Windows 启动器](launcher/README.md)。
