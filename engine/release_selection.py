@@ -257,7 +257,13 @@ def kit_path():
 
 
 def profile():
-    return active()['engine_profile'] if active() else 'r8'
+    record = active()
+    if record is None:
+        return 'r8'
+    # The 3072 release retains the r10 package family but has its own SDK profile.
+    if record.get('release') == 'full-answer-b1-20261124-r10':
+        return 'r10-3072'
+    return record['engine_profile']
 
 
 METADATA_CLIENT = 'DEEPLINKENGINE_METADATA_ASSESSMENT_CLIENT'
