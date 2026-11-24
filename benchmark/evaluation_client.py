@@ -901,6 +901,9 @@ def context_baseline_bridge(result):
         # R10 preserves the B0 warmup and input recipes. The producer-side
         # changes select the measured contiguous-restore profile for B1.
         'dfd6b42f2fc1bf076f89ac71a0745d94f7dd57fe0d49615e334ab9c04fce2083',
+        # R10 3072 changes only B1 capture, model adapter, geometry and overlay
+        # source in this producer inventory. B0 input and clocks remain pinned.
+        '90430407503a1bd70e7fc1d9841630a58d8d39e6c5f83a48e5e8c24ad3484fc4',
     }
     if digest(scripts(result)) not in reviewed_sources:
         raise ValueError('B0 context assessment-source compatibility requires review')
