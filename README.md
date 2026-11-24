@@ -50,6 +50,76 @@ R9 的书生单模型验证见[版本说明](engine/versions/2026.11.19.9.md)，
 
 已保存的 B0/B1 验收结果可用 `python run_all.py --results` 在终端查看，加 `--json` 可读取结构化结果。使用自定义配置时传入相同的 `--config`。
 
+## 验收实验台网页
+
+网页和测试服务运行在 Coder 工作区。从一台新的 Windows 电脑访问时，按以下步骤操作。
+
+### 1. 在 Windows 浏览器登录 Coder
+
+在本机默认浏览器打开平台，使用有权限访问 `vllm-hust-midterm-repro-01` 的账号登录。也可以在 PowerShell 中直接打开。[Coder 平台](https://coder.sage.org.ai:9450/)
+
+```powershell
+Start-Process 'https://coder.sage.org.ai:9450/'
+```
+
+### 2. 在本机 PowerShell 安装 Coder CLI 并登录
+
+```powershell
+winget install --id Coder.Coder --exact --source winget
+```
+
+安装完成后重新打开 PowerShell，再运行以下命令。登录时浏览器通常会打开授权页。继续使用第 1 步登录的账号，按页面和终端提示完成授权。如果终端要求输入令牌，从授权页复制到终端。如果浏览器没有自动打开，手动打开终端给出的链接。[Coder CLI 安装文档](https://coder.com/docs/install/cli) · [CLI 登录文档](https://coder.com/docs/reference/cli/login)
+
+```powershell
+coder version
+coder login https://coder.sage.org.ai:9450/
+```
+
+### 3. 从本机 PowerShell 进入验收工作区
+
+```powershell
+coder ssh vllm-hust-midterm-repro-01
+```
+
+### 4. 在工作区 Linux 终端启动或确认 UI 服务
+
+在第 3 步进入的远程终端执行。`run.sh --background` 会复用已在运行的实验台，服务未运行时会在后台启动。健康检查返回 `status: ok` 后即可退出远程终端。
+
+```bash
+cd /root/test/DeepLinkEngine/tools/acceptance-ui && \
+  bash ./run.sh --background 8081 && \
+  curl --noproxy '*' -fsS --max-time 5 http://127.0.0.1:8081/api/health
+```
+
+```bash
+exit
+```
+
+### 5. 在本机 PowerShell 保持端口转发
+
+回到 Windows 的 PowerShell 提示符后执行整段命令。它将本机的 `127.0.0.1:18081` 转发到工作区的 `127.0.0.1:8081`，转发进程退出后会等 5 秒再重试。使用网页期间保持这个窗口开启。需要停止转发时关闭该窗口。[Coder 端口转发文档](https://coder.com/docs/reference/cli/port-forward)
+
+```powershell
+while ($true) {
+    coder port-forward vllm-hust-midterm-repro-01 --tcp '127.0.0.1:18081:8081'
+    Start-Sleep -Seconds 5
+}
+```
+
+如果本机 `18081` 已被占用，可把命令和下一步地址中的 `18081` 一起改为 `18082`。工作区端口仍用 `8081`。如果 CLI 提示登录过期，先重新执行第 2 步的登录命令。
+
+### 6. 在 Windows 浏览器打开验收实验台
+
+等转发窗口显示 `Ready!`，打开网页。也可以另开一个 PowerShell 窗口执行下面的命令。[验收实验台](http://127.0.0.1:18081/)
+
+```powershell
+Start-Process 'http://127.0.0.1:18081/'
+```
+
+关闭浏览器或本机转发窗口后，已经启动的实验仍在工作区运行。恢复转发后，从「运行记录」回到对应轮次。
+
+打开实验台后，可选择 **预检准备** 或查看已有运行记录。更多测试步骤和部署配置见[验收实验台文档](tools/acceptance-ui/README.md#正式测试操作顺序)。
+
 ## 目录
 
 | 目录 | 内容 |
