@@ -7,6 +7,14 @@ from benchmark import unified_run as runner
 
 
 class BenchmarkRoutes(unittest.TestCase):
+    def test_full_answer_profile_matches_the_frozen_mmlu_protocol(self):
+        root = Path(__file__).resolve().parents[1]
+        profile = runner.load(root / "experiments/mmlu-pro-200-out8192.json")
+        protocol = runner.load(root / "datasets/mmlu-fixed200.json")
+        self.assertEqual(profile["max_tokens"], protocol["generation"]["max_completion_tokens"])
+        self.assertEqual(profile["requests"], protocol["tasks_per_arm"])
+        self.assertEqual(profile["concurrency"], protocol["tasks_per_arm"])
+
     def test_prepared_requests_are_the_public_case_order(self):
         with TemporaryDirectory() as name:
             base = Path(name)

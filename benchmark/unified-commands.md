@@ -14,7 +14,7 @@ python -m benchmark.prepare_site --installation /workspace/deeplink-r8 \
   --cache /workspace/deeplink-cache --results /workspace/results --out sites/local.json
 ```
 
-单组入口可从数据 Release 恢复 MMLU，并从原始题目顺序和请求正文重建输入。也可用站点的 `requests` 字段显式提供冻结 JSONL，两种方式都核对实验配置中的同一个 SHA-256。此配置的生成上限为 256，原固定 200 题质量协议为 8192。每题用独立 cache salt。
+单组入口可从数据 Release 恢复 MMLU，并从原始题目顺序和请求正文重建输入。也可用站点的 `requests` 字段显式提供冻结 JSONL，两种方式都核对实验配置中的同一个 SHA-256。完整回答使用冻结协议的 8192 token 上限。已有的 out256 配置用于短输出服务测量。每题用独立 cache salt。
 
 限流服务使用 Controller 仓库提供的 RIDE local 依赖制备与启停脚本。将下列变量指向本站实际的 Controller 源码和依赖清单。制备会核验源包摘要并安装依赖。把示例中 `runner` 和 `installation` 改为实际绝对路径。无需在每次运行前手工起服务。
 
@@ -29,7 +29,7 @@ cp configs/request-throttling.example.json configs/request-throttling.json
 ## 单实例的四条命令
 
 ```bash
-common=(--config experiments/mmlu-pro-200-out256.json --site sites/local.json --tp 2 --replicas 1)
+common=(--config experiments/mmlu-pro-200-out8192.json --site sites/local.json --tp 2 --replicas 1)
 python deeplink.py benchmark "${common[@]}" --engine b0-original018 --route direct
 python deeplink.py benchmark "${common[@]}" --engine b0-original018 --route request_throttling --controller-config configs/request-throttling.json
 python deeplink.py benchmark "${common[@]}" --engine b1-r8 --route direct
@@ -45,7 +45,7 @@ python deeplink.py benchmark "${common[@]}" --engine b1-r8 --route request_throt
 站点文件的 `engines.<引擎>.instances` 每项填写 `host`、`physical_cards`、从执行机可达且互异的 `endpoint`、负责启动和收尾的前台 `argv`。站点需提供连接远程机器、启动对应进程及释放资源的能力。对同一主机检查卡号互斥。直连组依冻结题目顺序轮询多个后端，限流组将所有后端地址交给同一个 Controller。每个实例使用自己的 `{output}` 目录和 `{cards}`。八实例 TP2 需要 16 张 NPU。
 
 ```bash
-pool=(--config experiments/mmlu-pro-200-out256.json --site sites/pool.json --tp 2 --replicas 8)
+pool=(--config experiments/mmlu-pro-200-out8192.json --site sites/pool.json --tp 2 --replicas 8)
 python deeplink.py benchmark "${pool[@]}" --engine b0-original018 --route direct
 python deeplink.py benchmark "${pool[@]}" --engine b0-original018 --route request_throttling --controller-config configs/request-throttling.json
 python deeplink.py benchmark "${pool[@]}" --engine b1-r8 --route direct
