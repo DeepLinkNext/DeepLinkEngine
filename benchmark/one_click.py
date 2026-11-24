@@ -80,6 +80,31 @@ def option(arguments, flag):
     return values[0] if values else None
 
 
+
+def admitted_engine_profile(arguments, selected, record):
+    requested = option(arguments, "--engine-profile")
+    execution = selected
+    # The immutable 2026-11-24 producer calls its runtime r10-3072. The
+    # stable selection stores the release-family alias r10 and older receipts
+    # retain that value. Send the producer's profile to the assessment parser.
+    if (record and record["release"] == "full-answer-b1-20261124-r10"
+            and record["version"] == "2026.11.24.10"
+            and record["sdist"]["sha256"] == "b11bcc9c2064268112b5386de97d103a45eab5f6956ea35477f047d2e0725c0d"):
+        execution = "r10-3072"
+    if requested is None:
+        return [*arguments, "--engine-profile", execution]
+    if requested not in (selected, execution):
+        raise ValueError("The requested profile differs from the selected engine release")
+    if requested == execution:
+        return arguments
+    effective = list(arguments)
+    if "--engine-profile" in effective:
+        effective[effective.index("--engine-profile") + 1] = execution
+    else:
+        effective[effective.index("--engine-profile=" + requested)] = "--engine-profile=" + execution
+    return effective
+
+
 def reference_evidence(lock):
     import fcntl
 
@@ -287,10 +312,7 @@ def main(arguments=None):
             if option(effective, "--engine-profile") is not None:
                 raise ValueError("The context/tenant controller reads the SDK identity; omit --engine-profile")
         else:
-            if option(effective, "--engine-profile") is None:
-                effective += ["--engine-profile", selected_profile()]
-            if option(effective, "--engine-profile") != selected_profile():
-                raise ValueError("The requested profile differs from the selected engine release")
+            effective = admitted_engine_profile(effective, selected_profile(), active())
         if option(effective, "--deployment") is None:
             raise ValueError("Provide deployment: /path/to/installation/sdk from the selected stable installation; see engine/README.md")
         from benchmark.b0_run_policy import public_arguments, mode

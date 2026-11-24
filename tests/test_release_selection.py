@@ -50,6 +50,30 @@ def test_stable_release_order_respects_numeric_builds_and_post_releases():
     assert selection.release_name('2026.11.21.10.post11') == 'full-answer-b1-20261121-r10'
 
 
+
+def test_revised_r10_profile_is_explicit_only_for_the_exact_published_source():
+    from benchmark.one_click import admitted_engine_profile, option
+
+    revised = dict(
+        release="full-answer-b1-20261124-r10",
+        version="2026.11.24.10",
+        sdist={"sha256": "b11bcc9c2064268112b5386de97d103a45eab5f6956ea35477f047d2e0725c0d"},
+    )
+    for args in ([], ["--engine-profile", "r10"], ["--engine-profile=r10"],
+                 ["--engine-profile", "r10-3072"]):
+        original = args.copy()
+        result = admitted_engine_profile(args, "r10", revised)
+        assert option(result, "--engine-profile") == "r10-3072"
+        assert args == original
+    for unreviewed in (dict(revised, release="full-answer-b1-20261121-r10"),
+                       dict(revised, sdist={"sha256": "0" * 64})):
+        assert admitted_engine_profile([], "r10", unreviewed) == ["--engine-profile", "r10"]
+        with pytest.raises(ValueError, match="differs from the selected engine release"):
+            admitted_engine_profile(["--engine-profile=r10-3072"], "r10", unreviewed)
+    with pytest.raises(ValueError, match="differs from the selected engine release"):
+        admitted_engine_profile(["--engine-profile=r9"], "r10", revised)
+
+
 def test_stable_r10_bridge_pins_qualified_sources(monkeypatch):
     kit = ROOT / 'benchmark/one-click-kit'
     proofs = {
