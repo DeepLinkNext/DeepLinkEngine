@@ -2,6 +2,20 @@
 
 在能管理引擎进程并能访问所有服务地址的站点执行机上，进入 DeepLinkEngine 仓库根目录。单机部署时，执行机就是分配到两张 NPU 的 Linux 工作区。每条命令启动所选引擎，等待模型就绪，提交同一批题，保存每个流式响应并收尾。单独评测用 `deeplink.py benchmark`。完整五项验收沿用 `run_all.py --config evaluation.json`。向 `run_all.py` 显式传入下面的 `--engine` 等单组参数也会调用同一个单组实现。
 
+## 交付内容与代码位置
+
+![两个仓库、同一台双卡执行机和两种请求路径](docs/unified-delivery.png)
+
+| 代码 | 改动和原因 |
+| --- | --- |
+| [deeplink.py](../deeplink.py)、[run_all.py](../run_all.py) | 给既有 CLI 增加单组 `benchmark` 和离线 `compare`。显式 `run_all.py --engine …` 分派到同一单组函数。已有五项套件继续走原代码。 |
+| [prepare_site.py](prepare_site.py)、[serve_frozen_r8.sh](serve_frozen_r8.sh) | 将模型、卡号、地址和启动命令从实验配置拆出。前者用已有安装生成单实例站点文件、复用 B0 资产。后者校验并调用之前已制备的 R8 program-cache 环境。公开 R8 安装和历史冻结环境分别记录。 |
+| [unified_run.py](unified_run.py)、[Controller 配置示例](../configs/request-throttling.example.json) | 共用同一批引擎端点：启动所选模型、等就绪。直连发到引擎。限流组把本组后端交给 RIDE，再把请求发到 Controller，每题释放 program。两条路径共用收尾代码。 |
+| [流式客户端](profile_streaming_transport.py)、[离线评分](compare_groups.py) | 复用冻结的 MMLU 客户端，补入关联请求的追踪头，保留原始流，将推理文本与最终文本分别记录。`compare` 核验原题和评分器摘要，只从最终文本提取答案，汇总完成数、答对数与时间。 |
+| [8192 协议](../experiments/mmlu-pro-200-out8192.json)、[256 短输出配置](../experiments/mmlu-pro-200-out256.json)、[回归测试](../tests/test_benchmark_routes.py) | 将完整回答与短输出服务测量分别命名，避免混用。覆盖正式协议参数、实例卡号冲突、后端绑定、两实例直连及仅返回推理文本的响应。 |
+
+Controller 仓配套提供 RIDE 依赖准备、Controller 启停和兼容转调。新单组入口的 MMLU 路线已在单实例 TP2 实机验证。独立常驻服务的 `deploy up/status/down`、其他四个数据集在这个入口下的完整评价、浦江空机与八实例 16 卡的现场验收仍有缺口。[Controller PR #7](https://github.com/vLLM-HUST/request-throttling-controller/pull/7)
+
 ## 准备站点
 
 原版 B0 的运行文件从仓库已有的 B0 镜像资产恢复；B1 使用已安装的发行版。以 R8、两张物理卡 6 和 7、容器内逻辑卡 0 和 1 为例。模型路径换成本站挂载位置。每个现场独立生成自己的站点文件。
