@@ -19,7 +19,54 @@ ADAPTER_REQUIREMENTS = ("platformdirs>=4", "jcs>=0.2.1", "packaging>=24", "crypt
                         "numba==0.67.0", "llvmlite==0.49.0")
 
 
-def dependency_audit():
+_R10_REVISED_SOURCE = "b11bcc9c2064268112b5386de97d103a45eab5f6956ea35477f047d2e0725c0d"
+_R10_REVISED_RUNTIME = "2026.11.24.10+r10.4331740a6a6c"
+_R10_COMPAT_REQUIREMENT = "vllm-hust-runtime==2026.11.21.10+r10.736ef2311da0"
+_R10_COMPAT_WHEELS = {
+    "vllm": (
+        "vllm-0.28.1.post1.dev143+gf18cf803c.empty-cp312-cp312-linux_aarch64.whl",
+        "bf824c913a513b66541a85b00055374012bf8c9da2ee8145ec2fc43b641c835f",
+    ),
+    "vllm-ascend": (
+        "vllm_ascend-0.25.1rc2.dev125+hust.20260903.4.g74f0c0a27-cp312-cp312-linux_aarch64.whl",
+        "d1cbcc7a604681b8c56120d66f09ccbf1ebd2020192b34b54d98deb0f27e5bf4",
+    ),
+}
+_R10_RUNTIME_WHEEL = (
+    f"vllm_hust_runtime-{_R10_REVISED_RUNTIME}-cp312-cp312-linux_aarch64.whl",
+    "b29e7e70ca61e2c5c15fdb6e8cf3cd81feb6d229f800aebb380409df45778990",
+)
+
+
+def runtime_dependency_pins(selection):
+    if not selection or selection.get("release") != "full-answer-b1-20261124-r10":
+        return {}
+    pinned_artifacts = [
+        selection["sdist"],
+        *selection["runtime_artifacts"],
+    ]
+    observed = {row["filename"]: row["sha256"] for row in pinned_artifacts}
+    required = {
+        "vllm_hust_engine-2026.11.24.10.tar.gz": _R10_REVISED_SOURCE,
+        **dict(_R10_COMPAT_WHEELS.values()),
+        _R10_RUNTIME_WHEEL[0]: _R10_RUNTIME_WHEEL[1],
+    }
+    if selection["legacy"] or selection["version"] != "2026.11.24.10" or observed != required:
+        raise ValueError("The revised r10 compatibility dependency requires the reviewed artifact set")
+    # The two unchanged compatibility wheels bind the old runtime in METADATA.
+    # The reviewed revised source archive pins its replacement runtime exactly.
+    return {
+        owner: (_R10_COMPAT_REQUIREMENT, f"vllm-hust-runtime=={_R10_REVISED_RUNTIME}")
+        for owner in _R10_COMPAT_WHEELS
+    }
+
+
+def runtime_requirement(owner, text, dependency_pins):
+    pin = (dependency_pins or {}).get(owner.lower().replace("_", "-"))
+    return pin[1] if pin and text == pin[0] else text
+
+
+def dependency_audit(dependency_pins=None):
     from packaging.requirements import Requirement
     queue = [(name, frozenset()) for name in RUNTIME_ROOTS]
     seen, observed, issues = set(), {}, []
@@ -46,7 +93,7 @@ def dependency_audit():
             continue
         observed[name] = distribution.version
         for text in distribution.requires or []:
-            requirement = Requirement(text)
+            requirement = Requirement(runtime_requirement(name, text, dependency_pins))
             if requirement.marker and not any(requirement.marker.evaluate({"extra": extra})
                                               for extra in {"", *extras}):
                 continue
@@ -101,14 +148,20 @@ def resolve_runtime_dependencies(cache, *, wheelhouse=None):
             expected["numpy"] = "1.26.4"
     folder = Path(cache) / "engine-install"
     folder.mkdir(parents=True, exist_ok=True)
-    requirements = sorted(set(ADAPTER_REQUIREMENTS) | {str(Requirement(text)) for name in RUNTIME_ROOTS for text in metadata.requires(name) or []})
+    from engine.release_selection import active
+    dependency_pins = runtime_dependency_pins(active())
+    requirements = sorted(set(ADAPTER_REQUIREMENTS) | {
+        str(Requirement(runtime_requirement(name, text, dependency_pins)))
+        for name in RUNTIME_ROOTS
+        for text in metadata.requires(name) or []
+    })
     content = "\n".join(requirements) + "\n"
     key = hashlib.sha256(content.encode()).hexdigest()[:16]
     required = folder / ("runtime-" + key + ".txt")
     constraints = folder / ("runtime-" + key + "-constraints.txt")
     required.write_text(content)
     constraints.write_text("\n".join(name + "==" + version for name, version in sorted(expected.items())) + "\n")
-    before = dependency_audit()
+    before = dependency_audit(dependency_pins)
     if not before["verified"]:
         print("RUNTIME_DEPENDENCIES repairing", len(before["issues"]), "requirements", flush=True)
         command = [sys.executable, "-I", "-B", "-m", "pip", "install", "--disable-pip-version-check",
@@ -128,7 +181,7 @@ def resolve_runtime_dependencies(cache, *, wheelhouse=None):
         if result.returncode:
             raise RuntimeError("Could not restore Ascend Triton after engine dependency resolution")
         integrity = vendor_integrity(sys.executable, lock["required_python_packages"], dict(os.environ))
-    after = dependency_audit()
+    after = dependency_audit(dependency_pins)
     compatibility = {name: distribution_integrity(name) for name in lock.get("runtime_compatibility_sources", {})}
     if not after["verified"] or not integrity["verified"] or not all(r["verified"] for r in compatibility.values()):
         raise ValueError("Engine dependency/file verification failed: " + json.dumps(after["issues"]))
@@ -155,7 +208,8 @@ def resolve_runtime_dependencies(cache, *, wheelhouse=None):
     report = dict(before=before, after=after, vendor_integrity=integrity, compatibility_integrity=compatibility,
                   manager_smoke=json.loads(manager_smoke.read_text()), adapter_requirements=ADAPTER_REQUIREMENTS,
                   import_smoke=json.loads(smoke.read_text()),
-                  requirements_sha256=hashlib.sha256(content.encode()).hexdigest(), constraints=expected)
+                  requirements_sha256=hashlib.sha256(content.encode()).hexdigest(), constraints=expected,
+                  compatibility_dependency_pins=dependency_pins)
     (folder / "runtime-dependencies.json").write_text(json.dumps(report, indent=2) + "\n")
     print("RUNTIME_DEPENDENCIES_VERIFIED", len(after["observed_versions"]), "distributions", flush=True)
     return report

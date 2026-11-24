@@ -241,5 +241,44 @@ class RuntimeDependencyTests(unittest.TestCase):
         self.assertIsNone(result["issues"][0]["found"])
 
 
+    def test_revised_r10_rebinds_only_the_reviewed_compatibility_requirements(self):
+        rows = [
+            dict(filename=name, sha256=digest)
+            for name, digest in [*engine_install._R10_COMPAT_WHEELS.values(), engine_install._R10_RUNTIME_WHEEL]
+        ]
+        selection = dict(release="full-answer-b1-20261124-r10", version="2026.11.24.10", legacy=False,
+                         sdist=dict(filename="vllm_hust_engine-2026.11.24.10.tar.gz",
+                                    sha256=engine_install._R10_REVISED_SOURCE),
+                         runtime_artifacts=rows)
+        pins = engine_install.runtime_dependency_pins(selection)
+        old = "vllm-hust-runtime==2026.11.21.10+r10.736ef2311da0"
+        new = "vllm-hust-runtime==2026.11.24.10+r10.4331740a6a6c"
+        self.assertEqual(engine_install.runtime_requirement("vllm", old, pins), new)
+        self.assertEqual(engine_install.runtime_requirement("vllm_ascend", old, pins), new)
+        self.assertEqual(engine_install.runtime_requirement("external", old, pins), old)
+        foreign = "vllm-hust-runtime==2026.11.19.9"
+        self.assertEqual(engine_install.runtime_requirement("vllm", foreign, pins), foreign)
+        self.assertEqual(engine_install.runtime_dependency_pins({"release": "full-answer-b1-20261121-r10"}), {})
+
+        distributions = {
+            "vllm": types.SimpleNamespace(version="0.28", requires=[old]),
+            "vllm-ascend": types.SimpleNamespace(version="0.25", requires=[old]),
+            "vllm-hust-engine": types.SimpleNamespace(version="2026.11.24.10", requires=[new]),
+            "vllm-hust-runtime": types.SimpleNamespace(version=new.split("==")[1], requires=[]),
+        }
+        with patch.object(engine_install, "RUNTIME_ROOTS", ("vllm", "vllm-ascend", "vllm-hust-engine")), \
+             patch.object(engine_install, "ADAPTER_REQUIREMENTS", ()), \
+             patch.object(engine_install.metadata, "distribution", side_effect=distributions.__getitem__), \
+             patch.object(engine_install.metadata, "version", side_effect=lambda name: distributions[name].version):
+            self.assertFalse(engine_install.dependency_audit()["verified"])
+            self.assertTrue(engine_install.dependency_audit(pins)["verified"])
+            distributions["vllm-hust-engine"].requires = [old]
+            self.assertFalse(engine_install.dependency_audit(pins)["verified"])
+
+        rows[0]["sha256"] = "0" * 64
+        with self.assertRaisesRegex(ValueError, "reviewed artifact set"):
+            engine_install.runtime_dependency_pins(selection)
+
+
 if __name__ == "__main__":
     unittest.main()
