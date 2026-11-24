@@ -280,5 +280,31 @@ class RuntimeDependencyTests(unittest.TestCase):
             engine_install.runtime_dependency_pins(selection)
 
 
+    def test_revised_r10_resolver_keeps_external_roots_and_audits_wrappers_separately(self):
+        expected = {
+            "vllm": "0.28.1.post1.dev143+gf18cf803c.empty",
+            "vllm-ascend": "0.25.1rc2.dev125+hust.20260903.4.g74f0c0a27",
+        }
+        old = "vllm-hust-runtime==2026.11.21.10+r10.736ef2311da0"
+        revised = "vllm-hust-runtime==2026.11.24.10+r10.4331740a6a6c"
+        pins = {name: (old, revised) for name in expected}
+        dependency = {name: f"{name}=={version}" for name, version in expected.items()}
+        requirements = {
+            "vllm": [old, "requests>=2"],
+            "vllm-ascend": [dependency["vllm"], old, "torch>=2"],
+            "vllm-hust-engine": [*dependency.values(), revised, "packaging>=24"],
+            "torchvision": ["pillow>=8"],
+        }
+        with patch.object(engine_install, "ADAPTER_REQUIREMENTS", ()), patch.object(
+            engine_install.metadata, "requires", side_effect=requirements.__getitem__
+        ):
+            actual = engine_install.runtime_install_requirements(expected, pins)
+            self.assertEqual(set(actual), {revised, "requests>=2", "torch>=2", "packaging>=24", "pillow>=8"})
+            self.assertIn(dependency["vllm"], engine_install.runtime_install_requirements(expected, {}))
+            self.assertIn(dependency["vllm-ascend"], engine_install.runtime_install_requirements(expected, {}))
+            requirements["torchvision"].append(dependency["vllm"])
+            self.assertIn(dependency["vllm"], engine_install.runtime_install_requirements(expected, pins))
+
+
 if __name__ == "__main__":
     unittest.main()

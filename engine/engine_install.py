@@ -66,6 +66,26 @@ def runtime_requirement(owner, text, dependency_pins):
     return pin[1] if pin and text == pin[0] else text
 
 
+def runtime_install_requirements(expected, dependency_pins):
+    from packaging.requirements import Requirement
+
+    requirements = set(ADAPTER_REQUIREMENTS)
+    for owner in RUNTIME_ROOTS:
+        for text in metadata.requires(owner) or []:
+            requirement = Requirement(runtime_requirement(owner, text, dependency_pins))
+            package = requirement.name.lower().replace("_", "-")
+            # Installed wrapper versions already match the reviewed artifacts.
+            # Their external dependencies remain explicit roots; the audit
+            # below still follows every edge through both installed wheels.
+            if (owner in ("vllm-hust-engine", "vllm-ascend")
+                    and package in dependency_pins and not requirement.extras
+                    and requirement.marker is None and requirement.url is None
+                    and str(requirement.specifier) == f"=={expected.get(package)}"):
+                continue
+            requirements.add(str(requirement))
+    return sorted(requirements)
+
+
 def dependency_audit(dependency_pins=None):
     from packaging.requirements import Requirement
     queue = [(name, frozenset()) for name in RUNTIME_ROOTS]
@@ -113,7 +133,6 @@ def resolve_runtime_dependencies(cache, *, wheelhouse=None):
     links = [str(Path(wheelhouse).resolve())] if wheelhouse else []
     if links and not Path(links[0]).is_dir():
         raise ValueError("Runtime wheelhouse is not a directory")
-    from packaging.requirements import Requirement
     from engine.environment_setup import vendor_integrity, cached_wheel, distribution_integrity
     import os
     sys.path.insert(0, str(kit_path() / "scripts"))
@@ -150,11 +169,7 @@ def resolve_runtime_dependencies(cache, *, wheelhouse=None):
     folder.mkdir(parents=True, exist_ok=True)
     from engine.release_selection import active
     dependency_pins = runtime_dependency_pins(active())
-    requirements = sorted(set(ADAPTER_REQUIREMENTS) | {
-        str(Requirement(runtime_requirement(name, text, dependency_pins)))
-        for name in RUNTIME_ROOTS
-        for text in metadata.requires(name) or []
-    })
+    requirements = runtime_install_requirements(expected, dependency_pins)
     content = "\n".join(requirements) + "\n"
     key = hashlib.sha256(content.encode()).hexdigest()[:16]
     required = folder / ("runtime-" + key + ".txt")
