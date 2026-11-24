@@ -43,6 +43,10 @@ def test_stable_release_order_respects_numeric_builds_and_post_releases():
     index = {'releases': {version: [row(version)] for version in versions}}
     assert selection.stable_sdist(index)[0] == '2026.11.21.10.post11'
     assert selection.stable_sdist(index, '2026.11.21.10')[0] == '2026.11.21.10'
+    index['releases']['2026.11.24.10'] = [row('2026.11.24.10')]
+    assert selection.stable_sdist(index)[0] == '2026.11.24.10'
+    assert selection.release_name('2026.11.24.10') == 'full-answer-b1-20261124-r10'
+    assert selection.stable_sdist(index, '2026.11.21.10')[0] == '2026.11.21.10'
     assert selection.release_name('2026.11.21.10.post11') == 'full-answer-b1-20261121-r10'
 
 
@@ -90,6 +94,25 @@ def test_stable_r10_bridge_pins_qualified_sources(monkeypatch):
         assert b'sources = admitted_sources(' in code
         assert f'PROTOCOL_SHA256 = "{client.sha(result[key])}"'.encode() in code
         ast.parse(code)
+
+
+def test_revised_r10_reference_rejects_changed_microflow(monkeypatch):
+    overlay = json.dumps(dict(
+        release=client.R10_3072_REFERENCE_RELEASE,
+        base_manifest_sha256=client.R10_REFERENCE_OVERLAY_SHA256,
+        measurement={'installed_files_canonical_sha256': client.R10_3072_RUNTIME_SHA256},
+    )).encode()
+    microflow = 'overlays/b1-r10-3072/' + client.R10_3072_MICROFLOW
+    files = {'scripts/runtime_overlay.py':
+             f'R10_STABLE_RELEASE = "{client.R10_REFERENCE_RELEASE}"'.encode(),
+             client.R10_3072_OVERLAY: overlay, microflow: b'reviewed three-chunk partition'}
+    monkeypatch.setattr(client, 'R10_3072_OVERLAY_SHA256', client.sha(overlay))
+    monkeypatch.setattr(client, 'R10_3072_MICROFLOW_SHA256', client.sha(files[microflow]))
+    assert client.R10_3072_REFERENCE_RELEASE in client.native_reference_releases(files)
+    assert client.R10_REFERENCE_RELEASE in client.native_reference_releases(files)
+    files[microflow] += b' tampered'
+    with pytest.raises(ValueError, match='Revised R10 reference implementation'):
+        client.native_reference_releases(files)
 
 
 def test_stable_r10_source_admission_requires_sealed_native_rms(tmp_path):
