@@ -43,6 +43,10 @@ def test_stable_release_order_respects_numeric_builds_and_post_releases():
     index = {'releases': {version: [row(version)] for version in versions}}
     assert selection.stable_sdist(index)[0] == '2026.11.21.10.post11'
     assert selection.stable_sdist(index, '2026.11.21.10')[0] == '2026.11.21.10'
+    index['releases']['2026.11.24.10'] = [row('2026.11.24.10')]
+    assert selection.stable_sdist(index)[0] == '2026.11.24.10'
+    assert selection.release_name('2026.11.24.10') == 'full-answer-b1-20261124-r10'
+    assert selection.stable_sdist(index, '2026.11.21.10')[0] == '2026.11.21.10'
     assert selection.release_name('2026.11.21.10.post11') == 'full-answer-b1-20261121-r10'
 
 
