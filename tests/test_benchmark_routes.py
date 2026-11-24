@@ -3,14 +3,17 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
 
-from benchmark import unified_run as runner
+from benchmark.benchmark_io import load
+from benchmark.engine_pool import placements
+from benchmark.frozen_workload import canonical_mmlu
+from benchmark.control_plane import bind_inference_pool
 
 
 class BenchmarkRoutes(unittest.TestCase):
     def test_full_answer_profile_matches_the_frozen_mmlu_protocol(self):
         root = Path(__file__).resolve().parents[1]
-        profile = runner.load(root / "experiments/mmlu-pro-200-out8192.json")
-        protocol = runner.load(root / "datasets/mmlu-fixed200.json")
+        profile = load(root / "experiments/mmlu-pro-200-out8192.json")
+        protocol = load(root / "datasets/mmlu-fixed200.json")
         self.assertEqual(profile["max_tokens"], protocol["generation"]["max_completion_tokens"])
         self.assertEqual(profile["requests"], protocol["tasks_per_arm"])
         self.assertEqual(profile["concurrency"], protocol["tasks_per_arm"])
@@ -22,25 +25,25 @@ class BenchmarkRoutes(unittest.TestCase):
             (base / "verified-mmlu-quality-inputs.json").write_text('{"cases":[{"case_id":"一"}]}')
             (base / "mmlu-quality018-r2/quality-request-plan.json").write_text('{"requests":[{"model":"m"}]}')
             expected = '{"case_id":"一","body":{"model":"m"}}\n'.encode()
-            self.assertEqual(runner.canonical_mmlu(base), expected)
+            self.assertEqual(canonical_mmlu(base), expected)
 
     def test_duplicate_device_on_one_host_is_rejected(self):
         node = {"host":"a", "physical_cards":[0,1], "argv":["engine"], "endpoint":"http://a:1"}
         spec = {"instances":[node, dict(node, endpoint="http://a:2")]}
         with self.assertRaisesRegex(ValueError, "device"):
-            runner.placements({}, spec, 2, 2)
+            placements({}, spec, 2, 2)
 
     def test_different_hosts_can_use_same_local_card_numbers(self):
         node = {"host":"a", "physical_cards":[0,1], "argv":["engine"], "endpoint":"http://a:1"}
         spec = {"instances":[node, dict(node, host="b", endpoint="http://b:1")]}
-        self.assertEqual(len(runner.placements({}, spec, 2, 2)), 2)
+        self.assertEqual(len(placements({}, spec, 2, 2)), 2)
 
     def test_controller_binds_entire_pool(self):
         endpoints = ["http://a:1","http://b:1"]
-        config = runner.controller_spec({"controller":{"endpoint":"http://router:1"}}, endpoints)
+        config = bind_inference_pool({"endpoint":"http://router:1"}, endpoints)
         self.assertEqual(config["backends"], endpoints)
         with self.assertRaises(ValueError):
-            runner.controller_spec({"controller":{"endpoint":"http://a:1"}}, endpoints)
+            bind_inference_pool({"endpoint":"http://a:1"}, endpoints)
 
     def test_public_cli_sends_each_request_once_to_its_assigned_engine(self):
         import hashlib

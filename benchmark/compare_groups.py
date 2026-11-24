@@ -6,7 +6,8 @@ import math
 from pathlib import Path
 import re
 
-from benchmark.unified_run import canonical_mmlu, load
+from benchmark.benchmark_io import load
+from benchmark.frozen_workload import canonical_mmlu
 
 
 def scoring(deployment):
@@ -86,6 +87,7 @@ def summarize(folder, expected, gold, score, digest):
     seconds = load(measured)["elapsed_seconds"] if measured.is_file() else None
     status = load(folder/"status.json") if (folder/"status.json").is_file() else {"status":"incomplete"}
     return dict(group=folder.name, engine=plan["engine"], release=plan["release"], route=plan["route"],
+                controllers=plan.get("controllers", ["request-throttling"] if plan["route"] == "request_throttling" else []),
                 status=status, requested=workload["requests"], recorded=len(seen), completed=complete,
                 correct=correct, unparsed=unparsed, length_stops=length_stops, released=released,
                 final_answers=final_answers, reasoning_only=reasoning_only, cached_tokens=cached_tokens,

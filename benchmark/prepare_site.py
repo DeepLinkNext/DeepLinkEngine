@@ -17,6 +17,7 @@ def main():
     parser.add_argument("--cache", type=Path, required=True)
     parser.add_argument("--results", type=Path, required=True)
     parser.add_argument("--out", type=Path, required=True, help="New site JSON file")
+    parser.add_argument("--ride-config", type=Path, help="Site RIDE endpoint and controller specs")
     args = parser.parse_args()
     cards = [int(x) for x in args.physical_devices.split(",")]
     if len(set(cards)) != 2 or len(cards) != 2 or min(cards) < 0:
@@ -44,6 +45,8 @@ def main():
     label = "b1-" + receipt["release"].rsplit("-", 1)[-1]
     site = dict(physical_cards=cards, data_cache=str(cache), results=str(args.results.resolve()),
                 engines={"b0-original018": reference, label: optimized})
+    if args.ride_config:
+        site["ride"] = json.loads(args.ride_config.read_bytes())
     args.out.parent.mkdir(parents=True, exist_ok=True)
     with args.out.open("x") as output:
         json.dump(site, output, indent=2)

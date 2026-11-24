@@ -1,20 +1,58 @@
-# 运行单组引擎与限流实验
+# 单组实验：引擎实例与 RIDE 控制器
 
-在能管理引擎进程并能访问所有服务地址的站点执行机上，进入 DeepLinkEngine 仓库根目录。单机部署时，执行机就是分配到两张 NPU 的 Linux 工作区。每条命令启动所选引擎，等待模型就绪，提交同一批题，保存每个流式响应并收尾。单独评测用 `deeplink.py benchmark`。完整五项验收沿用 `run_all.py --config evaluation.json`。向 `run_all.py` 显式传入下面的 `--engine` 等单组参数也会调用同一个单组实现。
+在能管理本站引擎进程、访问 RIDE 和服务端点的 Linux 执行机上，进入 DeepLinkEngine 根目录。每条 benchmark 命令独立完成一组实验。引擎版本、初始实例数和每实例 TP 属于数据面；RIDE 按逗号分隔的类型集合启动控制器。省略 `--controllers` 即运行引擎基线。
 
-## 交付内容与代码位置
+```bash
+common=(--config experiments/mmlu-pro-200-out256.json --site sites/local.json --replicas 1 --tp 2)
+python deeplink.py benchmark "${common[@]}" --engine b0-original018
+python deeplink.py benchmark "${common[@]}" --engine b1-r8
+python deeplink.py benchmark "${common[@]}" --engine b1-r8 --controllers request-throttling
+python deeplink.py benchmark "${common[@]}" --engine b1-r8 --controllers kv-control
+python deeplink.py benchmark "${common[@]}" --engine b1-r8 --controllers kv-control,instance-scaling
+python deeplink.py benchmark "${common[@]}" --engine b1-r8 --controllers request-throttling,kv-control,instance-scaling
+```
 
-![两个仓库、同一台双卡执行机和两种请求路径](docs/unified-delivery.png)
+加 `--dry-run` 查看控制器类型、具名实例、管理地址、客户端目标及引擎池，加 `--out DIR` 保存到新目录。零个控制器或仅启用后台控制器时，客户端直达本组引擎池。限流层使用本组后端并提供推理入口，MMLU 客户端带 program 身份并在该题结束后 release。类型顺序无需表述依赖关系。新后台控制器沿用 RIDE 插件注册和站点配置。当前支持直连与单个支持 program-release 协议的推理入口。
 
-| 代码 | 改动和原因 |
+## 站点配置
+
+已有站点在站点文件增加一个 `ride` 字段。新站点可给下节的 prepare_site 命令加 `--ride-config FILE`，把下面这份站点配置写入生成结果。每站一份，所有组合共用。此示例的地址、挂载路径、ID 和 SHA 由现场填写，控制器策略文件沿用各自原有格式。
+
+```json
+{
+  "management_endpoint": "http://127.0.0.1:19100",
+  "controllers": {
+    "request-throttling": {
+      "id": "throttle-main", "endpoint": "http://127.0.0.1:19001",
+      "listen": "127.0.0.1:19001",
+      "runtime_env": {"env_vars": {"THUNDERAGENT_TRANSPORT_TIMEOUT_SECONDS": "-1", "THUNDERAGENT_RESUME_TIMEOUT_SECONDS": "-1"}}
+    },
+    "kv-control": {
+      "id": "myc-kv", "endpoint": "http://127.0.0.1:19082",
+      "configuration": "/workspace/config/kv.json", "configuration_sha256": "<KV configuration SHA-256>"
+    },
+    "instance-scaling": {
+      "id": "myc-instance", "endpoint": "http://127.0.0.1:19083",
+      "configuration": "/workspace/config/instance.json", "configuration_sha256": "<Instance configuration SHA-256>"
+    }
+  }
+}
+```
+
+站点先准备可访问的 RIDE 管理服务，管理端和执行环境安装所选类型，支持带 operation_id 和 expected_job_id 的条件启动、按作业身份停止及就绪探测。KV、Instance 的冻结策略文件须与实例 ID、端点、本组模型配置匹配。推理代理的后端由本组引擎池生成。运行器等所有控制器就绪后发题，将启动、就绪、停止和终态写入结果目录的 controllers 子目录。不同组若同时占用同一服务，后启动的一组会被拒绝。
+
+Instance 的自动扩缩依赖真实可控的模型作业、请求排空和 KV 后端。现有引擎启动器托管站点前台进程。这里覆盖控制器启动和请求路径；允许操作真实模型作业的现场配置、缩容和端点切换需要独立验收。多引擎配置要求 engines 下逐实例提供 host、physical_cards、endpoint 和前台 argv；八实例 TP2 对应 16 卡。256 token 配置用于短输出服务检查。
+
+## 代码位置
+
+| 职责 | 入口 |
 | --- | --- |
-| [deeplink.py](../deeplink.py)、[run_all.py](../run_all.py) | 给既有 CLI 增加单组 `benchmark` 和离线 `compare`。显式 `run_all.py --engine …` 分派到同一单组函数。已有五项套件继续走原代码。 |
-| [prepare_site.py](prepare_site.py)、[serve_frozen_r8.sh](serve_frozen_r8.sh) | 将模型、卡号、地址和启动命令从实验配置拆出。前者用已有安装生成单实例站点文件、复用 B0 资产。后者校验并调用之前已制备的 R8 program-cache 环境。公开 R8 安装和历史冻结环境分别记录。 |
-| [unified_run.py](unified_run.py)、[Controller 配置示例](../configs/request-throttling.example.json) | 共用同一批引擎端点：启动所选模型、等就绪。直连发到引擎。限流组把本组后端交给 RIDE，再把请求发到 Controller，每题释放 program。两条路径共用收尾代码。 |
-| [流式客户端](profile_streaming_transport.py)、[离线评分](compare_groups.py) | 复用冻结的 MMLU 客户端，补入关联请求的追踪头，保留原始流，将推理文本与最终文本分别记录。`compare` 核验原题和评分器摘要，只从最终文本提取答案，汇总完成数、答对数与时间。 |
-| [8192 协议](../experiments/mmlu-pro-200-out8192.json)、[256 短输出配置](../experiments/mmlu-pro-200-out256.json)、[回归测试](../tests/test_benchmark_routes.py) | 将完整回答与短输出服务测量分别命名，避免混用。覆盖正式协议参数、实例卡号冲突、后端绑定、两实例直连及仅返回推理文本的响应。 |
+| 单组编排及公开参数 | [unified_run.py](unified_run.py) |
+| 数据面的引擎放置、就绪和收尾 | [engine_pool.py](engine_pool.py) |
+| 控制器选择、推理目标和 RIDE 作业生命周期 | [control_plane.py](control_plane.py)、[ride_management.py](ride_management.py) |
+| 冻结题单、逐题流式请求、计时与离线评分 | [frozen_workload.py](frozen_workload.py)、[compare_groups.py](compare_groups.py) |
 
-Controller 仓配套提供 RIDE 依赖准备、Controller 启停和兼容转调。新单组入口的 MMLU 路线已在单实例 TP2 实机验证。独立常驻服务的 `deploy up/status/down`、其他四个数据集在这个入口下的完整评价、浦江空机与八实例 16 卡的现场验收仍有缺口。[Controller PR #7](https://github.com/vLLM-HUST/request-throttling-controller/pull/7)
+`run_all.py --engine …` 共用单组实现，`run_all.py --config evaluation.json` 保留历史完整评测。旧参数 `--route direct` 和 `--route request_throttling --controller-config FILE` 分别保留直连和原 RIDE local 部署。新入口直接使用本站 RIDE 管理服务。
 
 ## 准备站点
 
@@ -30,7 +68,7 @@ python -m benchmark.prepare_site --installation /workspace/deeplink-r8 \
 
 单组入口可从数据 Release 恢复 MMLU，并从原始题目顺序和请求正文重建输入。也可用站点的 `requests` 字段显式提供冻结 JSONL，两种方式都核对实验配置中的同一个 SHA-256。完整回答使用冻结协议的 8192 token 上限。已有的 out256 配置用于短输出服务测量。每题用独立 cache salt。
 
-限流服务使用 Controller 仓库提供的 RIDE local 依赖制备与启停脚本。将下列变量指向本站实际的 Controller 源码和依赖清单。制备会核验源包摘要并安装依赖。把示例中 `runner` 和 `installation` 改为实际绝对路径。无需在每次运行前手工起服务。
+旧命令 `--route request_throttling --controller-config FILE` 使用 Controller 仓库提供的 RIDE local 依赖制备与启停脚本。将下列变量指向本站实际的 Controller 源码和依赖清单。制备会核验源包摘要并安装依赖。把示例中 `runner` 和 `installation` 改为实际绝对路径。无需在每次运行前手工起服务。
 
 ```bash
 python "$CONTROL_REPO/scripts/prepare_ride_dependencies.py" \
@@ -39,34 +77,6 @@ cp configs/request-throttling.example.json configs/request-throttling.json
 ```
 
 [Controller 依赖制备及 RIDE local 启停脚本](https://github.com/vLLM-HUST/request-throttling-controller/pull/7)
-
-## 单实例的四条命令
-
-```bash
-common=(--config experiments/mmlu-pro-200-out8192.json --site sites/local.json --tp 2 --replicas 1)
-python deeplink.py benchmark "${common[@]}" --engine b0-original018 --route direct
-python deeplink.py benchmark "${common[@]}" --engine b0-original018 --route request_throttling --controller-config configs/request-throttling.json
-python deeplink.py benchmark "${common[@]}" --engine b1-r8 --route direct
-python deeplink.py benchmark "${common[@]}" --engine b1-r8 --route request_throttling --controller-config configs/request-throttling.json
-```
-
-`--engine` 决定使用哪套服务启动配置。直连时，客户端把题发往模型的 `/v1/chat/completions`。限流时，入口将本组已就绪的模型地址写入 RIDE 配置，再启动 Request Throttling Controller。客户端向 Controller 发请求携带独立的 program ID，收到流后调用 `/programs/release`。模型请求、转发和等待恢复使用无限业务时限。服务冷启动另有就绪期限。
-
-给任一命令加 `--dry-run` 可以在启动前检查引擎、站点、请求路径及实际端点。加 `--out /path/to/new-directory` 指定一个全新结果目录。默认目录在站点的 `results` 下。查看 `plan.json`、`measurement.json`、`status.json` 和各题的 `result.json`。限流组另有 RIDE 启停回执、服务日志和每个 program 的释放记录。
-
-## 多实例的四条命令
-
-站点文件的 `engines.<引擎>.instances` 每项填写 `host`、`physical_cards`、从执行机可达且互异的 `endpoint`、负责启动和收尾的前台 `argv`。站点需提供连接远程机器、启动对应进程及释放资源的能力。对同一主机检查卡号互斥。直连组依冻结题目顺序轮询多个后端，限流组将所有后端地址交给同一个 Controller。每个实例使用自己的 `{output}` 目录和 `{cards}`。八实例 TP2 需要 16 张 NPU。
-
-```bash
-pool=(--config experiments/mmlu-pro-200-out8192.json --site sites/pool.json --tp 2 --replicas 8)
-python deeplink.py benchmark "${pool[@]}" --engine b0-original018 --route direct
-python deeplink.py benchmark "${pool[@]}" --engine b0-original018 --route request_throttling --controller-config configs/request-throttling.json
-python deeplink.py benchmark "${pool[@]}" --engine b1-r8 --route direct
-python deeplink.py benchmark "${pool[@]}" --engine b1-r8 --route request_throttling --controller-config configs/request-throttling.json
-```
-
-本轮硬件验收范围为单实例 TP2。多实例站点和浦江的首次运行各自需要实际服务回执。夜间实验使用历史限流对照冻结的 R8 运行环境；上方站点制备示例使用公开 R8 安装包。两个现场的启动配置须分别留证。
 
 ## 复核结果
 
