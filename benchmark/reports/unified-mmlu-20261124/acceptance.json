@@ -1,0 +1,278 @@
+{
+  "scope": "MMLU-Pro fixed 200, TP2, one replica, route acceptance",
+  "input_sha256": "a70d8ada1c34676d52fb2a619cf4983cd5a0c5c21f25213978e1ee406c0a45da",
+  "measured_client_sha256": "d0d5f4ed5896f1aee6eff76001701b9951e41d452a36ff68be7ea498c35ee961",
+  "groups": [
+    {
+      "group": "b0-direct-02",
+      "engine": "b0-original018",
+      "release": "original018-cann8.5.1",
+      "route": "direct",
+      "status": {
+        "status": "completed"
+      },
+      "requested": 200,
+      "recorded": 200,
+      "completed": 200,
+      "correct": 22,
+      "unparsed": 48,
+      "length_stops": 200,
+      "released": 0,
+      "final_answers": 200,
+      "reasoning_only": 0,
+      "cached_tokens": 0,
+      "first_final_text_p50_seconds": 155.94099000300048,
+      "output_tokens": 51200,
+      "seconds": 235.3744556439924,
+      "output_tokens_per_second": 217.52572877934048,
+      "ttft_p50_seconds": 155.94099000300048,
+      "ttft_p95_seconds": 212.53201226401143,
+      "latency_p50_seconds": 171.91517659201054,
+      "latency_p95_seconds": 226.7687949470128
+    },
+    {
+      "group": "b0-controller-02",
+      "engine": "b0-original018",
+      "release": "original018-cann8.5.1",
+      "route": "request_throttling",
+      "status": {
+        "status": "completed"
+      },
+      "requested": 200,
+      "recorded": 200,
+      "completed": 200,
+      "correct": 21,
+      "unparsed": 52,
+      "length_stops": 200,
+      "released": 200,
+      "final_answers": 200,
+      "reasoning_only": 0,
+      "cached_tokens": 0,
+      "first_final_text_p50_seconds": 154.5839578580344,
+      "output_tokens": 51200,
+      "seconds": 234.11232609697618,
+      "output_tokens_per_second": 218.69843785496138,
+      "ttft_p50_seconds": 154.5839578580344,
+      "ttft_p95_seconds": 211.88587564096088,
+      "latency_p50_seconds": 169.43411996401846,
+      "latency_p95_seconds": 225.83008170197718
+    },
+    {
+      "group": "b1-direct-02",
+      "engine": "b1-r8",
+      "release": "full-answer-b1-20261117-r8",
+      "route": "direct",
+      "status": {
+        "status": "completed"
+      },
+      "requested": 200,
+      "recorded": 200,
+      "completed": 200,
+      "correct": 0,
+      "unparsed": 200,
+      "length_stops": 200,
+      "released": 0,
+      "final_answers": 0,
+      "reasoning_only": 200,
+      "cached_tokens": 0,
+      "first_final_text_p50_seconds": null,
+      "output_tokens": 51200,
+      "seconds": 52.4723420360242,
+      "output_tokens_per_second": 975.7521393813394,
+      "ttft_p50_seconds": 20.79593343497254,
+      "ttft_p95_seconds": 46.005355526984204,
+      "latency_p50_seconds": 30.082698388956487,
+      "latency_p95_seconds": 51.71560524200322
+    },
+    {
+      "group": "b1-controller-02",
+      "engine": "b1-r8",
+      "release": "full-answer-b1-20261117-r8",
+      "route": "request_throttling",
+      "status": {
+        "status": "completed"
+      },
+      "requested": 200,
+      "recorded": 200,
+      "completed": 200,
+      "correct": 0,
+      "unparsed": 200,
+      "length_stops": 200,
+      "released": 200,
+      "final_answers": 0,
+      "reasoning_only": 200,
+      "cached_tokens": 0,
+      "first_final_text_p50_seconds": null,
+      "output_tokens": 51200,
+      "seconds": 52.388501813984476,
+      "output_tokens_per_second": 977.3136895915733,
+      "ttft_p50_seconds": 20.830684076994658,
+      "ttft_p95_seconds": 46.12469962099567,
+      "latency_p50_seconds": 29.898480014002416,
+      "latency_p95_seconds": 51.89615792396944
+    }
+  ],
+  "engine_runtime": [
+    {
+      "group": "b0-direct-02",
+      "release": "original018-cann8.5.1",
+      "vllm": "0.18.0",
+      "vllm_ascend": "0.18.0",
+      "tp": 2,
+      "max_num_seqs": 24,
+      "model_startup_seconds": 670.6357645988464
+    },
+    {
+      "group": "b0-controller-02",
+      "release": "original018-cann8.5.1",
+      "vllm": "0.18.0",
+      "vllm_ascend": "0.18.0",
+      "tp": 2,
+      "max_num_seqs": 24,
+      "model_startup_seconds": 676.6638836860657
+    },
+    {
+      "group": "b1-direct-02",
+      "release": "full-answer-b1-20261117-r8",
+      "vllm": "0.28.1.post1.dev143+gf18cf803c",
+      "vllm_ascend": "0.25.1rc2.dev125+hust.20260903.4.g74f0c0a27",
+      "tp": 2,
+      "max_num_seqs": 36,
+      "model_startup_seconds": 1353.315346956253
+    },
+    {
+      "group": "b1-controller-02",
+      "release": "full-answer-b1-20261117-r8",
+      "vllm": "0.28.1.post1.dev143+gf18cf803c",
+      "vllm_ascend": "0.25.1rc2.dev125+hust.20260903.4.g74f0c0a27",
+      "tp": 2,
+      "max_num_seqs": 36,
+      "model_startup_seconds": 1349.319545507431
+    }
+  ],
+  "path_verification": [
+    {
+      "group": "b0-direct-02",
+      "model": [
+        "qwen3.5-35b"
+      ],
+      "route": "direct",
+      "completed_cases": 200,
+      "model_http_200": 200,
+      "controller_events": {},
+      "released": 0,
+      "passed": true
+    },
+    {
+      "group": "b0-controller-02",
+      "model": [
+        "qwen3.5-35b"
+      ],
+      "route": "request_throttling",
+      "completed_cases": 200,
+      "model_http_200": 200,
+      "controller_events": {
+        "request_received": 200,
+        "admission_start": 200,
+        "admission_end": 200,
+        "response_headers_send": 200,
+        "backend_body_received": 200,
+        "response_body_send": 200,
+        "request_finished": 200
+      },
+      "released": 200,
+      "passed": true
+    },
+    {
+      "group": "b1-direct-02",
+      "model": [
+        "qwen3.5-35b"
+      ],
+      "route": "direct",
+      "completed_cases": 200,
+      "model_http_200": 200,
+      "controller_events": {},
+      "released": 0,
+      "passed": true
+    },
+    {
+      "group": "b1-controller-02",
+      "model": [
+        "qwen3.5-35b"
+      ],
+      "route": "request_throttling",
+      "completed_cases": 200,
+      "model_http_200": 200,
+      "controller_events": {
+        "request_received": 200,
+        "admission_start": 200,
+        "admission_end": 200,
+        "response_headers_send": 200,
+        "backend_body_received": 200,
+        "response_body_send": 200,
+        "request_finished": 200
+      },
+      "released": 200,
+      "passed": true
+    }
+  ],
+  "first_case_8192": [
+    {
+      "group": "b1-direct-03",
+      "case": "mmlu-pro-02804",
+      "cap": 8192,
+      "status": "ok",
+      "finish_reason": "stop",
+      "completion_tokens": 2108,
+      "final_characters": 1779,
+      "reasoning_characters": 7287,
+      "extracted_answer": "B",
+      "gold": "B",
+      "correct": true,
+      "has_final": true,
+      "elapsed_s": 18.101221432036255,
+      "response_sha256": "3ec05363095e338e0f61e8bcd088ba87d4c114a606ae8148c74f65c36a567267"
+    },
+    {
+      "group": "b1-controller-03",
+      "case": "mmlu-pro-02804",
+      "cap": 8192,
+      "status": "ok",
+      "finish_reason": "stop",
+      "completion_tokens": 2108,
+      "final_characters": 1779,
+      "reasoning_characters": 7287,
+      "extracted_answer": "B",
+      "gold": "B",
+      "correct": true,
+      "has_final": true,
+      "elapsed_s": 18.05752344999928,
+      "response_sha256": "fd2ab204b1d8077ba1ddf0719ecf64560b857bce77650b0106a5dde8f9b0edbb"
+    }
+  ],
+  "first_case_text_sha256": [
+    {
+      "group": "b1-direct-03",
+      "reasoning_sha256": "192a680708eb290efd738f3484360cbe859d3a78be12be7494db898054ffddc0",
+      "content_sha256": "4247819cf0790e18179b70c9e02cbb6b3bc3bed3940a81b29201ef411acc5b1c"
+    },
+    {
+      "group": "b1-controller-03",
+      "reasoning_sha256": "192a680708eb290efd738f3484360cbe859d3a78be12be7494db898054ffddc0",
+      "content_sha256": "4247819cf0790e18179b70c9e02cbb6b3bc3bed3940a81b29201ef411acc5b1c"
+    }
+  ],
+  "archive_sha256": {
+    "b0-direct-02": "2d0dbf0b363d71d7046704d199a53840086972457d5efd6d67f979833fabc7f0",
+    "b0-controller-02": "bf245b1ce30a5efd5e8436aa98fe237e0651a4553775e3cac0a7e5b937f55e9f",
+    "b1-direct-02": "af41c4e45c8fd8526d8452665db48fa0cb6c10b057a2f267670bac376d9e03a2",
+    "b1-controller-02": "53fafda8c490c6659f935e7b4427c21dd9068e7943fe2a4aab2f84a7bf3c540d",
+    "b1-direct-03": "eb70131231b78230b1aaa9ee7151fee41ad27d1e95996942fad8901ef5938589",
+    "b1-controller-03": "34f2f4d60d555dceb6608be89bb7386cbf25dae60e04833f5ac5b4dcecd81fb4"
+  },
+  "cleanup": {
+    "model_pod_gone": true,
+    "workspace_stopped": true,
+    "previous_volume_preserved": true
+  }
+}

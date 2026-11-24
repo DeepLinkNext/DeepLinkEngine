@@ -47,7 +47,7 @@ def verify_kit(*, legacy=False):
     if data["commit"] != lock["tools"]["upstream_commit"]:
         raise ValueError("One-click source revision differs")
     expected = set(data["files"]) | {"DEPLOYMENT-TOOLS.json"}
-    actual = {str(p.relative_to(source_kit)) for p in source_kit.rglob("*")
+    actual = {p.relative_to(source_kit).as_posix() for p in source_kit.rglob("*")
               if (p.is_file() or p.is_symlink()) and "__pycache__" not in p.parts}
     if actual != expected:
         raise ValueError("One-click source inventory differs")

@@ -26,6 +26,8 @@ python examples/chat.py "你好，请介绍一下自己"
 
 ## 测试与报告
 
+单组实验用 `--engine` 选择 B0/B1，用 `--controllers kv-control,instance-scaling` 选择 RIDE 控制器；省略即运行引擎基线。见 [单组实验命令与站点配置](benchmark/unified-commands.md)。
+
 将[示例配置](benchmark/run-all.example.json)另存为仓库根目录的 `evaluation.json`，填好后运行下面的命令。
 
 ```sh
