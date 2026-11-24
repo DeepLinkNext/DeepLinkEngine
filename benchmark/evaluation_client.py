@@ -1167,6 +1167,71 @@ def automatic_b0_bridge(result):
 
 
 
+def revised_microflow_partition_bridge(result):
+    """Use the reviewed four-size equivalence contract for revised r10."""
+    context = "scripts/context_baseline_reuse.py"
+
+    def context_inventory():
+        sources = {n: sha(raw) for n, raw in result.items() if n.startswith("scripts/")
+                   and "/" not in n[8:] and n != context}
+        return sha(json.dumps(sources, sort_keys=True, separators=(",", ":")).encode())
+
+    original_inventory = context_inventory()
+    key = "scripts/original_audit.py"
+    text = result[key].decode()
+    text = once(text, 'def audit_activation(files, prefix="retrieval-b1-r1/", expected_requests=7):',
+        "def partition_tokens_for_release(deployment, installed):\n"
+        "    if deployment.get('release') != " + repr(R10_3072_REFERENCE_RELEASE) + ":\n"
+        "        return None\n"
+        "    if installed.get(" + repr(R10_3072_MICROFLOW) + ") != " + repr(R10_3072_MICROFLOW_SHA256) + ":\n"
+        "        raise ValueError('Revised r10 Microflow partition source differs')\n"
+        "    return {1024, 2048, 3072, 4096}\n\n\n"
+        'def audit_activation(files, prefix="retrieval-b1-r1/", expected_requests=7, expected_partition_tokens=None):')
+    text = once(text, '''        if {r["tokens"] for r in equivalence} != {1024, 2048, 4096} or any(
+            r.get("exact") != [True] * 5 or r.get("rank") != rank for r in equivalence
+        ):''', '''        expected = {1024, 2048, 4096} if expected_partition_tokens is None else expected_partition_tokens
+        if expected_partition_tokens is not None and (
+            len(equivalence) != len(expected)
+            or any(type(r.get("tokens")) is not int or type(r.get("rank")) is not int
+                   or not isinstance(r.get("exact"), list)
+                   or any(flag is not True for flag in r["exact"]) for r in equivalence)
+        ):
+            raise ValueError("Revised Microflow partition evidence must be unique and exact")
+        if {r["tokens"] for r in equivalence} != expected or any(
+            r.get("exact") != [True] * 5 or r.get("rank") != rank for r in equivalence
+        ):''')
+    result[key] = text.encode()
+
+    key = "scripts/qualification.py"
+    text = result[key].decode()
+    text = once(text, "from original_audit import audit_activation, reconstruct",
+                "from original_audit import audit_activation, partition_tokens_for_release, reconstruct")
+    text = once(text, "        expected_requests=len(rows)\n",
+                '        expected_partition_tokens=partition_tokens_for_release(read("deployment.json"), read("installed-files.json")),\n'
+                "        expected_requests=len(rows)\n")
+    result[key] = text.encode()
+
+    key = "scripts/report_execution.py"
+    text = result[key].decode()
+    text = once(text, '        joint_activation = audit_activation(\n            activation_files,\n',
+                "        from original_audit import partition_tokens_for_release\n"
+                "        joint_activation = audit_activation(\n"
+                "            activation_files,\n"
+                "            expected_partition_tokens=partition_tokens_for_release(\n"
+                '                json.loads((root / "deployment.json").read_bytes()),\n'
+                '                json.loads((root / "installed-files.json").read_bytes())),\n')
+    result[key] = text.encode()
+    if context in result:
+        # Reports and qualification do not change B0 execution. Preserve the
+        # original historical allowlist and bind this exact derived inventory.
+        text = result[context].decode()
+        text = once(text, "CURRENT_SOURCES = " + repr(original_inventory),
+                    "CURRENT_SOURCES = " + repr(context_inventory()))
+        result[context] = text.encode()
+    for key in ("scripts/original_audit.py", "scripts/qualification.py", "scripts/report_execution.py"):
+        compile(result[key], key, "exec")
+
+
 def bridge(client, provider):
     """Keep assessment and reference protocols; import producer model admission."""
     result = dict(client)
@@ -1245,6 +1310,8 @@ def bridge(client, provider):
     r10_reference_source_bridge(result)
     from engine.sdk_dependency_probe import client_bridge
     client_bridge(result)
+    if reviewed_r10_3072_provider(result):
+        revised_microflow_partition_bridge(result)
     return result
 
 
