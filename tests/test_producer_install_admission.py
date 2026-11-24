@@ -25,6 +25,7 @@ ORIGINAL = ROOT/'tests/fixtures/r8_producer_cli.py'
 
 class Producer(unittest.TestCase):
     fixture = ORIGINAL
+    archive_profile = None
     profile = 'r8'
     version = '2026.11.17.8.post2'
     release = 'full-answer-b1-20261117-r8'
@@ -131,9 +132,10 @@ def verify_installed_sources(root):
             'mods/microflow/hust_prefill_microflow/school028/host-contract.json':
                 json.dumps({'versions':{'fixture':'2' if wrong_metadata else '1'}}).encode()}
         artifacts = {}
-        tools_profile = 'r4' if self.profile == 'r8' else self.profile
+        sdk_profile = self.archive_profile or self.profile
+        tools_profile = 'r4' if self.profile == 'r8' else sdk_profile
         tools_name = f'tools-{tools_profile}.tar.gz'
-        for name, files, prefix in [('sdk-'+self.profile+'.tar.gz', sdk, ''), (tools_name, tools, 'vllm-hust-engine/')]:
+        for name, files, prefix in [('sdk-'+sdk_profile+'.tar.gz', sdk, ''), (tools_name, tools, 'vllm-hust-engine/')]:
             path = package/'payload'/name
             with tarfile.open(path, 'w:gz') as archive:
                 for member, raw in files.items():
@@ -216,6 +218,14 @@ class R10Producer(Producer):
     profile = 'r10'
     version = '2026.11.21.10'
     release = 'full-answer-b1-20261121-r10'
+
+
+class RevisedR10Producer(Producer):
+    fixture = ROOT/'tests/fixtures/r10_3072_producer_cli.py'
+    profile = 'r10-3072'
+    archive_profile = 'r10'
+    version = '2026.11.24.10'
+    release = 'full-answer-b1-20261124-r10'
 
 
 if __name__ == '__main__':
