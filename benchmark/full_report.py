@@ -671,12 +671,27 @@ def workload_source_table(sources):
 
 
 
-def measured_stack(directory, release):
+def measured_stack(directory, release, *, selection=None):
+    from benchmark import evaluation_client
+
     matches = []
     for path in sorted(directory.glob('active-stack-*.json')):
-        stack = json.loads(path.read_bytes())
+        raw = path.read_bytes()
+        stack = json.loads(raw)
         if stack.get('release') == release:
-            matches.append((path, stack))
+            matches.append((raw, stack))
+    if (not matches and selection
+            and release == selection.get('release') == evaluation_client.R10_3072_REFERENCE_RELEASE):
+        client = selection.get('client')
+        catalog = evaluation_client.R10_3072_STACK
+        if client and not (directory / Path(catalog).name).exists():
+            manifest = evaluation_client.verify(client)
+            if manifest.get('release') == release and catalog not in manifest['files']:
+                root = Path(client['path'])
+                files = {name: (root / name).read_bytes() for name in manifest['files']}
+                evaluation_client.r10_3072_report_catalog(files, selection['frozen'])
+                raw = files[catalog]
+                return raw, json.loads(raw)
     if len(matches) != 1:
         raise ValueError('Expected exactly one MOD catalog for the measured release: ' + release)
     return matches[0]
@@ -685,8 +700,7 @@ def measured_stack(directory, release):
 def collect(root, actual_cost=None):
     from engine.release_selection import bind
     saved = Path(root) / 'engine-selection.json'
-    if saved.is_file():
-        bind(saved)
+    selection = bind(saved) if saved.is_file() else None
     """Re-audit sealed originals; generated summaries alone never authorize a pass."""
     root=Path(root).resolve()
     from engine.runtime_storage import restore_missing
@@ -720,7 +734,8 @@ def collect(root, actual_cost=None):
     if stored!=context:
         raise ValueError('Context summary differs from independently re-audited originals')
     apply_v2_context_tails(context, arms)
-    stack_path, stack = measured_stack(kit_path() / 'mods', fixed['plan']['engine_release'])
+    stack_raw, stack = measured_stack(kit_path() / 'mods', fixed['plan']['engine_release'],
+                                      selection=selection)
     if 'enabled_mods' not in stack:
         registry=json.loads((kit_path()/'mods/registry.json').read_text())
         rows=registry['entries']
@@ -760,7 +775,7 @@ def collect(root, actual_cost=None):
                 execution_complete=fixed['receipt'].get('selected_execution_complete') is True and context['execution_complete'],
                 engine_release=fixed['plan']['engine_release'],
                 frozen_mods=[{k:m[k] for k in ('id','name','version')} for m in stack['enabled_mods']],
-                mod_catalog_sha256=hashlib.sha256(stack_path.read_bytes()).hexdigest(),
+                mod_catalog_sha256=hashlib.sha256(stack_raw).hexdigest(),
                 targets=targets(fixed,context,audits,actual_cost,refused_reference=refused_reference),workloads=workload_pairs(fixed),
                 workload_sources=workload_sources(fixed, context, arms['B1']),
                 **({'execution_devices': {

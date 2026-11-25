@@ -9,7 +9,7 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path[:0] = [str(ROOT), str(ROOT / 'benchmark/one-click-kit/scripts')]
-from benchmark import full_report as report
+from benchmark import evaluation_client, full_report as report
 
 
 def fixture(tmp_path):
@@ -231,8 +231,51 @@ def test_plot_only_failure_admits_sealed_context_but_other_failures_do_not(tmp_p
 def test_mod_catalog_is_selected_by_recorded_release_not_filename(tmp_path):
     file = tmp_path / 'active-stack-other-profile-name.json'
     release = 'full-answer-stage-renamed-profile'
-    file.write_text(json.dumps(dict(release=release, enabled_mods=[])))
-    assert report.measured_stack(tmp_path, release)[0] == file
+    stack = dict(release=release, enabled_mods=[])
+    file.write_text(json.dumps(stack))
+    assert report.measured_stack(tmp_path, release) == (file.read_bytes(), stack)
     (tmp_path / 'active-stack-duplicate.json').write_bytes(file.read_bytes())
     with pytest.raises(ValueError, match='exactly one MOD catalog'):
         report.measured_stack(tmp_path, release)
+
+
+def test_report_rebuilds_catalog_for_a_sealed_r10_client(tmp_path, monkeypatch):
+    release = evaluation_client.R10_3072_REFERENCE_RELEASE
+    measurement = dict(scope='Qwen3.5 BF16 TP2',
+                       installed_files_canonical_sha256=evaluation_client.R10_3072_RUNTIME_SHA256)
+    overlay = json.dumps(dict(release=release, measurement=measurement,
+                              base_manifest_sha256=evaluation_client.R10_REFERENCE_OVERLAY_SHA256)).encode()
+    microflow = b'reviewed fixture'
+    monkeypatch.setattr(evaluation_client, 'R10_3072_OVERLAY_SHA256', evaluation_client.sha(overlay))
+    monkeypatch.setattr(evaluation_client, 'R10_3072_MICROFLOW_SHA256', evaluation_client.sha(microflow))
+    mods = ['microflow', 'intern-s2']
+    parent = dict(schema='active-stack-test', release=evaluation_client.R10_REFERENCE_RELEASE, excluded=[],
+                  enabled_mods=[dict(id=name, manifest=f'mods/{name}.json') for name in mods])
+    files = {evaluation_client.R10_3072_OVERLAY: overlay,
+             'overlays/b1-r10-3072/' + evaluation_client.R10_3072_MICROFLOW: microflow,
+             'mods/active-stack-r10-stable.json': json.dumps(parent).encode(),
+             **{f'mods/{name}.json': b'{}' for name in mods}}
+    for name, raw in files.items():
+        path = tmp_path / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(raw)
+    sealed = evaluation_client.inventory(tmp_path)
+    manifest = json.dumps(dict(release=release, files=sealed)).encode()
+    (tmp_path / 'CLIENT-MANIFEST.json').write_bytes(manifest)
+    frozen = dict(release=release, version='2026.11.24.10', included_mods=mods,
+                  runtime_geometry=dict(mixed_capture_tokens=3072),
+                  measured_runtime=measurement, publication_scope=measurement['scope'])
+    selection = dict(release=release, frozen=frozen, client=dict(
+        path=str(tmp_path), release=release, manifest_sha256=evaluation_client.sha(manifest)))
+
+    expected = dict(files)
+    evaluation_client.r10_3072_report_catalog(expected, frozen)
+    raw, stack = report.measured_stack(tmp_path / 'mods', release, selection=selection)
+    assert raw == expected[evaluation_client.R10_3072_STACK]
+    assert [mod['id'] for mod in stack['enabled_mods']] == ['microflow']
+    assert evaluation_client.inventory(tmp_path) == sealed
+    assert (tmp_path / 'CLIENT-MANIFEST.json').read_bytes() == manifest
+
+    (tmp_path / evaluation_client.R10_3072_OVERLAY).write_bytes(b'changed')
+    with pytest.raises(ValueError, match='evaluation client source inventory changed'):
+        report.measured_stack(tmp_path / 'mods', release, selection=selection)
