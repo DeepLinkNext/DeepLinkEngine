@@ -1,6 +1,6 @@
 """Build binary milestone/final decisions from independently audited run summaries."""
 import argparse
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal, InvalidOperation
 from fractions import Fraction
 import hashlib
@@ -84,6 +84,36 @@ HAZARD=re.compile(r'No space left on device|Disk quota exceeded|out of memory|Ou
 API_LOG = re.compile(r'^\(APIServer pid=(\d+)\) (?:INFO|ERROR) (\d\d-\d\d \d\d:\d\d:\d\d) ')
 
 
+def api_log_epoch(value, reference, offset_minutes):
+    zone = timezone(timedelta(minutes=offset_minutes))
+    year = datetime.fromtimestamp(reference, zone).year
+    return datetime.strptime(f'{year}-{value}', '%Y-%m-%d %H:%M:%S').replace(tzinfo=zone).timestamp()
+
+
+def shutdown_clock_matches(triggers, traceback, first, measured_end, receipt):
+    stopped = receipt['ended']
+    measured_start, ready = receipt.get('started'), receipt.get('measurement_ready')
+    # Old logs can use a host-local clock. Require the owned API's first log
+    # and its shutdown pair to fit independent sealed wall-clock bounds.
+    has_startup_anchor = (type(measured_start) in (int, float) and type(ready) in (int, float)
+                          and measured_start <= ready <= measured_end
+                          and 0 < stopped - measured_end < 15 * 60)
+    offsets = range(-12 * 60, 14 * 60 + 1, 15) if has_startup_anchor else (0,)
+    matches = 0
+    for offset in offsets:
+        try:
+            trace_time = api_log_epoch(traceback, measured_end, offset)
+            if not measured_end <= trace_time <= stopped:
+                continue
+            if offset and not measured_start <= api_log_epoch(first, measured_start, offset) <= ready:
+                continue
+            matches += sum(measured_end <= api_log_epoch(trigger, measured_end, offset) <= trace_time
+                           for trigger in triggers)
+        except ValueError:
+            continue
+    return matches == 1
+
+
 def recorded_shutdown_traces(root, cleanup, lines):
     """Recognize the owned API drain traceback after the last measured window."""
     execution = root / 'service/acceptance/execution.json'
@@ -97,7 +127,6 @@ def recorded_shutdown_traces(root, cleanup, lines):
             or receipt.get('completed') is not True or receipt.get('quiescent') is not True):
         return set()
     end = phases[-1]['end']['wall']
-    year = datetime.fromtimestamp(end, timezone.utc).year
     terminated = {str(action['pid']) for action in cleanup.get('actions', []) if action.get('signal') == 15}
     process_path = root / 'service-process.json'
     if receipt.get('role') == 'B1' and process_path.is_file():
@@ -106,21 +135,19 @@ def recorded_shutdown_traces(root, cleanup, lines):
             if (action.get('signal') == 15 and action['pid'] == process['pid']
                     and action.get('start_ticks') == process['start_ticks']):
                 terminated.update(str(child['pid']) for child in action.get('managed_children', []))
-    triggers, notices = set(), set()
+    first_logs, triggers, notices = {}, {}, set()
 
     for index, line in enumerate(lines):
         event = API_LOG.match(line)
         if not event or event[1] not in terminated:
             continue
-        if 'shutdown triggered' not in line and 'Traceback (most recent call last)' not in line:
-            continue
-        timestamp = datetime.strptime(f'{year}-{event[2]}', '%Y-%m-%d %H:%M:%S').replace(tzinfo=timezone.utc)
-        if not end <= timestamp.timestamp() <= receipt['ended']:
-            continue
-        pid = event[1]
+        pid, stamp = event.groups()
+        first_logs.setdefault(pid, stamp)
         if '[shutdown] API server: shutdown triggered' in line:
-            triggers.add(pid)
-        elif index and pid in triggers and 'AsyncLLM output_handler failed.' in lines[index-1]:
+            triggers.setdefault(pid, []).append(stamp)
+        elif (index and pid in triggers and 'Traceback (most recent call last)' in line
+              and 'AsyncLLM output_handler failed.' in lines[index-1]
+              and shutdown_clock_matches(triggers[pid], stamp, first_logs[pid], end, receipt)):
             prefix = f'(APIServer pid={pid}) '
             following = [item for item in lines[index+1:index+16] if item.startswith(prefix)]
             if (lines[index-1].startswith(prefix)

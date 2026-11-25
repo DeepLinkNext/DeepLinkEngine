@@ -588,7 +588,7 @@ def run(data, *, prepare_protocol_only=False, prepare_official_protocol_only=Fal
         supplement += b0_flag
         if data.get("allow_device_change"):
             supplement += ["--allow-device-change"]
-        stage("run-context-tenant", supplement, env=discovery_env)
+        stage("run-context-tenant", supplement, env=dict(discovery_env, TZ="UTC"))
         activity("verify-evidence")
         campaign, reports, hashes = completed_evidence(out)
         reference_target = qualified_reference(campaign)
