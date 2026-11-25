@@ -32,7 +32,7 @@
   "c24_cost_reduction_percent": "65.84811977932538136252373447",
   "c24_b1_ai_core_mean_percent": 88.02360010109903,
   "source": {
-    "url": "https://github.com/vLLM-HUST/vllm-hust-benchmark/blob/419369ef9f474252b39653b3ca9760165d36f702/reports/r10-35b-paired-full-20261125/summary.json",
+    "url": "https://github.com/vLLM-HUST/vllm-hust-benchmark/blob/70330385dfff597e1f7b83af6768d0356fd51f42/reports/r10-35b-paired-full-20261125/summary.json",
     "sha256": "8c4a69ec10b6f4031f191d5de9e873d5e9ae4795f9aaf3ffef08e1c3b764e693",
     "bytes": 84788
   },
