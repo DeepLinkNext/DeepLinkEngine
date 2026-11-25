@@ -743,6 +743,45 @@ def reviewed_r10_3072_provider(files):
     return True
 
 
+R10_3072_STACK = 'mods/active-stack-r10-3072.json'
+
+
+def r10_3072_report_catalog(files, frozen):
+    """Build the full-report MOD catalog from the reviewed producer metadata."""
+    geometry = frozen['runtime_geometry']
+    overlay = json.loads(files[R10_3072_OVERLAY])
+    if (not reviewed_r10_3072_provider(files)
+            or frozen['release'] != R10_3072_REFERENCE_RELEASE
+            or geometry['mixed_capture_tokens'] != 3072
+            or frozen['measured_runtime'] != overlay['measurement']
+            or frozen['publication_scope'] != overlay['measurement']['scope']):
+        raise ValueError('Revised R10 assessment profile requires source review')
+
+    parent_path = 'mods/active-stack-r10-stable.json'
+    parent = json.loads(files[parent_path])
+    shipped = frozen['included_mods']
+    parent_mods = {row['id']: row for row in parent['enabled_mods']}
+    if (parent['release'] != R10_REFERENCE_RELEASE or len(shipped) != len(parent_mods)
+            or set(shipped) != set(parent_mods)
+            or any(row['manifest'] not in files for row in parent_mods.values())):
+        raise ValueError('Revised R10 MOD catalog differs from the reviewed base and package')
+    enabled = [dict(parent_mods[name], enabled_in='r10-3072', badge='r10-3072 included')
+               for name in shipped if name != 'intern-s2']
+    for row in enabled:
+        if row['id'] == 'microflow':
+            row['reviewed_runtime_sha256'] = R10_3072_MICROFLOW_SHA256
+    stack = dict(
+        schema=parent['schema'], release=frozen['release'], version=frozen['version'],
+        status='derived-from-reviewed-producer', default_engine='r10-3072',
+        model_adapters=['qwen35'], runtime_geometry=geometry, runtime_overlay=R10_3072_OVERLAY,
+        runtime_overlay_sha256=R10_3072_OVERLAY_SHA256, measured_runtime=frozen['measured_runtime'],
+        parent_catalog=parent_path, parent_catalog_sha256=sha(files[parent_path]),
+        package_included_mods=shipped, enabled_mods=enabled,
+        excluded=[*parent['excluded'], 'intern-s2'], publication_scope=frozen['publication_scope'],
+    )
+    files[R10_3072_STACK] = (json.dumps(stack, sort_keys=True, indent=2) + '\n').encode()
+
+
 def r10_reference_source_bridge(result):
     """Bind the stable native-RMS variant to the reviewed arithmetic proofs."""
     if not stable_r10_provider(result):
@@ -1336,6 +1375,8 @@ def prepare(cache, archive, frozen):
     if frozen.get('public_api', {}).get('schema') != 'vllm-hust-engine-public-api/v1':
         raise ValueError('Selected release requires a new inference adapter protocol')
     files = bridge(client, provider)
+    if frozen['release'] == R10_3072_REFERENCE_RELEASE:
+        r10_3072_report_catalog(files, frozen)
     manifest = dict(schema='deeplinkengine-selected-assessment-client/v1',
                     release=frozen['release'], producer_manifest_sha256=frozen['tools_manifest_sha256'],
                     assessment_manifest_sha256=lock['tools']['manifest_sha256'],
@@ -1343,6 +1384,8 @@ def prepare(cache, archive, frozen):
                     bridges={n: dict(before_sha256=sha(client[n]) if n in client else None, after_sha256=sha(b))
                              for n, b in files.items() if client.get(n) != b})
     manifest['cpu_metadata_admission'] = json.loads(files['adapters/sdk-metadata-admission.json'])
+    if R10_3072_STACK in files:
+        manifest['r10_3072_report_catalog'] = R10_3072_STACK
     raw_manifest = (json.dumps(manifest, sort_keys=True, indent=2) + '\n').encode()
     key = sha(raw_manifest)
     parent = Path(cache) / 'assessment-clients'
@@ -1368,11 +1411,18 @@ def prepare(cache, archive, frozen):
     return record
 
 
-def metadata_client(cache, *, release, record=None):
-    """Upgrade only CPU metadata admission; retain the old client and selection."""
+def metadata_client(cache, *, release, record=None, selection=None):
+    """Bind current admission to a sealed selection without changing its original files."""
     from engine.sdk_dependency_probe import client_bridge
+    prior = verify(record) if record else {}
+    if (release == R10_3072_REFERENCE_RELEASE
+            and prior.get('r10_3072_report_catalog') != R10_3072_STACK):
+        if selection is None or selection['release'] != release:
+            raise ValueError('Revised R10 client update requires the selected producer archive')
+        from engine.environment_setup import cached_wheel
+        archive = cached_wheel(selection['sdist'], [], Path(cache) / 'wheels')
+        return prepare(cache, archive, selection['frozen'])
     if record:
-        prior = verify(record)
         if prior.get('cpu_metadata_admission'):
             return record
         root = Path(record['path'])
