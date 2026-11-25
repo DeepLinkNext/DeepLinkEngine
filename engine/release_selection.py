@@ -284,7 +284,8 @@ def ensure_metadata_client(cache):
     if record is None:
         return None
     from benchmark.evaluation_client import metadata_client
-    client = metadata_client(cache, release=record['release'], record=selected_client())
+    client = metadata_client(cache, release=record['release'], record=selected_client(),
+                             selection=record)
     from benchmark.host_memory_client import prepare as host_memory_client
     client = host_memory_client(cache, record, client)
     from benchmark.launch_path_client import prepare as validate_launch_paths
