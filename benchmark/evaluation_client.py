@@ -1271,6 +1271,46 @@ def revised_microflow_partition_bridge(result):
         compile(result[key], key, "exec")
 
 
+REFERENCE_OPERATOR_HELPER = "third-party-test-kit/reference_operator_devices.py"
+REFERENCE_OPERATOR_SOURCES = {
+    "qualify_gdn_reference.py": (
+        "2e2dd34b3d8e5bfc37e832ab99bf650c0c3bde4e58815517e24858a936ad1b74", "output", '"'),
+    "qualify_gdn_prefill_reference.py": (
+        "330a025d34482f8fa36551d0a49aae7b7f98c47248c172ac6014e692fb9dbc09", "out", '"'),
+    "qualify_route_capture.py": (
+        "d5e35eba3cb27b99dc5100b54780fcd411e98cff52e8e9c2b1322c96fe01e424", "out", "'"),
+}
+
+
+def reference_operator_devices_bridge(result):
+    """Use mask-local ordinals while retaining the verified host mapping."""
+    bundle = "third-party-test-kit/"
+    helper = Path(__file__).with_name(Path(REFERENCE_OPERATOR_HELPER).name)
+    result[REFERENCE_OPERATOR_HELPER] = helper.read_bytes()
+    for name, (expected, output, quote) in REFERENCE_OPERATOR_SOURCES.items():
+        key = bundle + name
+        if sha(result[key]) != expected:
+            raise ValueError("Reference operator device binding requires source review: " + name)
+        text = result[key].decode()
+        original_mapping = f'        write({output} / "mapping.json", guard.verify_mapping(plan["logical_devices"]))'
+        text = once(text, original_mapping,
+                    '        mapping = guard.verify_mapping(plan["logical_devices"])\n'
+                    f'        write({output} / "mapping.json", mapping)')
+        original_loop = (
+            f'        for device, card in zip(map(int, plan["logical_devices"].split({quote},{quote})), '
+            'plan["physical_cards"], strict=True):'
+        )
+        text = once(text, original_loop,
+                    '        from reference_operator_devices import device_bindings\n\n'
+                    '        bindings = device_bindings(mapping, os.environ.get("ASCEND_RT_VISIBLE_DEVICES"),\n'
+                    '                                   torch.npu.device_count())\n'
+                    '        for device, logical, card in bindings:')
+        text = once(text, "logical_device=device,",
+                    "logical_device=logical, torch_device_ordinal=device,")
+        compile(text, key, "exec")
+        result[key] = text.encode()
+
+
 def bridge(client, provider):
     """Keep assessment and reference protocols; import producer model admission."""
     result = dict(client)
@@ -1351,6 +1391,7 @@ def bridge(client, provider):
     client_bridge(result)
     if reviewed_r10_3072_provider(result):
         revised_microflow_partition_bridge(result)
+        reference_operator_devices_bridge(result)
     return result
 
 
@@ -1416,7 +1457,9 @@ def metadata_client(cache, *, release, record=None, selection=None):
     from engine.sdk_dependency_probe import client_bridge
     prior = verify(record) if record else {}
     if (release == R10_3072_REFERENCE_RELEASE
-            and prior.get('r10_3072_report_catalog') != R10_3072_STACK):
+            and (prior.get('r10_3072_report_catalog') != R10_3072_STACK
+                 or prior.get('files', {}).get(REFERENCE_OPERATOR_HELPER) != sha(
+                     Path(__file__).with_name(Path(REFERENCE_OPERATOR_HELPER).name).read_bytes()))):
         if selection is None or selection['release'] != release:
             raise ValueError('Revised R10 client update requires the selected producer archive')
         from engine.environment_setup import cached_wheel
