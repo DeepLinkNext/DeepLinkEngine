@@ -507,6 +507,32 @@ class WorkflowTests(unittest.TestCase):
         audit.assert_called_once_with(source/'fixed-five', 'continuous-B0')
         self.assertNotIn('compute_resume_source', result)
 
+    def test_reference_continuation_accepts_all_reused_fixed_stages(self):
+        source = self.root / 'reference-only'
+        reference = source / 'fixed-five/compute-reference'
+        reference.mkdir(parents=True)
+        configuration = dict(self.data, out=str(source))
+        (source / 'results.json').write_text(json.dumps(
+            dict(configuration=configuration, engine_selection={'version': '1'})))
+        (reference / 'automatic-result.json').write_text(json.dumps({'stages': [
+            {'id': 'current-native-synchronized-timing', 'status': 'completed'}]}))
+        campaign = {'status': 'completed', 'selected_execution_complete': True,
+                    'stages': [{'name': 'mmlu-pair', 'status': 'reused_verified'}]}
+        bindings = {'compute-reference/checksums.json': 'fixture-reference-seal',
+                    'compute-reference/native-current-timing/checksums.json': 'fixture-native-seal'}
+        plan = {'engine_release': 'B1'}
+        with patch('benchmark.recovery_source.stopped'), \
+             patch('reuse_campaign.source', return_value=(None, plan, campaign, bindings)), \
+             patch('reuse_campaign.audit_stage') as audit, \
+             patch('engine.release_selection.active', return_value={'release': 'B1', 'version': '1'}):
+            result = workflow.completed_run_source(self.data, source)
+            audit.assert_not_called()
+            self.assertEqual(result['completed_stages'], [])
+            self.assertEqual(result['compute_resume_source'], str(reference))
+            bindings.pop('compute-reference/native-current-timing/checksums.json')
+            with self.assertRaisesRegex(ValueError, 'No compatible completed stages'):
+                workflow.completed_run_source(self.data, source)
+
     def test_continuation_verifies_historical_interpreter_against_source_cache(self):
         source = self.root/'previous'
         install = source/'installation'
