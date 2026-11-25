@@ -26,7 +26,7 @@ python examples/chat.py "你好，请介绍一下自己"
 
 ## 测试与报告
 
-[R10 修订版 V5 4.3 配对结果](engine/versions/2026.11.24.10.md)覆盖 4K、16K、32K 闭环 C8 与 4K 四租户 C24。16K 尾延迟和 32K 五窗稳定性通过原门槛。
+2026.11.24.10 的 Qwen3.5-35B-A3B BF16 TP2 已完成固定 original018 同卡全量验收。4.1、4.2、4.4 两档达标。4.3 的 16K 里程碑达标，32K 五个窗口的 TTFT P95 波动为 2.031 倍，超过 2 倍结题门槛。4K–8K、16K–24K、32K–48K 专项使用 Terminal-Bench 2.1 公开历史离线回放，并发 8。 [本轮完整结果](https://github.com/vLLM-HUST/vllm-hust-benchmark/blob/419369ef9f474252b39653b3ca9760165d36f702/reports/r10-35b-paired-full-20261125/README.md) · [复算来源与哈希](evidence/r10-35b-full-acceptance-20261125.json) · [发行版及早期 V5 记录](engine/versions/2026.11.24.10.md)
 
 单组实验用 `--engine` 选择 B0/B1，用 `--controllers kv-control,instance-scaling` 选择 RIDE 控制器；省略即运行引擎基线。见 [单组实验命令与站点配置](benchmark/unified-commands.md)。
 

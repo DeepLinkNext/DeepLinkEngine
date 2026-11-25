@@ -1,0 +1,41 @@
+{
+  "schema": "deeplinkengine-r10-current-full-acceptance/v1",
+  "engine_release": "full-answer-b1-20261124-r10",
+  "pypi_version": "2026.11.24.10",
+  "model": "Qwen3.5-35B-A3B",
+  "baseline": "original018-cann8.5.1",
+  "report_date": "2026-11-25",
+  "execution_complete": true,
+  "targets": {
+    "4.1": {
+      "milestone": true,
+      "final": true
+    },
+    "4.2": {
+      "milestone": true,
+      "final": true
+    },
+    "4.3": {
+      "milestone": true,
+      "final": false
+    },
+    "4.4": {
+      "milestone": true,
+      "final": true
+    }
+  },
+  "compute_efficiency_lower_percent": {
+    "B0": "23.17617325140801995238250282151862399347",
+    "B1": "96.10799894845700291737166757805252550353"
+  },
+  "context_b1_32k_p95_ttft_window_ratio": "2.030629272480961729432858926",
+  "c24_cost_reduction_percent": "65.84811977932538136252373447",
+  "c24_b1_ai_core_mean_percent": 88.02360010109903,
+  "source": {
+    "url": "https://github.com/vLLM-HUST/vllm-hust-benchmark/blob/419369ef9f474252b39653b3ca9760165d36f702/reports/r10-35b-paired-full-20261125/summary.json",
+    "sha256": "8c4a69ec10b6f4031f191d5de9e873d5e9ae4795f9aaf3ffef08e1c3b764e693",
+    "bytes": 84788
+  },
+  "corrected_report_sha256": "001f4e28b6007feefe7c4657b19dd7738b5c78f190cc74ad4f406db030873551",
+  "original_run_receipt_sha256": "847d1cd7b06aac885165f2b44f187dea98c51fba344b11aaa0b326e659992a5d"
+}
