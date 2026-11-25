@@ -314,8 +314,6 @@ def completed_run_source(data, source):
         # B1 services and their judge stages cannot follow a changed target.
         names = [name for name in names
                  if name == "mmlu-pair" or (name.endswith("-B0") and "-judge-" not in name)]
-    if not names:
-        raise ValueError("No compatible completed stages are available to reuse")
     for name in names:
         if changed_target and name == "mmlu-pair":
             continue
@@ -333,6 +331,8 @@ def completed_run_source(data, source):
         if any(row.get("id") == "current-native-synchronized-timing"
                and row.get("status") == "completed" for row in measured["stages"]):
             result["compute_resume_source"] = str(reference)
+    if not names and "compute_resume_source" not in result:
+        raise ValueError("No compatible completed stages are available to reuse")
     if device_change:
         result["physical_device_change"] = dict(original=before["physical_devices"], current=after["physical_devices"])
     if interruption:
