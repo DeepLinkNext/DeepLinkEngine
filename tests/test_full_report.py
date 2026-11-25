@@ -168,6 +168,47 @@ class Decisions(unittest.TestCase):
             self.assertFalse(report.audit_context(root)['clean'])
 
 
+    def test_local_log_clock_needs_one_owned_post_measurement_shutdown(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            folder = root / 'service/acceptance'
+            folder.mkdir(parents=True)
+            end = report.datetime(2026, 11, 21, 15, 8, 28, 500000, tzinfo=report.timezone.utc).timestamp()
+            (folder/'execution.json').write_text(json.dumps(
+                dict(status='completed', phases=[dict(end=dict(wall=end))])))
+            receipt = dict(completed=True, quiescent=True, started=end-120,
+                           measurement_ready=end-60, ended=end+20)
+            (root/'receipt.json').write_text(json.dumps(receipt))
+            (root/'memory-initial.json').write_text('{"events":{"oom":0}}')
+            (root/'memory-samples.jsonl').write_text('{"events":{"oom":0}}\n')
+            (root/'cleanup.json').write_text(json.dumps(
+                dict(quiescent=True, actions=[dict(pid=37, signal=15)])))
+            service_log = root / 'service.log'
+            startup = '(APIServer pid=37) INFO 11-21 23:07:05 [server.py:1] Startup'
+            trigger = ('(APIServer pid=37) INFO 11-21 23:08:29 [launcher.py:129] '
+                       '[shutdown] API server: shutdown triggered')
+            handler = [
+                '(APIServer pid=37) ERROR 11-21 23:08:30 [async_llm.py:829] AsyncLLM output_handler failed.',
+                '(APIServer pid=37) ERROR 11-21 23:08:30 [async_llm.py:829] Traceback (most recent call last):',
+                '(APIServer pid=37) ERROR 11-21 23:08:30 [async_llm.py:829] vllm.v1.engine.exceptions.EngineDeadError: E',
+                '(APIServer pid=37) INFO 11-21 23:08:30 [launcher.py:154] [shutdown] API server: engine client stopped',
+            ]
+            for body, clean in (
+                ([startup, trigger, *handler], True),
+                ([startup, trigger, trigger, *handler], False),
+                ([startup, trigger.replace('23:08:29', '23:08:28'),
+                  *(line.replace('23:08:30', '23:08:28') for line in handler)], False),
+                ([startup.replace('pid=37', 'pid=85'), trigger, *handler], False),
+                ([startup, trigger, *handler, 'OSError: [Errno 28] No space left on device'], False),
+            ):
+                with self.subTest(body=body):
+                    service_log.write_text('\n'.join(body))
+                    parsed = report.audit_context(root)
+                    self.assertEqual(parsed['clean'], clean)
+            self.assertFalse(report.shutdown_clock_matches(
+                ['23:08:29'], '23:08:30', '23:07:05', end, dict(receipt, ended=end+1800)))
+
+
 class CostTests(unittest.TestCase):
     def setUp(self):
         self.fixed = fixed()
