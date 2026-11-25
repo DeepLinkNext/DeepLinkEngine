@@ -42,7 +42,7 @@ class WorkflowTests(unittest.TestCase):
         self.calls.append(args)
         if "install" in args or (len(args)>1 and Path(args[1]).name=="runtime_storage.py"):
             self.write("installation/installation.json", {"release": "full-answer-b1-20261117-r8"})
-        if "run" in args:
+        if "run" in args or "--performance-only" in args:
             self.write("fixed-five/frozen-execution-plan.json", dict(
                 optimized_deployment="/actual/b1", baseline_deployment="/actual/b0", logical_devices="0,1",
                 datasets=["mmlu", "hle", "frontier", "swe", "terminal"]))
@@ -105,6 +105,109 @@ class WorkflowTests(unittest.TestCase):
         self.assertEqual(len(receipt["evidence_sha256"]), 11)
         names = [row["name"] for row in receipt["stages"]]
         self.assertLess(names.index("verify-installed-tools"), names.index("run-context-tenant"))
+
+    def seal_fixed_campaign(self, campaign):
+        self.write("fixed-five/campaign.json", campaign)
+        path = self.root / "result/fixed-five/campaign.json"
+        digest = hashlib.sha256(path.read_bytes()).hexdigest()
+        self.write("fixed-five/campaign-checksums.json", {"campaign.json": digest})
+        return digest
+
+    def reported_reference_gap(self):
+        path = self.root / "result/full-report/summary.json"
+        report = json.loads(path.read_bytes())
+        for goal in report["targets"]["4.1"].values():
+            goal.update(met=False, status="未达成目标", evidence_status="missing_measurement")
+        self.write("full-report/summary.json", report)
+
+    def test_sealed_reference_admission_refusal_measures_only_after_refusal(self):
+        from benchmark.b0_run_policy import DISCOVERY_ROOT
+        from benchmark.reference_admission import ADMISSION_FAILURE, archived_refusal
+
+        self.data.pop("rerun_b0")
+        reason = "原参考权重哈希与本轮不符"
+        refused = dict(status="blocked", blockers=[reason])
+        children = []
+        original_seal = []
+
+        def execute(args, **kwargs):
+            if "run" in args or "--performance-only" in args:
+                children.append((args, kwargs["env"]))
+            if "run" in args:
+                original_seal.append(self.seal_fixed_campaign(dict(
+                    status="failed", failure="RuntimeError: " + ADMISSION_FAILURE,
+                    selected_execution_complete=False, stages=[], compute_reference=refused)))
+                return types.SimpleNamespace(returncode=2)
+            result = self.execute(args, **kwargs)
+            if "--performance-only" in args:
+                path = self.root / "result/fixed-five/campaign.json"
+                campaign = json.loads(path.read_bytes())
+                campaign["compute_reference"] = {"status": "not_requested"}
+                self.seal_fixed_campaign(campaign)
+            if len(args) > 2 and "report_python" in args[2]:
+                self.reported_reference_gap()
+            return result
+
+        code, receipt = self.invoke(execute)
+        self.assertEqual(code, 0, receipt)
+        self.assertEqual(len(children), 2)
+        first, fallback = children
+        self.assertNotIn("--performance-only", first[0])
+        self.assertIn("--performance-only", fallback[0])
+        self.assertNotIn("--rerun-b0", fallback[0])
+        self.assertNotIn("--no-rerun-b0", fallback[0])
+        self.assertEqual(first[1][DISCOVERY_ROOT], fallback[1][DISCOVERY_ROOT])
+        self.assertEqual(receipt["reference_preflight"]["sha256"], original_seal[0])
+        self.assertEqual(archived_refusal(self.root / "result", receipt["reference_preflight"]), refused)
+        self.assertEqual(receipt["compute_reference_target"]["reason"], reason)
+        self.assertEqual(receipt["reports"]["overview"], "full-report/report.html")
+        self.assertTrue(receipt["targets"]["4.3"]["milestone"]["met"])
+        self.assertTrue(receipt["targets"]["4.4"]["milestone"]["met"])
+        self.assertFalse(receipt["automated_acceptance_complete"])
+
+    def test_reference_failure_after_fixed_five_keeps_sealed_results_without_retry(self):
+        reason = "第二步 KV 长度与必要算量审计不符"
+
+        def execute(args, **kwargs):
+            result = self.execute(args, **kwargs)
+            if "run" in args:
+                self.seal_fixed_campaign(dict(status="completed", selected_execution_complete=True,
+                    compute_reference=dict(status="blocked", blockers=[reason])))
+                (self.root / "result/fixed-five-report/report.html").unlink()
+                return types.SimpleNamespace(returncode=2)
+            if len(args) > 2 and "report_python" in args[2]:
+                self.reported_reference_gap()
+            return result
+
+        code, receipt = self.invoke(execute)
+        self.assertEqual(code, 0, receipt)
+        self.assertNotIn("reference_preflight", receipt)
+        stages = [stage for stage in receipt["stages"] if stage["name"] == "run-fixed-five"]
+        self.assertEqual(len(stages), 1)
+        self.assertEqual(stages[0]["status"], "sealed_with_reference_failure")
+        self.assertEqual(receipt["reports"]["fixed_five"], "full-report/report.html#fixed-five-results")
+        self.assertEqual(receipt["compute_reference_target"]["reason"], reason)
+        self.assertEqual(receipt["reports"]["overview"], "full-report/report.html")
+        self.assertFalse(receipt["automated_acceptance_complete"])
+
+    def test_changed_reference_failure_seal_cannot_authorize_a_second_attempt(self):
+        from benchmark.reference_admission import ADMISSION_FAILURE
+
+        def execute(args, **kwargs):
+            if "run" in args:
+                campaign = dict(status="failed", failure=ADMISSION_FAILURE,
+                                selected_execution_complete=False, stages=[],
+                                compute_reference=dict(status="blocked", blockers=["original"]))
+                self.seal_fixed_campaign(campaign)
+                campaign["compute_reference"]["blockers"] = ["changed"]
+                self.write("fixed-five/campaign.json", campaign)
+                return types.SimpleNamespace(returncode=2)
+            return self.execute(args, **kwargs)
+
+        code, receipt = self.invoke(execute)
+        self.assertEqual(code, 1, receipt)
+        self.assertIn("differs from its seal", receipt["error"])
+        self.assertFalse(any("--performance-only" in args or "--context-tenant-only" in args for args in self.calls))
 
     def test_plot_only_failure_continues_to_cpu_report_without_inference_retry(self):
         def execute(args, **kwargs):

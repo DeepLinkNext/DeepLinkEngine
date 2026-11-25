@@ -93,6 +93,19 @@ class Decisions(unittest.TestCase):
         d=report.targets(self.fixed,self.context,self.audit)['4.1']
         self.assertFalse(d['milestone']['met']);self.assertIsNone(d['efficiency_lower_percent'])
 
+    def test_reference_admission_reason_survives_performance_only_campaign(self):
+        self.fixed['current_compute_reference'] = dict(status='not_requested')
+        refused = dict(status='blocked', blockers=['原参考双卡身份不符', '未找到同工况完整参考'])
+        decisions = report.targets(self.fixed, self.context, self.audit, refused_reference=refused)
+        for level in ('milestone', 'final'):
+            goal = decisions['4.1'][level]
+            self.assertFalse(goal['met'])
+            self.assertEqual(goal['evidence_status'], 'missing_measurement')
+            self.assertIn('原参考双卡身份不符；未找到同工况完整参考', goal['reason'])
+        self.assertIsNone(decisions['4.1']['efficiency_lower_percent'])
+        self.assertTrue(decisions['4.2']['milestone']['met'])
+        self.assertTrue(decisions['4.3']['milestone']['met'])
+
     def test_published_certificate_bound_is_not_rounded_up_to_ninety(self):
         path=report.ROOT/'benchmark/reports/r8-compute-reference-20261119-v1/summary.json'
         self.fixed['current_compute_reference']=json.loads(path.read_text())['compute_reference']

@@ -64,7 +64,15 @@ class FullSuiteEntryTests(unittest.TestCase):
                 report.write_text("fixture only")
             if len(args)>2 and "report_python" in args[2]:
                 folder=out/"full-report";folder.mkdir()
-                (folder/"summary.json").write_text(json.dumps(dict(schema="deeplinkengine-full-acceptance-report/v1",execution_complete=True,targets={k:dict(milestone=dict(met=True,status="达成目标",evidence_status="verified"),final=dict(met=False,status="未达成目标",evidence_status="verified")) for k in ("4.1","4.2","4.3","4.4")})))
+                targets = {key: dict(
+                    milestone=dict(met=True, status="达成目标", evidence_status="verified"),
+                    final=dict(met=False, status="未达成目标", evidence_status="verified"),
+                ) for key in ("4.1", "4.2", "4.3", "4.4")}
+                if retired:
+                    for goal in targets["4.1"].values():
+                        goal.update(met=False, status="未达成目标", evidence_status="missing_measurement")
+                (folder/"summary.json").write_text(json.dumps(dict(
+                    schema="deeplinkengine-full-acceptance-report/v1", execution_complete=True, targets=targets)))
                 for name in ("report.html","fixed-five.svg","fixed-five.png"):(folder/name).write_text("fixture only")
             return SimpleNamespace(returncode=0)
 
@@ -90,13 +98,16 @@ class FullSuiteEntryTests(unittest.TestCase):
             self.assertTrue(receipt["compute_reference_target"]["accepted"])
             self.assertEqual(receipt["automated_acceptance_complete"], True)
 
-    def test_zero_exit_with_retired_partial_reference_still_fails_before_supplement(self):
+    def test_zero_exit_with_retired_partial_reference_completes_other_targets(self):
         with tempfile.TemporaryDirectory() as temp:
-            status, receipt, commands, _ = self.execute(temp, retired=True)
-            self.assertEqual(status, 1)
-            self.assertEqual(receipt["status"], "failed")
-            self.assertIn("reference remains incomplete", receipt["error"])
-            self.assertFalse(any("--context-tenant-only" in args for args in commands))
+            status, receipt, commands, out = self.execute(temp, retired=True)
+            self.assertEqual(status, 0)
+            self.assertEqual(receipt["status"], "completed")
+            self.assertFalse(receipt["automated_acceptance_complete"])
+            self.assertIn("原完整认证标记", receipt["compute_reference_target"]["reason"])
+            self.assertEqual(receipt["targets"]["4.1"]["final"]["evidence_status"], "missing_measurement")
+            self.assertTrue(any("--context-tenant-only" in args for args in commands))
+            self.assertTrue((out / receipt["reports"]["overview"]).is_file())
 
     def test_failed_child_stops_pipeline_and_retains_returncode(self):
         with tempfile.TemporaryDirectory() as temp:

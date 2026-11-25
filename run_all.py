@@ -208,7 +208,7 @@ def preflight():
         raise ValueError("Prepare the required environment before installation: " + "; ".join(differences))
 
 
-def completed_evidence(out):
+def completed_evidence(out, *, reference_complete):
     fixed_five_plan(out)
     campaign = json.loads((out / "fixed-five/campaign.json").read_text())
     execution = json.loads((out / "context-tenant/execution.json").read_text())
@@ -221,6 +221,9 @@ def completed_evidence(out):
         or phases != ["4096-formal", "16384-formal", "32768-formal", "multi-tenant-formal"]):
         raise ValueError("Campaign evidence does not show all planned tests completed")
     reports = {"fixed_five": "fixed-five-report/report.html"}
+    if not reference_complete and not (out / reports['fixed_five']).is_file():
+        # The full report still independently verifies the fixed-five originals.
+        reports.pop('fixed_five')
     if report_failed:
         context_sources(out / "context-tenant", pair)
     else:
@@ -245,16 +248,6 @@ def fixed_five_plan(out):
     return plan
 
 
-def qualified_reference(campaign):
-    sys.path.insert(0, str(kit_path() / "scripts"))
-    from compute_reference import target
-    reference = campaign.get("compute_reference", {})
-    if reference.get("certificate_kind") != "qualified_full_reference_denominator_reuse/v1":
-        raise ValueError("Current-workload effective-compute reference remains incomplete")
-    result = target(reference)
-    if result["status"] != "current_workload_measured":
-        raise ValueError("Current-workload effective-compute reference remains incomplete")
-    return result
 
 
 def full_report_command(out, destination=None, actual_cost=None):
@@ -431,7 +424,7 @@ def run(data, *, prepare_protocol_only=False, prepare_official_protocol_only=Fal
             save()
             announce(name)
 
-    def stage(name, args, *, mode="execute", env=None):
+    def stage(name, args, *, mode="execute", env=None, defer_failure=False):
         receipt.pop("activity", None)
         record = {"name": name, "status": "running", "command": args, "mode": mode}
         if progress is not None:
@@ -466,8 +459,9 @@ def run(data, *, prepare_protocol_only=False, prepare_official_protocol_only=Fal
                     record.update(status="sealed_with_report_failure", report_failure=execution.get("failure"))
                     save()
                     return
-        if result.returncode:
+        if result.returncode and not (defer_failure and result.returncode == 2):
             raise RuntimeError(name + " failed; original results retained, no automatic retry")
+        return record
 
     try:
         activity("verify-assessment-kit")
@@ -565,11 +559,51 @@ def run(data, *, prepare_protocol_only=False, prepare_official_protocol_only=Fal
             discovery_env[DISCOVERY_SOURCE] = reused_run["root"]
         else:
             discovery_env.pop(DISCOVERY_SOURCE, None)
-        stage("run-fixed-five", run_command, env=discovery_env)
+        from benchmark.reference_admission import MEASURED, assess, rejected_before_model, sealed_campaign
+        fixed_stage = stage("run-fixed-five", run_command, env=discovery_env, defer_failure=True)
+        if fixed_stage["returncode"] == 2:
+            if not (out / "fixed-five/campaign.json").is_file():
+                raise RuntimeError("run-fixed-five failed without a sealed campaign; original results retained")
+            campaign, digest = sealed_campaign(out / "fixed-five")
+            attempted_reference = campaign.get("compute_reference")
+            if rejected_before_model(campaign):
+                # The verified rejection happened before any formal child model or requests.
+                # Retain the original receipt in this run and use the same B0 policy.
+                archive = out / "attempts" / ("reference-admission-" + uuid.uuid4().hex)
+                archive.mkdir(parents=True)
+                for name in ("fixed-five", "fixed-five-logs", "fixed-five-report"):
+                    if os.path.lexists(out / name):
+                        (out / name).rename(archive / name)
+                receipt["reference_preflight"] = {
+                    "path": (archive / "fixed-five/campaign.json").relative_to(out).as_posix(),
+                    "sha256": digest,
+                }
+                fixed_stage.update(status="reference_admission_blocked")
+                save()
+                if run_command[2] == "run":
+                    from benchmark.one_click import configuration_arguments
+                    run_command = [*evaluate, *configuration_arguments("run", run_command[3:])]
+                stage("run-fixed-five", [*run_command, "--performance-only"], env=discovery_env,
+                      mode="measure_after_reference_admission_failure")
+            elif (campaign.get("status") == "completed"
+                  and campaign.get("selected_execution_complete") is True
+                  and attempted_reference
+                  and assess(attempted_reference)["status"] != MEASURED):
+                fixed_stage.update(status="sealed_with_reference_failure")
+                save()
+            else:
+                raise RuntimeError("run-fixed-five failed outside the reference stage; original results retained")
+        else:
+            attempted_reference = None
+
         activity("verify-reference")
         current = json.loads((out / "fixed-five/campaign.json").read_text())
-        reference_target = qualified_reference(current)
-        receipt.update(compute_reference=current["compute_reference"], compute_reference_target=reference_target)
+        reference = attempted_reference if receipt.get("reference_preflight") else current.get("compute_reference")
+        reference_target = assess(reference)
+        reference_complete = reference_target["status"] == MEASURED
+        receipt.update(compute_reference=reference, compute_reference_target=reference_target)
+        if not reference_complete:
+            print("REFERENCE_UNAVAILABLE", reference_target["reason"], flush=True)
         save()
         plan = fixed_five_plan(out)
         # The frozen package evaluate() injects --engine-profile, which this
@@ -590,8 +624,9 @@ def run(data, *, prepare_protocol_only=False, prepare_official_protocol_only=Fal
             supplement += ["--allow-device-change"]
         stage("run-context-tenant", supplement, env=dict(discovery_env, TZ="UTC"))
         activity("verify-evidence")
-        campaign, reports, hashes = completed_evidence(out)
-        reference_target = qualified_reference(campaign)
+        campaign, reports, hashes = completed_evidence(out, reference_complete=reference_complete)
+        if preflight := receipt.get("reference_preflight"):
+            hashes[preflight["path"]] = preflight["sha256"]
         stage("render-full-report", full_report_command(out, actual_cost=actual_cost))
         activity("verify-report")
         summary_path = out / "full-report/summary.json"
@@ -603,7 +638,14 @@ def run(data, *, prepare_protocol_only=False, prepare_official_protocol_only=Fal
                    or goal[level].get("status") != ("达成目标" if goal[level]["met"] else "未达成目标")
                    for goal in overview.get("targets", {}).values() for level in ("milestone", "final"))):
             raise ValueError("The full report does not contain four completed acceptance decisions")
+        if not reference_complete and any(
+            overview["targets"]["4.1"][level]["met"]
+            or overview["targets"]["4.1"][level].get("evidence_status") != "missing_measurement"
+            for level in ("milestone", "final")
+        ):
+            raise ValueError("The report must identify the missing 4.1 measurement")
         reports["overview"] = "full-report/report.html"
+        reports.setdefault("fixed_five", "full-report/report.html#fixed-five-results")
         if "context_tenant" not in reports:
             reports["context_tenant"] = "full-report/report.html#context-results"
         for name in ("full-report/summary.json", "full-report/report.html", "full-report/fixed-five.svg", "full-report/fixed-five.png"):
@@ -618,10 +660,9 @@ def run(data, *, prepare_protocol_only=False, prepare_official_protocol_only=Fal
         cost = overview["targets"]["4.4"]
         cost_complete = all(cost[level].get("evidence_status") in {"published_rental", "verified"}
                             for level in ("milestone", "final"))
-        receipt.update(status="completed", automated_acceptance_complete=cost_complete,
+        receipt.update(status="completed", automated_acceptance_complete=reference_complete and cost_complete,
                        targets=overview["targets"], reports=reports, evidence_sha256=hashes,
-                       fixed_five_execution=campaign["selected_execution_complete"],
-                       compute_reference=campaign["compute_reference"], compute_reference_target=reference_target)
+                       fixed_five_execution=campaign["selected_execution_complete"])
         return 0
     except (Exception, KeyboardInterrupt) as error:
         receipt.update(status="failed", error=str(error) or type(error).__name__)
