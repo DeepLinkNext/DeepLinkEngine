@@ -477,17 +477,27 @@ def cost_decisions(fixed, pairs, context, audits, actual_cost):
 
 
 
-def targets(fixed, context, audits, actual_cost=None):
-    fixed=fixed or {}; ref=fixed.get('current_compute_reference') or {}
-    value=None
+def targets(fixed, context, audits, actual_cost=None, *, refused_reference=None):
+    from benchmark.reference_admission import MEASURED, assess
+
+    fixed = fixed or {}
+    ref = refused_reference or fixed.get('current_compute_reference') or {}
     sys.path.insert(0, str(kit_path()/'scripts'))
-    from compute_reference import target as reference_target
-    valid = ref.get('certificate_kind')=='qualified_full_reference_denominator_reuse/v1' and reference_target(ref).get('status')=='current_workload_measured'
-    if valid:
-        value=number(ref.get('arms',{}).get('B1',{}).get('efficiency_lower_percent'))
-    compute=dict(evidence_reason=reference_target(ref)['reason'],milestone=decision(value is not None and value>=50,'本轮必要算量、同步计时和已核验同工况参考分母，效率下界≥50%。'),
-                 final=decision(value is not None and value>=90,'同一效率下界≥90%。'),
-                 efficiency_lower_percent=str(value) if value is not None else None, certificate_kind=ref.get('certificate_kind'))
+    result = assess(ref)
+    value = (number(ref.get('arms', {}).get('B1', {}).get('efficiency_lower_percent'))
+             if result['status'] == MEASURED else None)
+    missing = '有效算力证据未通过核验：' + result['reason'] if value is None else None
+    compute = dict(
+        evidence_reason=result['reason'],
+        milestone=decision(value is not None and value>=50,
+                           missing or '本轮必要算量、同步计时和已核验同工况参考分母，效率下界≥50%。'),
+        final=decision(value is not None and value>=90, missing or '同一效率下界≥90%。'),
+        efficiency_lower_percent=str(value) if value is not None else None,
+        certificate_kind=ref.get('certificate_kind'),
+    )
+    if missing:
+        for level in ('milestone', 'final'):
+            compute[level]['evidence_status'] = 'missing_measurement'
     pairs=workload_pairs(fixed)
     milestone, details = performance(pairs, *PERFORMANCE_LIMITS['milestone'])
     final, final_details = performance(pairs, *PERFORMANCE_LIMITS['final'])
@@ -737,12 +747,21 @@ def collect(root, actual_cost=None):
     for path in sources:
         name=str(path.resolve().relative_to(root)) if path.resolve().is_relative_to(root) else str(path)
         with path.open('rb') as stream:hashes[name]=hashlib.file_digest(stream,'sha256').hexdigest()
+    refused_reference = None
+    receipt = root / 'results.json'
+    if receipt.is_file():
+        preflight = json.loads(receipt.read_bytes()).get('reference_preflight')
+        if preflight:
+            from benchmark.reference_admission import archived_refusal
+
+            refused_reference = archived_refusal(root, preflight)
+            hashes[preflight['path']] = preflight['sha256']
     return dict(schema='deeplinkengine-full-acceptance-report/v1',run=str(root),
                 execution_complete=fixed['receipt'].get('selected_execution_complete') is True and context['execution_complete'],
                 engine_release=fixed['plan']['engine_release'],
                 frozen_mods=[{k:m[k] for k in ('id','name','version')} for m in stack['enabled_mods']],
                 mod_catalog_sha256=hashlib.sha256(stack_path.read_bytes()).hexdigest(),
-                targets=targets(fixed,context,audits,actual_cost),workloads=workload_pairs(fixed),
+                targets=targets(fixed,context,audits,actual_cost,refused_reference=refused_reference),workloads=workload_pairs(fixed),
                 workload_sources=workload_sources(fixed, context, arms['B1']),
                 **({'execution_devices': {
                     'fixed_five': fixed['execution_devices'],
@@ -835,10 +854,17 @@ def render(root, out, actual_cost=None):
     else:
         cost_section = '<details><summary>4.4 同费率估算（参考）</summary><pre>' + esc(
             json.dumps(cost['same_rate_estimate'], ensure_ascii=False, indent=2)) + '</pre></details>'
+    reference_goal = data['targets'].get('4.1', {})
+    reference_note = ''
+    if reference_goal.get('milestone', {}).get('evidence_status') == 'missing_measurement':
+        reference_note = '<p><strong>4.1 测量证据不完整。</strong> ' + esc(reference_goal['evidence_reason']) + '</p>'
+    fixed_report = '<a href="#fixed-five-results">固定五项配对结果</a>'
+    if (Path(root) / 'fixed-five-report/report.html').is_file():
+        fixed_report = '<a href="../fixed-five-report/report.html">五数据集与参考报告</a>'
     device_note = ''
     if data.get('execution_devices'):
         device_note = '<p>跨卡比较保留各自的物理设备。差值包含设备更换的影响。</p><details><summary>原始与当前设备映射</summary><pre>' + esc(json.dumps(data['execution_devices'], ensure_ascii=False, indent=2)) + '</pre></details>'
-    document='''<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>DeepLinkEngine B0/B1完整测试</title><style>body{font:16px system-ui;max-width:1100px;margin:40px auto;padding:0 20px;color:#17212b;background:#f8fafc}table{border-collapse:collapse;width:100%;background:white}th,td{padding:16px;border-bottom:1px solid #cbd5e1;text-align:left}.yes{color:#087443}.no{color:#b42318}details{background:white;padding:16px;margin:14px 0;border:1px solid #cbd5e1;border-radius:8px}summary{cursor:pointer}pre{white-space:pre-wrap;overflow-wrap:anywhere}img{width:100%;height:auto}a{color:#175cd3}</style><h1>DeepLinkEngine B0/B1 完整测试</h1><p>MMLU 200 · HLE 分层200 · Frontier 160 · SWE 64请求 · Terminal 48请求</p>'''+device_note+'''<table><tr><th>指标</th><th>里程碑</th><th>项目最终目标</th></tr>'''+rows+'''</table>'''+cost_section+input_sources+'''<details><summary>冻结引擎与 MOD 组合</summary><pre>'''+esc(json.dumps(dict(release=data.get('engine_release'),mods=data.get('frozen_mods',[])),ensure_ascii=False,indent=2))+'''</pre></details><h2>固定五项配对结果</h2><img src="fixed-five.svg" alt="五数据集B0/B1吞吐和时延"><p>'''+esc(data['scoring'])+'''</p>'''+details+context_details+template_link+'''<details><summary>有效算力参考计算公式</summary><p>C本轮下界=ΣF本轮下界/(2×ΣT本轮×10¹²)；C参考上界=ΣF原参考上界/(2×ΣT原参考下界×10¹²)；η下界=100×C本轮下界/C参考上界。</p><p>'''+esc(data['reference_method'])+'''</p></details><details><summary>原始报告、采样与复算记录</summary><p><a href="../fixed-five-report/report.html">五数据集与参考报告</a> · <a href="#context-results">长上下文与四租户复算明细</a> · <a href="summary.json">本页判定与原件哈希</a></p><pre>'''+esc(json.dumps(data['context_audit'],ensure_ascii=False,indent=2))+'''</pre></details></html>'''
+    document='''<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>DeepLinkEngine B0/B1完整测试</title><style>body{font:16px system-ui;max-width:1100px;margin:40px auto;padding:0 20px;color:#17212b;background:#f8fafc}table{border-collapse:collapse;width:100%;background:white}th,td{padding:16px;border-bottom:1px solid #cbd5e1;text-align:left}.yes{color:#087443}.no{color:#b42318}details{background:white;padding:16px;margin:14px 0;border:1px solid #cbd5e1;border-radius:8px}summary{cursor:pointer}pre{white-space:pre-wrap;overflow-wrap:anywhere}img{width:100%;height:auto}a{color:#175cd3}</style><h1>DeepLinkEngine B0/B1 完整测试</h1><p>MMLU 200 · HLE 分层200 · Frontier 160 · SWE 64请求 · Terminal 48请求</p>'''+device_note+'''<table><tr><th>指标</th><th>里程碑</th><th>项目最终目标</th></tr>'''+rows+'''</table>'''+reference_note+cost_section+input_sources+'''<details><summary>冻结引擎与 MOD 组合</summary><pre>'''+esc(json.dumps(dict(release=data.get('engine_release'),mods=data.get('frozen_mods',[])),ensure_ascii=False,indent=2))+'''</pre></details><h2 id="fixed-five-results">固定五项配对结果</h2><img src="fixed-five.svg" alt="五数据集B0/B1吞吐和时延"><p>'''+esc(data['scoring'])+'''</p>'''+details+context_details+template_link+'''<details><summary>有效算力参考计算公式</summary><p>C本轮下界=ΣF本轮下界/(2×ΣT本轮×10¹²)；C参考上界=ΣF原参考上界/(2×ΣT原参考下界×10¹²)；η下界=100×C本轮下界/C参考上界。</p><p>'''+esc(data['reference_method'])+'''</p></details><details><summary>原始报告、采样与复算记录</summary><p>'''+fixed_report+''' · <a href="#context-results">长上下文与四租户复算明细</a> · <a href="summary.json">本页判定与原件哈希</a></p><pre>'''+esc(json.dumps(data['context_audit'],ensure_ascii=False,indent=2))+'''</pre></details></html>'''
     (out/'report.html').write_text(document, encoding='utf-8')
     return data
 
