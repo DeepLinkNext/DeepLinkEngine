@@ -5,7 +5,7 @@ import json
 
 
 def source_domain_for_release(protocol, release):
-    for key in ('stable_r10_source_domain', 'r10_3072_source_domain'):
+    for key in ('stable_r10_source_domain', 'r10_3072_source_domain', 'r11_source_domain'):
         domain = protocol.get(key)
         if domain is not None and domain['release'] == release:
             return domain
@@ -24,6 +24,17 @@ def admitted_sources(protocol, role, deployment, read_native):
     if compatibility is None:
         return sources
 
+    guard = compatibility.get('guarded_runtime_files')
+    if guard:
+        pins = json.loads((deployment / 'provenance/installed-files.json').read_bytes())
+        canonical = json.dumps(pins, sort_keys=True, separators=(',', ':')).encode()
+        if hashlib.sha256(canonical).hexdigest() != compatibility['installed_files_canonical_sha256']:
+            raise ValueError('R11 frozen runtime file map differs')
+        for name, digest in guard.items():
+            path = deployment / name
+            if (not path.resolve().is_relative_to(deployment.resolve())
+                    or hashlib.sha256(path.read_bytes()).hexdigest() != digest or pins.get(name) != digest):
+                raise ValueError('R11 measured scheduler or host contract differs: ' + name)
     plan = read_native('service/native-plan.json')
     overlay_path = deployment / 'provenance/runtime-overlay.json'
     overlay_pin = compatibility['overlay_sha256']

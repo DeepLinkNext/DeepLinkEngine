@@ -704,6 +704,8 @@ def native_reference_releases(files):
         names += ('full-answer-b1-20261121-r10',)
     if reviewed_r10_3072_provider(files):
         names += (R10_3072_REFERENCE_RELEASE,)
+    if reviewed_r11_provider(files):
+        names += (R11_REFERENCE_RELEASE,)
     return json.dumps(names).replace('[', '(').replace(']', ')')
 
 
@@ -782,6 +784,54 @@ def r10_3072_report_catalog(files, frozen):
     files[R10_3072_STACK] = (json.dumps(stack, sort_keys=True, indent=2) + '\n').encode()
 
 
+
+R11_REFERENCE_RELEASE = 'full-answer-b1-20261126-r11'
+R11_OVERLAY = 'engines/b1-r11-overlay.json'
+R11_OVERLAY_SHA256 = 'bd31dbdbe3a740c8d9da49f80ea89403225a9c6157a001f78352be3e65401d2d'
+R11_RUNTIME_SHA256 = '882d24fd1232b3c39d9360b6212e720450743ac7b522b24fa14b8b29bb7d5682'
+R11_RUNTIME_DELTA = {'mods/betterscale/betterscale/models/qwen35/prefill_round_robin.py': '71d8b19cd1fc7b020065a2065a327a156735b5c312d9866edcfc12e45ea6345b', 'mods/microflow/hust_prefill_microflow/school028/host-contract.json': '668916cc8067f57f16a51be1941cc084079c649d678f67d62c052a1916fe7449'}
+R11_STACK = 'mods/active-stack-r11.json'
+
+
+def reviewed_r11_provider(files):
+    if R11_OVERLAY not in files:
+        return False
+    raw = files[R11_OVERLAY]
+    if not reviewed_r10_3072_provider(files) or sha(raw) != R11_OVERLAY_SHA256:
+        raise ValueError('R11 scheduler requires the reviewed overlay')
+    overlay = json.loads(raw)
+    if (overlay['release'] != R11_REFERENCE_RELEASE
+            or overlay['base_release'] != R10_3072_REFERENCE_RELEASE
+            or overlay['base_manifest_sha256'] != R10_3072_OVERLAY_SHA256
+            or overlay['measurement']['installed_files_canonical_sha256'] != R11_RUNTIME_SHA256
+            or {name: row['after_sha256'] for name, row in overlay['files'].items()} != R11_RUNTIME_DELTA):
+        raise ValueError('R11 overlay is outside the measured source domain')
+    for name, digest in R11_RUNTIME_DELTA.items():
+        if sha(files.get('overlays/b1-r11/' + name, b'')) != digest:
+            raise ValueError('R11 deployed scheduler source differs: ' + name)
+    return True
+
+
+def r11_report_catalog(files, frozen):
+    overlay = json.loads(files[R11_OVERLAY])
+    stack = json.loads(files[R11_STACK])
+    rows = {row['id']: row for row in stack['enabled_mods']}
+    if (not reviewed_r11_provider(files)
+            or frozen['release'] != stack['release'] or stack['release'] != R11_REFERENCE_RELEASE
+            or frozen['measured_runtime'] != overlay['measurement']
+            or frozen['runtime_geometry']['mixed_capture_tokens'] != 3072
+            or set(frozen['included_mods']) != set(rows)
+            or any(row['manifest'] not in files for row in rows.values())):
+        raise ValueError('R11 report catalog differs from the reviewed producer')
+    stack.update(version=frozen['version'], model_adapters=['qwen35'],
+                 runtime_geometry=frozen['runtime_geometry'], runtime_overlay=R11_OVERLAY,
+                 runtime_overlay_sha256=R11_OVERLAY_SHA256,
+                 measured_runtime=frozen['measured_runtime'],
+                 enabled_mods=[row for name, row in rows.items() if name != 'intern-s2'],
+                 compatibility_profiles=frozen['compatibility_profiles'])
+    files[R11_STACK] = (json.dumps(stack, sort_keys=True, indent=2) + '\n').encode()
+
+
 def r10_reference_source_bridge(result):
     """Bind the stable native-RMS variant to the reviewed arithmetic proofs."""
     if not stable_r10_provider(result):
@@ -797,6 +847,7 @@ def r10_reference_source_bridge(result):
             raise ValueError('Stable R10 reference implementation requires source review: ' + relative)
 
     revised = reviewed_r10_3072_provider(result)
+    r11 = reviewed_r11_provider(result)
     helper = 'reference_source_domains.py'
     result['third-party-test-kit/' + helper] = Path(__file__).with_name(helper).read_bytes()
     for script, proof, read_native, output_field in (
@@ -822,6 +873,14 @@ def r10_reference_source_bridge(result):
                 installed_files_canonical_sha256=R10_3072_RUNTIME_SHA256, sources=source_pins,
                 scope='3072-token capture adds a bitwise-qualified three-chunk partition. '
                       'The reviewed tensor arithmetic and fresh timing requirements are unchanged.')
+        if r11:
+            inherited = protocol['r10_3072_source_domain']
+            protocol['r11_source_domain'] = dict(
+                release=R11_REFERENCE_RELEASE, overlay_sha256=R11_OVERLAY_SHA256,
+                installed_files_canonical_sha256=R11_RUNTIME_SHA256,
+                sources=inherited['sources'], guarded_runtime_files=R11_RUNTIME_DELTA,
+                scope='The accepted scheduler and host contract preserve the reviewed tensor arithmetic. '
+                      'Native synchronized clocks and same-workload HTTP observation are still required.')
         result[protocol_path] = (json.dumps(protocol, indent=2) + '\n').encode()
 
         key = 'third-party-test-kit/' + script + '.py'
@@ -981,6 +1040,8 @@ def context_baseline_bridge(result):
         # R10 3072 changes only B1 capture, model adapter, geometry and overlay
         # source in this producer inventory. B0 input and clocks remain pinned.
         '4f45f7cd53fc93a14eb28b8b647093a13420285d192b07ff14ee664f6d608e74',
+        # R11 changes the producer B1 dispatch, capture geometry and release admission.
+        'faffcf39d286301a5ed48e5914adf9711700433b66c7c59f10d971b6f197bac4',
     }
     if digest(scripts(result)) not in reviewed_sources:
         raise ValueError('B0 context assessment-source compatibility requires review')
@@ -1220,7 +1281,7 @@ def revised_microflow_partition_bridge(result):
     text = result[key].decode()
     text = once(text, 'def audit_activation(files, prefix="retrieval-b1-r1/", expected_requests=7):',
         "def partition_tokens_for_release(deployment, installed):\n"
-        "    if deployment.get('release') != " + repr(R10_3072_REFERENCE_RELEASE) + ":\n"
+        "    if deployment.get('release') not in " + repr((R10_3072_REFERENCE_RELEASE, R11_REFERENCE_RELEASE)) + ":\n"
         "        return None\n"
         "    if installed.get(" + repr(R10_3072_MICROFLOW) + ") != " + repr(R10_3072_MICROFLOW_SHA256) + ":\n"
         "        raise ValueError('Revised r10 Microflow partition source differs')\n"
@@ -1418,6 +1479,8 @@ def prepare(cache, archive, frozen):
     files = bridge(client, provider)
     if frozen['release'] == R10_3072_REFERENCE_RELEASE:
         r10_3072_report_catalog(files, frozen)
+    if frozen['release'] == R11_REFERENCE_RELEASE:
+        r11_report_catalog(files, frozen)
     manifest = dict(schema='deeplinkengine-selected-assessment-client/v1',
                     release=frozen['release'], producer_manifest_sha256=frozen['tools_manifest_sha256'],
                     assessment_manifest_sha256=lock['tools']['manifest_sha256'],
