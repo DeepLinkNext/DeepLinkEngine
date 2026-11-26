@@ -1,0 +1,72 @@
+{
+  "schema": "deeplinkengine-r11-35b-full-acceptance/v1",
+  "acceptance_date": "2026-11-26",
+  "engine_source_commit": "aa4f87183ba4a4997fe796cc946413dd0e3ed8bb",
+  "evaluation_release": "full-answer-b1-20261126-r11-rc4-qwen35-steady-mixed",
+  "model": "Qwen3.5-35B-A3B",
+  "scheduler": "steady-mixed-1536",
+  "precision": "BF16",
+  "tensor_parallel_size": 2,
+  "accelerator": "Ascend 910B2",
+  "paired_original018_same_card_baseline": true,
+  "all_four_final_targets_met": true,
+  "fixed_workloads": {
+    "mmlu": {
+      "planned_per_arm": 200,
+      "complete": true
+    },
+    "hle": {
+      "planned_per_arm": 200,
+      "complete": true
+    },
+    "frontier": {
+      "planned_per_arm": 160,
+      "complete": true
+    },
+    "swe": {
+      "planned_per_arm": 64,
+      "complete": true
+    },
+    "terminal": {
+      "planned_per_arm": 48,
+      "complete": true
+    }
+  },
+  "targets": {
+    "4.1": {
+      "milestone": true,
+      "final": true
+    },
+    "4.2": {
+      "milestone": true,
+      "final": true
+    },
+    "4.3": {
+      "milestone": true,
+      "final": true
+    },
+    "4.4": {
+      "milestone": true,
+      "final": true
+    }
+  },
+  "32k_five_window_max_min": {
+    "throughput": "1.497981407740669146031790905",
+    "ttft_p95": "1.164193058149466708097147784",
+    "ttft_p99": "1.164193058149466708097147784",
+    "tpot_p95": "1.027364708569553897186332967",
+    "tpot_p99": "1.052309506648201458724826375"
+  },
+  "32k_tpot_original_limit": "1.25",
+  "efficiency_lower_bound_percent": "96.46749377314988273402314374520877980857",
+  "four_tenant_public_rental_unit_cost_reduction_percent": "65.87811113598009474134356696",
+  "formal_report_sha256": "c049fda0d98ae81caa8db1c2cf44116f7aaeac971b7a771493d882ae44791fa7",
+  "fixed_campaign_seal_sha256": "ed81c94346c3c9020874a0142ae1fc1bc39e3d8675ba40a10412336515aca81d",
+  "reference_continuation_evidence_sha256": "79a61a0b82770bf7fbb17fcb96071515392c8c5d66a46819257b6e6d89274808",
+  "candidate_context_arm_seal_sha256": "17686872020d75c4e13e4c520cd4621c4f745e74894305f49944cb5389bc7322",
+  "benchmark": {
+    "report": "https://github.com/vLLM-HUST/vllm-hust-benchmark/blob/6e24ce9d83382e17f6077a189a74eee8569ab97c/reports/r11-35b-steady-mixed-1536-full-20261126/README.md",
+    "summary": "https://github.com/vLLM-HUST/vllm-hust-benchmark/blob/6e24ce9d83382e17f6077a189a74eee8569ab97c/reports/r11-35b-steady-mixed-1536-full-20261126/summary.json",
+    "summary_sha256": "8cc79e4f1b2c6c2541ba09561de7f010711ec593f7cdc2afe5c544e4d76c0441"
+  }
+}
