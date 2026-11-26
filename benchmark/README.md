@@ -163,3 +163,38 @@ python run_all.py --config evaluation-next.json --reuse-completed-run /path/to/p
 同时指定当前的 `physical_devices` 和已封存的 `--reuse-completed-run`。
 该选项仅用于固定 B0 复用，原卡与当前卡都需为 Ascend 910B2，逻辑卡映射须一致。
 已完成阶段保留原设备与计时，新增阶段使用当前设备。报告标记跨卡比较及其实际设备。
+
+### Frozen multi-turn sessions on an existing RIDE pool
+
+Use the installed `vllm-hust-benchmark experiment` entry for both arms. Set
+`DEEPLINKENGINE_ROOT` to this checkout. In the site JSON set `requests` to
+the absolute path of the frozen sessions.csv and `session_client` to the
+argument list [absolute Python 3.11+ interpreter, absolute path to
+scripts/run_experiments/replay_sessions.py in the request-throttling-controller
+checkout]. Install that checkout and its benchmark prerequisites in the selected
+interpreter. The client revision must match the workload's replayer_sha256.
+
+Under engines.<name>.instances set host, physical_cards, endpoint (service origin)
+and lifecycle="existing" for each hot TP2 replica. These endpoints are probed for
+the workload model and remain running after both arms. Use the site's existing
+RIDE management endpoint and a controller spec with executor="ray" and
+client_protocol="program-release" for request-throttling-managed. The controller
+job is started and stopped by RIDE. Check actual Ray jobs and card assignments
+when qualifying a hardware result.
+
+Use the matching sessions.csv and experiment.json from the benchmark archive
+(reports/controller-35b-two-devbox-20261125). Run sequentially:
+
+```sh
+export DEEPLINKENGINE_ROOT="$PWD"
+vllm-hust-benchmark experiment --site site.json --config experiment.json \
+  --engine hot35b --replicas 2 --tp 2 --out results/direct
+vllm-hust-benchmark experiment --site site.json --config experiment.json \
+  --engine hot35b --replicas 2 --tp 2 --controllers request-throttling-managed \
+  --out results/controller
+```
+
+Use fresh output directories. Each arm records the validated workload copy,
+client arguments, engine readback, streamed round observations, actual token
+histories and status. Concurrency 0 preserves recorded open-loop program arrival
+times. Each arm gets a fresh cache namespace with a stable salt per program.
