@@ -1040,6 +1040,8 @@ def context_baseline_bridge(result):
         # R10 3072 changes only B1 capture, model adapter, geometry and overlay
         # source in this producer inventory. B0 input and clocks remain pinned.
         '4f45f7cd53fc93a14eb28b8b647093a13420285d192b07ff14ee664f6d608e74',
+        # R11 changes the producer B1 dispatch, capture geometry and release admission.
+        'faffcf39d286301a5ed48e5914adf9711700433b66c7c59f10d971b6f197bac4',
     }
     if digest(scripts(result)) not in reviewed_sources:
         raise ValueError('B0 context assessment-source compatibility requires review')
