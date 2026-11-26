@@ -23,6 +23,11 @@ def run(args):
         print(json.dumps(plan, indent=2))
         return 0
 
+    if config.get("workload_format") == "sessions.csv":
+        from benchmark import session_workload
+        folder = (args.out or Path(site["results"]) / str(uuid.uuid4())).resolve()
+        return session_workload.run(config, site, folder, plan, nodes, control)
+
     cases = load_cases(config, site)
     lock = one_click.verify_kit()
     # The MMLU profile records reasoning-only, length-capped streams separately from final answers.

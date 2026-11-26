@@ -82,7 +82,10 @@ def placements(site, spec, replicas, tp):
                 raise ValueError("Physical device assigned to multiple workers: " + str(identity))
             devices.add(identity)
         endpoint = node["endpoint"]
-        if endpoint in endpoints or not node.get("argv"):
+        lifecycle = node.get("lifecycle", "managed")
+        if lifecycle not in ("managed", "existing"):
+            raise ValueError("Unsupported engine lifecycle")
+        if endpoint in endpoints or (lifecycle == "managed" and not node.get("argv")):
             raise ValueError("Each engine requires a unique endpoint and foreground command")
         endpoints.add(endpoint)
     return nodes
@@ -93,5 +96,11 @@ def running_pool(nodes, folder, model):
         for index, node in enumerate(nodes):
             worker = folder if len(nodes) == 1 else folder / f"engine-{index + 1}"
             worker.mkdir(exist_ok=True)
+            if node.get("lifecycle") == "existing":
+                models = request(node["endpoint"].rstrip("/") + "/v1/models")
+                if model not in [item["id"] for item in models["data"]]:
+                    raise ValueError("Existing endpoint does not serve the workload model")
+                save(worker / "model-readiness.json", models)
+                continue
             stack.enter_context(serve(node, worker, node["physical_cards"], model))
         yield
