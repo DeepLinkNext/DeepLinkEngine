@@ -24,6 +24,8 @@ python examples/chat.py "你好，请介绍一下自己"
 
 [安装与服务配置](engine/README.md) · [R10 发行说明](https://pypi.org/project/vllm-hust-engine/2026.11.24.10/) · [R10 运行包](https://github.com/vLLM-HUST/vllm-hust-website/releases/tag/engine-wheels-r10-v1) · [引擎官网](https://vllm-hust.sage.org.ai/engine.html)
 
+R11 RC4 已提供三模型候选源码，35B 的 `steady-mixed-1536` 通过 4.3 专项。下载和验收范围见 [R11 候选记录](engine/versions/r11-rc4.md)。
+
 ## 测试与报告
 
 2026.11.24.10 的 Qwen3.5-35B-A3B BF16 TP2 已完成固定 original018 同卡全量验收。4.1、4.2、4.4 两档达标。4.3 的 16K 里程碑达标，32K 五个窗口的 TTFT P95 波动为 2.031 倍，超过 2 倍结题门槛。4K–8K、16K–24K、32K–48K 专项使用 Terminal-Bench 2.1 公开历史离线回放，并发 8。 [本轮完整结果](https://github.com/vLLM-HUST/vllm-hust-benchmark/blob/70330385dfff597e1f7b83af6768d0356fd51f42/reports/r10-35b-paired-full-20261125/README.md) · [复算来源与哈希](evidence/r10-35b-full-acceptance-20261125.json) · [发行版及早期 V5 记录](engine/versions/2026.11.24.10.md)

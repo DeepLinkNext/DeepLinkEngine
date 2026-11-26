@@ -1,0 +1,70 @@
+{
+  "schema": "vllm-hust-r11-rc4-public-candidate-evidence/v1",
+  "status": "source_candidate_pending_full_acceptance",
+  "engine_source_commit": "aa4f87183ba4a4997fe796cc946413dd0e3ed8bb",
+  "project_candidate": {
+    "model": "Qwen3.5-35B-A3B",
+    "schedule": "steady-mixed-1536",
+    "model_profiles": [
+      "Qwen3.5-35B-A3B",
+      "Qwen3.5-9B",
+      "Intern-S2-Preview"
+    ]
+  },
+  "scope": {
+    "precision": "BF16",
+    "tensor_parallel": 2,
+    "context_concurrency": 8,
+    "formal_32k_submission_windows": 5,
+    "submission_window_seconds": 60,
+    "complete_full_4_1_to_4_4": false
+  },
+  "4.3": {
+    "milestone_passed": true,
+    "final_passed": true,
+    "16k_to_4k": {
+      "throughput": "0.5961796488961707775595756607",
+      "ttft_p95": "2.259875456982188005845678439",
+      "ttft_p99": "2.632369212403862852378038734",
+      "tpot_p95": "1.555440091054247024238914206",
+      "tpot_p99": "1.510157748025972307186405420"
+    },
+    "32k_window_max_over_min": {
+      "throughput": "1.369942167429262626054731379",
+      "ttft_p95": "1.442690382417197555566940208",
+      "ttft_p99": "1.446331137542705824092060041",
+      "tpot_p95": "1.101200821873408363930477107",
+      "tpot_p99": "1.068479592759539286824776030"
+    },
+    "32k_b1_requests": 88,
+    "32k_b1_failed": 0,
+    "limits": {
+      "tpot_p95": "1.25",
+      "tpot_p99": "1.25",
+      "ttft_p95": "2.00",
+      "ttft_p99": "2.00",
+      "throughput": "1.50"
+    }
+  },
+  "4.4_four_tenant": {
+    "passed": true,
+    "ai_core_mean_percent": "86.94027922693513",
+    "unit_cost_reduction_percent": "65.95423485083623271179208734",
+    "cost_basis": "published_rental"
+  },
+  "producer_source_hashes": {
+    "mods/betterscale/betterscale/models/qwen35/prefill_round_robin.py": "71d8b19cd1fc7b020065a2065a327a156735b5c312d9866edcfc12e45ea6345b",
+    "mods/microflow/hust_prefill_microflow/school028/host-contract.json": "668916cc8067f57f16a51be1941cc084079c649d678f67d62c052a1916fe7449"
+  },
+  "benchmark": {
+    "url": "https://github.com/vLLM-HUST/vllm-hust-benchmark/blob/ccc2240987bd03fa6948fe578d64f2d7e1f3af64/reports/r11-three-model-context-20261125/qwen35-rc4-steady-mixed-1536-4.3.json",
+    "sha256": "0ab33ab2ec3d3870b4980e5b1bec351d266b581a771f148ff7a06e27bf304710"
+  },
+  "source_release": {
+    "url": "https://github.com/vLLM-HUST/vllm-hust-engine/releases/tag/r11-rc4-candidate-20261126",
+    "source_archive": "vllm-hust-r11-rc4-candidate-source.tar.gz",
+    "archive_sha256": "ce34c737de0400c31b16ee65bd8a1129ab509d1749b3645b416cf1ecedb33ef8",
+    "bytes": 53752,
+    "requires_project_repository_access": true
+  }
+}
