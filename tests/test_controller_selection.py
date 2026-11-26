@@ -1,6 +1,7 @@
 import argparse
 import unittest
 from benchmark import unified_run
+from benchmark.control_plane import ControllerPlan
 
 
 class ControllerSelection(unittest.TestCase):
@@ -33,6 +34,19 @@ class ControllerSelection(unittest.TestCase):
                     self.assertEqual(plan.describe()["controllers"], list(names))
                     self.assertEqual(plan.program_release, throttled)
                     self.assertEqual(plan.endpoints, ["http://control:9002" if throttled else "http://engine:8000"])
+
+    def test_managed_throttling_defaults_to_program_ingress(self):
+        args = argparse.Namespace(route=None, controllers=["request-throttling-managed"],
+                                  controller_config=None)
+        spec = {"endpoint": "http://controller"}
+        site = {"ride": {"management_endpoint": "http://manager", "controllers": {
+            "request-throttling-managed": spec}}}
+        result = ControllerPlan.resolve(args, site, ["http://engine"])
+        self.assertTrue(result.program_release)
+        self.assertEqual(result.endpoints, ["http://controller"])
+        spec["client_protocol"] = None
+        with self.assertRaisesRegex(ValueError, "program-release"):
+            ControllerPlan.resolve(args, site, ["http://engine"])
 
     def test_new_policy_uses_existing_contract(self):
         self.assertEqual(self.plan("future-policy").describe()["route"], "direct")

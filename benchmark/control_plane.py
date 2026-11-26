@@ -64,7 +64,10 @@ class ControllerPlan:
             if not endpoint or endpoint in occupied:
                 raise ValueError(f"Missing or conflicting endpoint for {name}")
             occupied.add(endpoint)
-            protocol = spec.pop("client_protocol", "program-release" if name == "request-throttling" else None)
+            is_throttling = name in ("request-throttling", "request-throttling-managed")
+            protocol = spec.pop("client_protocol", "program-release" if is_throttling else None)
+            if is_throttling and protocol != "program-release":
+                raise ValueError("The request throttling controller requires program-release")
             if protocol is not None:
                 if protocol != "program-release" or ingress:
                     raise ValueError("Unsupported or ambiguous inference endpoint protocol")
