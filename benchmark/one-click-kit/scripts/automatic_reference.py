@@ -285,11 +285,24 @@ def execute(out, admission):
                 if plan.get("observation_reuse"):
                     command += ["--http-source", plan["observation_reuse"]["source"]]
                 print("THIRD_PARTY_REFERENCE", stage["id"], flush=True)
-                with (folder / ("final-stage-" + phase + ".log")).open("x") as log:
+                log_path = folder / ("final-stage-" + phase + ".log")
+                with log_path.open("x") as log:
                     execution = run_stage(command, stdout=log, stderr=subprocess.STDOUT)
-                if execution.returncode:
-                    raise ValueError("Complete reference stage failed: " + stage["id"])
                 receipt = folder / ("final-stage-" + phase + ".json")
+                if execution.returncode:
+                    row.update(returncode=execution.returncode,
+                        log=str(log_path.relative_to(out)), log_sha256=sha(log_path))
+                    detail = f"exit {execution.returncode}; see {row['log']}"
+                    try:
+                        value = json.loads(receipt.read_bytes())
+                    except (OSError, ValueError):
+                        value = None
+                    if (isinstance(value, dict) and value.get("completed") is False
+                            and value.get("stage") == phase and value.get("plan_sha256") == admission["plan_sha256"]
+                            and isinstance(value.get("failure_type"), str) and isinstance(value.get("failure"), str)):
+                        row.update(receipt=str(receipt.relative_to(out)), receipt_sha256=sha(receipt))
+                        detail = f"{value['failure_type']}: {value['failure']}"
+                    raise ValueError(f"Complete reference stage failed ({stage['id']}): {detail}")
                 value = json.loads(receipt.read_bytes())
                 if value["completed"] is not True:
                     raise ValueError("Complete reference provider did not close: " + stage["id"])

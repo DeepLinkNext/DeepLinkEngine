@@ -8,6 +8,7 @@ Two entry styles share the same controller:
     python3 one_click.py --engine-profile r6 --model ... --out ...   (direct arguments)
 
 The dashboard subcommand reads existing reports without invoking the controller.
+The reference-9b subcommand resumes the sealed original018/r11 RC4 submission.
 
 MMLU-Pro uses the frozen200 subset of source test12032, not the official full
 test. Generation seed0 is not a sampling seed. See protocols/mmlu-fixed200.json.
@@ -459,6 +460,10 @@ def status_command(arguments):
 
 def main(argv=None):
     args = list(sys.argv[1:] if argv is None else argv)
+    if args and args[0] == "reference-9b":
+        from reference_9b import main as reference_9b
+
+        return reference_9b(args[1:])
     if args and args[0] == "dashboard":
         from acceptance_dashboard import main as dashboard_main
 

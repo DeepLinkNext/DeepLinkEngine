@@ -2,6 +2,7 @@
 
 import json
 from pathlib import Path
+import subprocess
 import sys
 from types import SimpleNamespace
 
@@ -154,11 +155,18 @@ def test_default_builds_and_executes_automatic_stages_without_manual_plan(tmp_pa
     assert (out / "compute-reference/automatic-result.json").is_file()
 
 
-def test_missing_source_certificate_after_successful_model_clocks_cannot_produce_efficiency(tmp_path, monkeypatch):
+@pytest.mark.parametrize("provider_started", [False, True])
+def test_missing_source_certificate_after_successful_model_clocks_cannot_produce_efficiency(
+    tmp_path, monkeypatch, provider_started
+):
     args, frozen, out = fixture(tmp_path)
     args.reference_profile = "full-answer-v1"
     def stage(command, **kwargs):
         if "--stage" in command:
+            if provider_started:
+                # Fail the real provider's first check without taking a device lease.
+                Path(command[command.index("--plan") + 1]).write_text("{}")
+                return subprocess.run(command, **kwargs)
             return SimpleNamespace(returncode=2)
         return fake_stage(command, **kwargs)
     monkeypatch.setattr(automatic, "run_stage", stage)
@@ -170,6 +178,14 @@ def test_missing_source_certificate_after_successful_model_clocks_cannot_produce
     assert not result["full_model_certificate"]
     assert result["efficiency_lower_observed_percent"] is None
     assert not target(result)["accepted"]
+    failed, = [row for row in result["stages"] if row["status"] == "failed"]
+    assert failed["id"] == "complete-current-necessary-work"
+    assert sha(out / failed["log"]) == failed["log_sha256"]
+    if provider_started:
+        assert sha(out / failed["receipt"]) == failed["receipt_sha256"]
+        assert "Final reference provider plan differs from the automatic admission" in result["blockers"][0]
+    else:
+        assert "exit 2" in result["blockers"][0]
 
 
 def test_performance_only_does_not_schedule_operator_reference(tmp_path):

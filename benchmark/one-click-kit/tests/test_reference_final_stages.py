@@ -10,10 +10,11 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 from reference_final_stages import (
     dense_request,
+    resolve_dense_calibration,
     validate_native_timing,
     release_owned_model_artifact_cache,
 )
-from dataset_contract import sha
+from dataset_contract import save, sha
 
 
 def inputs():
@@ -198,6 +199,93 @@ def test_canonical_reuse_rejects_relaxed_or_historical_protocol(tmp_path, field)
     plan[field] = True if field.endswith(("relaxed", "reused")) else "b" * 64
     with pytest.raises(ValueError, match="sampler bytes or protocol identity"):
         validate_canonical_program(tmp_path, prepared, row, plan)
+
+
+def seal_dense_samples(source, request, physical_cards, versions, python):
+    """CPU fixture for orchestration. Time samples below are synthetic."""
+    from canonical_protocol import prepare
+    from canonical_results import audit
+
+    source.mkdir()
+    sampler = source / "sampler"
+    prep = prepare(sampler, "dense", request["cases"], request["source_bindings"])
+    plan = sampler / prep["plan"]
+    raw = sampler / prep["output"]
+    raw.mkdir()
+    for rank in (0, 1):
+        cases = []
+        for case in request["cases"]:
+            samples = [dict(repetition=i, replays=100, device_ms=4 + rank,
+                host_seconds=1, start_wall=2, end_wall=3) for i in range(5)]
+            cases.append(dict(case=case["case"], shape=case, check=dict(close=True, finite=True), timings=samples))
+        save(raw / f"rank-{rank}.json", dict(rank=rank, status="qualified_component_timings",
+            plan_sha256=sha(plan), cases=cases))
+    save(source / "request.json", request)
+    save(source / "receipt.json", dict(complete=True, quiescent=True, model_loaded=False,
+        request_sha256=sha(source / "request.json")))
+    save(source / "mapping.json", dict(physical_cards=physical_cards, logical_cards=physical_cards))
+    save(source / "dependencies.json", dict(python=python, metadata=versions, native_packages_imported=False))
+    save(source / "component-timings.json", audit(raw, plan, physical_cards))
+    reseal_dense_samples(source)
+
+
+def reseal_dense_samples(source):
+    save(source / "checksums.json", {str(p.relative_to(source)): sha(p) for p in source.rglob("*")
+         if p.is_file() and p.name != "checksums.json"})
+
+
+@pytest.mark.parametrize("omit", [None, 1, "corrupt"])
+def test_dense_calibration_only_dispatches_absent_exact_shapes(tmp_path, monkeypatch, omit):
+    import reference_final_stages as stages
+
+    sdk = tmp_path / "sdk"
+    contract = sdk / "mods/microflow/hust_prefill_microflow/school028"
+    contract.mkdir(parents=True)
+    versions = {"torch": "CPU fixture"}
+    save(sdk / "deployment.json", dict(python=sys.executable))
+    save(contract / "host-contract.json", dict(versions=versions))
+    physical = [4, 5]
+    plan = dict(deployment=str(sdk), physical_cards=physical, logical_devices="4,5")
+    request = dict(schema="current-canonical-sampler-request/v1", family="dense",
+        source_bindings={"reviewed.py": "a" * 64},
+        cases=[dict(case=i, m=m, n=12288, k=4096) for i, m in enumerate((3, 108))])
+    cache = tmp_path / "retained"
+    seal_dense_samples(cache, request, physical, versions, sys.executable)
+    if omit == 1:
+        save(cache / "case-visibility.json", dict(schema="canonical-dense-cache-visibility/v1", visible_case_ids=[0],
+            request_sha256=sha(cache / "request.json")))
+        reseal_dense_samples(cache)
+    if omit == "corrupt":
+        (cache / "sampler/dense-reference-r2/rank-1.json").write_bytes(b"{}")
+    out = tmp_path / "out"
+    out.mkdir()
+    sampled = []
+
+    def run_sampler(plan, folder, path, source):
+        sample = json.loads(path.read_bytes())
+        sampled.append(sample["cases"])
+        seal_dense_samples(source, sample, physical, versions, sys.executable)
+
+    monkeypatch.setattr(stages, "sample_dense_calibration", run_sampler)
+    if omit == "corrupt":
+        with pytest.raises(ValueError, match="changed or is unsealed"):
+            resolve_dense_calibration(plan, out, request, cache)
+        assert not sampled
+        return
+    result = resolve_dense_calibration(plan, out, request, cache)
+    index = json.loads((out / "canonical-dense-calibration-index.json").read_bytes())
+    assert result["full_model_certificate"] is False
+    assert result["plan_sha256"] == sha(out / "canonical-dense-calibration-index.json")
+    assert [t["case"] for t in result["ranks"][1]["timings"]] == [0, 1]
+    if omit == 1:
+        assert sampled == [[dict(request["cases"][1], case=0)]]
+        assert [row["source_case"] for row in index["assignments"]] == [0, 0]
+        assert [row["source"] for row in index["assignments"]] == ["retained", "sampled"]
+        assert index["new_sampler_invocations"] == 1
+    else:
+        assert not sampled
+        assert [row["source"] for row in index["assignments"]] == ["retained", "retained"]
+        assert index["new_sampler_invocations"] == 0
 
 
 def matched_fixture(root):
