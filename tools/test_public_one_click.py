@@ -70,6 +70,15 @@ class PublicEntryTests(unittest.TestCase):
     def test_published_sources_match_every_inventory_pin(self):
         self.assertEqual(entry.verify_kit()["tools"]["files"], 510)
 
+    def test_sealed_9b_route_uses_the_public_entry_and_frozen_base(self):
+        output = io.StringIO()
+        with patch.object(sys, "path", list(sys.path)), redirect_stdout(output):
+            with self.assertRaises(SystemExit) as result:
+                entry.main(["reference-9b", "--help"])
+        self.assertEqual(result.exception.code, 0)
+        self.assertIn("--conservative-reference-evidence", output.getvalue())
+        self.assertEqual(entry.verify_kit(legacy=True)["tools"]["files"], 510)
+
     def test_changed_source_and_unlisted_source_are_rejected(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
