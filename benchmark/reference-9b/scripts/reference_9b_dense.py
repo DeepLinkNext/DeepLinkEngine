@@ -68,7 +68,7 @@ def sample(private_root, independent, baseline_sdk, sdk, owner, python, contract
     job = Path(mkdtemp(prefix="qwen9b-one-click-dense.", dir=private_root))
     for name in (prepared["sampler"], prepared["plan"]):
         shutil.copyfile(source / "sampler" / name, job / name)
-    kit = Path(__file__).resolve().parents[1] / "third-party-test-kit"
+    kit = Path(__file__).resolve().parents[2] / "one-click-kit/third-party-test-kit"
     shutil.copyfile(kit / "canonical_results.py", job / "canonical_results.py")
     body = driver.read_text(encoding="utf-8").replace(
         '"component_cases":648',

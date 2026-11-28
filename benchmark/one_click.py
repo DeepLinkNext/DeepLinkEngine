@@ -250,6 +250,12 @@ def prepare_baseline(arguments):
 
 def main(arguments=None):
     arguments = list(sys.argv[1:] if arguments is None else arguments)
+    if arguments[:1] == ["reference-9b"]:
+        verify_kit(legacy=True)
+        sys.path[:0] = [str(ROOT / "benchmark/reference-9b/scripts"), str(ROOT / "benchmark/one-click-kit/scripts")]
+        from reference_9b import main as reference_main
+
+        return reference_main(arguments[1:])
     if arguments[:1] == ["native-timing"]:
         from benchmark.native_timing import main as timing_main
 
@@ -323,6 +329,7 @@ def main(arguments=None):
         os.environ["VLLM_HUST_PROJECT_EVIDENCE"] = str(reference_evidence(lock))
         arguments = effective
     if help_only:
+        print("Sealed Qwen3.5-9B reference: benchmark/one_click.py reference-9b --help", flush=True)
         print("Native timing only: benchmark/one_click.py native-timing --help", flush=True)
         print("CPU report: benchmark/one_click.py report --engine-version VERSION --out DIRECTORY", flush=True)
         print("B0 选项：--rerun-b0 强制重跑，--no-rerun-b0 仅复用。默认优先复用，未命中时按阶段补跑。", flush=True)

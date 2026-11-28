@@ -163,3 +163,5 @@ python run_all.py --config evaluation-next.json --reuse-completed-run /path/to/p
 同时指定当前的 `physical_devices` 和已封存的 `--reuse-completed-run`。
 该选项仅用于固定 B0 复用，原卡与当前卡都需为 Ascend 910B2，逻辑卡映射须一致。
 已完成阶段保留原设备与计时，新增阶段使用当前设备。报告标记跨卡比较及其实际设备。
+
+[Qwen3.5-9B 4.1 原件复算](reference-9b/README.md)

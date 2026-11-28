@@ -16,7 +16,6 @@ import sys
 from types import SimpleNamespace
 
 from child_runner import run_stage
-from canonical_dense_cache import merge as merge_dense_cases, missing_cases
 from dataset_contract import save, sha
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -24,7 +23,7 @@ KIT = ROOT / "third-party-test-kit"
 sys.path.insert(0, str(KIT))
 
 from audit_dense_lower_graph import audit as audit_graph
-from canonical_protocol import current_plan, protocol, locations
+from canonical_protocol import protocol, locations
 from canonical_results import audit as audit_calibration
 from dense_lower_graph import compile_graph
 from qualify_dense_source import qualify as qualify_dense
@@ -143,100 +142,19 @@ def dense_request(deployment):
 def calibration(plan, folder, calibration_source=None):
     folder = Path(folder)
     request = dense_request(plan["deployment"])
-    return resolve_dense_calibration(plan, folder, request, calibration_source)
-
-
-def resolve_dense_calibration(plan, folder, request, calibration_source=None, *, run_sampler=None):
-    """Independently audit cached cases, then calibrate only the remaining shapes."""
-    if request["family"] != "dense" or request["schema"] != "current-canonical-sampler-request/v1":
-        raise ValueError("Unknown canonical dense request")
-    current_plan("dense", request["cases"], request["source_bindings"])
-    request_path = folder / "canonical-dense-request.json"
-    save(request_path, request)
-    sources, provenance = [], {}
-
-    def add_source(label, source, seal, raw_request, result, visible=None):
-        if sha(source / "checksums.json") != seal:
-            raise ValueError("Canonical calibration seal changed during admission")
-        sources.append((label, raw_request["cases"], result, visible))
-        provenance[label] = dict(source=str(source), checksums_sha256=seal)
-
-    available = []
-    visible = None
-    if calibration_source is not None:
-        source = Path(calibration_source).resolve()
-        seal = sha(source / "checksums.json")
-        if plan.get("canonical_reuse", {}).get("checksums_sha256", seal) != seal:
-            raise ValueError("Canonical continuation source seal changed")
-        cached = sealed_read(source, "request.json")
-        if (cached["schema"] != request["schema"] or cached["family"] != request["family"]
-                or cached["source_bindings"] != request["source_bindings"]):
-            raise ValueError("Canonical calibration operation or frozen source bindings differ")
-        visibility = "case-visibility.json"
-        if (source / visibility).exists() or visibility in json.loads((source / "checksums.json").read_bytes()):
-            mask = sealed_read(source, visibility)
-            allowed = mask["visible_case_ids"]
-            if (mask.get("schema") != "canonical-dense-cache-visibility/v1"
-                    or mask["request_sha256"] != sha(source / "request.json")
-                    or not isinstance(allowed, list)
-                    or any(type(n) is not int or n not in range(len(cached["cases"])) for n in allowed)
-                    or len(allowed) != len(set(allowed))):
-                raise ValueError("Canonical cache case visibility differs from its audited request")
-            visible = frozenset(allowed)
-        add_source("retained", source, seal, cached, audit_dense_calibration(plan, source, cached), visible)
-        available = cached["cases"]
-    missing = missing_cases(request["cases"], available, visible)
-    selection = folder / "canonical-dense-case-selection.json"
-    save(selection, dict(request_sha256=sha(request_path), matching_key=["m", "n", "k"],
-        retained_case_count=len(request["cases"]) - len(missing), missing_cases=missing))
-    if missing:
-        sample_request = dict(request, cases=missing)
-        sample_path = folder / "canonical-dense-missing-request.json"
-        save(sample_path, sample_request)
-        source = (folder / "canonical-dense").resolve()
-        sampler = run_sampler or sample_dense_calibration
-        sampler(plan, folder, sample_path, source)
-        seal = sha(source / "checksums.json")
-        add_source("sampled", source, seal, sample_request,
-                   audit_dense_calibration(plan, source, sample_request))
-    assignments, ranks = merge_dense_cases(request["cases"], sources, plan["physical_cards"])
-    index = folder / "canonical-dense-calibration-index.json"
-    save(index, dict(schema="qualified-canonical-dense-case-index/v1",
-        selection_sha256=sha(selection), request_sha256=sha(request_path), sources=provenance,
-        assignments=assignments, new_sampler_invocations=int(bool(missing))))
-    result = dict(schema="qualified-canonical-dense-component-timings/v1", family="dense",
-        plan_sha256=sha(index), complete=True, ranks=ranks, full_model_certificate=False,
-        source_program_applicability_certified=False, efficiency_percent=None)
-    save(folder / "qualified-dense-calibration.json", dict(request_sha256=sha(request_path),
-        index_sha256=sha(index), reused=len(missing) < len(request["cases"]), result=result))
-    return result
-
-
-def sample_dense_calibration(plan, folder, request_path, source):
-    command = [sys.executable, "-B", str(ROOT / "scripts/run_canonical_reference.py"),
-        "--deployment", plan["deployment"], "--request", str(request_path),
-        "--out", str(source), "--physical-devices", ",".join(map(str, plan["physical_cards"])),
-        "--devices", plan["logical_devices"], "--lease-timeout", "86400"]
-    with (folder / "canonical-dense.log").open("x") as log:
-        process = run_stage(command, stdout=log, stderr=subprocess.STDOUT)
-    if process.returncode:
-        try:
-            receipt = sealed_read(source, "receipt.json")
-        except (OSError, ValueError, KeyError, TypeError) as error:
-            raise ValueError(
-                f"Exact canonical dense calibration exited {process.returncode}; "
-                f"its terminal receipt could not be verified ({error})"
-            ) from error
-        raise ValueError(
-            f"Exact canonical dense calibration exited {process.returncode}: "
-            f"{receipt.get('failure') or 'terminal receipt has no failure detail'}"
-        )
-
-
-def audit_dense_calibration(plan, source, request):
+    save(folder / "canonical-dense-request.json", request)
+    source = Path(calibration_source) if calibration_source else folder / "canonical-dense"
+    if calibration_source is None:
+        command = [sys.executable, "-B", str(ROOT / "scripts/run_canonical_reference.py"),
+            "--deployment", plan["deployment"], "--request", str(folder / "canonical-dense-request.json"),
+            "--out", str(source), "--physical-devices", ",".join(map(str, plan["physical_cards"])),
+            "--devices", plan["logical_devices"], "--lease-timeout", "86400"]
+        with (folder / "canonical-dense.log").open("x") as log:
+            process = run_stage(command, stdout=log, stderr=subprocess.STDOUT)
+        if process.returncode:
+            raise ValueError("Exact canonical dense calibration failed; raw artifacts retained")
     receipt = sealed_read(source, "receipt.json")
-    if (receipt["complete"] is not True or receipt["quiescent"] is not True
-            or receipt.get("model_loaded") is not False or receipt.get("failure")):
+    if receipt["complete"] is not True or receipt["quiescent"] is not True or receipt.get("failure"):
         raise ValueError("Only a complete quiescent canonical calibration can be used")
     mapping = sealed_read(source, "mapping.json")
     if (mapping["physical_cards"] != plan["physical_cards"]
@@ -244,8 +162,6 @@ def audit_dense_calibration(plan, source, request):
         raise ValueError("Canonical calibration belongs to another physical/logical device pair")
     if sealed_read(source, "request.json") != request:
         raise ValueError("Canonical calibration source/shape request differs")
-    if receipt.get("request_sha256") != sha(source / "request.json"):
-        raise ValueError("Canonical calibration receipt does not bind its exact request")
     preparation = sealed_read(source, "sampler/preparation.json")
     # Re-audit all original independent samples and numerical checks.
     row, _ = protocol("dense")
@@ -259,9 +175,11 @@ def audit_dense_calibration(plan, source, request):
             or dependencies["metadata"] != contract["versions"]
             or dependencies["native_packages_imported"] is not False):
         raise ValueError("Canonical reference dependency domain differs from the frozen SDK")
-    expected, _ = current_plan("dense", request["cases"], request["source_bindings"])
-    if raw_plan != expected:
-        raise ValueError("Canonical sampler plan differs from its exact source shapes or original controls")
+    if raw_plan["cases"] != request["cases"] or raw_plan["current_source_sha256"] != request["source_bindings"]:
+        raise ValueError("Canonical sampler plan differs from current source shapes")
+    for key, value in row["controls"].items():
+        if raw_plan[key] != value:
+            raise ValueError("Original canonical numerical/statistical control changed: " + key)
     # Audit raw result identities against the containing stage seal first.
     for rank in (0, 1):
         sealed_read(source, "sampler/" + preparation["output"] + f"/rank-{rank}.json")
@@ -269,6 +187,9 @@ def audit_dense_calibration(plan, source, request):
         source / "sampler" / row["original_plan"], plan["physical_cards"])
     if result != sealed_read(source, "component-timings.json"):
         raise ValueError("Canonical component medians do not independently reproduce")
+    save(folder / "qualified-dense-calibration.json", dict(source=str(source.resolve()),
+        checksums_sha256=sha(source / "checksums.json"), reused=calibration_source is not None,
+        request_sha256=sha(folder / "canonical-dense-request.json"), result=result))
     return result
 
 
@@ -301,16 +222,7 @@ def graphs(plan, folder):
         necessary = json.loads((folder / "necessary-work-audit.json").read_bytes())
         return audit(plan, folder, native_sources(necessary["model_source"]))
     calibrated = json.loads((folder / "qualified-dense-calibration.json").read_bytes())
-    request_path = folder / "canonical-dense-request.json"
-    request = json.loads(request_path.read_bytes())
-    if calibrated["result"].get("schema") == "qualified-canonical-dense-component-timings/v1":
-        index_path = folder / "canonical-dense-calibration-index.json"
-        index = json.loads(index_path.read_bytes())
-        if (sha(index_path) != calibrated["index_sha256"]
-                or calibrated["result"]["plan_sha256"] != calibrated["index_sha256"]
-                or index["request_sha256"] != sha(request_path)
-                or index["selection_sha256"] != sha(folder / "canonical-dense-case-selection.json")):
-            raise ValueError("Qualified canonical dense case index changed before graph audit")
+    request = json.loads((folder / "canonical-dense-request.json").read_bytes())
     necessary_audit = json.loads((folder / "necessary-work-audit.json").read_bytes())
     result = {}
     for role in ("B0", "B1"):
@@ -485,7 +397,16 @@ def matched_pair(plan, folder, model_source=None):
     return result
 
 
-def run(args):
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--stage", choices=("necessary", "calibration", "graphs", "matched"), required=True)
+    parser.add_argument("--plan", type=Path, required=True)
+    parser.add_argument("--sha256", required=True)
+    parser.add_argument("--folder", type=Path, required=True)
+    parser.add_argument("--model-source", type=Path)
+    parser.add_argument("--http-source", type=Path)
+    parser.add_argument("--calibration-source", type=Path)
+    args = parser.parse_args()
     if sha(args.plan) != args.sha256:
         raise ValueError("Final reference provider plan differs from the automatic admission")
     plan = json.loads(args.plan.read_bytes())
@@ -493,7 +414,7 @@ def run(args):
         if sha(Path(name)) != expected:
             raise ValueError("Final reference provider source changed: " + name)
     full_reuse = plan.get("capture_profile", {}).get("id") == "submission-v2"
-    if args.stage == "calibration" and not full_reuse:
+    if args.stage == "calibration" and args.calibration_source is None and not full_reuse:
         result = calibration(plan, args.folder, args.calibration_source)
     else:
         # Large CPU raw-record reads must not compete with another model's
@@ -508,9 +429,12 @@ def run(args):
             leases = acquire(guard, 86400)
             cleanup.callback(release, leases)
             if args.stage == "calibration":
-                from full_reference_reuse import prepare
+                if full_reuse:
+                    from full_reference_reuse import prepare
 
-                result = prepare(args.folder)
+                    result = prepare(args.folder)
+                else:
+                    result = calibration(plan, args.folder, args.calibration_source)
             elif args.stage == "necessary":
                 result = necessary(plan, args.folder, args.model_source, args.http_source)
                 release_owned_model_artifact_cache(args.folder, args.model_source, args.http_source)
@@ -518,27 +442,7 @@ def run(args):
                 result = graphs(plan, args.folder)
             else:
                 result = matched_pair(plan, args.folder, args.model_source)
-    return result
-
-
-def main():
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--stage", choices=("necessary", "calibration", "graphs", "matched"), required=True)
-    parser.add_argument("--plan", type=Path, required=True)
-    parser.add_argument("--sha256", required=True)
-    parser.add_argument("--folder", type=Path, required=True)
-    parser.add_argument("--model-source", type=Path)
-    parser.add_argument("--http-source", type=Path)
-    parser.add_argument("--calibration-source", type=Path)
-    args = parser.parse_args()
-    receipt = args.folder / ("final-stage-" + args.stage + ".json")
-    try:
-        result = run(args)
-    except (OSError, ValueError, KeyError, TypeError, RuntimeError, subprocess.SubprocessError) as error:
-        save(receipt, dict(completed=False, stage=args.stage, plan_sha256=args.sha256,
-            failure_type=type(error).__name__, failure=str(error)))
-        raise
-    save(receipt, dict(completed=True, result=result))
+    save(args.folder / ("final-stage-" + args.stage + ".json"), dict(completed=True, result=result))
 
 
 if __name__ == "__main__":

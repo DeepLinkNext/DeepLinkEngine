@@ -218,7 +218,7 @@ def qualify(folder, evidence, reference):
     graph = read(member(folder, projection["replay_file"], projection["replay_sha256"]))
     required(set(graph["arms"]) == set(reference["native_target_kv_logical_evidence"]) == {"B0","B1"},
              "Both original arms and all logical dependency ledgers are required")
-    method = Path(__file__).resolve().parents[1] / "protocols/m01-confirmed-reference-method.md"
+    method = Path(__file__).resolve().parents[2] / "one-click-kit/protocols/m01-confirmed-reference-method.md"
     files = {name:member(evidence,name,pin) for name,pin in PANELS.items()}
     data = {name:read(path) for name,path in files.items()}
     host = {role:host_lookup(data[name],role) for role,name in
